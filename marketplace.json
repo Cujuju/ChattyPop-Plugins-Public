@@ -112,6 +112,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "plans",
+      "name": "Plans & decisions",
+      "description": "Jev spots plans and decisions in messages; your AI provider extracts the details for the Plans & decisions panel.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "plans-v1.0.0",
+          "asset": "plans-1.0.0.tar.gz",
+          "sha256": "1927b8d6aa44662c897a782b0aab9f0c6e637ced4699abd57ec104f5970fca30",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
