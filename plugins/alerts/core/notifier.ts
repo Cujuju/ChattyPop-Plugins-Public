@@ -1,9 +1,11 @@
-// Desktop notifications for new alerts and the debounced alerts-changed event: the one notifier every rule's Alert uses.
+// Notifications for new alerts, per device, and the debounced alerts-changed event: the one notifier every rule's Alert uses.
 import type { ArchivePayloadReader } from '@plugin-sdk/core';
-import { isLive, type LiveAt, type PluginDb, type PluginDecider } from '@plugin-sdk/core';
-import type { AlertItem } from '../shared/types';
+import { isLive, notificationMuted, type LiveAt, type PluginDb, type PluginDecider } from '@plugin-sdk/core';
+import { NOTIFY_DEVICES, type AlertDelivery, type AlertItem, type HeldReason, type NotifyDevice } from '../shared/types';
 import { isRepeat } from './dedupe';
 import { alertItems } from './queries';
+import { HELD_COLUMN } from './schema';
+import { ALERTS } from './tables';
 
 /** Coalesces bursts of new alerts into one event. */
 export const ALERT_EVENT_DEBOUNCE_MS = 250;
@@ -11,27 +13,29 @@ export const ALERT_EVENT_DEBOUNCE_MS = 250;
 /** An alert an Alert action stored for this check, awaiting the notify decision (Jev's urgency answer may come later). */
 export interface Fresh {
   ruleId: number;
-  /** The rule's Alert action; its cooldown is kept per action. */
+  /** The rule's Alert action; its cooldowns are kept per action and device. */
   actionId: string;
   alertId: number;
   liveAt: LiveAt;
-  /** null: the action never notifies. */
-  cooldownMs: number | null;
+  /** Each device's cooldown; null: the action never notifies it. */
+  cooldowns: Record<NotifyDevice, number | null>;
 }
 
-/** When each rule's Alert action last notified, by `rule:action`: kept for the core process, so off/on keeps cooldowns. */
+/** When each rule's Alert action last notified each device, by `rule:action:device`: kept for the core process, so off/on keeps cooldowns. */
 export type AlertCooldowns = Map<string, number>;
 
+const cooldownKey = (f: Fresh, device: NotifyDevice): string => `${f.ruleId}:${f.actionId}:${device}`;
+
 export class AlertNotifier {
-  /** Alerts to notify with the next event, by id: each is read again then, so one hidden or read meanwhile drops out. */
-  private pendingNotify: number[] = [];
+  /** Alerts to notify with the next event and their devices: each is read again then, so one hidden or read meanwhile drops out. */
+  private pendingNotify: { id: number; devices: NotifyDevice[] }[] = [];
   private disposed = false;
   private pendingEvent: NodeJS.Timeout | undefined;
 
   constructor(
     private readonly db: PluginDb,
     private readonly payloads: ArchivePayloadReader,
-    private readonly emit: (notify: AlertItem[]) => void,
+    private readonly emit: (notify: AlertDelivery[]) => void,
     private readonly jevFor: (feature: 'dedupeAlerts') => PluginDecider | null,
     private readonly lastNotified: AlertCooldowns = new Map(),
   ) {}
@@ -46,7 +50,7 @@ export class AlertNotifier {
   /** `urgent` null = not asked or no answer: every due alert notifies, as without Jev. */
   notifyAll(fresh: Fresh[], urgent: boolean | null): void {
     if (this.disposed) return;
-    if (urgent !== false) for (const f of fresh) this.notifyIfDue(f);
+    for (const f of fresh) this.notifyIfDue(f, urgent);
     this.changed();
   }
 
@@ -54,10 +58,13 @@ export class AlertNotifier {
   changed(): void {
     if (this.disposed) return;
     this.pendingEvent ??= setTimeout(() => {
-      const ids = this.pendingNotify;
+      const queued = this.pendingNotify;
       this.pendingNotify = [];
       this.pendingEvent = undefined;
-      this.emit(ids.flatMap((id) => this.deliverable(id) ?? []));
+      this.emit(queued.flatMap(({ id, devices }) => {
+        const alert = this.deliverable(id);
+        return alert ? [{ alert, devices }] : [];
+      }));
     }, ALERT_EVENT_DEBOUNCE_MS);
   }
 
@@ -67,24 +74,37 @@ export class AlertNotifier {
     return item && item.readAt === null ? item : null;
   }
 
+  /** Records why `devices` were not notified of alert `id`, for the inbox to show (#233). */
+  private hold(id: number, devices: NotifyDevice[], reason: HeldReason): void {
+    for (const d of devices) this.db.prepare(`UPDATE ${ALERTS} SET ${HELD_COLUMN[d]} = ? WHERE id = ?`).run(reason, id);
+  }
+
   /**
-   * Queues a desktop notification when the action notifies, the message is live, the alert unread and visible (privacy
-   * mode), the action has cooled down, and (#55) Jev doesn't find it repeats the rule's last alert.
+   * Queues a notification to each device the action notifies when the message is live, the alert unread and visible
+   * (privacy mode), its place not muted, Jev doesn't find it not urgent, the device's cooldown has passed, and (#55) Jev
+   * doesn't find it repeats the rule's last alert. Muted, not urgent and cooldown are recorded on the alert.
    */
-  private notifyIfDue(f: Fresh): void {
-    if (f.cooldownMs === null || !isLive(f.liveAt)) return;
-    const key = `${f.ruleId}:${f.actionId}`;
+  private notifyIfDue(f: Fresh, urgent: boolean | null): void {
+    const devices = NOTIFY_DEVICES.filter((d) => f.cooldowns[d] !== null);
+    if (!devices.length || !isLive(f.liveAt)) return;
+    const alert = this.deliverable(f.alertId);
+    if (!alert) return;
+    // Checked here, not only by the host: a burst merges alerts into one notice, which names one place.
+    if (notificationMuted(this.db, alert.channelId)) return this.hold(f.alertId, devices, 'muted');
+    if (urgent === false) return this.hold(f.alertId, devices, 'notUrgent');
     const now = Date.now();
-    if (!this.deliverable(f.alertId) || now - (this.lastNotified.get(key) ?? 0) < f.cooldownMs) return;
-    this.lastNotified.set(key, now);
+    const due = devices.filter((d) => now - (this.lastNotified.get(cooldownKey(f, d)) ?? 0) >= f.cooldowns[d]!);
+    this.hold(f.alertId, devices.filter((d) => !due.includes(d)), 'cooldown');
+    if (!due.length) return;
+    for (const d of due) this.lastNotified.set(cooldownKey(f, d), now);
     const jev = this.jevFor('dedupeAlerts');
     if (!jev) {
-      this.pendingNotify.push(f.alertId);
+      this.pendingNotify.push({ id: f.alertId, devices: due });
       return;
     }
     void isRepeat(this.db, jev, f.ruleId, f.alertId, () => !this.disposed).then((repeat) => {
       if (this.disposed) return;
-      if (!repeat) this.pendingNotify.push(f.alertId);
+      if (!repeat) this.pendingNotify.push({ id: f.alertId, devices: due });
       this.changed();
     });
   }

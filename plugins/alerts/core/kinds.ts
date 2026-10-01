@@ -2,6 +2,8 @@
 import { userNames } from '@plugin-sdk/shared';
 import { queryMatch, queryRequest, type CoreContext, type ReplyTarget, type TextMessage } from '@plugin-sdk/core';
 import { plugin } from '../shared';
+import { NOTIFY_DEVICES } from '../shared/types';
+import { notifyDevices, type NotifyConfig } from '../shared/rules';
 import type { AlertNotifier, Fresh } from './notifier';
 import { INSERT_ALERT, alertText, hasReply, snippet } from './rows';
 import { reconcileAlertHistory } from './reconcile';
@@ -12,6 +14,12 @@ import { OPEN_QUESTIONS } from './managed';
 const SUBJECT = { aimed: 'aimed', question: 'question', urgency: 'urgency' } as const;
 /** Settings → Jev → Queries ids of the built-in alert queries. */
 const QUERY = { aimed: 'alerts.aimed', question: 'alerts.openQuestion', urgency: 'alerts.urgency' } as const;
+
+/** An Alert's cooldown per device; null where it never notifies. */
+const deviceCooldowns = (c: NotifyConfig): Fresh['cooldowns'] => {
+  const devices = notifyDevices(c);
+  return Object.fromEntries(NOTIFY_DEVICES.map((d) => [d, devices[d]?.cooldownMs ?? null])) as Fresh['cooldowns'];
+};
 
 /** Registers alert matches, recording, invalidation and event settlement. Returns a pending-event count reader for lifecycle diagnostics. */
 export function registerAlertKinds(ctx: CoreContext<typeof plugin>, notifier: AlertNotifier, now: () => number): () => number {
@@ -81,7 +89,7 @@ export function registerAlertKinds(ctx: CoreContext<typeof plugin>, notifier: Al
         actionId: r.actionId,
         alertId: Number(info.lastInsertRowid),
         liveAt,
-        cooldownMs: c.toast?.cooldownMs ?? null,
+        cooldowns: deviceCooldowns(c),
       });
       pending.set(r.event.eventId, fresh);
     }

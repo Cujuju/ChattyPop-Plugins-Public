@@ -1,11 +1,21 @@
 // Alert rule declarations, kept together for extraction into the Alerts plugin.
-import { DEFAULT_ALERT_COOLDOWN_MS } from './types';
+import { DEFAULT_ALERT_COOLDOWN_MS, NOTIFY_DEVICES, type NotifyDevice } from './types';
 import { AFTER_MESSAGE, type RuleActionKind, type RuleSpec, type RuleMatchKind } from '@plugin-sdk/shared';
 
-/** An entry in Alerts; toast enables live desktop notifications at most once per cooldown, or null disables them. */
+/** A device's notifications from one Alert: at most once per cooldown, or null for none. */
+export type DeviceNotify = { cooldownMs: number } | null;
+
+/** An entry in Alerts; `toast` notifies this PC, `phone` the paired phones. Saved before phones had their own: follows `toast`. */
 export interface NotifyConfig {
-  toast: { cooldownMs: number } | null;
+  toast: DeviceNotify;
+  phone?: DeviceNotify;
 }
+
+/** An Alert's notifications by device. */
+export const notifyDevices = (c: NotifyConfig): Record<NotifyDevice, DeviceNotify> => ({
+  desktop: c.toast,
+  phone: c.phone === undefined ? c.toast : c.phone,
+});
 
 /** Records an alert at match time, including read history for older messages. */
 export const notify: RuleActionKind<NotifyConfig, 'alerts.notify'> = {
@@ -14,12 +24,13 @@ export const notify: RuleActionKind<NotifyConfig, 'alerts.notify'> = {
   defaultForNewRule: true,
   before: 'summaries.summarize',
   label: 'Alert',
-  hint: 'An entry in Alerts, and optionally a desktop notification.',
+  hint: 'An entry in Alerts, and optionally a notification on this PC and your phones.',
   phase: 'match',
   history: true,
-  create: () => ({ toast: { cooldownMs: DEFAULT_ALERT_COOLDOWN_MS } }),
+  create: () => ({ toast: { cooldownMs: DEFAULT_ALERT_COOLDOWN_MS }, phone: { cooldownMs: DEFAULT_ALERT_COOLDOWN_MS } }),
   validate(c) {
-    if (c.toast && !(c.toast.cooldownMs >= 0)) throw new Error('Pick how often the rule may notify.');
+    const devices = notifyDevices(c);
+    if (NOTIFY_DEVICES.some((d) => devices[d] && !(devices[d].cooldownMs >= 0))) throw new Error('Pick how often the rule may notify.');
   },
 };
 

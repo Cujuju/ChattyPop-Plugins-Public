@@ -2,7 +2,7 @@
 import { defineChannels, definePlugin, definePreference, integersOr } from '@plugin-sdk/shared';
 import { aimed, notify, openQuestion, managedMatch } from './rules';
 import { ALERT_FEATURES, ALERT_QUERIES } from './queries';
-import type { AlertItem, AlertQuery } from './types';
+import type { AlertDelivery, AlertItem, AlertQuery } from './types';
 
 /** Core calls shared by the desktop inbox and phone section. */
 export interface AlertsCoreCalls {
@@ -26,10 +26,10 @@ export const decodeMarkRead = ([alertIds, ruleIds]: readonly unknown[]): Paramet
   ruleIds === undefined ? undefined : ids(ruleIds, 'rule'),
 ];
 
-/** A burst updates the inbox; main delivers only the alerts selected by core. */
+/** A burst updates the inbox; main delivers only the alerts selected by core, to the devices core chose. */
 export interface AlertsEvents {
   changed: null;
-  notify: AlertItem[];
+  notify: AlertDelivery[];
 }
 
 /** Shared declarations retain rule types, query ids and managed-rule identities. */
@@ -40,7 +40,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'alerts',
     name: 'Alerts',
-    version: '1.0.0',
+    version: '1.1.0',
     description: 'A rule-driven inbox, unread badges and notifications for messages that need your attention.',
   },
   channels: defineChannels<{

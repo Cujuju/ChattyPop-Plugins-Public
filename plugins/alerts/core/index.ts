@@ -3,6 +3,7 @@ import { defineCorePlugin, type CoreContext } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { AlertNotifier, type AlertCooldowns } from './notifier';
 import { registerAlertKinds } from './kinds';
+import { ALERT_MIGRATIONS } from './schema';
 import { builtinRules } from './managed';
 import { alertItems, markAlertsRead, unreadCounts } from './queries';
 
@@ -12,6 +13,7 @@ const cooldowns: AlertCooldowns = new Map();
 /** Registers Alerts and exposes its pending count for lifecycle diagnostics. */
 export function activateAlerts(ctx: CoreContext<typeof plugin>, now: () => number = Date.now, session: AlertCooldowns = cooldowns) {
   const db = ctx.storage.db;
+  ctx.storage.migrate(ALERT_MIGRATIONS);
   const notifier = new AlertNotifier(
     db,
     ctx.archive.payloads,

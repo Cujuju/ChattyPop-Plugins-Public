@@ -1,22 +1,20 @@
 // Reconcile persisted inbox state after rule edits, activation and kind availability changes.
 import { questionSignature, type CoreContext } from '@plugin-sdk/core';
-import { pluginTable } from '@plugin-sdk/shared';
 import { plugin } from '../shared';
 import { ALERTS } from './tables';
+import { RULE_QUESTIONS } from './schema';
 import { syncHistory } from './history';
 
 /** Persisted signatures survive periods when Alerts cannot receive rule events; history ones only a gapless restart. */
 export function reconcileAlertHistory(ctx: CoreContext<typeof plugin>, changed: () => void): () => void {
   const db = ctx.storage.db;
-  const signatures = pluginTable(plugin, 'rule_questions');
-  ctx.storage.migrate([`CREATE TABLE ${signatures} (rule_id INTEGER PRIMARY KEY, signature TEXT NOT NULL, history_signature TEXT)`]);
   // After a gap, rules ran while Alerts couldn't record their matches: every rule's history is synced again.
-  if (!ctx.session.resumed) db.prepare(`UPDATE ${signatures} SET history_signature = NULL`).run();
+  if (!ctx.session.resumed) db.prepare(`UPDATE ${RULE_QUESTIONS} SET history_signature = NULL`).run();
   return () => {
     const rows = ctx.rules.read();
     db.transaction(() => {
-      const read = db.prepare(`SELECT signature, history_signature FROM ${signatures} WHERE rule_id = ?`);
-      const save = db.prepare(`INSERT INTO ${signatures} (rule_id, signature) VALUES (?, ?)
+      const read = db.prepare(`SELECT signature, history_signature FROM ${RULE_QUESTIONS} WHERE rule_id = ?`);
+      const save = db.prepare(`INSERT INTO ${RULE_QUESTIONS} (rule_id, signature) VALUES (?, ?)
         ON CONFLICT(rule_id) DO UPDATE SET signature = excluded.signature`);
       for (const row of rows) {
         const signature = questionSignature(row.spec);
@@ -32,9 +30,9 @@ export function reconcileAlertHistory(ctx: CoreContext<typeof plugin>, changed: 
         const historySignature = history ? JSON.stringify(row.spec) : null;
         if (old?.history_signature === historySignature) continue;
         if (history) syncHistory(db, row.id, history);
-        db.prepare(`UPDATE ${signatures} SET history_signature = ? WHERE rule_id = ?`).run(historySignature, row.id);
+        db.prepare(`UPDATE ${RULE_QUESTIONS} SET history_signature = ? WHERE rule_id = ?`).run(historySignature, row.id);
       }
-      db.prepare(`DELETE FROM ${signatures} WHERE rule_id NOT IN (SELECT value FROM json_each(?))`)
+      db.prepare(`DELETE FROM ${RULE_QUESTIONS} WHERE rule_id NOT IN (SELECT value FROM json_each(?))`)
         .run(JSON.stringify(rows.map((row) => row.id)));
     })();
     changed();

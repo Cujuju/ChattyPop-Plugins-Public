@@ -2,7 +2,7 @@
 import { For, Show, createMemo } from 'solid-js';
 import { avatarUrl } from '@plugin-sdk/shared';
 import { MS_PER_DAY, MS_PER_HOUR, MS_PER_MIN } from '@plugin-sdk/shared';
-import type { AlertItem } from '../shared/types';
+import { NOTIFY_DEVICES, type AlertItem, type HeldReason, type NotifyDevice } from '../shared/types';
 import {
   alertSort,
   alerts,
@@ -39,6 +39,24 @@ function age(ts: number): string {
   if (ms < MS_PER_HOUR) return `${Math.floor(ms / MS_PER_MIN)}m`;
   if (ms < MS_PER_DAY) return `${Math.floor(ms / MS_PER_HOUR)}h`;
   return shortDate(ts);
+}
+
+const HELD_LABEL: Record<HeldReason, string> = { cooldown: 'cooldown', notUrgent: 'not urgent', muted: 'muted' };
+const HELD_WHY: Record<HeldReason, string> = {
+  cooldown: "within the rule's notification cooldown",
+  notUrgent: 'Jev judged it not urgent',
+  muted: 'its server or channel is muted',
+};
+const DEVICE_NAME: Record<NotifyDevice, string> = { desktop: 'Windows', phone: 'phone' };
+
+/** #233: why devices the rule notifies were not notified of `a`; null when none was held back. */
+function heldNote(a: AlertItem): { label: string; title: string } | null {
+  const held = NOTIFY_DEVICES.flatMap((d) => (a.held[d] ? [{ d, reason: a.held[d] }] : []));
+  if (!held.length) return null;
+  return {
+    label: `not sent: ${[...new Set(held.map((h) => HELD_LABEL[h.reason]))].join(', ')}`,
+    title: `Not notified: ${held.map((h) => `${DEVICE_NAME[h.d]}, ${HELD_WHY[h.reason]}`).join('; ')}`,
+  };
 }
 
 /** A rule's heading when alerts are grouped by rule. */
@@ -174,6 +192,13 @@ function AlertRow(props: { a: AlertItem }) {
                 <span class={`cp-micro-tag ${styles.tag} ${look.tag}`} title="A repeat of an earlier alert: not notified">
                   repeat
                 </span>
+              </Show>
+              <Show when={heldNote(a)}>
+                {(held) => (
+                  <span class={`cp-micro-tag ${styles.tag} ${look.tag}`} title={held().title}>
+                    {held().label}
+                  </span>
+                )}
               </Show>
               <time class={`${styles.age} ${look.text}`} data-tone="muted" dateTime={new Date(a.ts).toISOString()}>
                 {age(a.ts)}

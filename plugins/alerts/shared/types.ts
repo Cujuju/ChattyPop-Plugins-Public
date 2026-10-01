@@ -26,6 +26,22 @@ export interface AlertItem {
   probability: number | null;
   /** #55: the earlier alert Jev judged this one repeats (no notification); null otherwise. */
   duplicateOf: number | null;
+  /** Why each device its rule notifies was not notified of it; null: notified, or not one its rule notifies. */
+  held: Record<NotifyDevice, HeldReason | null>;
+}
+
+/** Where a rule's Alert can notify: this PC (Windows notifications) and the paired phones. */
+export const NOTIFY_DEVICES = ['desktop', 'phone'] as const;
+export type NotifyDevice = (typeof NOTIFY_DEVICES)[number];
+
+/** Why an alert's notification was held back from a device: its rule's cooldown, Jev judged it not urgent, or its place is muted. */
+export const HELD_REASONS = ['cooldown', 'notUrgent', 'muted'] as const;
+export type HeldReason = (typeof HELD_REASONS)[number];
+
+/** An alert core selected to notify, and the devices it goes to. */
+export interface AlertDelivery {
+  alert: AlertItem;
+  devices: NotifyDevice[];
 }
 
 export interface AlertQuery {

@@ -73,12 +73,13 @@ it('routes an eligible alert burst to desktop and push once, without reading set
     matchKind: 'pattern',
     probability: null,
     duplicateOf: null,
+    held: { desktop: null, phone: null },
   });
   bus.emit('event', {
     type: 'plugin-event',
     pluginId: 'alerts',
     name: 'notify',
-    payload: [1, 2, 3, 4].map(alert),
+    payload: [1, 2, 3, 4].map((id) => ({ alert: alert(id), devices: ['desktop', 'phone'] })),
   });
   await vi.waitFor(() => expect(notifyDesktop).toHaveBeenCalledOnce());
   expect(notify).toHaveBeenCalledExactlyOnceWith({

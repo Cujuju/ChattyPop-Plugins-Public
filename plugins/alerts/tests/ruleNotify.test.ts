@@ -1,10 +1,10 @@
 // Alert recording, read state and notification behavior through rule execution.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { ALERTS } from '../core/tables';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RuleAction } from '@shared/rules';
 import { newRuleAction } from '@shared/ruleSpec';
-import type { AlertItem } from '../shared/types';
+import type { AlertDelivery, AlertItem, NotifyDevice } from '../shared/types';
 import { setSetting } from '@core/db';
 import { alertItems } from '../core/queries';
 import { markAlertsRead } from '../core/queries';
@@ -22,7 +22,11 @@ beforeEach(() => {
 type Notify = import('../shared/rules').NotifyConfig;
 const notify = (toast: Notify['toast'] = { cooldownMs: 0 }, over: Partial<Notify> = {}): RuleAction =>
   ({ ...newRuleAction('alerts.notify'), config: { toast, ...over } }) as RuleAction;
-const toasts = (): AlertItem[] => h.events.flatMap((e) => (e.type === 'plugin-event' && e.pluginId === 'alerts' && e.name === 'notify' ? e.payload as import('../shared/types').AlertItem[] : []));
+const deliveries = (): AlertDelivery[] =>
+  h.events.flatMap((e) => (e.type === 'plugin-event' && e.pluginId === 'alerts' && e.name === 'notify' ? (e.payload as AlertDelivery[]) : []));
+const toasts = (): AlertItem[] => deliveries().map((d) => d.alert);
+/** Messages each device was notified of. */
+const notified = (device: NotifyDevice): string[] => deliveries().filter((d) => d.devices.includes(device)).map((d) => d.alert.snippet);
 const alerts = (): AlertItem[] => alertItems(h.db, (ids) => archivePayloads(h.db, ids), { limit: 50 });
 
 describe('rule Alert action', () => {
@@ -105,6 +109,55 @@ describe('rule Alert action', () => {
     markAlertsRead(h.db, null, [id]);
     await settleAlerts();
     expect(toasts()).toEqual([]);
+  });
+
+  it("a rule saved before phones had their own setting notifies both devices with the PC's", async () => {
+    h.rules.create(ruleInput([notify({ cooldownMs: 0 })]));
+    h.say('both');
+    await settleAlerts();
+    expect(deliveries().map((d) => d.devices)).toEqual([['desktop', 'phone']]);
+  });
+
+  it("keeps each device's cooldown apart: one held back doesn't hold back the other", async () => {
+    h.rules.create(ruleInput([notify({ cooldownMs: 60_000 }, { phone: { cooldownMs: 0 } })]));
+    h.say('one');
+    h.say('two');
+    await settleAlerts();
+    expect([notified('desktop'), notified('phone')]).toEqual([['one'], ['one', 'two']]);
+    expect(alerts().map((a) => [a.snippet, a.held])).toEqual([
+      ['two', { desktop: 'cooldown', phone: null }],
+      ['one', { desktop: null, phone: null }],
+    ]);
+  });
+
+  it("times each device's cooldown from its own last notification", async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    h.rules.create(ruleInput([notify({ cooldownMs: 0 }, { phone: { cooldownMs: 60_000 } })]));
+    for (const [text, at] of [['one', 0], ['two', 30_000], ['three', 60_000]] as const) {
+      clock.mockReturnValue(start + at);
+      h.say(text);
+      await settleAlerts();
+    }
+    clock.mockRestore();
+    // The PC's notification of "two" doesn't restart the phone's cooldown: a minute after "one", the phone is due.
+    expect([notified('desktop'), notified('phone')]).toEqual([['one', 'two', 'three'], ['one', 'three']]);
+  });
+
+  it('notifies only the devices the rule chose', async () => {
+    h.rules.create(ruleInput([notify(null, { phone: { cooldownMs: 0 } })]));
+    h.say('phone only');
+    await settleAlerts();
+    expect(deliveries().map((d) => d.devices)).toEqual([['phone']]);
+  });
+
+  it('a muted channel notifies no device, and the alert says so', async () => {
+    h.rules.create(ruleInput([notify()]));
+    setSetting(h.db, 'notifications', { desktop: true, muted: { guildIds: [], channelIds: ['c1'] } });
+    h.say('hush');
+    await settleAlerts();
+    expect(toasts()).toEqual([]);
+    expect(alerts().map((a) => a.held)).toEqual([{ desktop: 'muted', phone: 'muted' }]);
   });
 
   it('filters and marks read by rule; deleting the rule drops its alerts', async () => {

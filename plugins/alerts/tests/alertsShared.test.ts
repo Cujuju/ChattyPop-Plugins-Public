@@ -22,8 +22,9 @@ describe('Alerts shared declarations', () => {
       history: true,
       targets: ['message'],
     });
-    expect(notify.create()).toEqual({ toast: { cooldownMs: DEFAULT_ALERT_COOLDOWN_MS } });
+    expect(notify.create()).toEqual({ toast: { cooldownMs: DEFAULT_ALERT_COOLDOWN_MS }, phone: { cooldownMs: DEFAULT_ALERT_COOLDOWN_MS } });
     expect(() => notify.validate({ toast: { cooldownMs: -1 } })).toThrow(/how often/);
+    expect(() => notify.validate({ toast: null, phone: { cooldownMs: -1 } })).toThrow(/how often/);
     expect(kindUnavailable('alerts.aimed', () => switchState(false))).toMatch(/Alerts plugin.*off/);
   });
 

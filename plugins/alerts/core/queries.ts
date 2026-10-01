@@ -1,7 +1,11 @@
 // Privacy-aware inbox queries and read state.
 import { mentionsFrom, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
-import type { AlertItem, AlertQuery } from '../shared/types';
+import { HELD_REASONS, type AlertItem, type AlertQuery, type HeldReason } from '../shared/types';
+import { HELD_COLUMN } from './schema';
 import { ALERTS, VISIBLE_ALERTS } from './tables';
+
+/** A stored held reason; one this build doesn't know reads as none. */
+const heldReason = (v: string | null): HeldReason | null => (HELD_REASONS as readonly string[]).includes(v ?? '') ? (v as HeldReason) : null;
 
 /** Alerts newest first, less those privacy mode hides; `onlyId` narrows to one alert. */
 export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: AlertQuery, onlyId?: number): AlertItem[] {
@@ -26,15 +30,19 @@ export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: Aler
               COALESCE(c.name, a.channel_id) AS channelName, a.author_id AS authorId,
               COALESCE((SELECT n.name FROM archive_names n WHERE n.channel_id = a.channel_id AND n.user_id = a.author_id), u.display_name, a.author_id) AS authorName, u.avatar AS authorAvatar,
               a.ts, a.snippet, a.read_at AS readAt, a.match_kind AS matchKind,
-              a.probability, a.duplicate_of AS duplicateOf
+              a.probability, a.duplicate_of AS duplicateOf, a.${HELD_COLUMN.desktop} AS heldDesktop, a.${HELD_COLUMN.phone} AS heldPhone
        FROM ${VISIBLE_ALERTS} a JOIN archive_rules r ON r.id = a.rule_id
        LEFT JOIN archive_channels c ON c.id = a.channel_id LEFT JOIN archive_users u ON u.id = a.author_id
        WHERE ${where.join(' AND ')}
        ORDER BY a.ts DESC, a.id DESC LIMIT ?`,
     )
-    .all(...params, q.limit) as Omit<AlertItem, 'mentions'>[];
+    .all(...params, q.limit) as (Omit<AlertItem, 'mentions' | 'held'> & { heldDesktop: string | null; heldPhone: string | null })[];
   const details = payloads(rows.map((row) => row.messageId));
-  return rows.map((a) => ({ ...a, mentions: mentionsFrom(details.get(a.messageId)?.mentionsJson ?? null) }));
+  return rows.map(({ heldDesktop, heldPhone, ...a }) => ({
+    ...a,
+    mentions: mentionsFrom(details.get(a.messageId)?.mentionsJson ?? null),
+    held: { desktop: heldReason(heldDesktop), phone: heldReason(heldPhone) },
+  }));
 }
 
 /** Marks alerts read: the given ids, or every visible unread one (of these rules when any); hidden ones stay unread. */

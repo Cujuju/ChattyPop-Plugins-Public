@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { setSetting, type Db } from '@core/db';
-import { adoptBundledData } from '@core/plugins/adoption';
+import { adoptAlerts } from './alertsHarness';
 import { visibleMessageRefSql } from '@core/queries/privacy';
 import { tempDb } from '@chattypop/host-testing';
 import { seedArchiveViews } from '@chattypop/host-testing/archiveViewsFixture';
@@ -14,7 +14,7 @@ let db: Db;
 beforeEach(() => {
   db = tempDb();
   seedArchiveViews(db);
-  adoptBundledData(db, [alerts]);
+  adoptAlerts(db);
 });
 
 describe('plugin archive read parity', () => {

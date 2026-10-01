@@ -7,6 +7,8 @@ import type { DecisionProvider } from '@core/ai/decisions';
 import { Archive } from '@core/archive';
 import { setSetting, type Db } from '@core/db';
 import { adoptBundledData } from '@core/plugins/adoption';
+import { migrateArchiveRefs } from '@core/plugins/archiveRefs';
+import { ALERT_MIGRATIONS } from '../core/schema';
 import { emptyRegistrations } from '@core/plugins/api';
 import { CompletionLedger } from '@core/plugins/completions';
 import { createCoreContext } from '@core/plugins/context';
@@ -25,9 +27,10 @@ afterEach(() => {
   cleanups.splice(0).forEach((dispose) => dispose());
 });
 
-/** Adopts the old tables exactly as app startup does. */
+/** Adopts the old tables and applies Alerts' schema steps, as app startup and activation do. */
 export function adoptAlerts(db: Db): Db {
   adoptBundledData(db, [plugin]);
+  migrateArchiveRefs(db, plugin, ALERT_MIGRATIONS);
   return db;
 }
 

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { compressRawJson, type Db } from '@core/db';
 import { archiveReplyExists } from '@core/plugins/archiveReplies';
-import { adoptBundledData } from '@core/plugins/adoption';
+import { adoptAlerts } from './alertsHarness';
 import { createArchiveRefViews } from '@core/plugins/archiveRefs';
 import { textMessage } from '@core/queries/messageText';
 import { tempDb } from '@chattypop/host-testing';
@@ -26,7 +26,7 @@ describe('archive read plans', () => {
   it('uses indexed names and message text for both an alerts page and a single notification', () => {
     const db = tempDb();
     seedArchiveViews(db);
-    adoptBundledData(db, [plugin]);
+    adoptAlerts(db);
     createArchiveRefViews(db, plugin);
     db.exec(`INSERT INTO ${ALERTS} (rule_id, message_id, channel_id, author_id, ts, snippet, created_at)
       VALUES (1, 'm-open', 'c-open', 'u1', 1, 'fallback', 1)`);
