@@ -1,0 +1,105 @@
+/* Activity panel (#85). Bars, cells and rows get their size from --v (0–1, the value's share of the largest), set in the TSX.
+   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in StatsPanel.tsx. */
+
+/* Scope and range, as the Links filter row. */
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2) var(--cp-space-6);
+  flex: 0 0 auto;
+  min-height: var(--cp-panel-subheader-h);
+  padding: var(--cp-space-2) var(--cp-panel-pad-x);
+}
+
+.select {
+  height: var(--cp-btn-h-sm);
+  max-width: var(--cp-filter-select-max-w);
+  min-width: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4) var(--cp-panel-pad-x);
+  overflow-y: auto;
+}
+
+/* Sections keep their height and the body scrolls; flex would otherwise shrink the fixed-height chart to nothing. */
+.body > * {
+  flex: none;
+}
+
+.heading {
+  margin: var(--cp-space-3) 0 0;
+}
+
+.heading:first-child {
+  margin-top: 0;
+}
+
+/* Messages over time: bottom-aligned bars sharing the width. */
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--cp-border-w);
+  height: calc(var(--cp-btn-h) * 3);
+}
+
+.bar {
+  flex: 1 1 0;
+  min-width: var(--cp-border-w);
+  height: calc(var(--v) * 100%);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Weekday × hour: a label column, then 24 cells whose tint follows --v. */
+.heatmap {
+  display: grid;
+  grid-template-columns: auto repeat(24, minmax(0, 1fr));
+  gap: var(--cp-border-w);
+  align-items: center;
+}
+
+.dayLabel {
+  padding-right: var(--cp-space-2);
+}
+
+.cell {
+  aspect-ratio: 1;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A poster or domain: name and count over a faint bar of its share. */
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cp-space-4);
+  width: 100%;
+  padding: var(--cp-space-1) var(--cp-space-3);
+  text-align: left;
+}
+
+.rowName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowCount {
+  flex: none;
+}
