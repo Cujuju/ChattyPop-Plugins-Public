@@ -1,0 +1,120 @@
+/* Summary panel: range picker in the shared header (ui/PanelHeader), headline and numbered points below.
+   Ground comes from the layout slot (surface-3). Structure only: the look is the theme's look vocabulary
+   (@plugin-sdk/renderer look), applied in SummaryPanel.tsx. */
+
+/* Field look is app-wide in theme/forms.css; header height here. */
+.select {
+  height: var(--cp-btn-h-sm);
+  min-width: 0;
+}
+
+/* With cp-panel-body. */
+.body {
+  gap: var(--cp-space-4);
+  overflow-x: hidden;
+}
+
+.error {
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  min-width: 0;
+}
+
+/* The one-sentence take. */
+.headline {
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+/* provider · N messages · span · s · time */
+.meta {
+  overflow-wrap: anywhere;
+}
+
+/* Numbered points: a zero-padded index in the gutter, text flowing beside it. */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-5);
+  padding-top: var(--cp-space-4);
+  counter-reset: point;
+}
+
+.item {
+  position: relative;
+  padding-left: var(--cp-space-8);
+  counter-increment: point;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.item::before {
+  content: counter(point, decimal-leading-zero);
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.itemText {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Citation chip inline after the point; opens the message in the Archive. */
+.cite {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cp-hit-min);
+  margin-left: var(--cp-space-2);
+  padding: 0 var(--cp-space-3);
+  vertical-align: text-bottom;
+  white-space: nowrap;
+}
+
+/* Jev citation check: a bullet whose cited messages don't back it. */
+.flag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--cp-space-2);
+  padding: 0 var(--cp-space-3);
+  vertical-align: text-bottom;
+  white-space: nowrap;
+}
+
+/* "For you": what needs the reader, set apart above the points. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4) var(--cp-space-5);
+}
+
+.actionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+}
+
+.action {
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+/* Channel a group of points is about (grouping by channel). */
+.channelHead {
+  padding-top: var(--cp-space-4);
+}
+
+/* Settings → Summaries: a control at the settings column's width, and a field across the whole row. */
+.control {
+  width: var(--cp-settings-control-w);
+}
+
+.wide {
+  width: 100%;
+}
