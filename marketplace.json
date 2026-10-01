@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "plugins": [
+    {
+      "id": "alerts",
+      "name": "Alerts",
+      "description": "A rule-driven inbox, unread badges and notifications for messages that need your attention.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "alerts-v1.0.0",
+          "asset": "alerts-1.0.0.tar.gz",
+          "sha256": "58ac34688e250d5fa9328f607f67ac22d87dfed25c3cc7a8f9d7e7509e208cf3",
+          "sdk": "1.1.0"
+        }
+      ]
+    }
+  ]
+}
