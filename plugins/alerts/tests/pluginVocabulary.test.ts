@@ -1,5 +1,6 @@
 // Alerts' Jev switches and notice kind: adopted from pre-plugin keys, stamped, and privacy-scoped.
 import { describe, expect, it } from 'vitest';
+import { checkBundled } from '@shared/bundledCheck';
 import { aiSettingsFrom } from '@shared/aiProviders';
 import { adoptNoticeKinds, privacyScopedIn } from '@shared/notices';
 import { SETTINGS_KEYS } from '@shared/settings';
@@ -47,5 +48,11 @@ describe('phones’ notice choices', () => {
     expect(privacyScopedIn([alerts], 'alerts.alert')).toBe(true);
     expect(privacyScopedIn([alerts], 'alert')).toBe(false);
     expect(privacyScopedIn([alerts], 'plugin')).toBe(false);
+  });
+});
+
+describe('checkBundled over the installed descriptors', () => {
+  it('accepts the bundled owners', () => {
+    expect(() => checkBundled([alerts])).not.toThrow();
   });
 });
