@@ -84,6 +84,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "description": "Local models through Ollama, for channels set to local AI only and anything else you point at it.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "ollama-v1.0.0",
+          "asset": "ollama-1.0.0.tar.gz",
+          "sha256": "91c669828ecdf716ff9d2bdfa46041d382316aef6fd67a2b8ddd269f71088c7a",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
