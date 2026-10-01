@@ -18,7 +18,10 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
   const emit = (event: SummaryEvent): void => {
     if (event.type === 'summary-progress') ctx.channels.emit('progress', event);
     else if (event.type === 'summary-added') ctx.channels.emit('added', event.summary);
-    else ctx.channels.emit('failed', { trigger: event.trigger, message: event.message });
+    else {
+      const { type: _, ...failure } = event;
+      ctx.channels.emit('failed', failure);
+    }
   };
   const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, {
     get: (id, settings) => ctx.ai.provider(id, settings),

@@ -33,13 +33,13 @@ export function registerSummaryKinds(
   k.windows.coveredUntil(coveredUntil);
   k.action('summaries.summarize', async (c, r) => {
     const trigger = r.event.kind === 'window' ? SUMMARY_TRIGGER[r.event.timing] : 'rule';
+    const { channelIds, ...span } = actionRange(r, c.lookbackMs);
     try {
-      const { channelIds, ...span } = actionRange(r, c.lookbackMs);
       const summary = await deps.summarize(channelIds ? { ...span, channelIds } : span, c.prompts, trigger);
       return { outcome: 'done', detail: summary.headline || null };
     } catch (err) {
       if (err instanceof EmptyRangeError) return { outcome: 'skipped', detail: err.message };
-      if (r.event.kind === 'window') emit({ type: 'summary-auto-failed', trigger, message: errorMessage(err) });
+      if (r.event.kind === 'window') emit({ type: 'summary-auto-failed', trigger, message: errorMessage(err), ...(channelIds && { channelIds }) });
       return { outcome: 'failed', detail: errorMessage(err) };
     }
   });

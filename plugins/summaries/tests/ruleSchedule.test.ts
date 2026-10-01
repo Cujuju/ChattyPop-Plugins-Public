@@ -23,7 +23,7 @@ describe('timed rules', () => {
     expect(() => validateRuleInput(timedSummaryInput('D', daily))).not.toThrow();
   });
 
-  it('run once per due time over their Where, labelled by trigger, and report a failed summary', async () => {
+  it('run once per due time over their Where, labelled by trigger, and report a failed summary with its channels', async () => {
     let now = at(8, 30);
     const h = summaryRuleHarness(() => now);
     const id = h.rules.create(
@@ -52,7 +52,7 @@ describe('timed rules', () => {
     h.ranges.answer = () => Promise.reject(new Error('provider down'));
     now = at(9, 1, 26);
     await schedule.tick();
-    expect(h.summaryEvents).toContainEqual({ type: 'summary-auto-failed', trigger: 'digest', message: 'provider down' });
+    expect(h.summaryEvents).toContainEqual({ type: 'summary-auto-failed', trigger: 'digest', message: 'provider down', channelIds: ['c1'] });
   });
 });
 

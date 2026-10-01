@@ -139,4 +139,11 @@ export interface SummaryProgress {
 export type SummaryEvent =
   | ({ type: 'summary-progress' } & SummaryProgress)
   | { type: 'summary-added'; summary: Summary }
-  | { type: 'summary-auto-failed'; trigger: SummaryTrigger; message: string };
+  | ({ type: 'summary-auto-failed' } & SummaryFailure);
+
+/** An automatic run that failed; `channelIds` when its rule named the channels. */
+export interface SummaryFailure {
+  trigger: SummaryTrigger;
+  message: string;
+  channelIds?: string[];
+}

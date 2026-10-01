@@ -1,4 +1,4 @@
-// Summaries' main notices through the host's notification policy: privacy changes and the automatic-summary switch.
+// Summaries' main notices through the host's notification policy: privacy changes, mutes and the automatic-summary switch.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow } from 'electron';
 import type { DeliveredNotification } from '@shared/notifications';
@@ -35,12 +35,14 @@ function harness() {
   let notifyAuto = true;
   let duringNotifyAuto = (): void => undefined;
   const pushed: DeliveredNotification[] = [];
+  const muted = new Set<string>();
   const win = { isDestroyed: () => false, show: vi.fn(), focus: vi.fn() } as unknown as BrowserWindow;
   const notifications = notificationService({
-    settings: async () => ({ notifications: { desktop: true } }),
+    settings: async () => ({ notifications: { desktop: true, muted: { guildIds: [], channelIds: [] } } }),
     desktop: (n) => notifyDesktop(win, n, vi.fn()),
     push: (n) => void pushed.push(n),
     privacyScoped: (kind) => privacyScopedIn([summaries], kind),
+    muted: async (channelIds) => channelIds.every((id) => muted.has(id)),
   });
   const deps = {
     notifications,
@@ -63,7 +65,8 @@ function harness() {
     /** Runs while Summaries asks core whether automatic summaries notify the desktop. */
     duringNotifyAuto: (fn: () => void) => { duringNotifyAuto = fn; },
     quietSummaries: () => { notifyAuto = false; },
-    summaryAdded: () => summaryEvents.get('added')!({ trigger: 'digest', actions: [], headline: 'Launch moved to Friday' }),
+    mute: (channelId: string) => { muted.add(channelId); },
+    summaryAdded: (channelIds: string[] = []) => summaryEvents.get('added')!({ trigger: 'digest', actions: [], headline: 'Launch moved to Friday', channelIds }),
     summaryFailure: () => summaryEvents.get('failed')!({ trigger: 'digest', message: 'provider down' }),
   };
 }
@@ -90,5 +93,17 @@ describe('summary notifications', () => {
     await h.summaryFailure();
     expect(state.toasts).toHaveLength(0);
     expect(h.pushed).toHaveLength(1);
+  });
+
+  it('reaches no device about a summary of muted channels only', async () => {
+    const h = harness();
+    h.mute('c1');
+    h.mute('c2');
+    await h.summaryAdded(['c1', 'c2']);
+    expect(h.pushed).toHaveLength(0);
+    expect(state.toasts).toHaveLength(0);
+    await h.summaryAdded(['c1', 'c3']);
+    expect(h.pushed).toHaveLength(1);
+    expect(state.toasts).toHaveLength(1);
   });
 });

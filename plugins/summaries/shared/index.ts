@@ -3,7 +3,7 @@ import { defineChannels, definePlugin, definePreference, finiteOr, type AppUsage
 import { summarize } from './rules';
 import { SUMMARY_FEATURES, SUMMARY_QUERIES } from './queries';
 import { decodeSummaryRequest } from './request';
-import type { Summary, SummaryEstimate, SummaryPageQuery, SummaryProgress, SummaryPrompts, SummaryRequest, SummarySpend } from './types';
+import type { Summary, SummaryEstimate, SummaryFailure, SummaryPageQuery, SummaryProgress, SummaryPrompts, SummaryRequest, SummarySpend } from './types';
 import type { SummaryPromptTemplates } from './prompts';
 import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, type SummaryTrigger } from './settings';
 
@@ -23,7 +23,7 @@ export interface SummaryCalls {
 export interface SummaryEvents {
   progress: SummaryProgress;
   added: Summary;
-  failed: { trigger: SummaryTrigger; message: string };
+  failed: SummaryFailure;
 }
 
 /** Stable identities and legacy storage adoption. */
@@ -44,7 +44,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'summaries',
     name: 'Summaries',
-    version: '1.0.0',
+    version: '1.1.0',
     description: 'Cited recaps of archived conversations, on demand or on a schedule.',
   },
   channels: defineChannels<{ core: SummaryCalls; events: SummaryEvents }>()({

@@ -1,5 +1,5 @@
 // Automatic summary notices retain phone delivery when desktop delivery is quiet.
-import { defineMainPlugin, notificationRequest } from '@plugin-sdk/main';
+import { defineMainPlugin } from '@plugin-sdk/main';
 import { plugin } from '../shared';
 import { summaryNotices } from './notices';
 
@@ -9,7 +9,7 @@ export default defineMainPlugin(plugin, (ctx) => {
     const desktop = await ctx.channels.core.notifyAuto();
     for (const notice of notices) {
       await ctx.notifications.show({
-        ...notificationRequest(notice),
+        ...notice,
         ...(!desktop && { desktop: false as const }),
       });
     }
