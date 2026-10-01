@@ -1,0 +1,160 @@
+/* Alerts panel: rows of dot | avatar | rule chip, #channel, author … tags, age / snippet. Header is ui/PanelHeader.
+   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
+
+/* Header rule picker: the trigger is a header action; the checklist floats below it, opening leftward. */
+.ruleFilter {
+  position: relative;
+}
+
+/* With cp-popover. */
+.ruleMenu {
+  position: absolute;
+  top: calc(100% + var(--cp-space-2));
+  right: 0;
+  z-index: var(--cp-z-popover);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--cp-menu-min-w);
+  max-height: var(--cp-search-list-max-h);
+  overflow-y: auto;
+}
+
+.ruleOption {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  white-space: nowrap;
+}
+
+.ruleName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ruleCount {
+  flex: 0 0 auto;
+}
+
+/* Grouped by rule: a heading above each rule's alerts. */
+.groupHeading {
+  position: sticky;
+  top: 0;
+  z-index: var(--cp-z-sticky);
+  padding: var(--cp-space-3) var(--cp-panel-pad-x);
+}
+
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Row: dot | avatar | text. */
+.row {
+  display: grid;
+  grid-template-columns: var(--cp-dot-lg) var(--cp-alert-avatar) minmax(0, 1fr);
+  column-gap: var(--cp-space-4);
+  width: 100%;
+  padding: var(--cp-space-4) var(--cp-panel-pad-x);
+  text-align: left;
+}
+
+.dot {
+  width: var(--cp-dot);
+  height: var(--cp-dot);
+  margin-top: calc((var(--cp-meta-line-h) - var(--cp-dot)) / 2);
+}
+
+/* Author avatar, sized as the Archive draws it. */
+.avatar {
+  width: var(--cp-alert-avatar);
+  height: var(--cp-alert-avatar);
+  object-fit: cover;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+  min-width: 0;
+}
+
+/* Meta line: rule chip | channel, author | tags, age (right). */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-4);
+  min-width: 0;
+}
+
+/* Rule chip: never shrinks; past its cap it truncates. */
+.rule {
+  flex: 0 0 auto;
+  max-width: var(--cp-alert-rule-max-w);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 var(--cp-space-3);
+  white-space: nowrap;
+}
+
+.where {
+  display: flex;
+  gap: var(--cp-space-4);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Channel and author share any truncation. */
+.channel {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.author {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tags and age, pinned right. */
+.tail {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--cp-space-4);
+  margin-left: auto;
+}
+
+/* With cp-micro-tag. */
+.tag {
+  padding: 0 var(--cp-space-2);
+  white-space: nowrap;
+}
+
+.age {
+  white-space: nowrap;
+}
+
+.snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A managed match's lede in the rule editor. */
+.lede {
+  margin: 0;
+}
+
+/* A settings control at the settings column's width. */
+.control {
+  width: var(--cp-settings-control-w);
+}
