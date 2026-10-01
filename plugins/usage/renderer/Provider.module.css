@@ -1,0 +1,130 @@
+/* Plan usage: an F2 panel header (collapse toggle, title, refresh) over a meter row per provider window:
+   mark | label | bar | % | reset, the mark on the provider's first row only. Narrow slots stack the providers and
+   share one grid so rows align across them; wide slots put them side by side (see @container below).
+   Collapsed: the header alone, each provider's mark and percentages inline.
+   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in UsagePanel.tsx. */
+
+/* With cp-panel. */
+.root {
+  container: plan-usage / inline-size;
+}
+
+/* Collapsed: 'mark label NN%' per provider in the header; wraps below the title (metaWraps), then between providers. */
+.summaryLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cp-space-6);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.summaryProvider {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--cp-space-5);
+  /* No grow: its scrollHeight is then its content height, which the layout keeps as the panel's resize minimum. */
+  flex: 0 1 auto;
+  min-height: 0;
+  padding: var(--cp-space-4) var(--cp-panel-pad-x) var(--cp-space-6);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Stacked: every provider's rows share these columns, so labels, bars, percentages and resets line up across them. */
+.providers {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) var(--cp-percent-w) auto;
+  column-gap: var(--cp-space-4);
+  row-gap: var(--cp-space-5);
+}
+
+.provider {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  align-content: start;
+  row-gap: var(--cp-space-2);
+  min-width: 0;
+}
+
+/* The provider's mark, in the first column of its first row; its other rows start at the label column. */
+.mark {
+  grid-column: 1;
+  white-space: nowrap;
+}
+
+.logo {
+  display: block;
+  width: var(--cp-icon-md);
+  height: var(--cp-icon-md);
+}
+
+/* A provider without meters: why, beside its mark. */
+.status {
+  grid-column: 2 / -1;
+  min-width: 0;
+}
+
+.meter {
+  display: contents;
+}
+
+.meterLabel {
+  grid-column: 2;
+  white-space: nowrap;
+}
+
+.meterBar {
+  display: block;
+  width: 100%;
+  height: var(--cp-meter-h);
+}
+
+.meterBar::-webkit-meter-bar {
+  height: var(--cp-meter-h);
+}
+
+.meterValue {
+  text-align: right;
+}
+
+.reset {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A reading without a reset time (credits left): under its bar. */
+.windowNote {
+  grid-column: 3 / -1;
+  min-width: 0;
+}
+
+/* A settings control at the settings column's width. */
+.control {
+  width: var(--cp-settings-control-w);
+}
+
+/* Wide slot: two provider columns fit (2 × --cp-usage-provider-min-w + gap + 2 × pad ≈ 520px), so providers sit
+   side by side, each with its own columns. Literal: container conditions can't read custom properties. */
+@container plan-usage (width >= 520px) {
+  .providers {
+    grid-template-columns: repeat(auto-fit, minmax(var(--cp-usage-provider-min-w), 1fr));
+    column-gap: var(--cp-space-8);
+  }
+
+  .provider {
+    grid-column: auto;
+    grid-template-columns: auto auto minmax(0, 1fr) var(--cp-percent-w) auto;
+    column-gap: var(--cp-space-4);
+  }
+}
