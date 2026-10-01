@@ -62,7 +62,15 @@ export function LinksPanel() {
     });
     return out;
   });
-  const vlog = createVirtualLog({ rows, estimatePx: ESTIMATED_ROW_PX, olderThresholdRows: LOAD_OLDER_THRESHOLD_ROWS, loadOlder: loadOlderLinks, following: log.following });
+  const vlog = createVirtualLog({
+    rows,
+    estimatePx: ESTIMATED_ROW_PX,
+    olderThresholdRows: LOAD_OLDER_THRESHOLD_ROWS,
+    loadOlder: loadOlderLinks,
+    following: log.following,
+    // A runway above the oldest link while older ones remain, so a fling runs on as they load.
+    hasOlder: () => !links.reachedStart,
+  });
 
   // Any filter change reloads; every reload lands on the newest link.
   onMount(() => void reloadLinks());
