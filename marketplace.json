@@ -28,6 +28,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "codex",
+      "name": "ChatGPT (Codex)",
+      "description": "ChatGPT as an AI provider, through your own Codex CLI install and sign-in.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "codex-v1.0.0",
+          "asset": "codex-1.0.0.tar.gz",
+          "sha256": "eddef7cb39f1681dff0c7152b25f2858d85698dcd1a815341c7e1fa49727586b",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
