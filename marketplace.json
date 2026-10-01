@@ -70,6 +70,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "links",
+      "name": "Links",
+      "description": "The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "links-v1.0.0",
+          "asset": "links-1.0.0.tar.gz",
+          "sha256": "589e3255caa06e0c84c1fec0195972425906e0ef5d061d11ce8f3a44a4a356a2",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
