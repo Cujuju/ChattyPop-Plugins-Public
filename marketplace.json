@@ -126,6 +126,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "rerank",
+      "name": "Search re-rank",
+      "description": "Jev re-orders the top search results by how well they answer your query.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "rerank-v1.0.0",
+          "asset": "rerank-1.0.0.tar.gz",
+          "sha256": "5ca5a7e5b07aa39b804ad2371710eb7f79936f648abf280a27b6fd2208d7f24d",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
