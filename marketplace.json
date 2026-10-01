@@ -98,6 +98,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "description": "Any OpenRouter model as an AI provider, paid by the OpenRouter key that lists it.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "openrouter-v1.0.0",
+          "asset": "openrouter-1.0.0.tar.gz",
+          "sha256": "e8a70847d6deb08b0995cde99ea70de795292420befad22dda41b5d86a0a45d5",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
