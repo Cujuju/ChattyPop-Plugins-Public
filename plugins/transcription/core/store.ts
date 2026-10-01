@@ -122,5 +122,5 @@ export function transcriptNotes(db: PluginDb, attachmentIds: string[]): Map<stri
     if (t.state === 'failed') return `Transcription failed: ${t.error ?? 'unknown error'}`;
     return TRANSCRIPT_STATE_TEXT[t.state];
   };
-  return new Map(rows.map((t) => [t.id, { kind: TRANSCRIPT_NOTE, state: t.state, label: t.language ? `transcript · ${t.language}` : 'transcript', text: body(t) }]));
+  return new Map(rows.map((t) => [t.id, { kind: TRANSCRIPT_NOTE, state: t.state, label: t.language ? `audio transcription · ${t.language}` : 'audio transcription', text: body(t) }]));
 }

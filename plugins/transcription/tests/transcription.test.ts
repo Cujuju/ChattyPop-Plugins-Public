@@ -265,7 +265,7 @@ describe('transcripts reach search, rules and the Archive', () => {
     await settle();
     const [m] = messagePage(db, { channelId: 'c1', limit: 10 });
     expect(m?.attachments[0]?.notes).toEqual([
-      { pluginId: 'transcription', kind: 'transcript', state: 'done', label: 'transcript · en', text: 'see you soon' },
+      { pluginId: 'transcription', kind: 'transcript', state: 'done', label: 'audio transcription · en', text: 'see you soon' },
     ]);
     expect(notesChanged).toContain(m?.id);
   });
