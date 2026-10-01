@@ -1,0 +1,13 @@
+/* Ollama's Settings → AI rows: structure only; the look is the theme's (docs/plugin-architecture.md §14). */
+
+/* A settings control at the settings column's width. */
+.control {
+  width: var(--cp-settings-control-w);
+}
+
+/* A model name and its Install button, side by side. */
+.install {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
