@@ -137,5 +137,6 @@ export function imageNotes(db: PluginDb, attachmentIds: string[]): Map<string, O
     if (r.state === 'failed') return `Reading the image failed: ${r.error ?? 'unknown error'}`;
     return STATE_TEXT[r.state];
   };
-  return new Map(rows.map((r) => [r.id, { kind: IMAGE_TEXT_NOTE, state: r.state, label: 'image text', text: body(r) }]));
+  // Collapsed: the image already shows its text, so the note is one line until opened.
+  return new Map(rows.map((r) => [r.id, { kind: IMAGE_TEXT_NOTE, state: r.state, label: 'image text', text: body(r), collapsed: true }]));
 }
