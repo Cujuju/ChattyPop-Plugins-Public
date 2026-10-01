@@ -1,0 +1,9 @@
+/* Settings → Transcription: structure only; the look is the theme's (docs/plugin-architecture.md §14). */
+
+/* A model's "Use" choice, at the end of its row. */
+.defaultPick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  margin-left: auto;
+}
