@@ -1,0 +1,95 @@
+/* #78 Tags panel: the owner's tags as chips with counts, the selected tag's editor and tagged messages, and the
+   range runner. Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look) and the shared cp-*
+   classes (theme/shared-controls.css), applied in the TSX. */
+/* With cp-panel-body. */
+.body {
+  gap: var(--cp-space-5);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+}
+
+/* Tag chip: a pill with its count. Pressed = open in the editor. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  height: var(--cp-seg-h);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* With cp-danger: pushed to the end of the actions row. */
+.danger {
+  margin-left: auto;
+}
+
+/* Editor and range runner. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-5);
+  padding: var(--cp-space-6);
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
+
+/* Tagged messages: when · where · who, then the text; a hand-added tag is marked in the meta line. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  text-align: left;
+}
+
+.text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* A settings control at the settings column's width. */
+.control {
+  width: var(--cp-settings-control-w);
+}
+
+/* A person's tags, after their channels in the person view: a heading, then a wrapping row of tags. */
+.personHeading {
+  align-self: stretch;
+  margin: var(--cp-space-3) 0 0;
+}
+
+.personTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  align-self: stretch;
+}
+
+.personTag {
+  padding: var(--cp-space-1) var(--cp-space-3);
+}
+
+.personTagCount {
+  flex: none;
+}
