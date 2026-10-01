@@ -196,6 +196,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "usage",
+      "name": "Plan usage",
+      "description": "Every enabled AI provider's plan limits side by side, and what ChattyPop used of them.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "usage-v1.0.0",
+          "asset": "usage-1.0.0.tar.gz",
+          "sha256": "096801a1534ddb47a10e0ddbbb7cb4f69b6c20b7fbf9626ff6ad65248f140b61",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
