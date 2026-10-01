@@ -2,7 +2,7 @@
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { SUMMARIES_TABLE } from '../core/schema';
 import { adoptSummaries, fakeRegistry, startSummaries } from './summariesHarness';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ARCHIVE_SETTINGS } from '@shared/settings';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { VOICE_MESSAGE_FLAG } from '@shared/discord';
@@ -14,6 +14,9 @@ import { storeDerivedText } from '@core/derivedText';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
 import { aiSettingsFrom } from '@shared/aiProviders';
+
+// The provider plugins this plugin asks: stand-ins, since only the plugin under check is in the registry.
+vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
 
 /** A fresh profile's AI settings: Claude is the default. */
 const FRESH_AI = aiSettingsFrom({});

@@ -1,5 +1,5 @@
 // A summary queued behind another resolves the default provider when it starts, not when it was queued.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { normalizeAiSettings } from '@shared/settings';
 import { declaredProviders } from '@shared/aiProviders';
 import { MS_PER_MIN } from '@shared/units';
@@ -12,6 +12,9 @@ import { Summarizer } from '../core/summarize';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { adoptSummaries } from './summariesHarness';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
+
+// The provider plugins this plugin asks: stand-ins, since only the plugin under check is in the registry.
+vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
 
 const ANSWER = JSON.stringify({ headline: 'h', items: [{ parts: [{ text: 'p', refs: [] }] }] });
 

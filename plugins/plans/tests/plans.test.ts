@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId } from '@shared/settings';
 import { ProviderRegistry } from '@core/ai/registry';
 import { assertProviderMayRead } from '@core/ai/readScope';
@@ -16,6 +16,9 @@ import { jevQuery } from '@core/jev/queries';
 const PLAN_AT = (jevQuery(PLAN_QUERY) as { minProbability: number }).minProbability;
 import { rawMessage, seedArchive, settleAsync, tempDb } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
+
+// The provider plugins this plugin asks: stand-ins, since only the plugin under check is in the registry.
+vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
 
 const answer = (choice: string, p: number) => ({ type: 'choice' as const, choice, probabilities: { [choice]: p }, confidence: 1 });
 

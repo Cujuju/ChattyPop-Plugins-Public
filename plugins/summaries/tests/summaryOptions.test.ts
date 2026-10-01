@@ -15,6 +15,9 @@ import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
 import { aiSettingsFrom } from '@shared/aiProviders';
 
+// The provider plugins this plugin asks: stand-ins, since only the plugin under check is in the registry.
+vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
+
 /** A fresh profile's AI settings: Claude is the default. */
 const FRESH_AI = aiSettingsFrom({});
 

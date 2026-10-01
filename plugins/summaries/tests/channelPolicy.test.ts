@@ -1,5 +1,5 @@
 // Per-channel policy in Summaries: a local-AI-only channel never reaches a hosted provider.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiSettingsFrom } from '@shared/aiProviders';
 import type { Archive } from '@core/archive';
 import { ARRIVAL } from '@core/arrival';
@@ -9,6 +9,9 @@ import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { Summarizer } from '../core/summarize';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { adoptSummaries, fakeRegistry } from './summariesHarness';
+
+// The provider plugins this plugin asks: stand-ins, since only the plugin under check is in the registry.
+vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
 
 const PRIVATE = '200000000000000001';
 const OPEN = '200000000000000002';
