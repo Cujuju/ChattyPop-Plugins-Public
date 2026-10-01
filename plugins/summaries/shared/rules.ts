@@ -13,7 +13,6 @@ export interface SummarizeConfig {
 export const summarize = defineRuleAction({
   ...AFTER_MESSAGE,
   type: 'summaries.summarize',
-  verb: 'summarize',
   before: 'file',
   label: 'Summarize',
   hint: 'Summarizes the channel over the time before the message; at most once an hour per rule. Uses your AI plan.',

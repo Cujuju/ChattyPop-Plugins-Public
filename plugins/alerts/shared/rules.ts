@@ -11,7 +11,6 @@ export interface NotifyConfig {
 export const notify: RuleActionKind<NotifyConfig, 'alerts.notify'> = {
   ...AFTER_MESSAGE,
   type: 'alerts.notify',
-  verb: 'alert',
   defaultForNewRule: true,
   before: 'summaries.summarize',
   label: 'Alert',

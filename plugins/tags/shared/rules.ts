@@ -21,7 +21,6 @@ export interface ApplyTagConfig {
 /** Starts on a newly applied tag; tags applied by rules never start rules. */
 export const applied: RuleTriggerKind<AppliedConfig, 'tags.applied'> = {
   type: 'tags.applied',
-  overview: 'a tag is put on one',
   after: 'message',
   label: 'A tag put on a message',
   hint: '',
@@ -51,7 +50,6 @@ export const anyTag: RuleFilterKind<AnyTagConfig, 'tags.any'> = {
 export const applyTag: RuleActionKind<ApplyTagConfig, 'tags.apply'> = {
   ...AFTER_MESSAGE,
   type: 'tags.apply',
-  verb: 'tag',
   after: 'alerts.notify',
   label: 'Tag the message',
   hint: 'Puts one of your tags on it (a tag you removed by hand stays off).',
