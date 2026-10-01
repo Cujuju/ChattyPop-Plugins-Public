@@ -1,0 +1,95 @@
+/* Links panel and its link rows. Header is ui/PanelHeader.
+   Ground comes from the layout slot (surface-3). A share is drawn by the Archive's message row (chat/MessageRow, Cozy.module.css);
+   this file places the platform badge under its avatar and the origin on its name line, and sizes its embeds through their tokens.
+   Rows are virtualized (absolutely positioned and height-measured): vertical spacing is padding, never margin.
+   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
+
+/* The list owns the panel's scroll; its geometry (flex, virtual rows) is inline. No padding: rows are offset-measured. */
+.list {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* 'Caught up': a hairline through a centred micro label. Separates unseen rows from seen ones. */
+.watermark {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-panel-pad-x);
+  white-space: nowrap;
+}
+
+.watermark::before,
+.watermark::after {
+  content: '';
+  flex: 1 1 auto;
+  height: var(--cp-border-w);
+}
+
+/* One share: full-size preview media. */
+.share {
+  --cp-embed-desc-lines: var(--cp-link-desc-lines);
+  --cp-attachment-max-h: var(--cp-link-media-max-h);
+  --cp-embed-thumb: var(--cp-link-thumb);
+}
+
+/* Fallback row when the sharing message is no longer archived: badge | meta, title and preview card. */
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--cp-space-6);
+  align-items: start;
+  padding: var(--cp-space-4) var(--cp-panel-pad-x);
+}
+
+/* Centred on the fallback row's meta line. */
+.row > .badge {
+  margin-top: calc((var(--cp-meta-line-h) - var(--cp-badge-line-h)) / 2);
+}
+
+/* Platform badge under the sharer's avatar. Fixed width keeps rows aligned. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cp-badge-w);
+  height: var(--cp-badge-line-h);
+  white-space: nowrap;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cp-space-3);
+  min-width: 0;
+}
+
+/* Where it was shared, after the time on the Archive row's name line; opens the message in the Archive. */
+.origin {
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Fallback row's who / where / when: a button into the Archive. */
+.meta {
+  max-width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Plain title when the preview has none (GIFs, links Discord never unfurled): a link, up to two lines. */
+.linkTitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--cp-link-title-lines);
+  align-self: stretch;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
