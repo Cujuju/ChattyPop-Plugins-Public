@@ -168,6 +168,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "tags",
+      "name": "Tags",
+      "description": "Your own message tags, applied by hand, Jev or rules.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "tags-v1.0.0",
+          "asset": "tags-1.0.0.tar.gz",
+          "sha256": "4fc294eab13723aabf97858f213b5f4f003b771d471a42da22f5d622f1f441fb",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
