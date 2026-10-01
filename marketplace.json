@@ -56,6 +56,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "imagetext",
+      "name": "Image text",
+      "description": "Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "imagetext-v1.0.0",
+          "asset": "imagetext-1.0.0.tar.gz",
+          "sha256": "2c92e5480160452b99da08313dcb7004669bec5f7fd70fedb8f927561dc5088c",
+          "sdk": "1.1.0"
+        }
+      ]
     }
   ]
 }
