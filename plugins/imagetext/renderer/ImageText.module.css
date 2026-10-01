@@ -1,0 +1,14 @@
+/* Settings → Image text: structure only; the look is the theme's (docs/plugin-architecture.md §14). */
+
+/* An engine's "Use" choice, at the end of its row. */
+.pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  margin-left: auto;
+}
+
+/* A select in a row's control slot. */
+.control {
+  width: var(--cp-settings-control-w);
+}
