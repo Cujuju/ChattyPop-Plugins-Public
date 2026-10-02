@@ -133,12 +133,6 @@ export async function runSummary(): Promise<void> {
   if (run && active()) addRun(run);
 }
 
-/** The next run's cost (Jev's upper bound, the model's likely cost), re-estimated when the range, settings or stored runs change; null when it can't run. */
-export const [summaryEstimate] = createResource(
-  () => active() && ({ range: summaryRange(), ai: aiSettings(), prefs: summarySettings(), runs: history.items.length }),
-  async (k) => core.estimate(await rangeOf(k.range)).catch(() => null),
-);
-
 /**
  * The system prompts a run would send, with `own` (a rule's prompts) over the owner's; rebuilt when either or the
  * AI or summary settings change. null when core can't build them. Call inside a component.

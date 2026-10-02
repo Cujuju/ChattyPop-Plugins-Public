@@ -1,6 +1,6 @@
 // Summary history, controls and cited results.
 import { For, Show, createSignal } from 'solid-js';
-import { CITATION_FLAG_CONFIDENCE, type Citation, type Summary, type SummaryEstimate, type SummaryItem } from '../shared/types';
+import { CITATION_FLAG_CONFIDENCE, type Citation, type Summary, type SummaryItem } from '../shared/types';
 import { SUMMARY_RANGES, type SummaryRange, type SummaryTrigger } from '../shared/settings';
 import { MS_PER_S } from '@plugin-sdk/shared';
 import {
@@ -20,7 +20,6 @@ import {
   PanelHeader,
   HeaderActions,
   HeaderButton,
-  HeaderMeta,
   scrolledFromTop,
   Select,
 } from '@plugin-sdk/renderer/kit';
@@ -31,7 +30,6 @@ import {
   setSummaryRange,
   summaryError,
   summaryHistory,
-  summaryEstimate,
   summaryProgress,
   summaryRange,
   summaryRunning,
@@ -80,13 +78,6 @@ function flagOf(item: SummaryItem): keyof typeof FLAG_TEXT | null {
   return (c.confidence ?? 0) >= CITATION_FLAG_CONFIDENCE ? c.verdict : null;
 }
 
-/** How the next run's projection was made, on hover. */
-function estimateTitle(e: SummaryEstimate): string {
-  const model = e.modelUsd === null ? [] : [`About ${usdText(e.modelUsd)} for the model at API rates, from what your recent runs with it cost per message`];
-  const jev = e.questions ? [`Up to ${e.questions} Jev questions for ${e.messages} messages; usually less, as earlier steps drop messages`] : [];
-  return [...model, ...jev].join('\n');
-}
-
 /** F2 Summary: range and run; every run kept, oldest at the top and newest at the bottom, each headed by when it ran. */
 export function SummaryPanel() {
   const log = createFollowBottom();
@@ -114,21 +105,14 @@ export function SummaryPanel() {
             options={Object.entries(SUMMARY_RANGES).map(([id, r]) => ({ value: id, label: r.label }))}
             onChange={(v) => setSummaryRange(v as SummaryRange)}
           />
-          <Show when={!summaryRunning() && summaryEstimate()}>
-            {(e) => (
-              <Show when={e().modelUsd !== null}>
-                <HeaderMeta title={estimateTitle(e())}>{`≈${usdText(e().modelUsd!)}`}</HeaderMeta>
-              </Show>
-            )}
-          </Show>
           <HeaderButton
-            variant="primary"
+            variant="primaryIcon"
             aria-label={summaryRunning() ? 'Working' : 'Summarize'}
             title={summaryRunning() ? 'Working' : 'Summarize'}
             disabled={summaryRunning()}
             onClick={() => void runSummary()}
           >
-            <Icon name="summary" class={styles.runIcon} />
+            <Icon name="summary" />
           </HeaderButton>
         </HeaderActions>
       </PanelHeader>
