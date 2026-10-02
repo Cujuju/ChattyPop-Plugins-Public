@@ -1,0 +1,130 @@
+# Releases every plugin that changed (ChattyPop docs/plugin-architecture.md §16, Releasing): stamps new versions in a
+# release-intent commit on main, publishes them and lists them in marketplace.json. The private plugin repo calls this
+# workflow too, so both repos release the same way.
+name: Release plugins
+
+on:
+  push:
+    branches: [main]
+    paths: ['plugins/**']
+  workflow_dispatch:
+    inputs:
+      only:
+        description: Plugin ids, comma-separated (empty for all)
+        type: string
+        default: ''
+      sdk_rebuild:
+        description: Also release plugins whose newest release was built for another plugin SDK
+        type: boolean
+        default: false
+      dry_run:
+        description: Print the state and planned versions; publish nothing
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      only:
+        type: string
+        default: ''
+      sdk_rebuild:
+        type: boolean
+        default: false
+      dry_run:
+        type: boolean
+        default: false
+    secrets:
+      CHATTYPOP_READ_TOKEN:
+        required: true
+
+jobs:
+  release:
+    # The script refuses any branch but main too.
+    if: github.ref == 'refs/heads/main'
+    # The host's scripts and tests run on Windows.
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    # One release at a time per repo; queued runs each start from the latest main.
+    concurrency:
+      group: plugin-release-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out ChattyPop
+        uses: actions/checkout@v5
+        with:
+          repository: Cujuju/ChattyPop
+          token: ${{ secrets.CHATTYPOP_READ_TOKEN }}
+          path: ChattyPop
+          # appVersion() counts the whole history; it is built into every plugin.
+          fetch-depth: 0
+
+      - name: Check out solidjs-toolkit
+        uses: actions/checkout@v5
+        with:
+          repository: Cujuju/solidjs-toolkit
+          path: solidjs-toolkit
+
+      - name: Set up pnpm (the host's packageManager)
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ChattyPop/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            ChattyPop/pnpm-lock.yaml
+            solidjs-toolkit/pnpm-lock.yaml
+
+      - name: Cache Electron's download
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('ChattyPop/pnpm-lock.yaml') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - name: Build solidjs-toolkit
+        working-directory: solidjs-toolkit
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Install ChattyPop
+        working-directory: ChattyPop
+        run: pnpm install --frozen-lockfile
+
+      - name: Check out this repo
+        uses: actions/checkout@v5
+        with:
+          path: plugins-repo
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Move to the current main
+        working-directory: plugins-repo
+        run: |
+          git fetch origin main --tags
+          git checkout -B main origin/main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Release changed plugins
+        working-directory: ChattyPop
+        env:
+          REPO_DIR: ${{ github.workspace }}\plugins-repo
+          REPO: ${{ github.repository }}
+          ONLY: ${{ inputs.only }}
+          SDK_REBUILD: ${{ inputs.sdk_rebuild }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          $flags = @()
+          if ($env:ONLY) { $flags += '--only', $env:ONLY }
+          if ($env:SDK_REBUILD -eq 'true') { $flags += '--sdk-rebuild' }
+          if ($env:DRY_RUN -eq 'true') { $flags += '--dry-run' }
+          pnpm plugin:release-changed $env:REPO_DIR --repo $env:REPO @flags
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
