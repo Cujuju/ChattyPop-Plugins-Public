@@ -20,6 +20,7 @@ import {
   PanelHeader,
   HeaderActions,
   HeaderButton,
+  inCompanion,
   scrolledFromTop,
   Select,
 } from '@plugin-sdk/renderer/kit';
@@ -97,7 +98,8 @@ export function SummaryPanel() {
   return (
     <section class="cp-panel" aria-label="Summary">
       <PanelHeader section="summary" collapsible title="Summary">
-        <HeaderActions>
+        {/* On the phone the range and Summarize sit mid-way between the title and the app's bar controls, not against them. */}
+        <HeaderActions align={inCompanion ? 'center' : 'end'}>
           <Select
             class={styles.select}
             label="Range"
