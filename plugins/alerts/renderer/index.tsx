@@ -27,6 +27,8 @@ export default defineRendererPlugin(
         section: 'alerts',
         Component: AlertsPanel,
         badge: unreadAlertCount,
+        // The inbox checked most: a top-bar button on the phone, where the desktop has its bell.
+        place: 'bar',
       },
     },
     notificationKinds: {

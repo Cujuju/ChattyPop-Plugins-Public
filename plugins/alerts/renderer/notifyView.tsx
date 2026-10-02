@@ -17,7 +17,7 @@ const DEVICE: Record<NotifyDevice, { label: string; hint: string; field: keyof N
     hint: 'Every match is still listed in Alerts. None for missed messages, or ones privacy mode hides.',
     field: 'toast',
   },
-  phone: { label: 'Phone notification', hint: 'Each phone also chooses whether it gets alerts, from its bell.', field: 'phone' },
+  phone: { label: 'Phone notification', hint: 'Each phone also chooses whether it gets alerts, in its Settings.', field: 'phone' },
 };
 const choice = (n: DeviceNotify): string => (n ? String(n.cooldownMs) : NOTIFY_NEVER);
 const notifyOf = (v: string): DeviceNotify => (v === NOTIFY_NEVER ? null : { cooldownMs: Number(v) });
