@@ -1,5 +1,5 @@
 // The Links panel's state: its filter, the paged feed, and the "new since you looked" watermark.
-import { createEffect, createSignal, on } from 'solid-js';
+import { batch, createEffect, createSignal, on } from 'solid-js';
 import { MS_PER_DAY, pluginSetting, type Platform } from '@plugin-sdk/shared';
 import {
   ARCHIVE_REFRESH_DEBOUNCE_MS,
@@ -20,11 +20,12 @@ import type { LinkCursor, LinkFilter, LinkItem, LinkSort } from '../shared/types
 /** Items fetched per page of the Links panel's history. */
 const LINK_PAGE_SIZE = 100;
 
+/** `short`: the range on a segment of the phone's filter sheet. */
 export const LINK_RANGES = {
-  all: { label: 'Any time', days: null },
-  '1d': { label: 'Last 24 hours', days: 1 },
-  '7d': { label: 'Last 7 days', days: 7 },
-  '30d': { label: 'Last 30 days', days: 30 },
+  all: { label: 'Any time', short: 'Any time', days: null },
+  '1d': { label: 'Last 24 hours', short: '24 hours', days: 1 },
+  '7d': { label: 'Last 7 days', short: '7 days', days: 7 },
+  '30d': { label: 'Last 30 days', short: '30 days', days: 30 },
 } as const;
 export type LinkRange = keyof typeof LINK_RANGES;
 
@@ -50,6 +51,19 @@ export const [linkRange, setLinkRange] = createSignal<LinkRange>('all');
 export const [linkSort, setLinkSort] = createSignal<LinkSort>('newest');
 /** Leave out links Jev flagged as spam, a scam or NSFW (#62). */
 export const [linkHideFlagged, setLinkHideFlagged] = createSignal(false);
+
+/** How many of the channel, range, order and flagged filters are off their defaults (the phone's sheet holds them). */
+export const linkFilterCount = (): number => [linkChannelId() !== null, linkRange() !== 'all', linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
+
+/** Puts those four back; one reload follows. */
+export function resetLinkFilters(): void {
+  batch(() => {
+    setLinkChannelId(null);
+    setLinkRange('all');
+    setLinkSort('newest');
+    setLinkHideFlagged(false);
+  });
+}
 
 function filter(): LinkFilter {
   const days = LINK_RANGES[linkRange()].days;
