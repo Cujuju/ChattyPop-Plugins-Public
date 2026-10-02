@@ -88,11 +88,17 @@ jobs:
           key: electron-${{ runner.os }}-${{ hashFiles('ChattyPop/pnpm-lock.yaml') }}
           restore-keys: electron-${{ runner.os }}-
 
+      # Only the packages ChattyPop links (its package.json) and their dependencies: others may link repos CI lacks.
       - name: Build solidjs-toolkit
         working-directory: solidjs-toolkit
         run: |
           pnpm install --frozen-lockfile
-          pnpm build
+          $chattypop = Get-Content ../ChattyPop/package.json -Raw | ConvertFrom-Json
+          $linked = @($chattypop.dependencies.PSObject.Properties | Where-Object { $_.Value -like 'link:../solidjs-toolkit/*' })
+          if (-not $linked) { throw 'ChattyPop links no solidjs-toolkit package.' }
+          $filters = $linked | ForEach-Object { '--filter', "$($_.Name)..." }
+          pnpm @filters build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install ChattyPop
         working-directory: ChattyPop
