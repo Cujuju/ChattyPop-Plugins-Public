@@ -4,9 +4,9 @@
 name: Release plugins
 
 on:
+  # Every push, not only plugins/**: a release whose intent push loses a race leaves its work to the winner's run.
   push:
     branches: [main]
-    paths: ['plugins/**']
   workflow_dispatch:
     inputs:
       only:
