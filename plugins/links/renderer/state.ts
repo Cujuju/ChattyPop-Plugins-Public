@@ -4,7 +4,7 @@ import { MS_PER_DAY, pluginSetting, type Platform } from '@plugin-sdk/shared';
 import {
   ARCHIVE_REFRESH_DEBOUNCE_MS,
   callable,
-  desktopCoreClient,
+  coreClient,
   pluginData,
   lastSeenAt,
   onAppEvent,
@@ -28,8 +28,8 @@ export const LINK_RANGES = {
 } as const;
 export type LinkRange = keyof typeof LINK_RANGES;
 
-/** The feed is the desktop's Links panel: its calls serve desktop windows only, and run while feedOn. */
-const client = desktopCoreClient(plugin);
+/** The feed's calls, from the desktop's Links panel or the phone's Links section; they run while feedOn. */
+const client = coreClient(plugin);
 const core = {
   page: (query: Parameters<typeof client.page>[0]) => pluginData(() => client.page(query), []),
   counts: (query: Parameters<typeof client.counts>[0]) => pluginData(() => client.counts(query), {}),

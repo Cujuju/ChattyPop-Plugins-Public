@@ -115,8 +115,11 @@ const QUERIES: readonly JevQueryDecl<(typeof FEATURES)[number]['key']>[] = [
 export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: LinksCoreCalls; events: LinksEvents }>()({
-    core: { page: ['renderer'], counts: ['renderer'] },
-    events: { [UPDATED_EVENT]: ['renderer'] },
+    core: {
+      page: { audiences: ['renderer', 'phone'], writes: false },
+      counts: { audiences: ['renderer', 'phone'], writes: false },
+    },
+    events: { [UPDATED_EVENT]: ['renderer', 'phone'] },
   }),
   panels: [
     {
@@ -133,8 +136,10 @@ export const plugin = definePlugin({
   jev: { queries: QUERIES, features: FEATURES },
   // FxTwitter's public status API, for X posts Discord never previewed.
   network: { hosts: ['api.fxtwitter.com'] },
-  /** Links first shared after this count as new. */
-  preferences: { seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null) }) },
+  // Beside Summaries in the phone's drawer.
+  slots: { phoneSections: [{ id: 'feed', after: 'summaries.summary' }] },
+  /** Links first shared after this count as new. The phone reads it: its feed shows the desktop's "caught up" line. */
+  preferences: { seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }) },
   // Its tables and watermark from when it was built in.
   adopts: { tables: { link_judgments: 'judgments', x_posts: 'x_posts' }, settings: { 'links.seenUpTo': 'seenUpTo' }, jevFeatures: { linkCategories: 'linkCategories', linkSafety: 'linkSafety', linkWorth: 'linkWorth' } },
 });
