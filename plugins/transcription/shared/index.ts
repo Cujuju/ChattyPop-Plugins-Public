@@ -6,7 +6,7 @@ import { DEFAULT_TRANSCRIPTION_SETTINGS, normalizeTranscriptionSettings, type To
 export const manifest = {
   id: 'transcription',
   name: 'Transcription',
-  version: '1.0.0',
+  version: '1.0.1',
   description: 'Turns voice messages and audio into text on this computer, for rules, Jev, summaries and search.',
 };
 

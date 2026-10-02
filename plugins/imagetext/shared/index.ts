@@ -6,7 +6,7 @@ import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type ImageFetc
 export const manifest = {
   id: 'imagetext',
   name: 'Image text',
-  version: '1.0.0',
+  version: '1.0.1',
   description: 'Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.',
 };
 
