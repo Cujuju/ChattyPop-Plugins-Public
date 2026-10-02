@@ -1,6 +1,6 @@
 /* The Links filter bar (LinkFilters), of the Links panel: platform chips, then the channel,
-   range and order pickers and the flagged toggle. Wraps when narrow. Structure only: the look is the theme's look
-   vocabulary (@plugin-sdk/renderer look), applied in LinkFilters.tsx. */
+   range and order pickers and the flagged toggle. Wraps when narrow. The phone has a chip row and a sheet instead (below).
+   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
 .filters {
   display: flex;
   align-items: center;
@@ -44,4 +44,87 @@
   height: var(--cp-btn-h-sm);
   max-width: var(--cp-filter-select-max-w);
   min-width: 0;
+}
+
+/* The phone's bar (PhoneLinkFilters): the chips on one row, scrolling sideways inside the panel's inset. */
+.platformRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-height: var(--cp-panel-subheader-h);
+  padding: 0 var(--cp-panel-pad-x);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.platformRow > .chip {
+  flex: none;
+}
+
+/* The filter button's icon, at a header icon button's size (LinksPanel). */
+.filterIcon {
+  width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+  height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+}
+
+/* The phone's filter sheet (LinkFilterSheet): a dialog along the bottom edge, one filter per row, clear of the home bar. */
+.sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.sheetBody {
+  display: grid;
+  gap: var(--cp-space-7);
+  padding: var(--cp-space-8) calc(var(--cp-space-7) + env(safe-area-inset-right)) calc(var(--cp-space-7) + env(safe-area-inset-bottom))
+    calc(var(--cp-space-7) + env(safe-area-inset-left));
+}
+
+.sheetTitle {
+  margin: 0;
+}
+
+/* A filter: its label over a control as wide as the sheet. */
+.field {
+  display: grid;
+  gap: var(--cp-space-3);
+}
+
+.fieldSelect {
+  width: 100%;
+  min-width: 0;
+  height: var(--cp-touch-h);
+}
+
+.segments {
+  display: flex;
+}
+
+.segment {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-6);
+  min-height: var(--cp-touch-h);
+}
+
+/* Reset and Done share the last row. */
+.sheetActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cp-space-4);
+}
+
+.sheetAction {
+  min-height: var(--cp-touch-h);
+  text-align: center;
 }

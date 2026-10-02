@@ -1,5 +1,5 @@
 // The Links panel (F2): the feed, oldest at the top, with its filter bar.
-import { Match, Show, Switch, createEffect, createMemo, on, onMount } from 'solid-js';
+import { Match, Show, Switch, createEffect, createMemo, createSignal, on, onMount } from 'solid-js';
 import {
   DayDivider,
   JumpToNewest,
@@ -8,7 +8,10 @@ import {
   createFollowBottom,
   createVirtualLog,
   dayLabel,
+  HeaderActions,
   HeaderBadge,
+  HeaderButton,
+  inCompanion,
   isPanelCollapsed,
   look,
 } from '@plugin-sdk/renderer/kit';
@@ -18,6 +21,7 @@ import {
   linkChannelId,
   linkCounts,
   linkDivider,
+  linkFilterCount,
   linkHideFlagged,
   linkLoads,
   linkPlatforms,
@@ -28,9 +32,14 @@ import {
   newLinkCount,
   reloadLinks,
 } from './state';
-import { LinkFilters } from './LinkFilters';
+import { LinkFilters, PhoneLinkFilters } from './LinkFilters';
+import { LinkFilterSheet } from './LinkFilterSheet';
 import { LinkRow } from './LinkRow';
 import styles from './Links.module.css';
+import filterStyles from './LinkFilters.module.css';
+
+/** A funnel of three shortening lines, on the icons' 24-unit grid. */
+const FILTER_ICON_PATH = 'M4 7h16M7 12h10M10 17h4';
 
 /** Row-height guess before measurement (share with preview); rows are measured after render. */
 const ESTIMATED_ROW_PX = 120;
@@ -77,6 +86,9 @@ export function LinksPanel() {
   createEffect(on([linkPlatforms, linkChannelId, linkRange, linkSort, linkHideFlagged], () => void reloadLinks(), { defer: true }));
   createEffect(on(linkLoads, () => queueMicrotask(log.scrollToNewest)));
 
+  const [sheetOpen, setSheetOpen] = createSignal(false);
+  const filterLabel = (): string => (linkFilterCount() ? `Filters, ${linkFilterCount()} set` : 'Filters');
+
   return (
     // Structural geometry inline: the body is relative for the jump button; the scroller owns the remaining height for virtualization.
     <section class="cp-panel" aria-label="Links">
@@ -84,7 +96,20 @@ export function LinksPanel() {
         <Show when={newLinkCount() > 0}>
           <HeaderBadge>{newLinkCount()} new</HeaderBadge>
         </Show>
+        {/* The phone keeps every filter but the platforms in a sheet; its button is raised while any is set. */}
+        <Show when={inCompanion}>
+          <HeaderActions>
+            <HeaderButton variant="icon" aria-label={filterLabel()} aria-haspopup="dialog" aria-pressed={linkFilterCount() > 0} onClick={() => setSheetOpen(true)}>
+              <svg class={`${filterStyles.filterIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
+                <path d={FILTER_ICON_PATH} />
+              </svg>
+            </HeaderButton>
+          </HeaderActions>
+        </Show>
       </PanelHeader>
+      <Show when={inCompanion}>
+        <LinkFilterSheet open={sheetOpen()} onClose={() => setSheetOpen(false)} />
+      </Show>
       {/* Folded, the body is hidden rather than unmounted: the virtualizer keeps its scroll element. */}
       <div
         hidden={isPanelCollapsed(LINKS_PANEL)}
@@ -96,7 +121,7 @@ export function LinksPanel() {
           position: 'relative',
         }}
       >
-        <LinkFilters counts={linkCounts()} />
+        {inCompanion ? <PhoneLinkFilters counts={linkCounts()} /> : <LinkFilters counts={linkCounts()} />}
         <Show when={links.items.length === 0 && !links.loading}>
           <p class="cp-panel-empty">No links match these filters.</p>
         </Show>

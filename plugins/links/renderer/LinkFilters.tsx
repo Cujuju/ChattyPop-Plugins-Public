@@ -19,47 +19,52 @@ import {
 } from './state';
 import styles from './LinkFilters.module.css';
 
-const linkWorth = jevSwitch(plugin, 'linkWorth');
-const linkSafety = jevSwitch(plugin, 'linkSafety');
+export const linkWorth = jevSwitch(plugin, 'linkWorth');
+export const linkSafety = jevSwitch(plugin, 'linkSafety');
+
+type Counts = Partial<Record<Platform, number>>;
+
+/** The channel picker's choices: every archived channel, after "All channels". */
+export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
+
+/** Platform chips with counts: each platform with links for the filter, or picked. `class` lays the group out. */
+function PlatformChips(props: { counts: Counts; class?: string }) {
+  const togglePlatform = (p: Platform): void => {
+    setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
+  };
+  return (
+    <div class={props.class} role="group" aria-label="Platforms">
+      <For each={PLATFORMS.filter((p) => props.counts[p] || linkPlatforms().includes(p))}>
+        {(p) => (
+          <button
+            type="button"
+            class={`${styles.chip} ${look.filterChip} ${look.text}`}
+            data-size="xs"
+            data-font="sans"
+            data-platform={p}
+            aria-pressed={linkPlatforms().includes(p)}
+            onClick={() => togglePlatform(p)}
+          >
+            {PLATFORM_INFO[p].label}{' '}
+            <span class={look.text} data-size="2xs" data-tone="muted">
+              {props.counts[p] ?? 0}
+            </span>
+          </button>
+        )}
+      </For>
+    </div>
+  );
+}
 
 /**
  * The Links panel's filter bar: platform chips with counts, channel, date range, order and the flagged toggle; `counts`
  * are the per-platform totals for the filter.
  */
-export function LinkFilters(props: { counts: Partial<Record<Platform, number>> }) {
-  const channels = () => archivedChannels();
-  const togglePlatform = (p: Platform): void => {
-    setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
-  };
+export function LinkFilters(props: { counts: Counts }) {
   return (
     <header class={`${styles.filters} ${look.ruleBelow}`}>
-      <div class={styles.platforms} role="group" aria-label="Platforms">
-        <For each={PLATFORMS.filter((p) => props.counts[p] || linkPlatforms().includes(p))}>
-          {(p) => (
-            <button
-              type="button"
-              class={`${styles.chip} ${look.filterChip} ${look.text}`}
-              data-size="xs"
-              data-font="sans"
-              data-platform={p}
-              aria-pressed={linkPlatforms().includes(p)}
-              onClick={() => togglePlatform(p)}
-            >
-              {PLATFORM_INFO[p].label}{' '}
-              <span class={look.text} data-size="2xs" data-tone="muted">
-                {props.counts[p] ?? 0}
-              </span>
-            </button>
-          )}
-        </For>
-      </div>
-      <Select
-        class={styles.select}
-        label="Channel"
-        value={linkChannelId() ?? ''}
-        options={[{ value: '', label: 'All channels' }, ...channels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))]}
-        onChange={(v) => setLinkChannelId(v || null)}
-      />
+      <PlatformChips counts={props.counts} class={styles.platforms} />
+      <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
       <Select
         class={styles.select}
         label="Date range"
@@ -85,6 +90,15 @@ export function LinkFilters(props: { counts: Partial<Record<Platform, number>> }
           Hide flagged
         </label>
       </Show>
+    </header>
+  );
+}
+
+/** The phone's filter bar: the platform chips on one row that scrolls sideways. The other filters are in LinkFilterSheet. */
+export function PhoneLinkFilters(props: { counts: Counts }) {
+  return (
+    <header class={look.ruleBelow}>
+      <PlatformChips counts={props.counts} class={styles.platformRow} />
     </header>
   );
 }
