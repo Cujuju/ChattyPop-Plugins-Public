@@ -1,5 +1,5 @@
 /* The Links filter bar (LinkFilters), of the Links panel: platform chips, then the channel,
-   range and order pickers and the flagged toggle. Wraps when narrow. The phone has icon chips in the panel header and a sheet instead (below).
+   range and order pickers and the flagged toggle. Wraps when narrow. The phone has a sheet instead (below).
    Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
 .filters {
   display: flex;
@@ -46,38 +46,18 @@
   min-width: 0;
 }
 
-/* The phone's chips, in the panel header between the title and the filter button (HeaderPlatformChips): icon squares on
-   one line. Zero basis: the group never wraps the header. Its grow factor, far above the title group's 1, gives it the
-   header's free width; past that it scrolls sideways. */
-.headerChips {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  flex: 100 1 0;
-  min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-}
-
-/* Trailing while they fit. An auto margin: justify-content: flex-end would put scrolled-out chips out of reach. */
-.headerChips > :first-child {
-  margin-left: auto;
-}
-
-/* A square at the compact control size; a platform without an icon shows its badge text, and widens for it. */
-.iconChip {
-  display: inline-grid;
-  place-content: center;
-  flex: none;
-  min-width: var(--cp-chip-h);
-  height: var(--cp-chip-h);
-  padding: 0 var(--cp-space-2);
-}
-
-/* A header icon button's icon size: a platform chip's icon, and the filter button's (LinksPanel). */
-.headerIcon {
+/* A header icon button's icon size: the filter button's (LinksPanel) and a sheet chip's. */
+.headerIcon,
+.chipIcon {
   width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
   height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+}
+
+/* A chip's name, between its icon and count; the count stays whole when the name is long. */
+.chipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The phone's filter sheet (LinkFilterSheet): a dialog along the bottom edge, one filter per row, clear of the home bar. */
@@ -97,14 +77,51 @@
     calc(var(--cp-space-7) + env(safe-area-inset-left));
 }
 
+/* The title, with Reset at the far end while any filter is set. */
+.sheetHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cp-space-6);
+}
+
 .sheetTitle {
   margin: 0;
+}
+
+/* Reset: text alone, but at least the smallest tap target high. */
+.resetLink {
+  min-height: var(--cp-hit-min);
+  padding: 0;
 }
 
 /* A filter: its label over a control as wide as the sheet. */
 .field {
   display: grid;
   gap: var(--cp-space-3);
+}
+
+/* The platforms: a grid of two equal chips per row, each a full-height control like the pickers below. */
+.sheetChips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cp-space-3);
+}
+
+/* icon | name | count, at the touch height. */
+.sheetChip {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-width: 0;
+  height: var(--cp-touch-h);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
+.sheetChip > .chipLabel {
+  flex: 1 1 auto;
+  text-align: left;
 }
 
 .fieldSelect {
@@ -130,14 +147,8 @@
   min-height: var(--cp-touch-h);
 }
 
-/* Reset and Done share the last row. */
-.sheetActions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--cp-space-4);
-}
-
-.sheetAction {
+/* Done: the sheet's one button, the sheet's width. */
+.sheetDone {
   min-height: var(--cp-touch-h);
   text-align: center;
 }

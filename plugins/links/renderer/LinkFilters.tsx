@@ -29,48 +29,37 @@ type Counts = Partial<Record<Platform, number>>;
 export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
 
 /**
- * Platform chips: each platform with links for the filter, or picked. `class` lays the group out. A chip names its
- * platform and count; with `icons` it is the platform's icon alone (its text badge when it has none), named for readers.
+ * Platform chips: each platform with links for the filter, or picked, named with its count. `class` lays the group out
+ * and `chipClass` each chip; `icons` puts the platform's icon before its name (the phone's sheet).
  */
-function PlatformChips(props: { counts: Counts; class?: string; icons?: boolean }) {
+export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; icons?: boolean }) {
   const togglePlatform = (p: Platform): void => {
     setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
   };
-  const named = (p: Platform): string => `${PLATFORM_INFO[p].label}, ${props.counts[p] ?? 0} links`;
   return (
     <div class={props.class} role="group" aria-label="Platforms">
       <For each={PLATFORMS.filter((p) => props.counts[p] || linkPlatforms().includes(p))}>
         {(p) => (
           <button
             type="button"
-            class={`${props.icons ? styles.iconChip : styles.chip} ${look.filterChip} ${look.text}`}
-            data-size="xs"
+            class={`${props.chipClass ?? styles.chip} ${look.filterChip} ${look.text}`}
+            data-size={props.icons ? 'md' : 'xs'}
             data-font="sans"
             data-platform={p}
             aria-pressed={linkPlatforms().includes(p)}
-            aria-label={props.icons ? named(p) : undefined}
-            title={props.icons ? named(p) : undefined}
             onClick={() => togglePlatform(p)}
           >
-            <Show
-              when={props.icons}
-              fallback={
-                <>
-                  {PLATFORM_INFO[p].label}{' '}
-                  <span class={look.text} data-size="2xs" data-tone="muted">
-                    {props.counts[p] ?? 0}
-                  </span>
-                </>
-              }
-            >
-              <Show when={PLATFORM_ICON_PATHS[p]} fallback={PLATFORM_INFO[p].badge}>
-                {(path) => (
-                  <svg class={`${styles.headerIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
-                    <path d={path()} />
-                  </svg>
-                )}
-              </Show>
+            <Show when={props.icons && PLATFORM_ICON_PATHS[p]}>
+              {(path) => (
+                <svg class={`${styles.chipIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
+                  <path d={path()} />
+                </svg>
+              )}
             </Show>
+            <span class={styles.chipLabel}>{PLATFORM_INFO[p].label}</span>
+            <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">
+              {props.counts[p] ?? 0}
+            </span>
           </button>
         )}
       </For>
@@ -115,6 +104,3 @@ export function LinkFilters(props: { counts: Counts }) {
     </header>
   );
 }
-
-/** The phone's platform chips, for the panel header: icons on one line that scrolls sideways. The other filters are in LinkFilterSheet. */
-export const HeaderPlatformChips = (props: { counts: Counts }) => <PlatformChips counts={props.counts} class={styles.headerChips} icons />;

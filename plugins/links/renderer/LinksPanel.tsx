@@ -32,7 +32,7 @@ import {
   newLinkCount,
   reloadLinks,
 } from './state';
-import { HeaderPlatformChips, LinkFilters } from './LinkFilters';
+import { LinkFilters } from './LinkFilters';
 import { LinkFilterSheet } from './LinkFilterSheet';
 import { LinkRow } from './LinkRow';
 import styles from './Links.module.css';
@@ -96,9 +96,8 @@ export function LinksPanel() {
         <Show when={newLinkCount() > 0}>
           <HeaderBadge>{newLinkCount()} new</HeaderBadge>
         </Show>
-        {/* The phone's filters are in the header: the platforms as icon chips, the rest in a sheet whose button is raised while any is set. */}
+        {/* The phone keeps its filters in a sheet; its button is raised while any is set. */}
         <Show when={inCompanion}>
-          <HeaderPlatformChips counts={linkCounts()} />
           <HeaderActions>
             <HeaderButton variant="icon" aria-label={filterLabel()} aria-haspopup="dialog" aria-pressed={linkFilterCount() > 0} onClick={() => setSheetOpen(true)}>
               <svg class={`${filterStyles.headerIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
@@ -109,7 +108,7 @@ export function LinksPanel() {
         </Show>
       </PanelHeader>
       <Show when={inCompanion}>
-        <LinkFilterSheet open={sheetOpen()} onClose={() => setSheetOpen(false)} />
+        <LinkFilterSheet open={sheetOpen()} counts={linkCounts()} onClose={() => setSheetOpen(false)} />
       </Show>
       {/* Folded, the body is hidden rather than unmounted: the virtualizer keeps its scroll element. */}
       <div
