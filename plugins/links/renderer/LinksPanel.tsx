@@ -32,7 +32,7 @@ import {
   newLinkCount,
   reloadLinks,
 } from './state';
-import { LinkFilters, PhoneLinkFilters } from './LinkFilters';
+import { HeaderPlatformChips, LinkFilters } from './LinkFilters';
 import { LinkFilterSheet } from './LinkFilterSheet';
 import { LinkRow } from './LinkRow';
 import styles from './Links.module.css';
@@ -96,11 +96,12 @@ export function LinksPanel() {
         <Show when={newLinkCount() > 0}>
           <HeaderBadge>{newLinkCount()} new</HeaderBadge>
         </Show>
-        {/* The phone keeps every filter but the platforms in a sheet; its button is raised while any is set. */}
+        {/* The phone's filters are in the header: the platforms as icon chips, the rest in a sheet whose button is raised while any is set. */}
         <Show when={inCompanion}>
+          <HeaderPlatformChips counts={linkCounts()} />
           <HeaderActions>
             <HeaderButton variant="icon" aria-label={filterLabel()} aria-haspopup="dialog" aria-pressed={linkFilterCount() > 0} onClick={() => setSheetOpen(true)}>
-              <svg class={`${filterStyles.filterIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
+              <svg class={`${filterStyles.headerIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
                 <path d={FILTER_ICON_PATH} />
               </svg>
             </HeaderButton>
@@ -121,7 +122,9 @@ export function LinksPanel() {
           position: 'relative',
         }}
       >
-        {inCompanion ? <PhoneLinkFilters counts={linkCounts()} /> : <LinkFilters counts={linkCounts()} />}
+        <Show when={!inCompanion}>
+          <LinkFilters counts={linkCounts()} />
+        </Show>
         <Show when={links.items.length === 0 && !links.loading}>
           <p class="cp-panel-empty">No links match these filters.</p>
         </Show>
