@@ -23,6 +23,8 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     page: (q) => xPosts.fill(linkPage(db, ctx.archive.payloads, ctx.archive.messages, q)),
     counts: (f) => linkCounts(db, f),
+    // Core's clock, not the caller's: a phone's may differ from the PC's.
+    markSeen: () => ctx.preferences.set('seenUpTo', Date.now()),
   });
   judge.kick();
   xPosts.resume();

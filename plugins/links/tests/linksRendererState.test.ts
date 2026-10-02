@@ -18,7 +18,7 @@ vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await impor
 vi.mock('@plugin-sdk/renderer', async () => ({
   ARCHIVE_REFRESH_DEBOUNCE_MS: 0,
   callable: () => true,
-  desktopCoreClient: () => ({
+  coreClient: () => ({
     page: () => new Promise<LinkItem[]>((resolve) => env.pages.push({ resolve })),
     counts: async () => ({}),
   }),

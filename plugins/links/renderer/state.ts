@@ -4,7 +4,7 @@ import { MS_PER_DAY, pluginSetting, type Platform } from '@plugin-sdk/shared';
 import {
   ARCHIVE_REFRESH_DEBOUNCE_MS,
   callable,
-  desktopCoreClient,
+  coreClient,
   pluginData,
   lastSeenAt,
   onAppEvent,
@@ -28,11 +28,12 @@ export const LINK_RANGES = {
 } as const;
 export type LinkRange = keyof typeof LINK_RANGES;
 
-/** The feed is the desktop's Links panel: its calls serve desktop windows only, and run while feedOn. */
-const client = desktopCoreClient(plugin);
+/** The feed's calls, from the desktop's Links panel or the phone's Links section; they run while feedOn. */
+const client = coreClient(plugin);
 const core = {
   page: (query: Parameters<typeof client.page>[0]) => pluginData(() => client.page(query), []),
   counts: (query: Parameters<typeof client.counts>[0]) => pluginData(() => client.counts(query), {}),
+  markSeen: () => pluginData(() => client.markSeen(), undefined),
 };
 const sum = (counts: Partial<Record<Platform, number>>): number => Object.values(counts).reduce((a, n) => a + (n ?? 0), 0);
 /** Core pages newest first; the panel lists oldest first (newest at the bottom). */
@@ -66,7 +67,7 @@ function filter(): LinkFilter {
  * Links first shared after this count as new; advanced while the Links panel is on screen. Null until loaded. First run
  * has no watermark: it starts at the end of the previous app session, like "since you were last here".
  */
-const [seenUpTo, setSeenUpTo, { loaded: watermarkLoaded }] = pluginPreference(plugin, 'seenUpTo', {
+const [seenUpTo, , { loaded: watermarkLoaded }] = pluginPreference(plugin, 'seenUpTo', {
   seed: lastSeenAt,
 });
 /** The watermark as it was when the panel last came on screen: the "caught up" divider sits there. */
@@ -90,13 +91,18 @@ export function onLinksShown(): void {
   setLinkDivider(seenUpTo());
 }
 
+/**
+ * Core moves the watermark, so a phone's mark is stored as a desktop window's is. The count clears at once, and a count
+ * read begun earlier is dropped; core's setting change then recounts.
+ */
 export function markLinksSeen(): void {
   if (newCount() === 0 && seenUpTo() !== null) return;
-  setSeenUpTo(Date.now());
-  void refreshNewCount();
+  countReads++;
+  setNewCount(0);
+  void core.markSeen();
 }
 
-// Another window moved the watermark (createSetting, registered first, has already adopted it).
+// Core or another window moved the watermark (createSetting, registered first, has already adopted it).
 onAppEvent('setting-changed', (e) => {
   if (e.key === pluginSetting(plugin, 'seenUpTo')) void refreshNewCount();
 });

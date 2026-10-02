@@ -1,4 +1,5 @@
-// Links' renderer side: the Links panel, its new-link count on the top bar, and the l shortcut that brings it forward.
+// Links' renderer side: the Links panel, its new-link count on the top bar, the l shortcut that brings it forward, and
+// the phone's Links section.
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { revealPanel } from '@plugin-sdk/renderer/kit';
 import { LINKS_PANEL, plugin } from '../shared';
@@ -8,6 +9,7 @@ import { markLinksSeen, newLinkCount, onLinksShown } from './state';
 export default defineRendererPlugin(plugin, {
   panels: { [LINKS_PANEL]: { view: LinksPanel, unread: { count: newLinkCount, markSeen: markLinksSeen, onShown: onLinksShown } } },
   shortcuts: { l: () => revealPanel(LINKS_PANEL) },
+  phoneSections: { feed: { label: 'Links', overview: { noun: 'links' }, section: LINKS_PANEL, Component: LinksPanel, badge: newLinkCount } },
   jevFeatures: {
     linkCategories: { group: 'Links', hint: 'Jev sorts each link into a category (video, article, tool…).' },
     linkSafety: { group: 'Links', hint: 'Jev flags risky links in the Links panel.' },
