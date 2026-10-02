@@ -52,12 +52,14 @@ export const [linkSort, setLinkSort] = createSignal<LinkSort>('newest');
 /** Leave out links Jev flagged as spam, a scam or NSFW (#62). */
 export const [linkHideFlagged, setLinkHideFlagged] = createSignal(false);
 
-/** How many of the channel, range, order and flagged filters are off their defaults (the phone's sheet holds them). */
-export const linkFilterCount = (): number => [linkChannelId() !== null, linkRange() !== 'all', linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
+/** How many filters are off their defaults: platforms (as one), channel, range, order and flagged (the phone's sheet holds them). */
+export const linkFilterCount = (): number =>
+  [linkPlatforms().length > 0, linkChannelId() !== null, linkRange() !== 'all', linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
 
-/** Puts those four back; one reload follows. */
+/** Puts every filter back; one reload follows. */
 export function resetLinkFilters(): void {
   batch(() => {
+    setLinkPlatforms([]);
     setLinkChannelId(null);
     setLinkRange('all');
     setLinkSort('newest');
