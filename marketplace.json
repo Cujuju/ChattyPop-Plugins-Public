@@ -196,6 +196,13 @@
       "description": "Cited recaps of archived conversations, on demand or on a schedule.",
       "releases": [
         {
+          "version": "1.2.0",
+          "tag": "summaries-v1.2.0",
+          "asset": "summaries-1.2.0.tar.gz",
+          "sha256": "e9f3ab87b76d3363e06b6a3ac0f081528dccfc0eff6891147db22d3fff3b5063",
+          "sdk": "1.4.0"
+        },
+        {
           "version": "1.1.0",
           "tag": "summaries-v1.1.0",
           "asset": "summaries-1.1.0.tar.gz",
