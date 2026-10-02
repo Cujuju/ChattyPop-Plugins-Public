@@ -21,7 +21,12 @@ export interface LinksCoreCalls {
   page(q: LinkPageQuery): LinkItem[];
   /** Link counts per platform for a filter (its platform filter ignored). */
   counts(f: LinkFilter): Partial<Record<Platform, number>>;
+  /** Moves the seen watermark to core's clock now: every link shared so far is seen, on the desktop and the phone. */
+  markSeen(): void;
 }
+
+/** markSeen's arguments checked (the phone makes the call): it takes none. */
+export const decodeMarkSeen = (): Parameters<LinksCoreCalls['markSeen']> => [];
 
 export interface LinksEvents {
   [UPDATED_EVENT]: null;
@@ -118,6 +123,7 @@ export const plugin = definePlugin({
     core: {
       page: { audiences: ['renderer', 'phone'], writes: false },
       counts: { audiences: ['renderer', 'phone'], writes: false },
+      markSeen: { audiences: ['renderer', 'phone'], writes: true, decode: decodeMarkSeen },
     },
     events: { [UPDATED_EVENT]: ['renderer', 'phone'] },
   }),
@@ -138,7 +144,7 @@ export const plugin = definePlugin({
   network: { hosts: ['api.fxtwitter.com'] },
   // Beside Summaries in the phone's drawer.
   slots: { phoneSections: [{ id: 'feed', after: 'summaries.summary' }] },
-  /** Links first shared after this count as new. The phone reads it: its feed shows the desktop's "caught up" line. */
+  /** Links first shared after this count as new. The phone reads it, and moves it through markSeen. */
   preferences: { seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }) },
   // Its tables and watermark from when it was built in.
   adopts: { tables: { link_judgments: 'judgments', x_posts: 'x_posts' }, settings: { 'links.seenUpTo': 'seenUpTo' }, jevFeatures: { linkCategories: 'linkCategories', linkSafety: 'linkSafety', linkWorth: 'linkWorth' } },
