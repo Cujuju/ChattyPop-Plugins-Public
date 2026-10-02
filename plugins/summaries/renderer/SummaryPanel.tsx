@@ -8,7 +8,7 @@ import {
   openArchive,
   providerLabel,
   createFollowBottom,
-  projectedJevUsd,
+  Icon,
   clockTime,
   countText,
   formatTokens,
@@ -116,18 +116,19 @@ export function SummaryPanel() {
           />
           <Show when={!summaryRunning() && summaryEstimate()}>
             {(e) => (
-              <Show when={e().modelUsd !== null || e().questions}>
-                <HeaderMeta title={estimateTitle(e())}>
-                  {[
-                    ...(e().modelUsd !== null ? [`≈${usdText(e().modelUsd!)}`] : []),
-                    ...(e().questions ? [`Jev ≤ ${usdText(projectedJevUsd(e().questions))}`] : []),
-                  ].join(' + ')}
-                </HeaderMeta>
+              <Show when={e().modelUsd !== null}>
+                <HeaderMeta title={estimateTitle(e())}>{`≈${usdText(e().modelUsd!)}`}</HeaderMeta>
               </Show>
             )}
           </Show>
-          <HeaderButton variant="primary" disabled={summaryRunning()} onClick={() => void runSummary()}>
-            {summaryRunning() ? 'Working' : 'Summarize'}
+          <HeaderButton
+            variant="primary"
+            aria-label={summaryRunning() ? 'Working' : 'Summarize'}
+            title={summaryRunning() ? 'Working' : 'Summarize'}
+            disabled={summaryRunning()}
+            onClick={() => void runSummary()}
+          >
+            <Icon name="summary" class={styles.runIcon} />
           </HeaderButton>
         </HeaderActions>
       </PanelHeader>

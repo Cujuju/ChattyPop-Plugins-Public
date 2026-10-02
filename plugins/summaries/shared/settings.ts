@@ -11,19 +11,19 @@ import { cutText } from '@plugin-sdk/shared';
  * renaming one resets that setting to the default.
  */
 export const SUMMARY_RANGES = {
-  since: { label: 'Since you were last here', ms: null },
-  last: { label: 'Since the last summary', ms: null },
+  since: { label: 'Since last visit', ms: null },
+  last: { label: 'Since last summary', ms: null },
   today: { label: 'Today', ms: null },
   yesterday: { label: 'Yesterday', ms: null },
-  '30m': { label: 'Last 30 minutes', ms: 30 * MS_PER_MIN },
-  '1h': { label: 'Last hour', ms: MS_PER_HOUR },
-  '3h': { label: 'Last 3 hours', ms: 3 * MS_PER_HOUR },
-  '6h': { label: 'Last 6 hours', ms: 6 * MS_PER_HOUR },
-  '12h': { label: 'Last 12 hours', ms: 12 * MS_PER_HOUR },
-  '24h': { label: 'Last 24 hours', ms: 24 * MS_PER_HOUR },
-  '3d': { label: 'Last 3 days', ms: 3 * MS_PER_DAY },
-  '7d': { label: 'Last 7 days', ms: 7 * MS_PER_DAY },
-  '30d': { label: 'Last 30 days', ms: 30 * MS_PER_DAY },
+  '30m': { label: '30 minutes', ms: 30 * MS_PER_MIN },
+  '1h': { label: '1 hour', ms: MS_PER_HOUR },
+  '3h': { label: '3 hours', ms: 3 * MS_PER_HOUR },
+  '6h': { label: '6 hours', ms: 6 * MS_PER_HOUR },
+  '12h': { label: '12 hours', ms: 12 * MS_PER_HOUR },
+  '24h': { label: '24 hours', ms: 24 * MS_PER_HOUR },
+  '3d': { label: '3 days', ms: 3 * MS_PER_DAY },
+  '7d': { label: '7 days', ms: 7 * MS_PER_DAY },
+  '30d': { label: '30 days', ms: 30 * MS_PER_DAY },
 } as const;
 export type SummaryRange = keyof typeof SUMMARY_RANGES;
 

@@ -8,6 +8,12 @@
   min-width: 0;
 }
 
+/* The Summarize button's icon, at a header icon button's size. */
+.runIcon {
+  width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+  height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+}
+
 /* With cp-panel-body. */
 .body {
   gap: var(--cp-space-4);
