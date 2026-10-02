@@ -13,6 +13,9 @@ import { counts } from '../core/store';
 import { WindowsOcr } from '../core/windowsOcr';
 import { DEFAULT_IMAGE_TEXT_SETTINGS } from '../shared/types';
 
+/** Starting the Windows OCR worker (status() does) takes seconds on a loaded machine or a CI runner. */
+const OCR_START_TIMEOUT_MS = 60_000;
+
 describe('chart tickers', () => {
   // Lines as Windows OCR read them from this archive's charts and trading screens.
   it.each([
@@ -98,7 +101,7 @@ describe('the Image text plugin', () => {
     await vi.waitFor(() => expect(derived()).toEqual(['Tesla chart\n$TSLA']));
     expect(sent[0]).toMatchObject({ model: 'vl', images: [{ mediaType: 'image/png', data: PNG.toString('base64') }] });
     expect(await t.client('renderer').status()).toMatchObject({ vision: { ready: true }, providers: [{ id: 'eyes', models: [{ id: 'vl' }] }], counts: { done: 1 } });
-  });
+  }, OCR_START_TIMEOUT_MS);
 
   it('two messages showing the same image each keep their own text', async () => {
     const { t, id } = start(true);
@@ -133,5 +136,5 @@ describe.runIf(IS_WINDOWS)('Windows OCR', () => {
     expect(chartTickers(text)).toEqual(['NVDA']);
     await expect(ocr.read(join(dir, 'missing.png'), new AbortController().signal)).rejects.toThrow();
     expect(await ocr.status()).toMatchObject({ ready: true });
-  }, 60_000);
+  }, OCR_START_TIMEOUT_MS);
 });
