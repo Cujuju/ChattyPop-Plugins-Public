@@ -11,11 +11,11 @@ import { cutText } from '@plugin-sdk/shared';
  * renaming one resets that setting to the default.
  */
 export const SUMMARY_RANGES = {
-  since: { label: 'Since last visit', ms: null },
-  last: { label: 'Since last summary', ms: null },
+  since: { label: 'Last visit', ms: null },
+  last: { label: 'Last run', ms: null },
   today: { label: 'Today', ms: null },
   yesterday: { label: 'Yesterday', ms: null },
-  '30m': { label: '30 minutes', ms: 30 * MS_PER_MIN },
+  '30m': { label: '30 min', ms: 30 * MS_PER_MIN },
   '1h': { label: '1 hour', ms: MS_PER_HOUR },
   '3h': { label: '3 hours', ms: 3 * MS_PER_HOUR },
   '6h': { label: '6 hours', ms: 6 * MS_PER_HOUR },
