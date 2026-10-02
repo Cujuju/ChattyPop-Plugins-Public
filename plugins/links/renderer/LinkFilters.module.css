@@ -1,5 +1,5 @@
 /* The Links filter bar (LinkFilters), of the Links panel: platform chips, then the channel,
-   range and order pickers and the flagged toggle. Wraps when narrow. The phone has a chip row and a sheet instead (below).
+   range and order pickers and the flagged toggle. Wraps when narrow. The phone has icon chips in the panel header and a sheet instead (below).
    Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
 .filters {
   display: flex;
@@ -46,23 +46,36 @@
   min-width: 0;
 }
 
-/* The phone's bar (PhoneLinkFilters): the chips on one row, scrolling sideways inside the panel's inset. */
-.platformRow {
+/* The phone's chips, in the panel header between the title and the filter button (HeaderPlatformChips): icon squares on
+   one line. Zero basis: the group never wraps the header. Its grow factor, far above the title group's 1, gives it the
+   header's free width; past that it scrolls sideways. */
+.headerChips {
   display: flex;
   align-items: center;
-  gap: var(--cp-space-3);
-  min-height: var(--cp-panel-subheader-h);
-  padding: 0 var(--cp-panel-pad-x);
+  gap: var(--cp-space-2);
+  flex: 100 1 0;
+  min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
 
-.platformRow > .chip {
-  flex: none;
+/* Trailing while they fit. An auto margin: justify-content: flex-end would put scrolled-out chips out of reach. */
+.headerChips > :first-child {
+  margin-left: auto;
 }
 
-/* The filter button's icon, at a header icon button's size (LinksPanel). */
-.filterIcon {
+/* A square at the compact control size; a platform without an icon shows its badge text, and widens for it. */
+.iconChip {
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  min-width: var(--cp-chip-h);
+  height: var(--cp-chip-h);
+  padding: 0 var(--cp-space-2);
+}
+
+/* A header icon button's icon size: a platform chip's icon, and the filter button's (LinksPanel). */
+.headerIcon {
   width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
   height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
 }
