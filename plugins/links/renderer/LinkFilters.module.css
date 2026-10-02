@@ -46,8 +46,7 @@
   min-width: 0;
 }
 
-/* A header icon button's icon size: the filter button's (LinksPanel) and a sheet chip's. */
-.headerIcon,
+/* A sheet chip's icon, at a header icon button's icon size. */
 .chipIcon {
   width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
   height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));

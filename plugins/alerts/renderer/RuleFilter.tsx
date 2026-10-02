@@ -1,7 +1,7 @@
 // The Alerts panel's rule picker.
 import { For, Show, createSignal } from 'solid-js';
 import { alertRuleIds, setAlertRuleIds, ruleUnread } from './state';
-import { rules, listen, onPointerDownOutside, HeaderButton, look } from '@plugin-sdk/renderer/kit';
+import { rules, listen, onPointerDownOutside, HeaderButton, Icon, look } from '@plugin-sdk/renderer/kit';
 import styles from './Alerts.module.css';
 
 /** Names shown on the button before it summarizes as "N rules". */
@@ -32,9 +32,17 @@ export function RuleFilter() {
 
   return (
     <div class={styles.ruleFilter} ref={root}>
-      <HeaderButton aria-haspopup="true" aria-expanded={open()} title="Choose which rules' alerts to show" onClick={() => setOpen(!open())}>
-        {label()}
-        <span class="cp-chevron" aria-hidden="true" />
+      {/* A funnel, raised while some rules are picked; the picked rules are its name. */}
+      <HeaderButton
+        variant="icon"
+        aria-haspopup="true"
+        aria-expanded={open()}
+        aria-pressed={alertRuleIds().length > 0}
+        aria-label={`Rules shown: ${label()}`}
+        title={`Showing ${label()}; choose which rules' alerts to show`}
+        onClick={() => setOpen(!open())}
+      >
+        <Icon name="filter" />
       </HeaderButton>
       <Show when={open()}>
         <div class={`cp-popover ${styles.ruleMenu}`} role="group" aria-label="Alerts to show">

@@ -11,6 +11,7 @@ import {
   HeaderActions,
   HeaderBadge,
   HeaderButton,
+  Icon,
   inCompanion,
   isPanelCollapsed,
   look,
@@ -36,10 +37,6 @@ import { LinkFilters } from './LinkFilters';
 import { LinkFilterSheet } from './LinkFilterSheet';
 import { LinkRow } from './LinkRow';
 import styles from './Links.module.css';
-import filterStyles from './LinkFilters.module.css';
-
-/** A funnel of three shortening lines, on the icons' 24-unit grid. */
-const FILTER_ICON_PATH = 'M4 7h16M7 12h10M10 17h4';
 
 /** Row-height guess before measurement (share with preview); rows are measured after render. */
 const ESTIMATED_ROW_PX = 120;
@@ -100,9 +97,7 @@ export function LinksPanel() {
         <Show when={inCompanion}>
           <HeaderActions>
             <HeaderButton variant="icon" aria-label={filterLabel()} aria-haspopup="dialog" aria-pressed={linkFilterCount() > 0} onClick={() => setSheetOpen(true)}>
-              <svg class={`${filterStyles.headerIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
-                <path d={FILTER_ICON_PATH} />
-              </svg>
+              <Icon name="filter" />
             </HeaderButton>
           </HeaderActions>
         </Show>

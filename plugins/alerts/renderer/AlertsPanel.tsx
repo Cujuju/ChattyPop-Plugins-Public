@@ -27,6 +27,7 @@ import {
   HeaderActions,
   HeaderBadge,
   HeaderButton,
+  Icon,
   look,
 } from '@plugin-sdk/renderer/kit';
 import { RuleFilter } from './RuleFilter';
@@ -95,16 +96,26 @@ export function AlertsPanel() {
             {shownUnreadAlertCount()} new
           </HeaderBadge>
         </Show>
+        {/* Icon buttons, so the row fits a phone's width: each shows its current state; its title says what a tap does. */}
         <HeaderActions>
           <RuleFilter />
-          <HeaderButton title="Order alerts by time, or group them by rule" onClick={() => setAlertSort(alertSort() === 'rule' ? 'time' : 'rule')}>
-            {alertSort() === 'rule' ? 'By rule' : 'By time'}
+          <HeaderButton
+            variant="icon"
+            aria-label={alertSort() === 'rule' ? 'Grouped by rule' : 'Ordered by time'}
+            title={alertSort() === 'rule' ? 'Grouped by rule; order them by time' : 'Ordered by time; group them by rule'}
+            onClick={() => setAlertSort(alertSort() === 'rule' ? 'time' : 'rule')}
+          >
+            <Icon name={alertSort() === 'rule' ? 'tag' : 'clock'} />
           </HeaderButton>
           <HeaderButton
-            title={alertsUnreadOnly() ? 'Showing new alerts only' : 'Showing all alerts'}
+            variant="icon"
+            aria-pressed={alertsUnreadOnly()}
+            aria-label="New alerts only"
+            title={alertsUnreadOnly() ? 'Read alerts hidden; show all' : 'Showing all alerts; show new only'}
             onClick={() => setAlertsUnreadOnly(!alertsUnreadOnly())}
           >
-            {alertsUnreadOnly() ? 'New only' : 'All'}
+            {/* A struck eye while read alerts are hidden; the bar's own bell is beside this button on the phone. */}
+            <Icon name={alertsUnreadOnly() ? 'eyeOff' : 'eye'} />
           </HeaderButton>
         </HeaderActions>
       </PanelHeader>
