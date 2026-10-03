@@ -1,37 +1,36 @@
-/* The Links filters (LinkFilters), in the panel header after the title: the platform chips, then the channel picker,
-   the range and order segments and the flagged switch. The phone has a sheet instead (below).
-   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
-/* Trailing in the header (PanelHeader.module.css wraps its items): beside the title when they fit, else on header lines
-   of their own, where the two groups wrap again as needed. */
-.filters {
+/* The Links filters (LinkFilters), in the panel header (PanelHeader.module.css, a wrapping flex row): the channel
+   picker and the range, order and flagged controls trail the title on its line; the platform chips take the line below.
+   The phone has a sheet instead (further down). Structure only: the look is the theme's look vocabulary
+   (@plugin-sdk/renderer look), applied in the TSX. */
+/* Zero basis: the group never wraps the header. Its grow factor, far above the title group's 1, gives it the title
+   line's free width, which it fills from the end; the picker shrinks into what is left. */
+.tools {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2) var(--cp-space-6);
-  flex: 1 1 auto;
+  gap: var(--cp-space-2);
+  flex: 100 1 0;
   min-width: 0;
   margin-left: auto;
 }
 
-.platforms,
-.controls {
+/* The segments and the switch keep their size; only the picker gives way. */
+.tool {
+  flex: none;
+}
+
+/* The chips on a line of their own under the title, flowing from the title's edge and wrapping as they must. */
+.platforms {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   flex-wrap: wrap;
-  min-width: 0;
-}
-
-.platforms {
   gap: var(--cp-space-2);
+  flex: 1 1 100%;
+  min-width: 0;
+  padding-bottom: var(--cp-space-2);
 }
 
-.controls {
-  gap: var(--cp-space-2) var(--cp-space-6);
-}
-
-/* A platform chip: icon | name | count, at the bar's control height. */
+/* A platform chip: icon | name | count, at the header's control height. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -41,7 +40,7 @@
   white-space: nowrap;
 }
 
-/* "Hide flagged": a switch and its name, at the bar's control height. */
+/* "Hide flagged": a switch and its name, at the header's control height. */
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -50,8 +49,10 @@
   white-space: nowrap;
 }
 
-/* Field look is app-wide in theme/forms.css; the bar's control height and a width cap here. */
+/* Field look is app-wide in theme/forms.css; the header's control height and a width cap here. Shrinks before anything
+   else on its line. */
 .select {
+  flex: 0 1 auto;
   height: var(--cp-btn-h-sm);
   max-width: var(--cp-filter-select-max-w);
   min-width: 0;
