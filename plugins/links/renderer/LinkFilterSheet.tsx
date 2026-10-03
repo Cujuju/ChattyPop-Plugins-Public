@@ -55,11 +55,11 @@ export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<P
           <Select id="links-filter-channel" class={styles.fieldSelect} value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
         </Field>
         <Field label="Shared">
-          <RangeSegments class={styles.segments} />
+          <RangeSegments class={styles.segments} segmentClass={styles.segment} />
         </Field>
         <Show when={linkWorth.on()}>
           <Field label="Order">
-            <OrderSegments class={styles.segments} />
+            <OrderSegments class={styles.segments} segmentClass={styles.segment} />
           </Field>
         </Show>
         <Show when={linkSafety.on()}>
