@@ -7,6 +7,13 @@
       "description": "A rule-driven inbox, unread badges and notifications for messages that need your attention.",
       "releases": [
         {
+          "version": "1.3.0",
+          "tag": "alerts-v1.3.0",
+          "asset": "alerts-1.3.0.tar.gz",
+          "sha256": "5b715b98e42ef8fa9acc99a824461055bb0b7defdf51519bfad451d4716bc2e9",
+          "sdk": "1.4.0"
+        },
+        {
           "version": "1.2.0",
           "tag": "alerts-v1.2.0",
           "asset": "alerts-1.2.0.tar.gz",
@@ -97,6 +104,13 @@
       "name": "Links",
       "description": "The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.",
       "releases": [
+        {
+          "version": "1.11.0",
+          "tag": "links-v1.11.0",
+          "asset": "links-1.11.0.tar.gz",
+          "sha256": "bf3477c331c77a9f3417fc3276a0ebe962847e47f34701d1f4a474cc11d14e96",
+          "sdk": "1.4.0"
+        },
         {
           "version": "1.5.0",
           "tag": "links-v1.5.0",
@@ -202,6 +216,13 @@
       "name": "Summaries",
       "description": "Cited recaps of archived conversations, on demand or on a schedule.",
       "releases": [
+        {
+          "version": "1.5.0",
+          "tag": "summaries-v1.5.0",
+          "asset": "summaries-1.5.0.tar.gz",
+          "sha256": "f8c4043a5820066d0e527f79cb51a58d94e576ee3ec34a51164cc34e2b7e141c",
+          "sdk": "1.4.0"
+        },
         {
           "version": "1.3.0",
           "tag": "summaries-v1.3.0",
