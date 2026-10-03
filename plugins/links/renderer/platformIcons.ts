@@ -1,9 +1,9 @@
-// Line icons for link platforms, on the icons' 24-unit grid (look.lineIcon strokes them). A platform without one shows
-// its text badge. YouTube, Instagram and Twitch are after Lucide (ISC); Bluesky and Threads after Tabler Icons (MIT);
-// the rest are drawn here.
+// Line icons for every link platform, on the icons' 24-unit grid (look.lineIcon strokes them); the header's chips are
+// these icons alone. YouTube, Instagram and Twitch are after Lucide (ISC); Bluesky and Threads after Tabler Icons
+// (MIT); the rest are drawn here.
 import type { Platform } from '@plugin-sdk/shared';
 
-export const PLATFORM_ICON_PATHS: Partial<Record<Platform, string>> = {
+export const PLATFORM_ICON_PATHS: Record<Platform, string> = {
   youtube:
     'M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17M10 15l5-3-5-3z',
   // Snoo: the head, its antenna and ball, two eyes and a smile.

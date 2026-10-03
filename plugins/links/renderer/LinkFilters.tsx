@@ -35,13 +35,15 @@ const ORDERS: readonly { value: LinkSort; label: string; brief: string }[] = [
 ];
 
 /**
- * Platform chips: each platform with links for the filter, or picked; its icon, name and count. `class` lays the group
- * out, `chipClass` each chip, `textSize` the chip's text (`look.text` data-size).
+ * Platform chips: each platform with links for the filter, or picked. `class` lays the group out, `chipClass` each
+ * chip, `textSize` the chip's text (`look.text` data-size). Full: icon, name and count. `brief`: the icon alone, name
+ * and count in the chip's tooltip and accessible name (the desktop header, where width is short).
  */
-export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; textSize: 'xs' | 'md' }) {
+export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; textSize: 'xs' | 'md'; brief?: boolean }) {
   const togglePlatform = (p: Platform): void => {
     setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
   };
+  const described = (p: Platform) => `${PLATFORM_INFO[p].label}, ${props.counts[p] ?? 0}`;
   return (
     <div class={props.class} role="group" aria-label="Platforms">
       <For each={PLATFORMS.filter((p) => props.counts[p] || linkPlatforms().includes(p))}>
@@ -53,19 +55,19 @@ export function PlatformChips(props: { counts: Counts; class?: string; chipClass
             data-font="sans"
             data-platform={p}
             aria-pressed={linkPlatforms().includes(p)}
+            aria-label={props.brief ? described(p) : undefined}
+            title={props.brief ? described(p) : undefined}
             onClick={() => togglePlatform(p)}
           >
-            <Show when={PLATFORM_ICON_PATHS[p]}>
-              {(path) => (
-                <svg class={`${styles.chipIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
-                  <path d={path()} />
-                </svg>
-              )}
+            <svg class={`${styles.chipIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
+              <path d={PLATFORM_ICON_PATHS[p]} />
+            </svg>
+            <Show when={!props.brief}>
+              <span class={styles.chipLabel}>{PLATFORM_INFO[p].label}</span>
+              <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">
+                {props.counts[p] ?? 0}
+              </span>
             </Show>
-            <span class={styles.chipLabel}>{PLATFORM_INFO[p].label}</span>
-            <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">
-              {props.counts[p] ?? 0}
-            </span>
           </button>
         )}
       </For>
@@ -90,27 +92,25 @@ export const OrderSegments = (props: SegmentProps) => (
 );
 
 /**
- * The Links panel's filters in its header: the channel picker and the range, order and flagged controls trail the title
- * on its line (the picker gives way first); the platform chips take a full line below. `counts` are the per-platform
- * totals for the filter.
+ * The Links panel's filters in its header, all on the title's line: the channel picker, the platform chips (icons
+ * alone) and the range, order and flagged controls; the picker gives way first. `counts` are the per-platform totals
+ * for the filter.
  */
 export function LinkFilters(props: { counts: Counts }) {
   return (
-    <>
-      <div class={styles.tools}>
-        <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
-        <RangeSegments class={styles.tool} brief />
-        <Show when={linkWorth.on()}>
-          <OrderSegments class={styles.tool} brief />
-        </Show>
-        <Show when={linkSafety.on()}>
-          <label class={`${styles.tool} ${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
-            <Switch checked={linkHideFlagged()} onChange={setLinkHideFlagged} />
-            Hide flagged
-          </label>
-        </Show>
-      </div>
-      <PlatformChips counts={props.counts} class={styles.platforms} textSize="xs" />
-    </>
+    <div class={styles.tools}>
+      <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
+      <PlatformChips counts={props.counts} class={`${styles.tool} ${styles.platforms}`} textSize="xs" brief />
+      <RangeSegments class={styles.tool} brief />
+      <Show when={linkWorth.on()}>
+        <OrderSegments class={styles.tool} brief />
+      </Show>
+      <Show when={linkSafety.on()}>
+        <label class={`${styles.tool} ${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
+          <Switch checked={linkHideFlagged()} onChange={setLinkHideFlagged} />
+          Hide flagged
+        </label>
+      </Show>
+    </div>
   );
 }
