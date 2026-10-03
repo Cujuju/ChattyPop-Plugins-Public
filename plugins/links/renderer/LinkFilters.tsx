@@ -28,11 +28,13 @@ type Counts = Partial<Record<Platform, number>>;
 /** The channel picker's choices: every archived channel, after "All channels". */
 export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
 
-/** The order's options on the phone's sheet; the desktop header has a switch instead (LinkFilters). */
-const ORDERS: readonly { value: LinkSort; label: string }[] = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'worth', label: 'Worth reading' },
+/** `label`: on the phone's sheet; `brief`: on the desktop header's one button, where width is short. */
+const ORDERS: readonly { value: LinkSort; label: string; brief: string }[] = [
+  { value: 'newest', label: 'Newest', brief: 'Newest' },
+  { value: 'worth', label: 'Worth reading', brief: 'Worth' },
 ];
+const orderOf = (value: LinkSort) => ORDERS.find((o) => o.value === value) ?? ORDERS[0]!;
+const otherOrder = (value: LinkSort) => ORDERS.find((o) => o.value !== value) ?? ORDERS[0]!;
 
 /**
  * Platform chips: each platform with links for the filter, or picked. `class` lays the group out, `chipClass` each
@@ -91,18 +93,24 @@ export const OrderSegments = (props: Omit<SegmentProps, 'brief'>) => (
   </SegGroup>
 );
 
-/** A header switch with its name after it, at the header's control height. */
-const ToolSwitch = (props: { checked: boolean; onChange: (on: boolean) => void; label: string }) => (
-  <label class={`${styles.tool} ${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
-    <Switch checked={props.checked} onChange={props.onChange} />
-    {props.label}
-  </label>
+/** The order as one button (shown while Jev rates links): it names the current order, and a click switches to the other. */
+const OrderButton = () => (
+  <button
+    type="button"
+    class={`${styles.tool} ${styles.orderButton} ${look.filterChip} ${look.text}`}
+    data-size="xs"
+    data-font="sans"
+    title={`Order: ${orderOf(linkSort()).label}. Click for ${otherOrder(linkSort()).label.toLowerCase()}.`}
+    onClick={() => setLinkSort(otherOrder(linkSort()).value)}
+  >
+    {orderOf(linkSort()).brief}
+  </button>
 );
 
 /**
  * The Links panel's filters in its header, all on the title's line: the channel picker, the platform chips (icons
- * alone), the range, and the order and flagged switches; the picker gives way first. `counts` are the per-platform
- * totals for the filter.
+ * alone), the range, the order button and the flagged switch; the picker gives way first. `counts` are the
+ * per-platform totals for the filter.
  */
 export function LinkFilters(props: { counts: Counts }) {
   return (
@@ -111,10 +119,13 @@ export function LinkFilters(props: { counts: Counts }) {
       <PlatformChips counts={props.counts} class={`${styles.tool} ${styles.platforms}`} textSize="xs" brief />
       <RangeSegments class={styles.tool} brief />
       <Show when={linkWorth.on()}>
-        <ToolSwitch checked={linkSort() === 'worth'} onChange={(on) => setLinkSort(on ? 'worth' : 'newest')} label="Worth first" />
+        <OrderButton />
       </Show>
       <Show when={linkSafety.on()}>
-        <ToolSwitch checked={linkHideFlagged()} onChange={setLinkHideFlagged} label="Hide flagged" />
+        <label class={`${styles.tool} ${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
+          <Switch checked={linkHideFlagged()} onChange={setLinkHideFlagged} />
+          Hide flagged
+        </label>
       </Show>
     </div>
   );
