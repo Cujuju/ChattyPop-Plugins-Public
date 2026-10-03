@@ -37,6 +37,15 @@
   white-space: nowrap;
 }
 
+/* The order button: its text at the header's control height, with the chips' side padding. */
+.orderButton {
+  display: inline-flex;
+  align-items: center;
+  height: var(--cp-btn-h-sm);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
 /* "Hide flagged": a switch and its name, at the header's control height. */
 .toggle {
   display: inline-flex;
