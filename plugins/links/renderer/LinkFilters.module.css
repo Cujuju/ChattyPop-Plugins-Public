@@ -1,17 +1,24 @@
-/* The Links filter bar (LinkFilters), of the Links panel: the platform chips on one line, then the channel picker, the
-   range and order segments and the flagged switch, wrapping when narrow. The phone has a sheet instead (below).
+/* The Links filters (LinkFilters), in the panel header after the title: the platform chips, then the channel picker,
+   the range and order segments and the flagged switch. The phone has a sheet instead (below).
    Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
+/* Trailing in the header (PanelHeader.module.css wraps its items): beside the title when they fit, else on header lines
+   of their own, where the two groups wrap again as needed. */
 .filters {
-  display: grid;
-  gap: var(--cp-space-3);
-  flex: 0 0 auto;
-  padding: var(--cp-space-3) var(--cp-panel-pad-x);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2) var(--cp-space-6);
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: auto;
 }
 
 .platforms,
 .controls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   min-width: 0;
 }

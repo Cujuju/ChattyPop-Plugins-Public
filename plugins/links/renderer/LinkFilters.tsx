@@ -87,12 +87,13 @@ export const OrderSegments = (props: { class?: string }) => (
 );
 
 /**
- * The Links panel's filter bar: the platform chips on one line, then the channel picker, date range, order and the
- * flagged switch on the next; `counts` are the per-platform totals for the filter.
+ * The Links panel's filters, in its header after the title: the platform chips, then the channel picker, date range,
+ * order and the flagged switch; each group wraps to its own header line when the header is too narrow for all of them.
+ * `counts` are the per-platform totals for the filter.
  */
 export function LinkFilters(props: { counts: Counts }) {
   return (
-    <header class={`${styles.filters} ${look.ruleBelow}`}>
+    <div class={styles.filters}>
       <PlatformChips counts={props.counts} class={styles.platforms} textSize="xs" />
       <div class={styles.controls}>
         <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
@@ -107,6 +108,6 @@ export function LinkFilters(props: { counts: Counts }) {
           </label>
         </Show>
       </div>
-    </header>
+    </div>
   );
 }

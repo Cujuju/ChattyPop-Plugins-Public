@@ -93,7 +93,10 @@ export function LinksPanel() {
         <Show when={newLinkCount() > 0}>
           <HeaderBadge>{newLinkCount()} new</HeaderBadge>
         </Show>
-        {/* The phone keeps its filters in a sheet; its button is raised while any is set. */}
+        {/* The desktop's filters sit in the header, after the title; the phone keeps them in a sheet, whose button is raised while any is set. */}
+        <Show when={!inCompanion}>
+          <LinkFilters counts={linkCounts()} />
+        </Show>
         <Show when={inCompanion}>
           <HeaderActions>
             <HeaderButton variant="icon" aria-label={filterLabel()} aria-haspopup="dialog" aria-pressed={linkFilterCount() > 0} onClick={() => setSheetOpen(true)}>
@@ -116,9 +119,6 @@ export function LinksPanel() {
           position: 'relative',
         }}
       >
-        <Show when={!inCompanion}>
-          <LinkFilters counts={linkCounts()} />
-        </Show>
         <Show when={links.items.length === 0 && !links.loading}>
           <p class="cp-panel-empty">No links match these filters.</p>
         </Show>
