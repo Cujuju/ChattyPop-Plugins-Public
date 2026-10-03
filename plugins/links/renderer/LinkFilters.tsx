@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js';
 import { PLATFORMS, PLATFORM_INFO, type Platform } from '@plugin-sdk/shared';
-import { Select, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
+import { SegButton, SegGroup, Select, Switch, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { LinkSort } from '../shared/types';
 import {
@@ -28,11 +28,16 @@ type Counts = Partial<Record<Platform, number>>;
 /** The channel picker's choices: every archived channel, after "All channels". */
 export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
 
+const ORDERS: readonly { value: LinkSort; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'worth', label: 'Worth reading' },
+];
+
 /**
- * Platform chips: each platform with links for the filter, or picked, named with its count. `class` lays the group out
- * and `chipClass` each chip; `icons` puts the platform's icon before its name (the phone's sheet).
+ * Platform chips: each platform with links for the filter, or picked; its icon, name and count. `class` lays the group
+ * out, `chipClass` each chip, `textSize` the chip's text (`look.text` data-size).
  */
-export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; icons?: boolean }) {
+export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; textSize: 'xs' | 'md' }) {
   const togglePlatform = (p: Platform): void => {
     setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
   };
@@ -43,13 +48,13 @@ export function PlatformChips(props: { counts: Counts; class?: string; chipClass
           <button
             type="button"
             class={`${props.chipClass ?? styles.chip} ${look.filterChip} ${look.text}`}
-            data-size={props.icons ? 'md' : 'xs'}
+            data-size={props.textSize}
             data-font="sans"
             data-platform={p}
             aria-pressed={linkPlatforms().includes(p)}
             onClick={() => togglePlatform(p)}
           >
-            <Show when={props.icons && PLATFORM_ICON_PATHS[p]}>
+            <Show when={PLATFORM_ICON_PATHS[p]}>
               {(path) => (
                 <svg class={`${styles.chipIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
                   <path d={path()} />
@@ -67,40 +72,41 @@ export function PlatformChips(props: { counts: Counts; class?: string; chipClass
   );
 }
 
+/** The date range as a segmented control; `class` lays the track out. */
+export const RangeSegments = (props: { class?: string }) => (
+  <SegGroup role="radiogroup" ariaLabel="Date range" class={props.class} value={linkRange()} onChange={(v: LinkRange) => setLinkRange(v)}>
+    <For each={Object.entries(LINK_RANGES)}>{([id, r]) => <SegButton value={id} label={r.short} size="sm" class={styles.segment} />}</For>
+  </SegGroup>
+);
+
+/** The order as a segmented control (shown while Jev rates links); `class` lays the track out. */
+export const OrderSegments = (props: { class?: string }) => (
+  <SegGroup role="radiogroup" ariaLabel="Order" class={props.class} value={linkSort()} onChange={(v: LinkSort) => setLinkSort(v)}>
+    <For each={ORDERS}>{(o) => <SegButton value={o.value} label={o.label} size="sm" class={styles.segment} />}</For>
+  </SegGroup>
+);
+
 /**
- * The Links panel's filter bar: platform chips with counts, channel, date range, order and the flagged toggle; `counts`
- * are the per-platform totals for the filter.
+ * The Links panel's filter bar: the platform chips on one line, then the channel picker, date range, order and the
+ * flagged switch on the next; `counts` are the per-platform totals for the filter.
  */
 export function LinkFilters(props: { counts: Counts }) {
   return (
     <header class={`${styles.filters} ${look.ruleBelow}`}>
-      <PlatformChips counts={props.counts} class={styles.platforms} />
-      <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
-      <Select
-        class={styles.select}
-        label="Date range"
-        value={linkRange()}
-        options={Object.entries(LINK_RANGES).map(([id, r]) => ({ value: id, label: r.label }))}
-        onChange={(v) => setLinkRange(v as LinkRange)}
-      />
-      <Show when={linkWorth.on()}>
-        <Select
-          class={styles.select}
-          label="Order"
-          value={linkSort()}
-          options={[
-            { value: 'newest', label: 'Newest' },
-            { value: 'worth', label: 'Most worth reading' },
-          ]}
-          onChange={(v) => setLinkSort(v as LinkSort)}
-        />
-      </Show>
-      <Show when={linkSafety.on()}>
-        <label class={`${styles.toggle} ${look.text}`} data-size="xs" data-tone="secondary">
-          <input type="checkbox" checked={linkHideFlagged()} onChange={(e) => setLinkHideFlagged(e.currentTarget.checked)} />
-          Hide flagged
-        </label>
-      </Show>
+      <PlatformChips counts={props.counts} class={styles.platforms} textSize="xs" />
+      <div class={styles.controls}>
+        <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
+        <RangeSegments />
+        <Show when={linkWorth.on()}>
+          <OrderSegments />
+        </Show>
+        <Show when={linkSafety.on()}>
+          <label class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
+            <Switch checked={linkHideFlagged()} onChange={setLinkHideFlagged} />
+            Hide flagged
+          </label>
+        </Show>
+      </div>
     </header>
   );
 }

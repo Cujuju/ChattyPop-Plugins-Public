@@ -1,30 +1,12 @@
 // The phone's Links filters: a bottom sheet with the platforms, channel, date range, order and flagged filters.
-import { For, Show, createEffect, type JSX } from 'solid-js';
+import { Show, createEffect, type JSX } from 'solid-js';
 import type { Platform } from '@plugin-sdk/shared';
-import { SegButton, SegGroup, Select, Switch, look } from '@plugin-sdk/renderer/kit';
-import type { LinkSort } from '../shared/types';
-import { PlatformChips, channelOptions, linkSafety, linkWorth } from './LinkFilters';
-import {
-  LINK_RANGES,
-  linkChannelId,
-  linkFilterCount,
-  linkHideFlagged,
-  linkRange,
-  linkSort,
-  resetLinkFilters,
-  setLinkChannelId,
-  setLinkHideFlagged,
-  setLinkRange,
-  setLinkSort,
-  type LinkRange,
-} from './state';
+import { Select, Switch, look } from '@plugin-sdk/renderer/kit';
+import { OrderSegments, PlatformChips, RangeSegments, channelOptions, linkSafety, linkWorth } from './LinkFilters';
+import { linkChannelId, linkFilterCount, linkHideFlagged, resetLinkFilters, setLinkChannelId, setLinkHideFlagged } from './state';
 import styles from './LinkFilters.module.css';
 
 const LABEL = { 'data-size': 'xs', 'data-weight': 'semibold', 'data-case': 'upper', 'data-tracking': 'label', 'data-tone': 'muted' } as const;
-const ORDERS: readonly { value: LinkSort; label: string }[] = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'worth', label: 'Worth reading' },
-];
 
 /** A filter: its label over its control. */
 const Field = (props: { label: string; for?: string; children: JSX.Element }) => (
@@ -67,21 +49,17 @@ export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<P
           </Show>
         </header>
         <Field label="Platforms">
-          <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} icons />
+          <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} textSize="md" />
         </Field>
         <Field label="Channel" for="links-filter-channel">
           <Select id="links-filter-channel" class={styles.fieldSelect} value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
         </Field>
         <Field label="Shared">
-          <SegGroup role="radiogroup" ariaLabel="Date range" class={styles.segments} value={linkRange()} onChange={(v: LinkRange) => setLinkRange(v)}>
-            <For each={Object.entries(LINK_RANGES)}>{([id, r]) => <SegButton value={id} label={r.short} size="sm" class={styles.segment} />}</For>
-          </SegGroup>
+          <RangeSegments class={styles.segments} />
         </Field>
         <Show when={linkWorth.on()}>
           <Field label="Order">
-            <SegGroup role="radiogroup" ariaLabel="Order" class={styles.segments} value={linkSort()} onChange={(v: LinkSort) => setLinkSort(v)}>
-              <For each={ORDERS}>{(o) => <SegButton value={o.value} label={o.label} size="sm" class={styles.segment} />}</For>
-            </SegGroup>
+            <OrderSegments class={styles.segments} />
           </Field>
         </Show>
         <Show when={linkSafety.on()}>

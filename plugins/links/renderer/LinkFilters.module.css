@@ -1,52 +1,56 @@
-/* The Links filter bar (LinkFilters), of the Links panel: platform chips, then the channel,
-   range and order pickers and the flagged toggle. Wraps when narrow. The phone has a sheet instead (below).
+/* The Links filter bar (LinkFilters), of the Links panel: the platform chips on one line, then the channel picker, the
+   range and order segments and the flagged switch, wrapping when narrow. The phone has a sheet instead (below).
    Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
 .filters {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--cp-space-2) var(--cp-space-6);
+  display: grid;
+  gap: var(--cp-space-3);
   flex: 0 0 auto;
-  min-height: var(--cp-panel-subheader-h);
-  padding: var(--cp-space-2) var(--cp-panel-pad-x);
+  padding: var(--cp-space-3) var(--cp-panel-pad-x);
 }
 
-.platforms {
+.platforms,
+.controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--cp-space-2);
-  flex: 1 1 auto;
   min-width: 0;
 }
 
-/* Platform toggle. */
+.platforms {
+  gap: var(--cp-space-2);
+}
+
+.controls {
+  gap: var(--cp-space-2) var(--cp-space-6);
+}
+
+/* A platform chip: icon | name | count, at the bar's control height. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: var(--cp-space-2);
-  height: var(--cp-seg-h);
+  height: var(--cp-btn-h-sm);
   padding: 0 var(--cp-space-4);
   white-space: nowrap;
 }
 
-/* "Hide flagged" checkbox: sits in the filter row at the selects' height. */
+/* "Hide flagged": a switch and its name, at the bar's control height. */
 .toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--cp-space-2);
+  gap: var(--cp-space-3);
   height: var(--cp-btn-h-sm);
   white-space: nowrap;
 }
 
-/* Field look is app-wide in theme/forms.css; header height and a width cap here. */
+/* Field look is app-wide in theme/forms.css; the bar's control height and a width cap here. */
 .select {
   height: var(--cp-btn-h-sm);
   max-width: var(--cp-filter-select-max-w);
   min-width: 0;
 }
 
-/* A sheet chip's icon, at a header icon button's icon size. */
+/* A chip's icon, at a header icon button's icon size. */
 .chipIcon {
   width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
   height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
