@@ -40,7 +40,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'alerts',
     name: 'Alerts',
-    version: '1.2.0',
+    version: '1.3.0',
     description: 'A rule-driven inbox, unread badges and notifications for messages that need your attention.',
   },
   channels: defineChannels<{
