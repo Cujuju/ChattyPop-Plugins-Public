@@ -10,7 +10,7 @@ import { Summarizer } from '../core/summarize';
 import { partialText } from '../core/summaryPrompt';
 import { SUMMARIES_TABLE } from '../core/schema';
 import type { Db } from '@core/db';
-import { fakeRegistry } from './summariesHarness';
+import { fakeRegistry, TEST_PREFS } from './summariesHarness';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
 import { aiSettingsFrom } from '@shared/aiProviders';
@@ -51,7 +51,7 @@ beforeEach(() => {
 
 /** One fixed range for every run, so only the options differ between runs. */
 const SINCE = Date.now() - 3 * MS_PER_DAY;
-const run = (s: Summarizer, prefs: Partial<SummarySettings> = {}) => s.run({ sinceTs: SINCE }, FRESH_AI, { ...DEFAULT_SUMMARY_SETTINGS, ...prefs }, 'manual');
+const run = (s: Summarizer, prefs: Partial<SummarySettings> = {}) => s.run({ sinceTs: SINCE }, FRESH_AI, { ...TEST_PREFS, ...prefs }, 'manual');
 
 describe('summary options reach the prompt and the stored run', () => {
   it('names mentions, dates a multi-day log, asks for and stores actions', async () => {
@@ -123,7 +123,7 @@ describe('summary options reach the prompt and the stored run', () => {
   });
 
   it("layers a rule's own prompts over the owner's, a null part following the owner's", () => {
-    const owner = { ...DEFAULT_SUMMARY_SETTINGS, prompts: { summarize: 'Owner. {refs}', merge: 'Owner merge. {refs}' } };
+    const owner = { ...TEST_PREFS, prompts: { summarize: 'Owner. {refs}', merge: 'Owner merge. {refs}' } };
     expect(withOwnPrompts(owner, undefined)).toBe(owner);
     expect(withOwnPrompts(owner, { summarize: 'Rule. {refs}', merge: null }).prompts).toEqual({ summarize: 'Rule. {refs}', merge: 'Owner merge. {refs}' });
   });
@@ -133,7 +133,7 @@ describe('summary options reach the prompt and the stored run', () => {
     try {
       const { calls, registry } = fakeProvider();
       const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {}, () => ['Alice']);
-      const prefs = { ...DEFAULT_SUMMARY_SETTINGS, focus: 'release dates', grouping: 'channel' as const };
+      const prefs = { ...TEST_PREFS, focus: 'release dates', grouping: 'channel' as const };
       const shown = s.prompts(FRESH_AI, prefs);
       await run(s, prefs);
       expect(calls[0]!.system).toBe(shown.summarize);

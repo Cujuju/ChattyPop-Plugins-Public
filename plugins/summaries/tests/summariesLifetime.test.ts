@@ -7,6 +7,7 @@ import { PluginInactiveError } from '@shared/pluginCall';
 import { MS_PER_MIN } from '@shared/units';
 import type { CompletionRequest, CompletionResult } from '@core/ai/types';
 import summariesCore from '../core';
+import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 
 
 /** Starts `core` under the test harness with channel c1 archived, and disposes it after the test. */
@@ -37,7 +38,7 @@ describe('Summaries turned off mid-run', () => {
     // Ignores its signal, as a CLI provider mid-request may: the answer still arrives after the abort.
     const complete = (req: CompletionRequest) => new Promise<CompletionResult>((resolve) => requests.push({ signal: req.signal, answer: resolve }));
     const messages = Array.from({ length: 6 }, (_, i) => ({ channelId: 'c1', ts: Date.now() - MS_PER_MIN + i, content: `message ${i} ${'x'.repeat(60)}` }));
-    const t = start(summariesCore, { archive: { messages }, ai: claude(complete, CHUNK_CHARS) });
+    const t = start(summariesCore, { archive: { messages }, ai: claude(complete, CHUNK_CHARS), preferences: { settings: { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'claude' } } });
     const run = t.client('renderer').summarize({ sinceTs: 0 });
     await vi.waitFor(() => expect(requests).toHaveLength(1));
     await t.off();

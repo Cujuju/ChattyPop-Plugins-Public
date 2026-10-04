@@ -26,7 +26,8 @@ beforeEach(() => {
   );
 });
 
-const CODEX = { ...DEFAULT_AI_SETTINGS, defaultProvider: 'codex' as const, providers: { codex: { enabled: true, model: null, effort: null, displayName: null } } };
+const PREFS = { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'codex' as const };
+const CODEX = { ...DEFAULT_AI_SETTINGS, providers: { codex: { enabled: true, model: null, effort: null, displayName: null } } };
 
 /** Runs a summary whose calls report these costs in turn (undefined = not reported). */
 async function runWithCosts(costs: (number | undefined)[], sinceTs = 0) {
@@ -40,9 +41,9 @@ async function runWithCosts(costs: (number | undefined)[], sinceTs = 0) {
     },
     listModels: async () => [],
   };
-  const registry: SummaryProviders = { get: () => provider, decider: () => null, permitted: (ids) => [...ids], localNames: () => [], effective: (s) => s };
+  const registry: SummaryProviders = { get: () => provider, decider: () => null, permitted: (ids) => [...ids], localNames: () => [] };
   const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => undefined);
-  const summary = await s.run({ sinceTs }, CODEX, DEFAULT_SUMMARY_SETTINGS, 'manual');
+  const summary = await s.run({ sinceTs }, CODEX, PREFS, 'manual');
   return { summary, calls: call, s, settings: CODEX };
 }
 
@@ -73,7 +74,7 @@ describe('summary API-rate cost', () => {
 
   it("projects the model's cost from what its priced runs cost per message, and nothing for a cached range", async () => {
     const { s, settings } = await runWithCosts([0.01, 0.02, 0.03, 0.04]); // $0.10 for 3 messages
-    expect(s.estimate({ sinceTs: 0 }, settings, DEFAULT_SUMMARY_SETTINGS)).toMatchObject({ cached: true, modelUsd: null });
-    expect(s.estimate({ sinceTs: 1 }, settings, DEFAULT_SUMMARY_SETTINGS)!.modelUsd).toBeCloseTo(0.1, 10);
+    expect(s.estimate({ sinceTs: 0 }, settings, PREFS)).toMatchObject({ cached: true, modelUsd: null });
+    expect(s.estimate({ sinceTs: 1 }, settings, PREFS)!.modelUsd).toBeCloseTo(0.1, 10);
   });
 });

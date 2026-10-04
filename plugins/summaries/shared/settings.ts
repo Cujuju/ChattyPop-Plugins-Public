@@ -1,6 +1,6 @@
 // Summary preferences shared by core (runs, schedule) and renderer (panel, Settings → Summaries).
 // Stored JSON is normalized on read, so a missing or older value always yields a complete, valid object.
-import { bool, isObj, oneOf, textOrNull } from '@plugin-sdk/shared';
+import { bool, isObj, normalizeProviderId, oneOf, textOrNull, type ProviderId } from '@plugin-sdk/shared';
 import { NO_PROMPT_OVERRIDES, normalizeSummaryPrompts, type SummaryPromptTemplates } from './prompts';
 import { MS_PER_DAY, MS_PER_HOUR, MS_PER_MIN } from '@plugin-sdk/shared';
 import { cutText } from '@plugin-sdk/shared';
@@ -51,6 +51,8 @@ export const SUMMARY_BULLETS: Record<SummaryLength, { overall: readonly [number,
 export const SUMMARY_FOCUS_MAX_CHARS = 500;
 
 export interface SummarySettings {
+  /** The AI provider summaries use, with its Settings → AI model and effort; null = none chosen (nothing runs). */
+  defaultProvider: ProviderId | null;
   /** Leave out obvious filler without AI; the archive is unaffected. */
   skipObviousFiller: boolean;
   /** OpenRouter models and efforts chosen by conversation complexity. */
@@ -75,6 +77,7 @@ export interface SummarySettings {
 }
 
 export const DEFAULT_SUMMARY_SETTINGS: SummarySettings = {
+  defaultProvider: null,
   skipObviousFiller: false,
   jevRouting: {
     cheapModel: null,
@@ -102,6 +105,7 @@ export function normalizeSummarySettings(v: unknown): SummarySettings {
   const d = DEFAULT_SUMMARY_SETTINGS;
   const routing = isObj(src['jevRouting']) ? src['jevRouting'] : {};
   return {
+    defaultProvider: normalizeProviderId(src['defaultProvider']),
     skipObviousFiller: bool(src['skipObviousFiller'], d.skipObviousFiller),
     jevRouting: {
       cheapModel: textOrNull(routing['cheapModel']),

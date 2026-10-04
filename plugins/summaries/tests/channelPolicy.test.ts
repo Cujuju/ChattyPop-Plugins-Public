@@ -7,8 +7,7 @@ import type { Db } from '@core/db';
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { Summarizer } from '../core/summarize';
-import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
-import { adoptSummaries, fakeRegistry } from './summariesHarness';
+import { adoptSummaries, fakeRegistry, TEST_PREFS } from './summariesHarness';
 
 // The provider plugins this plugin asks: stand-ins, since only the plugin under check is in the registry.
 vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
@@ -31,6 +30,6 @@ describe('per-channel policy', () => {
     archive.ingestMessages([rawMessage(PRIVATE, Date.now() - 1000, 'secret plans')], ARRIVAL.gateway);
     const s = new Summarizer(db, (ids) => archivePayloads(db, ids), fakeRegistry(() => db, () => ({})).registry, () => {});
     // A fresh profile: the default is Claude, which runs hosted.
-    await expect(s.run({ sinceTs: 0, channelIds: [PRIVATE] }, aiSettingsFrom({}), DEFAULT_SUMMARY_SETTINGS, 'manual')).rejects.toThrow(/local AI only/);
+    await expect(s.run({ sinceTs: 0, channelIds: [PRIVATE] }, aiSettingsFrom({}), TEST_PREFS, 'manual')).rejects.toThrow(/local AI only/);
   });
 });

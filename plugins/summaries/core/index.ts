@@ -29,11 +29,10 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     decider: (_settings, feature) => ctx.jev.decider(feature),
     permitted: (ids, reader) => ctx.ai.sources.permitted(ids, reader),
     localNames: () => ctx.ai.providers().filter((p) => p.local).map((p) => p.displayName),
-    effective: (settings) => ctx.ai.effective(settings),
   }, emit, () => ctx.identity.names(), ctx.lifetime.signal);
   registerSummaryKinds(ctx.rules, {
     summarize: (request, prompts, trigger) => summarizer.run(request, ctx.ai.settings(), withOwnPrompts(prefs(), prompts), trigger),
-  }, emit, (q) => summarizer.coveredFrom(q, ctx.ai.settings()));
+  }, emit, (q) => summarizer.coveredFrom(q, prefs()));
   ctx.ai.usage.provide((provider, sinceTs) => summarizer.usageSince(provider, sinceTs));
   ctx.archive.textCoverage.provide(() => coverageSpans(ctx.storage.db));
   ctx.channels.serve({

@@ -21,6 +21,8 @@ import { chunk, costPerMessage, coveredFrom, insertSummary, sumUsage, summaryPag
 import { assignThemes, chunkByConversation, rateComplexity, skipQuiet, summaryShapeFingerprint } from './summaryShape';
 
 const NOTHING_NOTABLE = 'Nothing notable in this range.';
+/** No provider chosen for summaries. */
+const NO_PROVIDER = 'No AI provider is chosen for summaries: Settings → Summaries.';
 /** #60 model routing picks between OpenRouter models, so it applies only to runs on the OpenRouter provider. */
 const ROUTED_PROVIDER = 'openrouter';
 
@@ -46,22 +48,19 @@ export class Summarizer {
     private readonly lifetime: AbortSignal = new AbortController().signal,
   ) {}
 
-  /**
-   * Runs after any run in progress; resolves with the summary as privacy mode shows it. The default provider is resolved
-   * when the run starts, so one turned off while it waited gives way; an explicit `req.provider` stays.
-   */
+  /** Runs after any run in progress; resolves with the summary as privacy mode shows it. */
   run(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger): Promise<Summary> {
-    const next = this.queue.then(() => this.runNow(req, this.providers.effective(settings), prefs, trigger));
+    const next = this.queue.then(() => this.runNow(req, settings, prefs, trigger));
     this.queue = next.catch(() => undefined);
     return next.then((s) => this.shown(s));
   }
 
   /**
-   * Where stored runs cover, without a gap from `q.sinceTs`, every channel a run over `q.channelIds` with the default
+   * Where stored runs cover, without a gap from `q.sinceTs`, every channel a run over `q.channelIds` with Summaries'
    * provider would read now; null when some channel isn't covered there.
    */
-  coveredFrom(q: CoverageQuery, settings: AiSettings): number | null {
-    const providerId = this.providers.effective(settings).defaultProvider;
+  coveredFrom(q: CoverageQuery, prefs: SummarySettings): number | null {
+    const providerId = prefs.defaultProvider;
     const { readable } = this.channels(q.channelIds, providerId);
     return readable.length ? coveredFrom(this.db, readable, q.sinceTs) : null;
   }
@@ -99,11 +98,11 @@ export class Summarizer {
 
   /** Everything a run is decided by before any model is called: provider, log, Jev steps, prompt options and cache key. */
   private plan(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): RunPlan {
-    const providerId: ProviderId | null = req.provider ?? settings.defaultProvider;
-    const choice = providerId === null ? undefined : settings.providers[providerId];
-    if (!providerId || !choice?.enabled) throw new Error('No enabled AI provider. Choose one in Settings.');
+    const providerId: ProviderId | null = req.provider ?? prefs.defaultProvider;
+    if (!providerId) throw new Error(NO_PROVIDER);
+    // Throws, naming why, while it can't run or is turned off in Settings → AI; so its choice is stored.
     const provider = this.providers.get(providerId, settings);
-    const { model, effort } = choice;
+    const { model, effort } = settings.providers[providerId]!;
     const untilTs = req.untilTs ?? Date.now();
     // Local-AI-only channels: only a local provider may see them; with any other they're left out.
     const { requested, readable: channelIds } = this.channels(req.channelIds, providerId);

@@ -1,6 +1,5 @@
 // A catch-up skips only time every channel it reads was already summarized, from its start without a gap.
 import { expect, it } from 'vitest';
-import { aiSettingsFrom } from '@shared/aiProviders';
 import { newRuleAction } from '@shared/ruleSpec';
 import { MS_PER_HOUR } from '@shared/units';
 import type { Db } from '@core/db';
@@ -8,7 +7,7 @@ import { archivePayloads } from '@core/plugins/archivePayloads';
 import { Summarizer } from '../core/summarize';
 import { RuleSchedule } from '@core/rules/schedule';
 import { SUMMARIES_TABLE } from '../core/schema';
-import { fakeRegistry } from './summariesHarness';
+import { fakeRegistry, TEST_PREFS } from './summariesHarness';
 import { ruleInput } from '@chattypop/host-testing';
 import { summaryRuleHarness } from './summaryRuleHarness';
 
@@ -61,9 +60,9 @@ it('counts only the channels a hosted run would read: local-AI-only ones stay ou
   h.db.prepare("UPDATE channels SET local_ai_only = 1 WHERE id = 'c2'").run();
   summarized(h.db, ['c1'], at(0), at(6));
   const s = new Summarizer(h.db, (ids) => archivePayloads(h.db, ids), fakeRegistry(() => h.db, () => ({})).registry, () => {});
-  // A fresh profile: the default is Claude, which runs hosted.
-  expect(s.coveredFrom({ sinceTs: at(0), channelIds: null }, aiSettingsFrom({}))).toBe(at(6));
-  expect(s.coveredFrom({ sinceTs: at(1), channelIds: ['c1'] }, aiSettingsFrom({}))).toBe(at(6));
+  // TEST_PREFS picks Claude, which runs hosted.
+  expect(s.coveredFrom({ sinceTs: at(0), channelIds: null }, TEST_PREFS)).toBe(at(6));
+  expect(s.coveredFrom({ sinceTs: at(1), channelIds: ['c1'] }, TEST_PREFS)).toBe(at(6));
   h.db.prepare("UPDATE channels SET local_ai_only = 0 WHERE id = 'c2'").run();
-  expect(s.coveredFrom({ sinceTs: at(0), channelIds: null }, aiSettingsFrom({}))).toBeNull();
+  expect(s.coveredFrom({ sinceTs: at(0), channelIds: null }, TEST_PREFS)).toBeNull();
 });

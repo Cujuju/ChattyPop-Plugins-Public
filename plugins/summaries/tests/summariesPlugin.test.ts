@@ -13,7 +13,7 @@ import { adoptSummaries } from './summariesHarness';
 import { tempDb } from '@chattypop/host-testing';
 
 describe('Summaries plugin adoption', () => {
-  it('keeps historical rows, seen progress and summary preferences while moving only owned AI fields', () => {
+  it('keeps historical rows, seen progress and summary preferences, moving owned AI fields and copying the shared provider', () => {
     const db = tempDb();
     db.prepare(`INSERT INTO summaries (cache_key, created_at, provider, since_ts, until_ts, channel_ids, message_count, duration_ms, headline, items_json)
       VALUES ('cache', 7, 'claude', 1, 6, '[]', 2, 3, 'Saved recap', '[]')`).run();
@@ -24,7 +24,7 @@ describe('Summaries plugin adoption', () => {
     adoptSummaries(db);
     expect(db.prepare(`SELECT cache_key, headline FROM ${SUMMARIES_TABLE}`).get()).toEqual({ cache_key: 'cache', headline: 'Saved recap' });
     expect(getSetting(db, pluginSettingKey('summaries', 'seenId'))).toBe(17);
-    expect(getSetting(db, pluginSettingKey('summaries', 'settings'))).toEqual({ length: 'brief', focus: 'releases', skipObviousFiller: false, jevRouting });
+    expect(getSetting(db, pluginSettingKey('summaries', 'settings'))).toEqual({ length: 'brief', focus: 'releases', skipObviousFiller: false, jevRouting, defaultProvider: 'claude' });
     expect(getSetting(db, 'ai')).toEqual({ defaultProvider: 'claude' });
     adoptSummaries(db);
     expect(db.prepare(`SELECT COUNT(*) FROM ${SUMMARIES_TABLE}`).pluck().get()).toBe(1);
@@ -36,7 +36,8 @@ describe('Summaries plugin adoption', () => {
     setSetting(db, pluginSettingKey('summaries', 'settings'), { skipObviousFiller: true, focus: 'saved' });
     setSetting(db, 'ai', { skipObviousFiller: false, defaultProvider: 'codex' });
     adoptSummaries(db);
-    expect(getSetting(db, pluginSettingKey('summaries', 'settings'))).toEqual({ skipObviousFiller: true, focus: 'saved' });
+    // The shared provider choice seeds a field the plugin hasn't stored; its own fields stay.
+    expect(getSetting(db, pluginSettingKey('summaries', 'settings'))).toEqual({ skipObviousFiller: true, focus: 'saved', defaultProvider: 'codex' });
     expect(getSetting(db, 'ai')).toEqual({ defaultProvider: 'codex' });
   });
 

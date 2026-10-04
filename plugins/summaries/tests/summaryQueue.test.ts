@@ -1,4 +1,4 @@
-// A summary queued behind another resolves the default provider when it starts, not when it was queued.
+// A summary queued behind another checks its provider when it starts, not when it was queued.
 import { describe, expect, it, vi } from 'vitest';
 import { normalizeAiSettings } from '@shared/settings';
 import { declaredProviders } from '@shared/aiProviders';
@@ -19,7 +19,7 @@ vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chatt
 const ANSWER = JSON.stringify({ headline: 'h', items: [{ parts: [{ text: 'p', refs: [] }] }] });
 
 describe('queued summaries', () => {
-  it("use the default that can run when they start; the queued-time default's plugin was turned off meanwhile", async () => {
+  it("fail when they start if their provider's plugin was turned off meanwhile, rather than fall back to another", async () => {
     const db = adoptSummaries(tempDb());
     seedArchive(db, [{ id: 'c1' }]).ingestMessages([rawMessage('c1', Date.now() - MS_PER_MIN, 'hello')], ARRIVAL.gateway);
     const registry = new ProviderRegistry(() => undefined, declaredProviders());
@@ -46,16 +46,16 @@ describe('queued summaries', () => {
       decider: () => null,
       permitted: aiSources(() => db, (id) => registry.isLocal(id)).permitted,
       localNames: () => [],
-      effective: (s) => registry.effective(s),
     }, () => undefined);
-    const settings = registry.effective(normalizeAiSettings({ defaultProvider: 'codex', providers: { claude: { enabled: true }, codex: { enabled: true } } }, declaredProviders()));
-    const first = summarizer.run({ sinceTs: 0 }, settings, DEFAULT_SUMMARY_SETTINGS, 'manual');
-    const queued = summarizer.run({ sinceTs: 1 }, settings, DEFAULT_SUMMARY_SETTINGS, 'manual');
+    const settings = normalizeAiSettings({ providers: { claude: { enabled: true }, codex: { enabled: true } } }, declaredProviders());
+    const prefs = { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'codex' as const };
+    const first = summarizer.run({ sinceTs: 0 }, settings, prefs, 'manual');
+    const queued = summarizer.run({ sinceTs: 1 }, settings, prefs, 'manual');
     await expect.poll(() => used).toEqual(['codex']);
     offCodex();
     release();
     await expect(first).rejects.toThrow(/which is off/);
-    await expect(queued).resolves.toMatchObject({ provider: 'claude' });
-    expect(used).toEqual(['codex', 'claude']);
+    await expect(queued).rejects.toThrow(/which is off/);
+    expect(used).toEqual(['codex']);
   });
 });

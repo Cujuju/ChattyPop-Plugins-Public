@@ -38,9 +38,7 @@ export const plugin = definePlugin({
   aiRuns: {
     singular: 'summary',
     plural: 'summaries',
-    verb: 'summarize',
     active: 'Summarizing',
-    settingsTab: 'summaries',
   },
   storedContent: 'summaries',
   manifest: {
@@ -91,7 +89,8 @@ export const plugin = definePlugin({
     id: 'summaries',
     label: 'Summaries',
     tab: {
-      after: 'rules',
+      // Image text anchors after Summaries, so Summaries sits between Archive and Image text.
+      after: 'archive',
       iconPath: 'M6 3h9l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M9 10h6M9 14h6M9 18h4',
     },
   }],
@@ -140,6 +139,8 @@ export const plugin = definePlugin({
       { key: 'legacy.summarySettings', field: 'jevRouting', name: 'settings' },
       { key: 'ai', field: 'skipObviousFiller', name: 'settings' },
       { key: 'ai', field: 'jevRouting', name: 'settings' },
+      // The global default provider, retired: it seeds each feature's own choice.
+      { key: 'ai', field: 'defaultProvider', name: 'settings', shared: true },
     ],
     tables: { summaries: 'summaries' },
     settings: {

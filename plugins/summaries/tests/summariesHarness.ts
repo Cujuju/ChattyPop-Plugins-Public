@@ -5,7 +5,9 @@ import type { AppEvent } from '@shared/contract';
 import { DEFAULT_AI_SETTINGS, type AiSettings } from '@shared/settings';
 import type { DecisionProvider } from '@core/ai/decisions';
 import { Archive } from '@core/archive';
-import { setSetting, type Db } from '@core/db';
+import { getSetting, setSetting, type Db } from '@core/db';
+import { isObj } from '@shared/normalize';
+import { pluginSettingKey } from '@shared/bundledTypes';
 import { adoptBundledData } from '@core/plugins/adoption';
 import { migrateArchiveRefs } from '@core/plugins/archiveRefs';
 import { emptyRegistrations } from '@core/plugins/api';
@@ -15,6 +17,7 @@ import { RuleKinds } from '@core/rules/kinds';
 import { activateSummaries } from '../core';
 import { SUMMARY_MIGRATIONS } from '../core/schema';
 import { plugin, type SummaryCalls } from '../shared';
+import { DEFAULT_SUMMARY_SETTINGS, type SummarySettings } from '../shared/settings';
 import type { JevFeature } from '@shared/settings';
 import { tempDir } from '@chattypop/host-testing';
 import type { SummaryProviders } from '../core/providers';
@@ -36,6 +39,20 @@ export function adoptSummaries(db: Db): Db {
   adoptBundledData(db, [plugin]);
   migrateArchiveRefs(db, plugin, SUMMARY_MIGRATIONS);
   return db;
+}
+
+/** The provider these tests summarize with, as the owner picks it in Settings → Summaries. */
+const TEST_PROVIDER: ProviderId = 'claude';
+
+/** Summaries' default preferences with TEST_PROVIDER picked. */
+export const TEST_PREFS: SummarySettings = { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: TEST_PROVIDER };
+
+/** Picks TEST_PROVIDER for Summaries unless the test stored a choice. */
+function chooseProvider(db: Db): void {
+  const key = pluginSettingKey(plugin.manifest.id, 'settings');
+  const saved = getSetting(db, key);
+  const prefs = isObj(saved) ? saved : {};
+  if (!Object.hasOwn(prefs, 'defaultProvider')) setSetting(db, key, { ...prefs, defaultProvider: TEST_PROVIDER });
 }
 
 /** Activates the shipped plugin through the host context; no service implementation is replaced. */
@@ -133,5 +150,5 @@ export function fakeRegistry(
   // Locality as this build declares it.
   const isLocal = (id: ProviderId): boolean => declaredProvider(id)?.local === true;
   const localNames = (): string[] => declaredProviders().filter((d) => d.local).map((d) => d.displayName);
-  return { calls, registry: { get, decider, permitted: aiSources(db, isLocal).permitted, localNames, effective: (s) => s } };
+  return { calls, registry: { get, decider, permitted: aiSources(db, isLocal).permitted, localNames } };
 }

@@ -10,6 +10,4 @@ export interface SummaryProviders {
   permitted: AiSources['permitted'];
   /** Short names of the providers that run on this PC. */
   localNames(): string[];
-  /** Settings captured earlier, with the default that can run now. */
-  effective(settings: AiSettings): AiSettings;
 }

@@ -22,7 +22,7 @@ export const plugin = definePlugin({
   }],
   slots: {
     phoneDrawer: [{ id: 'plan', after: 'channels' }],
-    providerRows: [{ id: 'display-name', after: 'default' }],
+    providerRows: [{ id: 'display-name', after: 'enabled' }],
   },
 });
 export default plugin;

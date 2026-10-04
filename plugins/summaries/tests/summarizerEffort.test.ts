@@ -17,12 +17,12 @@ describe('Summarizer effort', () => {
   let summarizer: Summarizer;
   const settings = (effort: string | null): AiSettings => ({
     ...DEFAULT_AI_SETTINGS,
-    defaultProvider: 'openrouter',
     providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, model: 'base/model', effort, displayName: null } },
     jev: jev.on,
   });
   const prefs = (premiumEffort: string | null = null) => ({
     ...DEFAULT_SUMMARY_SETTINGS,
+    defaultProvider: 'openrouter' as const,
     jevRouting: { cheapModel: 'cheap/model', premiumModel: 'premium/model', cheapEffort: 'low', premiumEffort },
   });
   beforeEach(() => {

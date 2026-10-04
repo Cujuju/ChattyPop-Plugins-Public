@@ -98,12 +98,12 @@ describe('Summarizer with Jev shaping', () => {
   let models: (string | null)[];
   const settings = (): AiSettings => ({
     ...DEFAULT_AI_SETTINGS,
-    defaultProvider: 'openrouter',
     providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, model: 'base/model', effort: null, displayName: null } },
     jev: jev.on,
   });
   const prefs = {
     ...DEFAULT_SUMMARY_SETTINGS,
+    defaultProvider: 'openrouter' as const,
     jevRouting: { cheapModel: 'cheap/model', premiumModel: 'premium/model', cheapEffort: null, premiumEffort: null },
   };
   let summarizer: Summarizer;

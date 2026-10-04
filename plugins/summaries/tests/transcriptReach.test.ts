@@ -1,10 +1,9 @@
 // Transcripts as message text in Summaries: its summaries (and their cache), and the text retention its coverage drives.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { SUMMARIES_TABLE } from '../core/schema';
-import { adoptSummaries, fakeRegistry, startSummaries } from './summariesHarness';
+import { adoptSummaries, fakeRegistry, startSummaries, TEST_PREFS } from './summariesHarness';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ARCHIVE_SETTINGS } from '@shared/settings';
-import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { VOICE_MESSAGE_FLAG } from '@shared/discord';
 import { MS_PER_DAY } from '@shared/units';
 import { Summarizer } from '../core/summarize';
@@ -46,7 +45,7 @@ describe('summaries', () => {
     const { calls, registry } = fakeRegistry(() => db, () => ({ headline: 'h', items: [{ parts: [{ text: 'point', refs: ['m1'] }] }] }));
     const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => undefined);
     const since = Date.now() - 2 * MS_PER_DAY; // one fixed range, so only the log can differ between runs
-    const run = () => s.run({ sinceTs: since }, FRESH_AI, DEFAULT_SUMMARY_SETTINGS, 'manual');
+    const run = () => s.run({ sinceTs: since }, FRESH_AI, TEST_PREFS, 'manual');
     await run();
     await run();
     expect(calls).toHaveLength(1); // the same log comes from cache

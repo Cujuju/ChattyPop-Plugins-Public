@@ -25,8 +25,14 @@ import {
   choiceOptions,
   countText,
   formatTokens,
+  LinkButton,
   look,
+  openSettingsAt,
+  providerLabel,
   providerName,
+  providerSettingsOf,
+  ProviderSelect,
+  providerStatus,
   usdText,
   type ChoiceText,
 } from '@plugin-sdk/renderer/kit';
@@ -36,6 +42,8 @@ import type { ProviderSpend, SummarySpend } from '../shared/types';
 import { WEEKDAY_LABELS as DAY_NAMES } from '@plugin-sdk/shared';
 import { SummaryPromptEditor } from './SummaryPromptEditor';
 
+/** Settings → AI: where each provider's model is picked. */
+const AI_SETTINGS = 'ai';
 const span = (b: readonly [number, number]): string => `${b[0]}–${b[1]}`;
 const LENGTH_LABEL: Record<SummaryLength, string> = { brief: 'Brief', standard: 'Standard', detailed: 'Detailed' };
 /** Each layout's text in its select and in the section's one-line state, in select order. */
@@ -67,8 +75,9 @@ export function SummarySection() {
     <SectionsPage
       id="summaries"
       title="Summaries"
-      lede="What a summary contains, and the summaries that run on their own."
+      lede="Which AI provider writes summaries, what a summary contains, and the summaries that run on their own."
       sections={[
+        { id: 'provider', label: 'Provider', meta: () => (s().defaultProvider ? providerLabel(s().defaultProvider!) : 'None chosen'), body: ProviderBody },
         {
           id: 'style',
           label: 'Summary style',
@@ -85,6 +94,33 @@ export function SummarySection() {
         },
       ]}
     />
+  );
+}
+
+/** The provider every summary uses, automatic ones included; its model is the one Settings → AI picks for it. */
+function ProviderBody() {
+  const s = summarySettings;
+  const model = (): string | null => {
+    const id = s().defaultProvider;
+    if (!id) return null;
+    const chosen = providerSettingsOf(id).model;
+    const listed = providerStatus().find((p) => p.id === id)?.models;
+    return listed?.find((m) => (chosen ? m.id === chosen : m.isDefault))?.label ?? chosen ?? 'provider default';
+  };
+  return (
+    <Card title="Provider">
+      <Row
+        label="Provider"
+        for="summary-provider"
+        hint={
+          <>
+            Every summary uses it, automatic ones included{model() ? `, with ${model()}` : ''}. Its model is picked in Settings → AI.{' '}
+            <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Open Settings → AI</LinkButton>
+          </>
+        }
+        control={<ProviderSelect id="summary-provider" value={s().defaultProvider} onChange={(defaultProvider) => update({ defaultProvider })} />}
+      />
+    </Card>
   );
 }
 

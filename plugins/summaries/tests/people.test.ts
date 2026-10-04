@@ -8,11 +8,10 @@ import { MS_PER_DAY } from '@shared/units';
 import { ARRIVAL } from '@core/arrival';
 import { aiSettingsFrom } from '@shared/aiProviders';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
-import { adoptSummaries, fakeRegistry } from './summariesHarness';
+import { adoptSummaries, fakeRegistry, TEST_PREFS } from './summariesHarness';
 import { Summarizer } from '../core/summarize';
 import { linkMarked, linkNames, peopleByName, peopleByTag, unmarked } from '../core/people';
 import { linkPerson } from '../core/linkPerson';
-import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { namedText, textRuns } from '../shared/people';
 
 vi.mock('virtual:bundled-plugins/shared', async (build) => (await import('@chattypop/host-testing/fixtureProviders')).withFixtureProviders(build));
@@ -64,7 +63,7 @@ describe('summaries name people as they are now', () => {
     });
     return new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {});
   };
-  const run = (s: Summarizer) => s.run({ sinceTs: SINCE }, aiSettingsFrom({}), { ...DEFAULT_SUMMARY_SETTINGS, actionItems: false }, 'manual');
+  const run = (s: Summarizer) => s.run({ sinceTs: SINCE }, aiSettingsFrom({}), { ...TEST_PREFS, actionItems: false }, 'manual');
 
   it('tags people in the log and stores the tags the model writes as people', async () => {
     const { calls, registry } = fakeRegistry(() => db, () => ({ headline: '{{p1}} got the knife', items: [{ parts: [{ text: '{{p2}} cheered {{p1}}', refs: ['m1'] }] }] }));
