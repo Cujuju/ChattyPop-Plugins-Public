@@ -9,7 +9,7 @@ import { registerSummaryKinds } from './kinds';
 import { migrateAutoSummaries } from './autoSummaries';
 import { coverageSpans, summarySpend } from './summaryRows';
 import { estimateMissingCosts } from './costBackfill';
-import { linkPerson, linkStoredPeople } from './linkStored';
+import { linkPerson } from './linkPerson';
 import { SUMMARY_MIGRATIONS } from './schema';
 
 /** Activates the complete summary service through the host context. */
@@ -60,9 +60,6 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
   });
   migrateAutoSummaries(ctx, Date.now(), ctx.session.lastSeenAt());
   void estimateMissingCosts(ctx.storage.db, ctx.ai.apiCost);
-  linkStoredPeople(ctx.storage.db, () => ctx.lifetime.signal.aborted).catch((err: unknown) => {
-    if (!ctx.lifetime.signal.aborted) console.warn('[summary] linking people in stored summaries failed:', errorMessage(err));
-  });
 }
 
 export default defineCorePlugin(plugin, activateSummaries);

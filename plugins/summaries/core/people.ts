@@ -56,8 +56,8 @@ export const unmarked = (text: string, byTag: ReadonlyMap<string, TaggedPerson>)
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * `text`, written before names were marked, with each whole name in `byName` (case as written, not inside a longer word)
- * as its person; longer names first, so one containing another wins. Only the one-time pass over stored summaries uses it.
+ * `text` with each whole name in `byName` (case as written, not inside a longer word) as its person; longer names first,
+ * so one containing another wins. The owner's naming of a person (linkPerson.ts) uses it.
  */
 export function linkNames(text: string, byName: ReadonlyMap<string, string>): string {
   const names = [...byName.keys()].filter((n) => n.trim()).sort((a, b) => b.length - a.length);
@@ -67,42 +67,6 @@ export function linkNames(text: string, byName: ReadonlyMap<string, string>): st
 /** Any of `words` as a whole word (not inside a longer word); where two start together, the one listed first. */
 const wholeWords = (words: readonly string[]): RegExp =>
   new RegExp(`(?<![\\p{L}\\p{N}_])(?:${words.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
-
-/** A lead shorter than this is too likely an ordinary word. */
-const MIN_LEAD_CHARS = 3;
-/** A name's words before its decoration: "Flipper | Must.stop" → "Flipper", "The Senator™" → "The Senator". */
-const LEAD = /^[\p{L}\p{N}'’ .-]+/u;
-const LEAD_TRIM = /[\s.'’-]+$/u;
-const CAPITAL = /^\p{Lu}/u;
-/** A lead's article, which a summary drops or lower-cases: "The Senator" is also "the Senator" and "Senator". */
-const ARTICLE = /^The (?=\p{Lu})/u;
-
-/** The ways a summary writes a lead: as is, and for one starting with ARTICLE, with it lower-cased or dropped. */
-const leadForms = (lead: string): string[] => {
-  const bare = lead.replace(ARTICLE, '');
-  return bare === lead ? [lead] : [lead, `the ${bare}`, ...(bare.length >= MIN_LEAD_CHARS ? [bare] : [])];
-};
-
-/**
- * Each shortened name (a name's lead, capitalized, at least MIN_LEAD_CHARS long) to the one person it can be: a lead two
- * people share, or that is someone's whole name, is left out.
- */
-export function peopleByLead(pairs: Iterable<readonly [name: string, userId: string]>): Map<string, string> {
-  const all = [...pairs];
-  const whole = new Set(all.map(([name]) => name));
-  const leads = all.flatMap(([name, userId]): [string, string][] => {
-    const lead = (name.match(LEAD)?.[0] ?? '').replace(LEAD_TRIM, '');
-    if (lead === name || lead.length < MIN_LEAD_CHARS || !CAPITAL.test(lead)) return [];
-    return leadForms(lead).filter((form) => !whole.has(form)).map((form) => [form, userId]);
-  });
-  return peopleByName(leads);
-}
-
-/** `byLead` without leads `texts` also use as ordinary words (written in lower case), so "Will" stays when "will" appears. */
-export function leadsNotWords(byLead: ReadonlyMap<string, string>, texts: readonly string[]): Map<string, string> {
-  const plain = texts.join('\n');
-  return new Map([...byLead].filter(([lead]) => !wholeWords([lead.toLowerCase()]).test(plain)));
-}
 
 const placeholders = (n: number): string => Array(n).fill('?').join(',');
 

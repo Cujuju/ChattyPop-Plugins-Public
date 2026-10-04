@@ -1,5 +1,5 @@
 // People in summary text (#291, #303): the log tags each person, the model writes tags, core stores each tag the log
-// gave out as the person (shown by their name now), and old summaries are linked once by the names their log held.
+// gave out as the person (shown by their name now), and the owner can name a person the tags missed.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Db } from '@core/db';
@@ -10,9 +10,8 @@ import { aiSettingsFrom } from '@shared/aiProviders';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { adoptSummaries, fakeRegistry } from './summariesHarness';
 import { Summarizer } from '../core/summarize';
-import { PEOPLE_LINKED, SUMMARIES_TABLE } from '../core/schema';
-import { leadsNotWords, linkMarked, linkNames, peopleByLead, peopleByName, peopleByTag, unmarked } from '../core/people';
-import { linkPerson, linkStoredPeople } from '../core/linkStored';
+import { linkMarked, linkNames, peopleByName, peopleByTag, unmarked } from '../core/people';
+import { linkPerson } from '../core/linkPerson';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { namedText, textRuns } from '../shared/people';
 
@@ -33,19 +32,9 @@ describe('people in summary text', () => {
     expect(unmarked('{{p2}} asked {{p9}} and {{Lee}}', byTag)).toBe('Kim asked someone and Lee');
   });
 
-  it('links whole names in old text, longest first, never inside a word', () => {
+  it('links whole names, longest first, never inside a word', () => {
     const byName = new Map([['stat', '1'], ['stat [WWW]', '2'], ['Sal', '3']]);
     expect(linkNames('stat [WWW] and stat met Salchipapa; statistics', byName)).toBe('<@2> and <@1> met Salchipapa; statistics');
-  });
-
-  it("takes a name's lead before its decoration as a shortened name only one person has", () => {
-    const byLead = peopleByLead([
-      ['Flipper | Must.stop..grinning…', '1'], ['The Senator™', '2'], ['stat [WWW]', '3'], ['Kim 🌸', '4'], ['Kim ✨', '5'], ['Al 🍕', '6'], ['Sam', '7'], ['Sam ☕', '8'],
-    ]);
-    // stat: lower case; Kim: two people; Al: too short; Sam: someone's whole name.
-    expect([...byLead]).toEqual([['Flipper', '1'], ['The Senator', '2'], ['the Senator', '2'], ['Senator', '2']]);
-    expect(linkNames('The Senator and the Senator; Senator agreed', byLead)).toBe('<@2> and <@2>; <@2> agreed');
-    expect([...leadsNotWords(new Map([['Will', '1'], ['Flipper', '2']]), ['Will said it will rain', 'Flipper agreed'])]).toEqual([['Flipper', '2']]);
   });
 
   it('splits text into runs and writes names into plain text', () => {
@@ -100,18 +89,6 @@ describe('summaries name people as they are now', () => {
     expect(namedText(shown!.headline, shown!.people)).toBe('🍤 got the knife');
   });
 
-  it('links summaries stored before names were marked, once', async () => {
-    const s = summarizer('Salchipapa got the knife', 'stat cheered Salchipapa');
-    const { id } = await run(s);
-    db.prepare(`UPDATE ${SUMMARIES_TABLE} SET people_linked = 0 WHERE id = ?`).run(id);
-
-    expect(await linkStoredPeople(db, () => false)).toBe(1);
-    const [shown] = s.page({ limit: 1 });
-    expect(shown!.headline).toBe(`<@${SAL.id}> got the knife`);
-    expect(shown!.items[0]!.parts[0]!.text).toBe(`<@${STAT.id}> cheered <@${SAL.id}>`);
-    expect(await linkStoredPeople(db, () => false)).toBe(0);
-  });
-
   it("links the owner's naming of a person in one summary, only for someone the archive knows", async () => {
     const s = summarizer('Sal got the knife; Salty', 'stat cheered Sal');
     const { id } = await run(s);
@@ -121,17 +98,5 @@ describe('summaries name people as they are now', () => {
     expect(shown!.headline).toBe(`<@${SAL.id}> got the knife; Salty`);
     expect(shown!.items[0]!.parts[0]!.text).toBe(`stat cheered <@${SAL.id}>`);
     expect(linkPerson(db, id, 'Sal', SAL.id)).toBe(0);
-  });
-
-  it('links shortened names in summaries the whole-name pass already went over, once', async () => {
-    const decorated = { ...SAL, global_name: 'Salchipapa | knives' };
-    archive.ingestMessages([rawMessage(GENERAL, Date.now() - MS_PER_DAY, 'sharp', { author: decorated })], ARRIVAL.gateway);
-    const s = summarizer('Salchipapa got the knife', 'stat cheered Salchipapa');
-    const { id } = await run(s);
-    db.prepare(`UPDATE ${SUMMARIES_TABLE} SET headline = ?, people_linked = ? WHERE id = ?`).run('Salchipapa got the knife', PEOPLE_LINKED.names, id);
-
-    expect(await linkStoredPeople(db, () => false)).toBe(1);
-    expect(s.page({ limit: 1 })[0]!.headline).toBe(`<@${SAL.id}> got the knife`);
-    expect(await linkStoredPeople(db, () => false)).toBe(0);
   });
 });
