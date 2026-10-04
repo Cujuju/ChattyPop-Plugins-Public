@@ -34,10 +34,12 @@ export interface LinksEvents {
   [UPDATED_EVENT]: null;
 }
 
-/** Settings → Jev → Queries ids (kept from when they were built in); {ref} is the link's key in `links`. */
+/** Settings → Jev → Queries ids (kept from when they were built in). Each question carries its link as `link`. */
 export const LINK_QUERY = { category: 'links.category', safety: 'links.safety', worth: 'links.worth' } as const;
 
-const LINK_SEES = '`links`: a batch of links, each with its url, title, description, site and `shared_with` (the message that shared it).';
+const LINK_SEES = '`link`: one link, with its url, title, description, site and `shared_with` (the message that shared it).';
+/** Every question names the link it is about; an edit without it can't say which link it means, so it isn't used. */
+const LINK_REF = ['`link`'];
 const LINK_GROUP = 'Links & search';
 
 /** Links' Settings → Jev switches, keyed as they were before Links was a plugin (adopted as links.<key>). */
@@ -56,12 +58,12 @@ const QUERIES: readonly JevQueryDecl<(typeof FEATURES)[number]['key']>[] = [
     label: 'Link category',
     features: ['linkCategories'],
     sees: LINK_SEES,
-    placeholders: ['{ref}'],
+    placeholders: LINK_REF,
     use: 'fixed-options',
     condition: null,
     defaults: {
       type: 'choice',
-      question: 'What kind of thing does links.{ref} lead to? Use its title, description and site, and its shared_with text for context.',
+      question: 'What kind of thing does `link` lead to? Use its title, description and site, and its `shared_with` text for context.',
       // One option per LINK_CATEGORIES entry: a label outside it is stored as no category.
       options: [
         { name: 'video', description: 'a video or stream' },
@@ -87,12 +89,12 @@ const QUERIES: readonly JevQueryDecl<(typeof FEATURES)[number]['key']>[] = [
     label: 'Spam, scam or NSFW link',
     features: ['linkSafety'],
     sees: LINK_SEES,
-    placeholders: ['{ref}'],
+    placeholders: LINK_REF,
     use: 'decision',
     condition: 'Flag the link',
     defaults: {
       type: 'noul',
-      question: 'Is links.{ref} spam, a scam or phishing, or NSFW (sexual or graphic content)?',
+      question: 'Is `link` spam, a scam or phishing, or NSFW (sexual or graphic content)?',
       yes: 'spam, scam, phishing, or NSFW',
       no: 'an ordinary link',
       // Clearly likely: a flag hides the link when "Hide flagged" is on.
@@ -106,12 +108,12 @@ const QUERIES: readonly JevQueryDecl<(typeof FEATURES)[number]['key']>[] = [
     label: 'Link worth reading',
     features: ['linkWorth'],
     sees: LINK_SEES,
-    placeholders: ['{ref}'],
+    placeholders: LINK_REF,
     use: 'fixed-levels',
     condition: null,
     defaults: {
       type: 'score',
-      question: 'For someone catching up on this chat, how worth opening is links.{ref}?',
+      question: 'For someone catching up on this chat, how worth opening is `link`?',
       // One level per LINK_WORTH_LEVELS entry, same order: the Links panel shows that name.
       levels: ['not worth opening', 'low value', 'somewhat interesting', 'good', 'must see'],
       minScore: 0,

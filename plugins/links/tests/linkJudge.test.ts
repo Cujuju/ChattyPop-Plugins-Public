@@ -10,15 +10,14 @@ import { aiSources, scopedDecider } from '@core/ai/readScope';
 const OPEN = '200000000000000001';
 const PRIVATE = '200000000000000002';
 
-/** Answers per link URL: a URL with "scam" in it is bad. */
+/** Answers per link URL, read from the link each question carries: a URL with "scam" in it is bad. */
 function byUrl(req: JevRequest): Record<string, unknown> {
-  const links = (req.state as { links: Record<string, { url: string }> }).links;
   const answers: Record<string, unknown> = {};
-  for (const [ref, link] of Object.entries(links)) {
-    const bad = link.url.includes('scam');
-    if (req.questions[`category_${ref}`]) answers[`category_${ref}`] = { type: 'choice', choice: bad ? 'shopping' : 'video', probabilities: {}, confidence: 1 };
-    if (req.questions[`flagged_${ref}`]) answers[`flagged_${ref}`] = { type: 'noul', noul: bad ? 0.95 : 0.05 };
-    if (req.questions[`worth_${ref}`]) answers[`worth_${ref}`] = { type: 'score', score: bad ? 0.2 : 3.6, legend: {}, probabilities: {}, confidence: 1 };
+  for (const [id, q] of Object.entries(req.questions)) {
+    const bad = (q.instructions as { link: { url: string } }).link.url.includes('scam');
+    if (id.startsWith('category_')) answers[id] = { type: 'choice', choice: bad ? 'shopping' : 'video', probabilities: {}, confidence: 1 };
+    if (id.startsWith('flagged_')) answers[id] = { type: 'noul', noul: bad ? 0.95 : 0.05 };
+    if (id.startsWith('worth_')) answers[id] = { type: 'score', score: bad ? 0.2 : 3.6, legend: {}, probabilities: {}, confidence: 1 };
   }
   return answers;
 }
@@ -47,11 +46,14 @@ beforeEach(() => {
 });
 
 describe('link judgments (#61–#63)', () => {
-  it('asks about all pending links in one request, every enabled question, never for local-only channels', async () => {
+  it('asks about all pending links in one request, each question carrying its link, never for local-only channels', async () => {
     judge.kick();
     await settleAsync();
     expect(jev.requests).toHaveLength(1);
     expect(Object.keys(jev.requests[0]!.questions).sort()).toEqual(['category_l0', 'category_l1', 'flagged_l0', 'flagged_l1', 'worth_l0', 'worth_l1']);
+    // Each question carries its own link; no link sits in a state every question reads.
+    expect(jev.requests[0]!.state).toEqual({});
+    expect(jev.requests[0]!.questions['flagged_l0']!.instructions).toMatchObject({ link: { url: 'https://scam.example/win' }, question: expect.stringContaining('`link`') });
     judge.kick();
     await settleAsync();
     expect(jev.requests).toHaveLength(1);

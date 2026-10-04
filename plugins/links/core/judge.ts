@@ -1,7 +1,8 @@
-// Jev's reading of shared links (#61 category, #62 spam/scam/NSFW, #63 worth reading): one request carries a batch of links and asks every enabled question about each. Links first shared in a local-AI-only channel are never sent.
+// Jev's reading of shared links (#61 category, #62 spam/scam/NSFW, #63 worth reading): one request carries a batch of links and asks every enabled question about each, each question carrying its own link (carriedQuestion). Links first shared in a local-AI-only channel are never sent.
 import { MS_PER_DAY, errorMessage } from '@plugin-sdk/shared';
 import {
   SerialLoop,
+  carriedQuestion,
   clipMessage,
   fromJson,
   queryLabel,
@@ -36,7 +37,14 @@ const NOT_FLAGGED = 0;
 export type Feature = 'linkCategories' | 'linkSafety' | 'linkWorth';
 const COLUMN: Record<Feature, 'category' | 'flagged' | 'worth'> = { linkCategories: 'category', linkSafety: 'flagged', linkWorth: 'worth' };
 
-const at = (ref: string) => ({ placeholders: { '{ref}': ref } });
+/** A batched request's state: each question carries its own link, so no link sits before another's questions. */
+const NO_SHARED_STATE = {};
+/** The questions each feature asks, keyed by its answer's prefix. */
+const ASKS: Record<Feature, { prefix: string; query: string }> = {
+  linkCategories: { prefix: 'category', query: QUERY.category },
+  linkSafety: { prefix: 'flagged', query: QUERY.safety },
+  linkWorth: { prefix: 'worth', query: QUERY.worth },
+};
 
 interface Pending {
   id: number;
@@ -120,24 +128,21 @@ export class LinkJudge {
   private async judge(links: (Pending & { features: Feature[] })[]): Promise<void> {
     const jev = this.features()[0]?.jev;
     if (!jev) return;
-    const questions: Record<string, Question> = {};
-    const state: Record<string, unknown> = {};
-    links.forEach((link, k) => {
-      const ref = `l${k}`;
-      state[ref] = {
-        url: link.url,
-        title: link.title,
-        description: link.description,
-        site: link.site,
-        ...(link.content ? { shared_with: clipMessage(link.content) } : {}),
-      };
-      if (link.features.includes('linkCategories')) questions[`category_${ref}`] = queryRequest(QUERY.category, at(ref));
-      if (link.features.includes('linkSafety')) questions[`flagged_${ref}`] = queryRequest(QUERY.safety, at(ref));
-      if (link.features.includes('linkWorth')) questions[`worth_${ref}`] = queryRequest(QUERY.worth, at(ref));
-    });
     let answers: Record<string, Answer | undefined>;
     try {
-      answers = (await jev.decide({ state: { links: state }, questions, reads: links.map((l) => l.channelId) })).answers as typeof answers;
+      const questions: Record<string, Question> = {};
+      links.forEach((link, k) => {
+        const data = {
+          link: { url: link.url, title: link.title, description: link.description, site: link.site, ...(link.content ? { shared_with: clipMessage(link.content) } : {}) },
+        };
+        for (const f of link.features) {
+          const q = carriedQuestion(queryRequest(ASKS[f].query), data);
+          // Unreachable: each query's `link` reference is required (its placeholder), so an edit without it is never used.
+          if (!q) throw new Error(`${ASKS[f].query} names no \`link\``);
+          questions[`${ASKS[f].prefix}_l${k}`] = q;
+        }
+      });
+      answers = (await jev.decide({ state: NO_SHARED_STATE, questions, reads: links.map((l) => l.channelId) })).answers as typeof answers;
     } catch (err) {
       for (const link of links) this.skipped.add(link.id);
       console.warn('[links] Jev judgment failed:', errorMessage(err));
