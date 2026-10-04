@@ -6,7 +6,7 @@ import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } 
 export const manifest = {
   id: 'links',
   name: 'Links',
-  version: '1.14.1',
+  version: '1.14.2',
   description: 'The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.',
 };
 
