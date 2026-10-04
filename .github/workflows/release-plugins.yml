@@ -32,9 +32,6 @@ on:
       dry_run:
         type: boolean
         default: false
-    secrets:
-      CHATTYPOP_READ_TOKEN:
-        required: true
 
 jobs:
   release:
@@ -56,16 +53,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: Cujuju/ChattyPop
-          token: ${{ secrets.CHATTYPOP_READ_TOKEN }}
           path: ChattyPop
           # appVersion() counts the whole history; it is built into every plugin.
           fetch-depth: 0
-
-      - name: Check out solidjs-toolkit
-        uses: actions/checkout@v5
-        with:
-          repository: Cujuju/solidjs-toolkit
-          path: solidjs-toolkit
 
       - name: Set up pnpm (the host's packageManager)
         uses: pnpm/action-setup@v4
@@ -77,9 +67,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: |
-            ChattyPop/pnpm-lock.yaml
-            solidjs-toolkit/pnpm-lock.yaml
+          cache-dependency-path: ChattyPop/pnpm-lock.yaml
 
       - name: Cache Electron's download
         uses: actions/cache@v4
@@ -87,19 +75,6 @@ jobs:
           path: ~\AppData\Local\electron\Cache
           key: electron-${{ runner.os }}-${{ hashFiles('ChattyPop/pnpm-lock.yaml') }}
           restore-keys: electron-${{ runner.os }}-
-
-      # Only the packages ChattyPop links (its package.json) and their dependencies: others may link repos CI lacks.
-      # None linked: ChattyPop installs them from npm.
-      - name: Build solidjs-toolkit
-        working-directory: solidjs-toolkit
-        run: |
-          $chattypop = Get-Content ../ChattyPop/package.json -Raw | ConvertFrom-Json
-          $linked = @($chattypop.dependencies.PSObject.Properties | Where-Object { $_.Value -like 'link:../solidjs-toolkit/*' })
-          if (-not $linked) { Write-Host 'ChattyPop links no solidjs-toolkit package; nothing to build.'; exit 0 }
-          pnpm install --frozen-lockfile
-          $filters = $linked | ForEach-Object { '--filter', "$($_.Name)..." }
-          pnpm @filters build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Install ChattyPop
         working-directory: ChattyPop
