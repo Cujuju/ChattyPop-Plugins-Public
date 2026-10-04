@@ -5,7 +5,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'openrouter',
     name: 'OpenRouter',
-    version: '1.0.0',
+    version: '1.1.0',
     description: 'Any OpenRouter model as an AI provider, paid by the OpenRouter key that lists it.',
   },
   providers: [{
