@@ -1,4 +1,5 @@
-// Image text (#196): charts' tickers as cashtags, and the plugin reading an embed's image through main end to end.
+// Image text (#196): charts' tickers as cashtags, and the plugin reading an embed's image through main end to end, its
+// text a derived text and a note of that image (#325).
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -6,15 +7,18 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import type { CompletionRequest, LlmProvider } from '@core/ai/types';
 import { IS_WINDOWS } from '@core/ai/resolveCli';
+import { partNotes } from '@core/attachmentNotes';
 import { tempDir } from '@chattypop/host-testing';
 import imageTextCore from '../core';
 import { chartTickers, imageText, tickerOf } from '../core/chartTickers';
 import { counts, JOBS_TABLE } from '../core/store';
 import { WindowsOcr } from '../core/windowsOcr';
-import { DEFAULT_IMAGE_TEXT_SETTINGS, inTranslateMenu, normalizeImageTextSettings } from '../shared/types';
+import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings } from '../shared/types';
 
 /** Starting the Windows OCR worker (status() does) takes seconds on a loaded machine or a CI runner. */
 const OCR_START_TIMEOUT_MS = 60_000;
+/** Long enough for a queue pass that would run to have run: the queue starts on setImmediate. */
+const SETTLE_MS = 50;
 
 describe('chart tickers', () => {
   // Lines as Windows OCR read them from this archive's charts and trading screens.
@@ -55,47 +59,39 @@ describe('chart tickers', () => {
   });
 });
 
-describe('the Translate image text menu', () => {
-  it('lists local providers and leaves cloud ones out until the owner turns them on, or local ones off', () => {
-    const s = normalizeImageTextSettings({ translateMenu: { openrouter: true, ollama: false, bad: 'yes' } });
-    expect(s.translateMenu).toEqual({ openrouter: true, ollama: false });
-    expect(inTranslateMenu(DEFAULT_IMAGE_TEXT_SETTINGS, { id: 'ollama', local: true })).toBe(true);
-    expect(inTranslateMenu(DEFAULT_IMAGE_TEXT_SETTINGS, { id: 'openrouter', local: false })).toBe(false);
-    expect(inTranslateMenu(s, { id: 'openrouter', local: false })).toBe(true);
-    expect(inTranslateMenu(s, { id: 'ollama', local: true })).toBe(false);
+describe('automatic reading', () => {
+  it('is set per source; the one switch before them sets all three', () => {
+    expect(normalizeImageTextSettings({ auto: false })).toMatchObject({ autoAttachments: false, autoEmbeds: false, autoLinks: false });
+    expect(normalizeImageTextSettings({ auto: false, autoEmbeds: true })).toMatchObject({ autoAttachments: false, autoEmbeds: true, autoLinks: false });
+    expect(normalizeImageTextSettings({})).toMatchObject({ autoAttachments: true, autoEmbeds: true, autoLinks: true });
   });
 });
 
 describe('the Image text plugin', () => {
   const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-  /** What the fake model translates to: a function of the text, or an error to throw. */
-  type Translating = { language: string; translation: string } | Error;
-
-  /** A provider answering an image with `reading` and text with `translating`, recording what it was sent. */
-  function vision(reading: { text: string; tickers: string[] }, translating: Translating = { language: 'Japanese', translation: 'translated' }) {
+  /** A provider answering an image with `reading`, recording what it was sent. */
+  function vision(reading: { text: string; tickers: string[] }) {
     const sent: CompletionRequest[] = [];
     const provider: LlmProvider = {
       id: 'eyes',
       maxInputChars: 10_000,
       complete: async (req) => {
         sent.push(req);
-        const answer = req.images?.length ? reading : translating;
-        if (answer instanceof Error) throw answer;
-        return { text: JSON.stringify(answer), json: answer };
+        return { text: JSON.stringify(reading), json: reading };
       },
       listModels: async () => [{ id: 'vl', label: 'vl', images: true }],
     };
     return { sent, provider };
   }
 
-  function start(images: boolean, reading = { text: 'Tesla chart', tickers: ['TSLA'] }, opts: { translate?: boolean; translating?: Translating; local?: boolean; hostedVision?: boolean } = {}) {
-    const v = vision(reading, opts.translating);
+  function start(images: boolean, reading = { text: 'Tesla chart', tickers: ['TSLA'] }, opts: { local?: boolean; hostedVision?: boolean; autoEmbeds?: boolean } = {}) {
+    const v = vision(reading);
     const t = testPlugin(imageTextCore, {
       archive: { channels: [{ id: 'c1' }] },
       ai: { providers: [{ id: 'eyes', local: opts.local ?? true, images, provider: v.provider }] },
       preferences: {
-        settings: { ...DEFAULT_IMAGE_TEXT_SETTINGS, engine: 'vision', hostedVision: opts.hostedVision ?? false, visionProvider: 'eyes', visionModel: 'vl', translate: opts.translate ?? false, translateProvider: 'eyes', translateModel: 'tx' },
+        settings: { ...DEFAULT_IMAGE_TEXT_SETTINGS, engine: 'vision', hostedVision: opts.hostedVision ?? false, visionProvider: 'eyes', visionModel: 'vl', autoEmbeds: opts.autoEmbeds ?? true },
       },
     });
     onTestFinished(() => t.dispose());
@@ -162,37 +158,29 @@ describe('the Image text plugin', () => {
     await expect(t.client('renderer').request(id, { engine: 'vision', provider: 'missing', model: 'x' })).rejects.toThrow();
   });
 
-  const derivedOf = (t: ReturnType<typeof start>['t'], id: string) => t.db.prepare('SELECT text FROM derived_texts WHERE message_id = ?').pluck().all(id);
-
-  it('translates each reading automatically with the translation model, keeping the text too', async () => {
-    const { t, id, sent } = start(true, undefined, { translate: true });
+  it('its text is the derived text of its image, and its note sits under that image', async () => {
+    const { t, id } = start(true);
     await fetchAsMain(t);
-    await vi.waitFor(() => expect(derivedOf(t, id)).toEqual(['Tesla chart\n$TSLA\ntranslated']));
-    expect(sent[1]).toMatchObject({ model: 'tx' });
-    expect(sent[1]!.prompt).toContain('the whole text in English');
+    const part = 'embed:https://media.discordapp.net/c.png';
+    await vi.waitFor(() => expect(t.db.prepare('SELECT text, part FROM derived_texts WHERE message_id = ?').all(id)).toEqual([{ text: 'Tesla chart\n$TSLA', part }]));
+    expect(partNotes([{ id, attachmentIds: [] }]).get(id)?.get(part)).toEqual([{ pluginId: 'imagetext', part, kind: 'image-text', state: 'done', label: 'image transcription', text: 'Tesla chart\n$TSLA' }]);
   });
 
-  it('keeps only the text when it is already in the language', async () => {
-    const { t, id } = start(true, undefined, { translate: true, translating: { language: 'English', translation: 'Tesla chart, in English' } });
+  it('a source read only on request is left until the owner asks', async () => {
+    const { t, id } = start(true, undefined, { autoEmbeds: false });
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    expect(t.events('fetchImage')).toEqual([]);
+    await t.client('renderer').request(id, null);
     await fetchAsMain(t);
-    await vi.waitFor(() => expect(derivedOf(t, id)).toEqual(['Tesla chart\n$TSLA']));
+    await vi.waitFor(() => expect(counts(t.db).done).toBe(1));
   });
 
-  it('a failed translation keeps the reading and notes why', async () => {
-    const { t, id } = start(true, undefined, { translate: true, translating: new Error('model gone') });
+  it('a translation stored before translating moved to its own plugin still shows in the note', async () => {
+    const { t, id } = start(true);
     await fetchAsMain(t);
-    await vi.waitFor(() => expect(derivedOf(t, id)).toEqual(['Tesla chart\n$TSLA']));
-    expect(t.db.prepare(`SELECT state, translation_error FROM ${JOBS_TABLE}`).get()).toEqual({ state: 'done', translation_error: 'model gone' });
-  });
-
-  it('Translate image text translates the text already read, without reading the image again', async () => {
-    const { t, id, sent } = start(true);
-    await fetchAsMain(t);
-    await vi.waitFor(() => expect(derivedOf(t, id)).toEqual(['Tesla chart\n$TSLA']));
-    await t.client('renderer').translate(id, { provider: 'eyes', model: 'tx' });
-    await vi.waitFor(() => expect(derivedOf(t, id)).toEqual(['Tesla chart\n$TSLA\ntranslated']));
-    expect(t.events('fetchImage')).toHaveLength(1);
-    expect(sent.map((s) => s.model)).toEqual(['vl', 'tx']);
+    await vi.waitFor(() => expect(counts(t.db).done).toBe(1));
+    t.db.prepare(`UPDATE ${JOBS_TABLE} SET translation = 'Tesla-Chart'`).run();
+    expect(partNotes([{ id, attachmentIds: [] }]).get(id)?.get('embed:https://media.discordapp.net/c.png')?.[0]?.text).toBe('Tesla chart\n$TSLA\n\nTranslation:\nTesla-Chart');
   });
 
   it('a provider not declared to read images refuses them: the job fails, nothing is sent', async () => {

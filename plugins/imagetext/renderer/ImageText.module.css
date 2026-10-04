@@ -7,8 +7,3 @@
   gap: var(--cp-space-3);
   margin-left: auto;
 }
-
-/* A select in a row's control slot. */
-.control {
-  width: var(--cp-settings-control-w);
-}

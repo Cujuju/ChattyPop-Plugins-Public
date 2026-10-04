@@ -1,16 +1,25 @@
-// Settings → Image text: the engine that reads images, when it reads them, and its queue. Translation has its own tab.
+// Settings → Image text: the engine that reads images, when it reads them, and its queue.
 import { For, Show } from 'solid-js';
 import { IMAGE_TEXT_TAB } from '../shared';
-import type { EngineStatus, ImageTextEngine } from '../shared/types';
+import { HOSTED_VISION_OFF, type EngineStatus, type ImageTextEngine, type ImageTextSettings } from '../shared/types';
 import { imageTextSettings, imageTextStatus, patchImageTextSettings, retryFailedImageText } from './state';
-import { Card, createAction, ErrorNote, LinkButton, look, openSettingsAt, Page, Row, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
-import { AI_SETTINGS, ModelRows } from './ModelRows';
+import { Card, createAction, ErrorNote, LinkButton, look, ModelRows, openSettingsAt, Page, Row, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
 import styles from './ImageText.module.css';
 
 const ENGINE_LABEL: Record<ImageTextEngine, string> = { windows: 'Windows OCR (built in)', vision: 'Vision model' };
+/** Settings → AI: where a provider installs models (Ollama's "Install a model"). */
+const AI_SETTINGS = 'ai';
 
-/** An engine's or the translator's state and its one-line detail; unknown while status hasn't loaded. */
-export const engineHint =(s: EngineStatus | undefined): string => (s ? `${s.ready ? 'Ready' : 'Can’t run'} · ${s.detail}` : 'Status unknown');
+type AutoField = 'autoAttachments' | 'autoEmbeds' | 'autoLinks';
+/** The automatic switches: one per place images come from. */
+const AUTO_ROWS: readonly { field: AutoField; label: string }[] = [
+  { field: 'autoAttachments', label: 'Read attached images automatically' },
+  { field: 'autoEmbeds', label: 'Read link previews’ images automatically' },
+  { field: 'autoLinks', label: 'Read fetched posts’ photos automatically' },
+];
+
+/** An engine's state and its one-line detail; unknown while status hasn't loaded. */
+const engineHint = (s: EngineStatus | undefined): string => (s ? `${s.ready ? 'Ready' : 'Can’t run'} · ${s.detail}` : 'Status unknown');
 
 /** Settings → Image text: reads screenshots and charts on this computer, so rules, Jev, labels and search see their text. */
 export function ImageTextSection() {
@@ -60,6 +69,7 @@ export function ImageTextSection() {
             onChange={(visionProvider, visionModel) => patchImageTextSettings({ visionProvider, visionModel })}
             none="None of the AI providers reads images."
             kind="that reads images"
+            fixedHere={(why) => why === HOSTED_VISION_OFF}
             modelHint={
               <>
                 An instruct model reads an image in seconds; a thinking one (qwen3-vl:8b) takes up to a minute.{' '}
@@ -70,12 +80,16 @@ export function ImageTextSection() {
         </Show>
       </Card>
       <Card title="Reading">
-        <Row
-          label="Read images automatically"
-          for="imagetext-auto"
-          hint="New messages’ images, and those of messages from the last day that Jev still judges. Others: right-click a message → Read image text."
-          control={<Switch id="imagetext-auto" checked={s().auto} onChange={(auto) => patchImageTextSettings({ auto })} />}
-        />
+        <For each={AUTO_ROWS}>
+          {(r) => (
+            <Row
+              label={r.label}
+              for={`imagetext-${r.field}`}
+              hint="New messages’, and those of messages from the last day that Jev still judges. Others: right-click a message → Read image text."
+              control={<Switch id={`imagetext-${r.field}`} checked={s()[r.field]} onChange={(on) => patchImageTextSettings({ [r.field]: on } as Partial<ImageTextSettings>)} />}
+            />
+          )}
+        </For>
         <Row
           label="Ask Jev again when image text arrives"
           for="imagetext-ask-jev"

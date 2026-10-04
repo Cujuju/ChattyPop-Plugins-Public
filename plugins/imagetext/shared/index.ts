@@ -1,18 +1,17 @@
 // Image text: reads the text in images messages show (attachments, link previews, fetched posts' photos) on this
-// computer, and translates it. Its text is derived text: rules, Jev, the Trading label's cashtags and search read it.
+// computer. Its text is derived text of its image: rules, Jev, the Trading label's cashtags, search and Translation read it.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus, type TranslatePick } from './types';
+import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus } from './types';
 
 export const manifest = {
   id: 'imagetext',
   name: 'Image text',
   version: '1.0.1',
-  description: 'Reads the text in screenshots and charts on this computer, and can translate it, so rules, Jev, labels and search see it.',
+  description: 'Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.',
 };
 
-/** Settings tab ids: reading images, and translating what they say. */
+/** Settings tab id. */
 export const IMAGE_TEXT_TAB = 'imagetext' as const;
-export const TRANSLATION_TAB = 'translation' as const;
 /** Plugin event: queue counts or an engine's state changed; payload ImageTextStatus. */
 export const STATUS_EVENT = 'status' as const;
 /** Core → main: download an image the store doesn't hold (ImageFetchRequest); main answers with imageFetched. */
@@ -34,11 +33,6 @@ export interface ImageTextCoreCalls {
    * Throws when that engine can't run.
    */
   request(messageId: string, pick: EnginePick | null): void;
-  /**
-   * Translates the text of every image of the message with `pick` (null: Settings' translation model) into Settings'
-   * language, reading first an image never read. Throws when that model can't run.
-   */
-  translate(messageId: string, pick: TranslatePick | null): void;
   /** Queues again every image that failed. */
   retryFailed(): void;
   /** Main's answer to FETCH_IMAGE `requestId`: the image is at the requested path, or `error`. */
@@ -56,7 +50,6 @@ export const plugin = definePlugin({
     core: {
       status: { audiences: ['renderer'], writes: false },
       request: ['renderer'],
-      translate: ['renderer'],
       retryFailed: ['renderer'],
       imageFetched: { audiences: ['main'], completion: { max: IMAGE_FETCHES_MAX } },
     },
@@ -65,10 +58,8 @@ export const plugin = definePlugin({
   settings: [
     // A picture: its frame, a hill line and the sun.
     { id: IMAGE_TEXT_TAB, label: 'Image text', tab: { after: 'summaries', iconPath: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M16 9.5a1.5 1.5 0 1 0-.01 0' } },
-    // A glyph and a letter A: one language into another.
-    { id: TRANSLATION_TAB, label: 'Translation', tab: { after: IMAGE_TEXT_TAB, iconPath: 'M3 5h8M7 3v2M5 5c0 4 2.5 6.5 6 8M9 5c0 4-2.5 6.5-6 8M13 21l4-9 4 9M14.5 18h5' } },
   ],
-  /** Settings → Image text and Settings → Translation. */
+  /** Settings → Image text. */
   preferences: { settings: definePreference({ default: DEFAULT_IMAGE_TEXT_SETTINGS, normalize: normalizeImageTextSettings }) },
   slots: { messageMenu: [{ id: 'readImages', after: 'copy' }] },
 });

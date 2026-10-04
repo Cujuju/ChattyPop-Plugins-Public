@@ -1,13 +1,12 @@
-// Image text's core side: the queue, its engines and translators, image text as derived text and attachment notes, and the calls
+// Image text's core side: the queue, its engines, image text as derived text and notes of its image, and the calls
 // Settings, the message menu and main make.
 import { join } from 'node:path';
-import { defineCorePlugin, IS_WINDOWS, type CoreContext } from '@plugin-sdk/core';
+import { defineCorePlugin, IS_WINDOWS, type CoreContext, type MessageImageSource } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
-import { HOSTED_VISION_OFF, normalizePick, normalizeTranslatePick, type EnginePick, type EngineStatus, type ImageTextStatus, type ProviderModels, type TranslatePick } from '../shared/types';
+import { HOSTED_VISION_OFF, normalizePick, type EnginePick, type EngineStatus, type ImageTextSettings, type ImageTextStatus, type ProviderModels } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
 import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes } from './store';
-import { translateText, type Translator } from './translate';
 import { readWithVision } from './vision';
 import { WindowsOcr } from './windowsOcr';
 
@@ -42,49 +41,33 @@ const settingsVision = (ctx: Ctx): Engine => {
   return visionEngine(ctx, s.visionProvider, s.visionModel);
 };
 
-/** A translator with `providerId` and `model` into Settings' language, or why it can't translate. */
-function translatorOf(ctx: Ctx, providerId: string | null, model: string | null): Exclude<Translator, null> {
-  if (!providerId || !model) return { unavailable: 'Choose a translation model: Settings → Translation.' };
-  const why = ctx.ai.unavailable(providerId);
-  if (why) return { unavailable: why };
-  const provider = ctx.ai.provider(providerId);
-  return {
-    name: `${providerId}:${model}`,
-    translate: (text, channelId, signal) => translateText(provider, model, ctx.preferences.get('settings').translateLanguage, text, [channelId], signal),
-  };
-}
-
-/** Settings' translation model. */
-const settingsTranslator = (ctx: Ctx): Exclude<Translator, null> => {
-  const s = ctx.preferences.get('settings');
-  return translatorOf(ctx, s.translateProvider, s.translateModel);
-};
+/** Whether Settings reads images from `source` automatically. */
+const autoFor = (s: ImageTextSettings, source: MessageImageSource): boolean =>
+  source === 'attachment' ? s.autoAttachments : source === 'embed' ? s.autoEmbeds : s.autoLinks;
 
 const statusOf = (e: { name: string } | { unavailable: string }): EngineStatus =>
   'unavailable' in e ? { ready: false, detail: e.unavailable } : { ready: true, detail: e.name.split(':').join(' · ') };
 
 /**
- * Every provider with all its models, listed once (listing reaches the provider: Ollama's server): the translation
- * model's choices, and, of those declared to read images, their models that do: the vision engine's.
+ * Providers declared to read images, with their models that do (listing reaches the provider: Ollama's server): the
+ * vision engine's choices. A hosted one lists them while hosted vision is off, so the owner sees what turning it on offers.
  */
-async function providerModels(ctx: Ctx): Promise<{ vision: ProviderModels[]; text: ProviderModels[] }> {
-  const listed = await Promise.all(
-    ctx.ai.providers().map(async (p) => {
-      const base = { id: p.id, label: p.label, local: p.local ?? false };
-      if (p.unavailable) return { images: p.images, all: { ...base, unavailable: p.unavailable, models: [] }, vision: [] };
-      try {
-        const models = await ctx.ai.provider(p.id).listModels();
-        return { images: p.images, all: { ...base, unavailable: null, models }, vision: models.filter((m) => m.images) };
-      } catch (err) {
-        return { images: p.images, all: { ...base, unavailable: errorMessage(err), models: [] }, vision: [] };
-      }
-    }),
+async function providerModels(ctx: Ctx): Promise<ProviderModels[]> {
+  return Promise.all(
+    ctx.ai
+      .providers()
+      .filter((p) => p.images)
+      .map(async (p) => {
+        const base = { id: p.id, label: p.label, local: p.local ?? false };
+        if (p.unavailable) return { ...base, unavailable: p.unavailable, models: [] };
+        try {
+          const models = (await ctx.ai.provider(p.id).listModels()).filter((m) => m.images);
+          return { ...base, unavailable: hostedVisionBlock(ctx, base.local), models };
+        } catch (err) {
+          return { ...base, unavailable: errorMessage(err), models: [] };
+        }
+      }),
   );
-  // A hosted provider lists its vision models while hosted vision is off, so the owner sees what turning it on offers.
-  const vision = listed
-    .filter((l) => l.images)
-    .map((l) => ({ ...l.all, unavailable: l.all.unavailable ?? hostedVisionBlock(ctx, l.all.local), models: l.vision }));
-  return { vision, text: listed.map((l) => l.all) };
 }
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.storage.migrate(IMAGE_TEXT_MIGRATIONS);
@@ -99,8 +82,6 @@ export default defineCorePlugin(plugin, (ctx) => {
     if (pick) return pick.engine === 'vision' ? visionEngine(ctx, pick.provider, pick.model) : windowsEngine();
     return settings().engine === 'vision' ? settingsVision(ctx) : windowsEngine();
   };
-  // A job's pick, or Settings' automatic translation when it is on.
-  const translator = (pick: TranslatePick | null): Translator => (pick ? translatorOf(ctx, pick.provider, pick.model) : settings().translate ? settingsTranslator(ctx) : null);
   let statusTimer: NodeJS.Timeout | null = null;
   const statusChanged = (): void => {
     statusTimer ??= setTimeout(() => {
@@ -112,8 +93,7 @@ export default defineCorePlugin(plugin, (ctx) => {
     db,
     images: (ids) => ctx.archive.images.of(ids),
     engine,
-    translator,
-    auto: () => settings().auto,
+    auto: (source) => autoFor(settings(), source),
     attachmentsDir: ctx.archive.attachmentsDir,
     workDir: join(ctx.storage.dataDir, WORK_DIR),
     session,
@@ -124,20 +104,20 @@ export default defineCorePlugin(plugin, (ctx) => {
     },
     events: {
       changed: (messageId) => {
-        ctx.archive.attachmentNotes.changed([messageId]);
+        ctx.archive.notes.changed([messageId]);
         statusChanged();
       },
       fetchImage: (request) => ctx.channels.emit(FETCH_IMAGE, request),
-      // An image's text is its message's derived text, read after the content in the order its job was queued. Keyed by
-      // job: derived text keys are unique across messages, and two messages may show the same image.
+      // An image's text is its message's derived text of that image (its part), read after the content in the order its
+      // job was queued. Keyed by job: derived text keys are unique across messages, and two messages may show one image.
       settled: (s) =>
         s.ok && s.text !== null
-          ? ctx.archive.derivedText.settle(s.messageId, { key: String(s.seq), order: s.seq, text: s.text, queuedAt: s.requestedAt, askJev: settings().askJev }, s.record)
+          ? ctx.archive.derivedText.settle(s.messageId, { key: String(s.seq), order: s.seq, text: s.text, queuedAt: s.requestedAt, part: s.part, askJev: settings().askJev }, s.record)
           : ctx.archive.derivedText.settle(s.messageId, null, s.ok ? s.record : undefined),
     },
   });
   ctx.archive.derivedText.provide({ pending: (messageId) => reader.due(messageId) });
-  ctx.archive.attachmentNotes.provide((ids) => imageNotes(db, ids));
+  ctx.archive.notes.provide((ids) => imageNotes(db, ids));
   ctx.archive.images.onShown((messageId) => reader.shown(messageId));
   ctx.archive.onAttachmentStored(() => reader.kick());
   // Automatic reading turned on, or the engine changed (a model chosen): queue what's due and run what waits.
@@ -146,7 +126,7 @@ export default defineCorePlugin(plugin, (ctx) => {
     reader.kick();
     statusChanged();
   });
-  // A provider turned on or off: what can run changes, and so do Settings' engine, translator and provider lists.
+  // A provider turned on or off: what can run changes, and so do Settings' engine and provider list.
   ctx.ai.onSettingsChange(() => {
     reader.kick();
     statusChanged();
@@ -158,23 +138,14 @@ export default defineCorePlugin(plugin, (ctx) => {
   };
   ctx.channels.serve({
     status: async (): Promise<ImageTextStatus> => {
-      const [windows, models] = await Promise.all([ocr.status(), providerModels(ctx)]);
-      return { windows, vision: vision(), providers: models.vision, translator: statusOf(settingsTranslator(ctx)), translateProviders: models.text, counts: counts(db) };
+      const [windows, providers] = await Promise.all([ocr.status(), providerModels(ctx)]);
+      return { windows, vision: vision(), providers, counts: counts(db) };
     },
     // Normalized: a pick that isn't one is refused, not read as Settings' engine.
     request: (messageId, pick) => {
       const picked = pick === null ? null : normalizePick(pick);
       if (pick !== null && !picked) throw new Error('Not an engine image text reads with.');
       reader.request(messageId, picked);
-    },
-    // Null: Settings' translation model, used now whether or not automatic translation is on.
-    translate: (messageId, pick) => {
-      const picked = pick === null ? null : normalizeTranslatePick(pick);
-      if (pick !== null && !picked) throw new Error('Not a model image text translates with.');
-      const s = settings();
-      const chosen = picked ?? (s.translateProvider && s.translateModel ? { provider: s.translateProvider, model: s.translateModel } : null);
-      if (!chosen) throw new Error('Choose a translation model: Settings → Translation.');
-      reader.translate(messageId, chosen);
     },
     retryFailed: () => reader.retryFailed(),
   });
