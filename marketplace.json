@@ -126,6 +126,13 @@
       "description": "The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.",
       "releases": [
         {
+          "version": "1.14.1",
+          "tag": "links-v1.14.1",
+          "asset": "links-1.14.1.tar.gz",
+          "sha256": "a6c07b30cc858b9e00f8bc6faa4d6ecd8fc8e2c2003197d388c01fee76652fee",
+          "sdk": "2.4.0"
+        },
+        {
           "version": "1.13.0",
           "tag": "links-v1.13.0",
           "asset": "links-1.13.0.tar.gz",
