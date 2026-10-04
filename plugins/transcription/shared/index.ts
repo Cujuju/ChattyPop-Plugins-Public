@@ -18,8 +18,6 @@ export const STATUS_EVENT = 'status' as const;
 export const FETCH_AUDIO = 'fetchAudio' as const;
 /** AttachmentNote.kind of a transcript. */
 export const TRANSCRIPT_NOTE = 'transcript';
-/** Embed types whose video has no sound (a GIF), as the host's messageParts leaves them out. */
-export const SILENT_EMBED_TYPES: ReadonlySet<string> = new Set(['gifv']);
 /**
  * Downloads main is asked for at once, and so the audioFetched report's bound; a job needing one more waits for a report.
  * Assumption: a few in parallel keep the queue moving past one slow download; more would share the link without
