@@ -82,12 +82,19 @@ export class TranslationQueue {
     if (dropped.length) dropJobs(this.d.db, dropped);
     for (const j of gone.filter((g) => g.translation)) {
       setImmediate(() => {
-        if (this.signal.aborted) return;
+        // Its part may have text again by now (queued anew), or the job may have gone.
+        if (this.signal.aborted || !this.stillGone(messageId, j.seq, j.partKey)) return;
         this.d.events.settled({ ok: true, messageId, seq: j.seq, part: j.partKey, text: '', requestedAt: j.requestedAt, record: () => dropJobs(this.d.db, [j.seq]) });
         this.d.events.changed(messageId);
       });
     }
     this.d.events.changed(messageId);
+  }
+
+  /** Whether job `seq` is still stored and its part still has no text. */
+  private stillGone(messageId: string, seq: number, partKey: string): boolean {
+    if (!messageJobs(this.d.db, messageId).some((j) => j.seq === seq)) return false;
+    return !this.d.sources([messageId]).get(messageId)?.some((s) => s.key === partKey);
   }
 
   /** Queues the automatic kinds' sources of every message Jev still judges (its lookback): at start, and on Settings' change. */
@@ -185,6 +192,13 @@ export class TranslationQueue {
     try {
       this.signal.throwIfAborted();
       const translation = await t.translate(source.text, job.channelId, this.signal);
+      // The source changed or went while it ran: its translation is never published; the job runs again on what is there now.
+      const now = this.d.sources([job.messageId]).get(job.messageId)?.find((s) => s.key === job.partKey);
+      if (now?.hash !== source.hash) {
+        setState(this.d.db, job.seq, 'queued');
+        this.d.events.changed(job.messageId);
+        return;
+      }
       const record = (): void => finish(this.d.db, job.seq, translation, source.hash, Date.now());
       // Already in the language: nothing to store, unless an earlier translation must be cleared.
       const text = translation ?? (before ? '' : null);
@@ -194,7 +208,7 @@ export class TranslationQueue {
       fail(this.d.db, job.seq, errorMessage(err));
       this.d.events.settled({ ok: false, messageId: job.messageId });
     }
-    // Settling tells onSettled, which queues a source that changed while this ran (skipped while running).
+    // Settling tells onSettled, which queues a source that changed after the check above (noted skips a running job).
     this.d.events.changed(job.messageId);
   }
 }

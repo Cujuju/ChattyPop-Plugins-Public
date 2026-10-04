@@ -26,14 +26,15 @@ const probeCore = defineCorePlugin(probe, (ctx) => {
     ctx.archive.derivedText.settle(messageId, { key: `${messageId}:${part}`, order: 1, text, queuedAt: Date.now(), part, askJev: false });
 });
 
-/** A text model: ASCII text is English, kept as it is; anything else becomes EN(<text>). */
-function model() {
+/** A text model: ASCII text is English, kept as it is; anything else becomes EN(<text>). `gate`: awaited before answering. */
+function model(gate?: () => Promise<void>) {
   const sent: CompletionRequest[] = [];
   const provider: LlmProvider = {
     id: 'tx',
     maxInputChars: 10_000,
     complete: async (req) => {
       sent.push(req);
+      await gate?.();
       const text = req.prompt.slice(req.prompt.indexOf('Text:\n') + 'Text:\n'.length);
       const answer = /^[\x20-\x7e\n]*$/.test(text) ? { language: 'English', translation: text } : { language: 'Japanese', translation: `EN(${text})` };
       return { text: JSON.stringify(answer), json: answer };
@@ -43,8 +44,8 @@ function model() {
   return { sent, provider };
 }
 
-function start(settings: Partial<TranslationSettings> = {}, opts: { profile?: Record<string, unknown> } = {}) {
-  const m = model();
+function start(settings: Partial<TranslationSettings> = {}, opts: { profile?: Record<string, unknown>; gate?: () => Promise<void> } = {}) {
+  const m = model(opts.gate);
   const t = testPlugin(translationCore, {
     with: [probeCore],
     archive: { channels: [{ id: 'c1' }] },
@@ -134,6 +135,20 @@ describe('the Translation plugin', () => {
     say(id, IMAGE, '');
     await vi.waitFor(() => expect(translations(t, id)).toEqual({ [IMAGE]: '' }));
     expect(t.db.prepare(`SELECT COUNT(*) FROM ${JOBS_TABLE}`).pluck().get()).toBe(0);
+  });
+
+  it('never publishes the translation of a source that changed while it ran', async () => {
+    const answers: (() => void)[] = [];
+    const { t, sent } = start({ translate: true }, { gate: () => new Promise<void>((r) => answers.push(r)) });
+    const id = arrive(t);
+    say(id, IMAGE, '株価');
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    say(id, IMAGE, '為替');
+    answers.shift()!();
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(translations(t, id)).toEqual({});
+    answers.shift()!();
+    await vi.waitFor(() => expect(translations(t, id)).toEqual({ [IMAGE]: 'EN(為替)' }));
   });
 
   it('never translates its own translations, and keeps text already in the language as it is', async () => {
