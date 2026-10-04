@@ -17,7 +17,7 @@ export default defineRendererPlugin(plugin, {
         if (!scope.drawsAttachments) return [];
         const transcript = (notes: readonly AttachmentNote[]) => notes.find((n) => n.pluginId === plugin.manifest.id && n.kind === TRANSCRIPT_NOTE)?.state;
         const attachments = m.attachments.filter((a) => mediaKind(a) === 'audio' || mediaKind(a) === 'video').map((a) => transcript(a.notes));
-        const embeds = m.embeds.filter((e) => e.videoUrl && !SILENT_EMBED_TYPES.has(e.type)).map((e) => transcript(e.notes));
+        const embeds = m.embeds.filter((e) => e.videoUrl && !SILENT_EMBED_TYPES.has(e.type)).map((e) => transcript(e.notes ?? []));
         const open = [...attachments, ...embeds].filter((state) => !state || state === 'failed');
         if (!open.length) return [];
         if (!transcriptionReady()) return [{ label: 'Set up transcription…', icon: 'settings', run: () => openSettingsAt(TRANSCRIPTION_TAB) }];
