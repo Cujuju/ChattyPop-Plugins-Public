@@ -1,10 +1,10 @@
-// Settings → Image text: a provider and one of its models, for the vision engine or for translation.
+// Settings → Image text and → Translation: a provider and one of its models, for the vision engine or for translation.
 import { Show, type JSX } from 'solid-js';
 import type { ProviderModels } from '../shared/types';
 import { LinkButton, Note, openSettingsAt, Row, Select } from '@plugin-sdk/renderer/kit';
 import styles from './ImageText.module.css';
 
-/** Settings → AI: where a provider installs models (Ollama's "Install a model"). */
+/** Settings → AI: where a provider is turned on and installs models (Ollama's "Install a model"). */
 export const AI_SETTINGS = 'ai';
 /** The select's choice while none (or one no longer listed) is saved. */
 const NONE = '';
@@ -40,7 +40,6 @@ export function ModelRows(props: ModelRowsProps) {
         <Row
           label="Provider"
           for={`${props.id}-provider`}
-          hint={provider()?.unavailable ?? undefined}
           control={<Select id={`${props.id}-provider`} class={styles.control} value={provider()?.id ?? NONE} options={providerOptions()} onChange={(v) => props.onChange(v || null, null)} />}
         />
       </Show>
@@ -49,9 +48,21 @@ export function ModelRows(props: ModelRowsProps) {
           <Show
             when={models().length}
             fallback={
-              <Note>
-                No model on {p().label}{props.kind ? ` ${props.kind}` : ''} is installed. <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Install one in Settings → AI</LinkButton>
-              </Note>
+              // Can't run (turned off, unreachable): why, and where to fix it. Runs: none of its models fit.
+              <Show
+                when={p().unavailable}
+                fallback={
+                  <Note>
+                    No model on {p().label}{props.kind ? ` ${props.kind}` : ''} is installed. <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Install one in Settings → AI</LinkButton>
+                  </Note>
+                }
+              >
+                {(why) => (
+                  <Note>
+                    {p().label} can’t be used: {why()} <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Open Settings → AI</LinkButton>
+                  </Note>
+                )}
+              </Show>
             }
           >
             <Row
