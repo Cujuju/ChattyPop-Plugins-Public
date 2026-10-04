@@ -5,7 +5,7 @@ import type { MessagePart, PartText } from '@plugin-sdk/core';
 import type { SourceKind } from '../shared/types';
 import type { QueuedSource } from './store';
 
-/** A part's text to translate. */
+/** A part's text to translate. `hash`: of the target language and the text, so either changing translates it again. */
 export interface PartSource extends QueuedSource {
   text: string;
 }
@@ -13,16 +13,17 @@ export interface PartSource extends QueuedSource {
 /** Joins two plugins' texts of one part. */
 const TEXT_SEPARATOR = '\n\n';
 
-export const textHash = (text: string): string => createHash('sha256').update(text).digest('hex');
+export const sourceHash = (language: string, text: string): string => createHash('sha256').update(`${language}
+${text}`).digest('hex');
 
 const kindOf = (p: MessagePart): SourceKind => (p.kind === 'text' ? 'embed-text' : p.kind === 'image' ? 'image-text' : 'transcript');
 
 /**
- * Each message's sources in the order it shows its parts. `texts`: derived texts naming a part (derivedText.ofParts);
+ * Each message's sources in the order it shows its parts, to translate into `language`. `texts`: derived texts naming a part (derivedText.ofParts);
  * `ownId`'s are left out, so a translation is never translated. A text naming a part the message no longer shows is
  * left out.
  */
-export function messageSources(ownId: string, parts: ReadonlyMap<string, readonly MessagePart[]>, texts: readonly PartText[]): Map<string, PartSource[]> {
+export function messageSources(ownId: string, language: string, parts: ReadonlyMap<string, readonly MessagePart[]>, texts: readonly PartText[]): Map<string, PartSource[]> {
   const byPart = new Map<string, string[]>();
   for (const t of texts) {
     if (t.pluginId === ownId) continue;
@@ -33,7 +34,7 @@ export function messageSources(ownId: string, parts: ReadonlyMap<string, readonl
   for (const [messageId, list] of parts) {
     const sources = list.flatMap((p): PartSource[] => {
       const text = p.kind === 'text' ? p.text : byPart.get(`${messageId}\n${p.key}`)?.join(TEXT_SEPARATOR);
-      return text?.trim() ? [{ key: p.key, kind: kindOf(p), text, hash: textHash(text) }] : [];
+      return text?.trim() ? [{ key: p.key, kind: kindOf(p), text, hash: sourceHash(language, text) }] : [];
     });
     if (sources.length) out.set(messageId, sources);
   }

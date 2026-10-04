@@ -60,7 +60,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   };
   const queue = new TranslationQueue({
     db,
-    sources: (ids) => messageSources(plugin.manifest.id, ctx.archive.parts.of(ids), ctx.archive.derivedText.ofParts(ids)),
+    sources: (ids) => messageSources(plugin.manifest.id, settings().translateLanguage, ctx.archive.parts.of(ids), ctx.archive.derivedText.ofParts(ids)),
     translator,
     auto: (kind) => autoFor(settings(), kind),
     lifetime: ctx.lifetime.signal,

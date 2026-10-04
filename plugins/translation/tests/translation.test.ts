@@ -151,6 +151,17 @@ describe('the Translation plugin', () => {
     await vi.waitFor(() => expect(translations(t, id)).toEqual({ [IMAGE]: 'EN(為替)' }));
   });
 
+  it('a changed target language translates its sources again', async () => {
+    const { t, sent } = start({ translate: true });
+    const id = arrive(t);
+    say(id, IMAGE, 'hello');
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    await settle();
+    t.preferences.set('settings', { ...t.preferences.get('settings'), translateLanguage: 'Spanish' });
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]!.prompt).toContain('Spanish');
+  });
+
   it('never translates its own translations, and keeps text already in the language as it is', async () => {
     const { t, sent } = start({ translate: true, translateTranscripts: true });
     const id = arrive(t);

@@ -9,8 +9,9 @@ export const JOBS_TABLE = pluginTable(plugin, 'jobs');
 
 /**
  * Translation's schema steps (ctx.storage.migrate); append, never edit a shipped one. `part_key` is the part's key
- * (partKey); `source_hash` the hash of the text last queued or translated, so a changed source is translated again;
- * `translation` null when the text is already in the language; `pick` a TranslatePick as JSON (null: Settings' model).
+ * (partKey); `source_hash` the hash of the target language and text last queued or translated (sourceHash), so a
+ * changed source or language is translated again; `translation` null when the text is already in the language; `pick` a
+ * TranslatePick as JSON (null: Settings' model).
  */
 export const TRANSLATION_MIGRATIONS: readonly string[] = [
   `CREATE TABLE ${JOBS_TABLE} (seq INTEGER PRIMARY KEY, message_id TEXT NOT NULL, channel_id TEXT NOT NULL, part_key TEXT NOT NULL,
