@@ -2,6 +2,7 @@
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { X_STATUS_PATH, embedShowsPictures, mediaKind, type ArchiveEmbed, type ArchiveMessage } from '@plugin-sdk/shared';
 import { TRANSLATION_TAB, plugin } from '../shared';
+import { translated } from '../shared/rules';
 import { translateItem } from './menu';
 import { TranslationSection } from './TranslationSection';
 
@@ -22,4 +23,6 @@ export default defineRendererPlugin(plugin, {
       menu: (m) => (mayTranslate(m) ? [translateItem(m.id)] : []),
     },
   },
+  // No options: the Rules editor's checkbox is the whole filter.
+  rules: { filters: { [translated.type]: { Editor: () => null, summary: () => translated.label, chips: () => [translated.label] } } },
 });

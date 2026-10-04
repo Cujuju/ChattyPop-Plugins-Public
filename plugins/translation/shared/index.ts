@@ -2,6 +2,7 @@
 // owner's language with a text model. Its translations are derived text of their part: rules, Jev and search read them.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { DEFAULT_TRANSLATION_SETTINGS, normalizeTranslationSettings, type TranslatePick, type TranslationStatus } from './types';
+import { translated } from './rules';
 
 export const manifest = {
   id: 'translation',
@@ -53,6 +54,7 @@ export const plugin = definePlugin({
   /** Settings → Translation. */
   preferences: { settings: definePreference({ default: DEFAULT_TRANSLATION_SETTINGS, normalize: normalizeTranslationSettings }) },
   slots: { messageMenu: [{ id: 'translate', after: 'imagetext.readImages' }] },
+  rules: { filters: [translated] },
   // Image text translated its readings before this plugin: its settings, its automatic switch (`translate`) included.
   adopts: {
     settingFields: [

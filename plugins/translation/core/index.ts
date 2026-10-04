@@ -5,6 +5,7 @@ import { errorMessage } from '@plugin-sdk/shared';
 import { STATUS_EVENT, plugin } from '../shared';
 import { autoFor, normalizeTranslatePick, type ProviderModels, type TranslatePick, type TranslationStatus, type TranslatorStatus } from '../shared/types';
 import { TranslationQueue, type Translator } from './queue';
+import { registerTranslationFilter } from './rules';
 import { messageSources } from './sources';
 import { counts, TRANSLATION_MIGRATIONS, translationNotes } from './store';
 import { translateText } from './translate';
@@ -46,6 +47,7 @@ async function providerModels(ctx: Ctx): Promise<ProviderModels[]> {
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.storage.migrate(TRANSLATION_MIGRATIONS);
   const db = ctx.storage.db;
+  registerTranslationFilter(ctx.rules, db);
   const settings = () => ctx.preferences.get('settings');
   const translator = (pick: TranslatePick | null): Translator => {
     const s = settings();
