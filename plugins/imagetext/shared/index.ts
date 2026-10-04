@@ -64,7 +64,7 @@ export const plugin = definePlugin({
   }),
   settings: [
     // A picture: its frame, a hill line and the sun.
-    { id: IMAGE_TEXT_TAB, label: 'Image text', tab: { after: 'archive', iconPath: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M16 9.5a1.5 1.5 0 1 0-.01 0' } },
+    { id: IMAGE_TEXT_TAB, label: 'Image text', tab: { after: 'summaries', iconPath: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M16 9.5a1.5 1.5 0 1 0-.01 0' } },
     // A glyph and a letter A: one language into another.
     { id: TRANSLATION_TAB, label: 'Translation', tab: { after: IMAGE_TEXT_TAB, iconPath: 'M3 5h8M7 3v2M5 5c0 4 2.5 6.5 6 8M9 5c0 4-2.5 6.5-6 8M13 21l4-9 4 9M14.5 18h5' } },
   ],
