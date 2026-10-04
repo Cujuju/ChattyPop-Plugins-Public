@@ -26,7 +26,10 @@ const stamp = (v: unknown): number | null => {
   return v !== null && Number.isFinite(n) && n > 0 ? n : null;
 };
 
-/** Settings saved before per-kind switches had `autoVoice` and `autoSince` (voice messages): read as voice's. */
+/**
+ * Settings saved before per-kind switches had `autoVoice` and `autoSince` (voice messages): read as voice's. Saving
+ * drops them, so a build before per-kind switches (a downgrade) reads automatic voice transcription as its default.
+ */
 export function normalizeTranscriptionSettings(v: unknown): TranscriptionSettings {
   const src = isObj(v) ? v : {};
   const auto = isObj(src['auto']) ? src['auto'] : { voice: src['autoVoice'] };

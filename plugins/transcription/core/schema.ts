@@ -4,7 +4,8 @@ import { plugin } from '../shared';
 
 /**
  * Audio attachments' jobs, adopted from `transcripts` (when it was built in; the descriptor's adopts). Copied into
- * JOBS_TABLE and kept: other app versions sharing the profile still read it.
+ * JOBS_TABLE once and kept, not kept in step: a Transcription build before part jobs (a downgrade) opening the profile
+ * sees only the jobs made before the copy, so it may transcribe a newer one again.
  */
 export const ATTACHMENT_JOBS_TABLE = pluginTable(plugin, 'jobs');
 /** One job per audio or video part of a message (archive.parts). */

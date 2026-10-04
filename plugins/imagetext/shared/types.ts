@@ -41,7 +41,8 @@ export const DEFAULT_IMAGE_TEXT_SETTINGS: ImageTextSettings = {
 export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
   const src = isObj(v) ? v : {};
   const d = DEFAULT_IMAGE_TEXT_SETTINGS;
-  // `auto`: one switch for every source, before each had its own.
+  // `auto`: one switch for every source, before each had its own. Saving drops it, so an Image text build before
+  // per-source switches (a downgrade) reads automatic reading as its default, on; hosted vision stays as saved.
   const auto = (field: string, fallback: boolean): boolean => bool(src[field], bool(src['auto'], fallback));
   return {
     engine: oneOf(ENGINES, src['engine'], d.engine),
