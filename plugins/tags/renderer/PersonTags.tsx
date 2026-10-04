@@ -25,6 +25,7 @@ export function PersonTags(props: { userId: string }) {
               <button
                 type="button"
                 class={`${styles.personTag} ${look.pillButton} ${look.text}`}
+                data-shape="chip"
                 data-size="xs"
                 onClick={() => search(`${fromUserQuery(props.userId)} tag:"${t.name}"`)}
               >

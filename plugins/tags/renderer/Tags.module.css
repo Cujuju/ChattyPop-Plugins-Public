@@ -86,8 +86,13 @@
   align-self: stretch;
 }
 
+/* A role chip's box (the profile's Roles list), so tags and roles read as one family in the Person window. */
 .personTag {
-  padding: var(--cp-space-1) var(--cp-space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  min-height: var(--cp-role-chip-h);
+  padding: 0 var(--cp-space-4);
 }
 
 .personTagCount {
