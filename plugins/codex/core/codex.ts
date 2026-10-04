@@ -6,6 +6,7 @@ import {
   ProviderUnavailableError,
   resolveCli,
   type CliSpec,
+  type CompletionImage,
   type CompletionRequest,
   type CompletionResult,
   type LlmProvider,
@@ -79,7 +80,13 @@ interface ListedModel {
   hidden: boolean;
   isDefault: boolean;
   supportedReasoningEfforts: { reasoningEffort: string }[];
+  /** What it reads ("text", "image", "audio"); absent before codex-cli reported it. */
+  inputModalities?: string[];
 }
+/** A model's input type for images (model/list inputModalities). */
+const IMAGE_INPUT = 'image';
+/** An image as app-server's `image` input takes it. */
+const dataUrl = (i: CompletionImage): string => `data:${i.mediaType};base64,${i.data}`;
 
 interface RateLimitWindow {
   usedPercent: number;
@@ -193,7 +200,7 @@ export class CodexProvider implements LlmProvider {
     try {
       await rpc.request('turn/start', {
         threadId: thread.id,
-        input: [{ type: 'text', text: req.prompt, text_elements: [] }],
+        input: [...(req.images ?? []).map((i) => ({ type: 'image', url: dataUrl(i) })), { type: 'text', text: req.prompt, text_elements: [] }],
         ...(req.schema ? { outputSchema: req.schema } : {}),
         ...(req.effort ? { effort: req.effort } : {}),
       });
@@ -224,7 +231,13 @@ export class CodexProvider implements LlmProvider {
       for (const m of page.data) {
         if (m.hidden) continue;
         const efforts = m.supportedReasoningEfforts.map((e) => e.reasoningEffort).filter((e) => !HIDDEN_EFFORTS.has(e));
-        out.push({ id: m.model, label: m.displayName, ...(efforts.length ? { efforts } : {}), ...(m.isDefault ? { isDefault: true } : {}) });
+        out.push({
+          id: m.model,
+          label: m.displayName,
+          ...(efforts.length ? { efforts } : {}),
+          ...(m.isDefault ? { isDefault: true } : {}),
+          ...(m.inputModalities?.includes(IMAGE_INPUT) ? { images: true } : {}),
+        });
       }
       if (!page.nextCursor) return out;
       cursor = page.nextCursor;

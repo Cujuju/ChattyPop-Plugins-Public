@@ -7,6 +7,7 @@ import {
   ProviderUnavailableError,
   resolveCli,
   type CliSpec,
+  type CompletionImage,
   type CompletionRequest,
   type CompletionResult,
   type LlmProvider,
@@ -26,6 +27,23 @@ const DEFAULT_MODEL_VALUE = 'default';
 /** Lengths of the plan windows the SDK names five_hour and seven_day. */
 const FIVE_HOURS_MS = 5 * MS_PER_HOUR;
 const SEVEN_DAYS_MS = 7 * MS_PER_DAY;
+
+/** Image types the Messages API reads. */
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+type ImageMediaType = (typeof IMAGE_TYPES)[number];
+const isImageType = (t: string): t is ImageMediaType => (IMAGE_TYPES as readonly string[]).includes(t);
+
+/** The prompt and its images as one user turn: the SDK takes content blocks only as a streamed message. Throws on a type it can't read. */
+function withImages(prompt: string, images: readonly CompletionImage[]): AsyncIterable<SDKUserMessage> {
+  const blocks = images.map((i) => {
+    if (!isImageType(i.mediaType)) throw new Error(`Claude can't read ${i.mediaType} images.`);
+    return { type: 'image' as const, source: { type: 'base64' as const, media_type: i.mediaType, data: i.data } };
+  });
+  const turn: SDKUserMessage = { type: 'user', parent_tool_use_id: null, message: { role: 'user', content: [...blocks, { type: 'text', text: prompt }] } };
+  return (async function* () {
+    yield turn;
+  })();
+}
 
 /** Claude via the user's own Claude Code install and login (Agent SDK). ChattyPop never touches credentials. */
 export class ClaudeProvider implements LlmProvider {
@@ -52,10 +70,11 @@ export class ClaudeProvider implements LlmProvider {
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
+    const prompt = req.images?.length ? withImages(req.prompt, req.images) : req.prompt;
     const abortController = new AbortController();
     req.signal?.addEventListener('abort', () => abortController.abort(), { once: true });
     const q = query({
-      prompt: req.prompt,
+      prompt,
       options: {
         ...this.baseOptions(),
         systemPrompt: req.system,
@@ -96,6 +115,8 @@ export class ClaudeProvider implements LlmProvider {
         id: m.value,
         label: m.displayName,
         ...(m.supportedEffortLevels?.length ? { efforts: m.supportedEffortLevels } : {}),
+        // supportedModels() reports no input types. Assumption: every model Claude Code offers reads images.
+        images: true,
         ...(m.value === DEFAULT_MODEL_VALUE ? { isDefault: true } : {}),
       }));
     } finally {

@@ -58,6 +58,24 @@ describe('requests are billed to the routed key, and a capped key stops without 
     await expect(reg.get('openrouter', settings).complete({ system: 's', prompt: 'p', model: 'openai/gpt-5' })).rejects.toThrow('No OpenRouter key pays for openai/gpt-5');
   });
 
+  it('sends images as data URLs before the text, and marks the models that read them', async () => {
+    const bodies: { messages: { content: unknown }[] }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init?: { body: string }) => {
+      if (String(url).endsWith('/models')) {
+        return Response.json({ data: [
+          { id: 'eye', name: 'Eye', supported_parameters: ['structured_outputs'], architecture: { input_modalities: ['text', 'image'] } },
+          { id: 'word', name: 'Word', supported_parameters: ['structured_outputs'], architecture: { input_modalities: ['text'] } },
+        ] });
+      }
+      bodies.push(JSON.parse(init!.body));
+      return Response.json({ choices: [{ message: { content: 'ok' } }] });
+    });
+    const reg = withKeys();
+    const models = await reg.get('openrouter', settings).listModels();
+    expect(models.filter((m) => m.images).map((m) => m.id)).toEqual(['eye']);
+    await reg.get('openrouter', settings).complete({ system: 's', prompt: 'p', images: [{ mediaType: 'image/png', data: 'QUJD' }] });
+    expect(bodies[0]!.messages[1]!.content).toEqual([{ type: 'image_url', image_url: { url: 'data:image/png;base64,QUJD' } }, { type: 'text', text: 'p' }]);
+  });
   it('names the key that hit its cap and tries no other', async () => {
     const reg = withKeys();
     const auths = stubFetch(402, { error: { message: 'limit', metadata: { limit_source: 'openrouter_key_limit' } } });

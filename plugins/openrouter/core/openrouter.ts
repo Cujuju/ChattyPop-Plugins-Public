@@ -32,7 +32,16 @@ interface ListedModel {
   supported_parameters?: string[];
   /** Absent when the model doesn't reason. */
   reasoning?: { supported_efforts?: string[] | null };
+  architecture?: { input_modalities?: string[] };
 }
+/** A model's input type for images (architecture.input_modalities). */
+const IMAGE_INPUT = 'image';
+
+/** The user turn: text alone, or the images first as data URLs, then the text. */
+const userContent = (req: CompletionRequest): string | object[] =>
+  req.images?.length
+    ? [...req.images.map((i) => ({ type: 'image_url', image_url: { url: `data:${i.mediaType};base64,${i.data}` } })), { type: 'text', text: req.prompt }]
+    : req.prompt;
 
 const effortsOf = (m: ListedModel): string[] | undefined => (m.reasoning ? (m.reasoning.supported_efforts ?? GATEWAY_EFFORTS) : undefined);
 
@@ -49,7 +58,7 @@ export async function listOpenRouterModels(net: PluginFetch): Promise<ModelOptio
     .filter((m) => m.id !== DEFAULT_MODEL && m.supported_parameters?.includes(STRUCTURED_OUTPUTS))
     .map((m): ModelOption => {
       const efforts = effortsOf(m);
-      return { id: m.id, label: m.name, ...(efforts?.length ? { efforts } : {}) };
+      return { id: m.id, label: m.name, ...(efforts?.length ? { efforts } : {}), ...(m.architecture?.input_modalities?.includes(IMAGE_INPUT) ? { images: true } : {}) };
     })
     .sort((a, b) => a.label.localeCompare(b.label));
   return [{ id: DEFAULT_MODEL, label: 'Auto (OpenRouter chooses)', isDefault: true }, ...models];
@@ -98,7 +107,7 @@ export class OpenRouterProvider implements LlmProvider {
         model,
         messages: [
           { role: 'system', content: req.system },
-          { role: 'user', content: req.prompt },
+          { role: 'user', content: userContent(req) },
         ],
         // require_parameters: route only to hosts that honor response_format, else a host may ignore it and return prose.
         ...(req.effort ? { reasoning: { effort: req.effort } } : {}),
