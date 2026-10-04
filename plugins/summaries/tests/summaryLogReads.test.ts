@@ -19,4 +19,15 @@ describe('archive read plans and view compatibility', () => {
     expect(reader).toHaveBeenCalledOnce();
     expect(filtered.map((line) => line.plain)).toEqual(unfiltered.map((line) => line.plain));
   });
+  it('reads what a message links to after its own text, and a bare shared link counts', () => {
+    const db = tempDb();
+    seedArchiveViews(db);
+    db.prepare("INSERT INTO messages (id, channel_id, author_id, ts, content) VALUES ('m-tweet', 'c-open', 'u1', 5, '')").run();
+    db.prepare("INSERT INTO links (id, url, platform, first_message_id, first_channel_id, first_author_id, first_ts) VALUES (9, 'https://x.com/i/status/9', 'x', 'm-tweet', 'c-open', 'u1', 5)").run();
+    db.prepare("INSERT INTO message_links (message_id, link_id) VALUES ('m-tweet', 9)").run();
+    db.prepare("INSERT INTO link_texts (url, source, text) VALUES ('https://x.com/i/status/9', 'links', 'MacBook Pro is lighter')").run();
+    const line = readLog(db, () => new Map(), ['c-open'], 0, 10, 'overall', true).find((l) => l.citation.messageId === 'm-tweet');
+    expect(line?.plain).toMatch(/: ↳ links to: MacBook Pro is lighter$/);
+    expect(line?.filler).toBe(false);
+  });
 });
