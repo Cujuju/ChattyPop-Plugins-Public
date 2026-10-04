@@ -1,6 +1,6 @@
 // Settings → Image text and the message menu: engine and queue status from core, the settings, and the owner's requests.
 import { STATUS_EVENT, plugin } from '../shared';
-import type { ImageTextStatus } from '../shared/types';
+import type { EnginePick, ImageTextStatus } from '../shared/types';
 import { desktopCoreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { providerStatus } from '@plugin-sdk/renderer/kit';
 
@@ -27,5 +27,6 @@ onEvent(plugin, STATUS_EVENT, () => void status.refetch());
 
 export const imageTextStatus = (): ImageTextStatus | null => status();
 
-export const requestImageText = (messageId: string): Promise<void> => desktop.request(messageId);
+/** Reads the message's images again with pick, or Settings' engine (null). */
+export const requestImageText = (messageId: string, pick: EnginePick | null): Promise<void> => desktop.request(messageId, pick);
 export const retryFailedImageText = (): Promise<void> => desktop.retryFailed();

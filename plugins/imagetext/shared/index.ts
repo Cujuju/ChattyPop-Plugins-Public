@@ -1,7 +1,7 @@
 // Image text: reads the text in images messages show (attachments, link previews, fetched posts' photos) on this
 // computer. Its text is derived text: rules, Jev, the Trading label's cashtags and search read it.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type ImageFetchRequest, type ImageTextStatus } from './types';
+import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus } from './types';
 
 export const manifest = {
   id: 'imagetext',
@@ -28,8 +28,11 @@ export const IMAGE_FETCHES_MAX = 4;
 export interface ImageTextCoreCalls {
   /** Engines, vision models and the queue. */
   status(): Promise<ImageTextStatus>;
-  /** Reads every image of the message again, ahead of automatic work. Throws when the chosen engine can't run. */
-  request(messageId: string): void;
+  /**
+   * Reads every image of the message again, ahead of automatic work, with `pick` (this once) or Settings' engine (null).
+   * Throws when that engine can't run.
+   */
+  request(messageId: string, pick: EnginePick | null): void;
   /** Queues again every image that failed. */
   retryFailed(): void;
   /** Main's answer to FETCH_IMAGE `requestId`: the image is at the requested path, or `error`. */

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { MEANING_LOOKBACK_MS, SerialLoop, storedAttachmentPath, type MessageImage, type PluginDb } from '@plugin-sdk/core';
 import { IMAGE_FETCHES_MAX } from '../shared';
-import type { ImageFetchRequest } from '../shared/types';
+import type { EnginePick, ImageFetchRequest } from '../shared/types';
 import { imageText } from './chartTickers';
 import { dropJobs, enqueue, fail, finish, jobOf, jobText, messageActive, messageJobs, nextJob, PRIORITY, queuedJobs, resetInterrupted, retryFailed, setState, type ImageJob } from './store';
 
@@ -81,7 +81,8 @@ export interface ReaderDeps {
   db: PluginDb;
   /** ctx.archive.images.of */
   images(messageIds: readonly string[]): Map<string, MessageImage[]>;
-  engine(): Engine;
+  /** The engine for a job: pick, or Settings' engine (null). */
+  engine(pick: EnginePick | null): Engine;
   /** Settings → Image text's automatic reading. */
   auto(): boolean;
   attachmentsDir: string;
@@ -158,14 +159,14 @@ export class ImageReader {
     if (queued) this.kick();
   }
 
-  /** The owner asked: every image of the message is read again, however old. */
-  request(messageId: string): void {
-    const engine = this.d.engine();
+  /** The owner asked: every image of the message is read again, however old, with pick or Settings' engine (null). */
+  request(messageId: string, pick: EnginePick | null): void {
+    const engine = this.d.engine(pick);
     if ('unavailable' in engine) throw new Error(engine.unavailable);
     const m = this.d.db.prepare('SELECT channel_id AS channelId FROM archive_all_messages WHERE id = ?').get(messageId) as { channelId: string } | undefined;
     const images = m && this.d.images([messageId]).get(messageId);
     if (!m || !images) throw new Error('This message shows no images.');
-    this.queue(messageId, m.channelId, images, PRIORITY.requested, true);
+    this.queue(messageId, m.channelId, images, PRIORITY.requested, true, pick);
     this.kick();
   }
 
@@ -174,14 +175,17 @@ export class ImageReader {
     this.kick();
   }
 
-  /** An image of the message is queued or being read, and an engine will read it. */
+  /**
+   * An image of the message is queued or being read, and an engine will read it: a queue no engine drains never holds a
+   * message's text as still coming. A picked engine that can't run fails its job, so that job is always due.
+   */
   due(messageId: string): boolean {
-    return this.ready() && messageActive(this.d.db, messageId);
+    return messageActive(this.d.db, messageId, !this.ready());
   }
 
-  /** The chosen engine can run: a queue no engine drains never holds a message's text as still coming. */
+  /** Settings' engine can run. */
   private ready(): boolean {
-    return !('unavailable' in this.d.engine());
+    return !('unavailable' in this.d.engine(null));
   }
 
   /**
@@ -246,24 +250,40 @@ export class ImageReader {
     }, RETRY_MS).unref();
   }
 
-  /** Queues `images` of the message; `again` re-reads those already read. Returns whether any was queued. */
-  private queue(messageId: string, channelId: string, images: readonly MessageImage[], priority: number, again: boolean): boolean {
+  /** Queues `images` of the message; `again` re-reads those already read, with `pick`. Returns whether any was queued. */
+  private queue(messageId: string, channelId: string, images: readonly MessageImage[], priority: number, again: boolean, pick: EnginePick | null = null): boolean {
     const known = again ? null : new Set(messageJobs(this.d.db, messageId).map((j) => j.imageKey));
     const fresh = known ? images.filter((i) => !known.has(i.key)) : images;
-    if (!fresh.length || !enqueue(this.d.db, messageId, channelId, fresh, priority, Date.now(), again)) return false;
+    if (!fresh.length || !enqueue(this.d.db, messageId, channelId, fresh, priority, Date.now(), again, pick)) return false;
     this.d.events.changed(messageId);
     return true;
   }
 
   private async drain(): Promise<void> {
-    const next = (): ImageJob | undefined => nextJob(this.d.db, Date.now() - ATTACHMENT_STORE_WAIT_MS);
-    for (let job = next(); job && !this.signal.aborted; job = next()) {
-      const engine = this.d.engine();
-      // Stays queued until an engine can run: Settings' change kicks; a provider turned back on is seen on retry.
-      if ('unavailable' in engine) return this.retryLater();
-      if (!(await this.run(job, engine))) return; // waits for a download's report, which kicks the queue
+    while (!this.signal.aborted) {
+      const settings = this.d.engine(null);
+      // Jobs for Settings' engine stay queued until it can run: Settings' change kicks; a provider back on is seen on retry.
+      const job = nextJob(this.d.db, Date.now() - ATTACHMENT_STORE_WAIT_MS, 'unavailable' in settings);
+      if (!job) break;
+      const engine = job.pick ? this.d.engine(job.pick) : settings;
+      // A picked engine that can't run fails its job: the pick was the owner's, made once.
+      if ('unavailable' in engine) this.abandon(job, engine.unavailable);
+      else if (!(await this.run(job, engine))) return; // waits for a download's report, which kicks the queue
     }
-    if (!this.signal.aborted && queuedJobs(this.d.db)) this.retryLater(); // jobs waiting on the store's downloads
+    // Jobs waiting on the store's downloads, or on Settings' engine.
+    if (!this.signal.aborted && queuedJobs(this.d.db)) this.retryLater();
+  }
+
+  /** Fails a queued job without reading it, removing any image main downloaded for it. */
+  private abandon(job: ImageJob, error: string): void {
+    fail(this.d.db, job.seq, error);
+    const fetched = this.d.session.fetched.get(job.seq);
+    if (fetched) {
+      this.d.session.fetched.delete(job.seq);
+      rmSync(fetched, { force: true });
+    }
+    this.d.events.changed(job.messageId);
+    this.d.events.settled({ ok: false, messageId: job.messageId });
   }
 
   /** The image's file: in the store, or downloaded by main earlier; null when main must fetch it. */

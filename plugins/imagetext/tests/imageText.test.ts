@@ -115,6 +115,25 @@ describe('the Image text plugin', () => {
     await vi.waitFor(() => expect(owners()).toEqual([id, second]));
   });
 
+  it('a request with a picked model reads with it this once; Settings keep their own', async () => {
+    const { t, id, sent } = start(true);
+    await fetchAsMain(t);
+    await vi.waitFor(() => expect(counts(t.db).done).toBe(1));
+    await t.client('renderer').request(id, { engine: 'vision', provider: 'eyes', model: 'other' });
+    await vi.waitFor(() => expect(t.events('fetchImage')).toHaveLength(2));
+    const r = t.events('fetchImage')[1]!;
+    writeFileSync(r.path, PNG);
+    await t.client('main').imageFetched(r.requestId, null);
+    await vi.waitFor(() => expect(sent.map((s) => s.model)).toEqual(['vl', 'other']));
+    expect(t.preferences.get('settings')).toMatchObject({ visionModel: 'vl' });
+  });
+
+  it('refuses a pick that is no engine, or whose provider can’t run', async () => {
+    const { t, id } = start(true);
+    await expect(t.client('renderer').request(id, { engine: 'vision', provider: 'eyes' } as never)).rejects.toThrow();
+    await expect(t.client('renderer').request(id, { engine: 'vision', provider: 'missing', model: 'x' })).rejects.toThrow();
+  });
+
   it('a provider not declared to read images refuses them: the job fails, nothing is sent', async () => {
     const { t, sent } = start(false);
     await fetchAsMain(t);

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { defineCorePlugin, IS_WINDOWS, type CoreContext } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
-import type { EngineStatus, ImageTextStatus, VisionProvider } from '../shared/types';
+import { normalizePick, type EnginePick, type EngineStatus, type ImageTextStatus, type VisionProvider } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
 import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes } from './store';
 import { readWithVision } from './vision';
@@ -20,16 +20,20 @@ const session = newImageTextSession();
 
 type Ctx = CoreContext<typeof plugin>;
 
-/** The vision engine for the chosen provider and model, or why it can't run. */
-function visionEngine(ctx: Ctx): Engine {
-  const s = ctx.preferences.get('settings');
-  if (!s.visionProvider || !s.visionModel) return { unavailable: 'Choose a vision model: Settings → Image text.' };
-  const why = ctx.ai.unavailable(s.visionProvider);
+/** The vision engine for providerId and model (Settings' when null), or why it can't run. */
+function visionEngine(ctx: Ctx, providerId: string | null, model: string | null): Engine {
+  if (!providerId || !model) return { unavailable: 'Choose a vision model: Settings → Image text.' };
+  const why = ctx.ai.unavailable(providerId);
   if (why) return { unavailable: why };
-  const provider = ctx.ai.provider(s.visionProvider);
-  const model = s.visionModel;
-  return { name: `vision:${s.visionProvider}:${model}`, read: async (path, channelId, signal) => readWithVision(provider, model, path, [channelId], signal) };
+  const provider = ctx.ai.provider(providerId);
+  return { name: `vision:${providerId}:${model}`, read: async (path, channelId, signal) => readWithVision(provider, model, path, [channelId], signal) };
 }
+
+/** Settings' vision provider and model. */
+const settingsVision = (ctx: Ctx): Engine => {
+  const s = ctx.preferences.get('settings');
+  return visionEngine(ctx, s.visionProvider, s.visionModel);
+};
 
 /** Providers declared to read images, each with its models that do (listing reaches the provider: Ollama's server). */
 async function visionProviders(ctx: Ctx): Promise<VisionProvider[]> {
@@ -58,7 +62,10 @@ export default defineCorePlugin(plugin, (ctx) => {
     IS_WINDOWS
       ? { name: 'windows', read: (path, _channelId, signal) => ocr.read(path, signal).then((text) => ({ text, tickers: [] })) }
       : { unavailable: 'Windows OCR runs only on Windows.' };
-  const engine = (): Engine => (settings().engine === 'vision' ? visionEngine(ctx) : windowsEngine());
+  const engine = (pick: EnginePick | null): Engine => {
+    if (pick) return pick.engine === 'vision' ? visionEngine(ctx, pick.provider, pick.model) : windowsEngine();
+    return settings().engine === 'vision' ? settingsVision(ctx) : windowsEngine();
+  };
   let statusTimer: NodeJS.Timeout | null = null;
   const statusChanged = (): void => {
     statusTimer ??= setTimeout(() => {
@@ -105,12 +112,17 @@ export default defineCorePlugin(plugin, (ctx) => {
   });
   ctx.ai.onSettingsChange(() => reader.kick()); // a vision provider turned on
   const engineStatus = async (): Promise<{ windows: EngineStatus; vision: EngineStatus }> => {
-    const vision = visionEngine(ctx);
+    const vision = settingsVision(ctx);
     return { windows: await ocr.status(), vision: 'unavailable' in vision ? { ready: false, detail: vision.unavailable } : { ready: true, detail: vision.name.split(':').slice(1).join(' · ') } };
   };
   ctx.channels.serve({
     status: async (): Promise<ImageTextStatus> => ({ ...(await engineStatus()), providers: await visionProviders(ctx), counts: counts(db) }),
-    request: (messageId) => reader.request(messageId),
+    // Normalized: a pick that isn't one is refused, not read as Settings' engine.
+    request: (messageId, pick) => {
+      const picked = pick === null ? null : normalizePick(pick);
+      if (pick !== null && !picked) throw new Error('Not an engine image text reads with.');
+      reader.request(messageId, picked);
+    },
     retryFailed: () => reader.retryFailed(),
   });
   // Main's download reports are handled while off too: an image it fetched is kept for the job.

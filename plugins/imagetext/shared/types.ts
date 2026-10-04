@@ -35,6 +35,18 @@ export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
   };
 }
 
+/** An engine picked for one request (the message menu's Read image text submenu) in place of Settings' choice. */
+export type EnginePick = { engine: 'windows' } | { engine: 'vision'; provider: string; model: string };
+
+/** A pick as the renderer sent it, or as a job stored it; null when it isn't one. */
+export function normalizePick(v: unknown): EnginePick | null {
+  if (!isObj(v)) return null;
+  if (v['engine'] === 'windows') return { engine: 'windows' };
+  const provider = textOrNull(v['provider']);
+  const model = textOrNull(v['model']);
+  return v['engine'] === 'vision' && provider && model ? { engine: 'vision', provider, model } : null;
+}
+
 /** queued → fetching (main downloads an image the store doesn't hold) → running → done | failed. */
 export type ImageJobState = 'queued' | 'fetching' | 'running' | 'done' | 'failed';
 
