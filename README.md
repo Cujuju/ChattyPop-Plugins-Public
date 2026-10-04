@@ -18,6 +18,7 @@ ChattyPop's public plugins. ChattyPop lists this repo as a built-in marketplace:
 | Summaries | `plugins/summaries` | Cited recaps of archived conversations, on demand or on a schedule. |
 | Tags | `plugins/tags` | Your own message tags, applied by hand, Jev or rules. |
 | Transcription | `plugins/transcription` | Turns voice messages and audio into text on this computer, for rules, Jev, summaries and search. |
+| Translation | `plugins/translation` | Translates image text, transcripts and link previews into your language with an AI model, so rules, Jev and search see it. |
 | Plan usage | `plugins/usage` | Every enabled AI provider's plan limits side by side, and what ChattyPop used of them. |
 
 `marketplace.json` indexes the releases.
