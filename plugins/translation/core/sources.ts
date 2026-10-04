@@ -1,5 +1,5 @@
-// What a message has to translate: each part's text from other plugins (Image text's readings, transcripts) and its
-// embeds' own text, with the part's kind.
+// What a message has to translate: each part's text from other plugins (Image text's readings, transcripts), its
+// embeds' own text and its linked posts' text no card shows (both 'embed-text'), with the part's kind.
 import { createHash } from 'node:crypto';
 import type { MessagePart, PartText } from '@plugin-sdk/core';
 import type { SourceKind } from '../shared/types';

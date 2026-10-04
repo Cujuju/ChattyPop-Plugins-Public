@@ -12,7 +12,7 @@ type AutoField = 'translate' | 'translateTranscripts' | 'translateEmbedText';
 const AUTO_ROWS: readonly { field: AutoField; label: string; hint: string }[] = [
   { field: 'translate', label: 'Translate image text automatically', hint: 'The text Image text reads from screenshots and charts.' },
   { field: 'translateTranscripts', label: 'Translate transcripts automatically', hint: 'Voice messages, audio and videos Transcription turned into text.' },
-  { field: 'translateEmbedText', label: 'Translate link previews automatically', hint: 'A link preview’s title and description.' },
+  { field: 'translateEmbedText', label: 'Translate link previews and posts automatically', hint: 'A link preview’s whole card, with a fetched post’s full text, or a linked post’s text when no card shows it.' },
 ];
 
 /** The model's state and its one-line detail; unknown while status hasn't loaded. */

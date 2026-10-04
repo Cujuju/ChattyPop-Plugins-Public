@@ -18,7 +18,7 @@ export interface TranslationSettings {
   translate: boolean;
   /** As `translate`, for transcripts. */
   translateTranscripts: boolean;
-  /** As `translate`, for embeds' own text (a link preview's title and description). */
+  /** As `translate`, for embeds' own text (a card's title and its fetched post, else description) and the text of links no card shows. */
   translateEmbedText: boolean;
   translateLanguage: TranslateLanguage;
   /** The AI provider translations ask; null = none chosen. */
