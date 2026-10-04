@@ -10,8 +10,9 @@ export const manifest = {
   description: 'Reads the text in screenshots and charts on this computer, and can translate it, so rules, Jev, labels and search see it.',
 };
 
-/** Settings tab id. */
+/** Settings tab ids: reading images, and translating what they say. */
 export const IMAGE_TEXT_TAB = 'imagetext' as const;
+export const TRANSLATION_TAB = 'translation' as const;
 /** Plugin event: queue counts or an engine's state changed; payload ImageTextStatus. */
 export const STATUS_EVENT = 'status' as const;
 /** Core → main: download an image the store doesn't hold (ImageFetchRequest); main answers with imageFetched. */
@@ -64,8 +65,10 @@ export const plugin = definePlugin({
   settings: [
     // A picture: its frame, a hill line and the sun.
     { id: IMAGE_TEXT_TAB, label: 'Image text', tab: { after: 'archive', iconPath: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M16 9.5a1.5 1.5 0 1 0-.01 0' } },
+    // A glyph and a letter A: one language into another.
+    { id: TRANSLATION_TAB, label: 'Translation', tab: { after: IMAGE_TEXT_TAB, iconPath: 'M3 5h8M7 3v2M5 5c0 4 2.5 6.5 6 8M9 5c0 4-2.5 6.5-6 8M13 21l4-9 4 9M14.5 18h5' } },
   ],
-  /** Settings → Image text. */
+  /** Settings → Image text and Settings → Translation. */
   preferences: { settings: definePreference({ default: DEFAULT_IMAGE_TEXT_SETTINGS, normalize: normalizeImageTextSettings }) },
   slots: { messageMenu: [{ id: 'readImages', after: 'copy' }] },
 });

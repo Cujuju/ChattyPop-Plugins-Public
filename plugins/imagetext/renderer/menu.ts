@@ -1,29 +1,29 @@
 // A message's right-click menu: Read image text and Translate image text, each a submenu of the models to use this once.
 import { openSettingsAt, type MenuGroup, type MenuItem } from '@plugin-sdk/renderer/kit';
-import { IMAGE_TEXT_TAB } from '../shared';
+import { IMAGE_TEXT_TAB, TRANSLATION_TAB } from '../shared';
 import { inTranslateMenu, type EnginePick, type ProviderModels, type TranslatePick } from '../shared/types';
 import { imageTextSettings, imageTextStatus, requestImageText, translateImageText } from './state';
 
 const READ_LABEL = 'Read image text';
 const TRANSLATE_LABEL = 'Translate image text';
-/** Marks the submenu's model that Settings → Image text uses. */
+/** Marks the submenu's model that Settings (Image text or Translation) uses. */
 const SETTINGS_DETAIL = 'Your setting';
 
-/** Runs an owner's request; when Settings' choice (no pick) can't run, Settings says why. */
-async function ask(label: string, call: () => Promise<void>, settingsReady: () => boolean | undefined, picked: boolean): Promise<void> {
+/** Runs an owner's request; when Settings' choice (no pick) can't run, its Settings tab says why. */
+async function ask(label: string, tab: string, call: () => Promise<void>, settingsReady: () => boolean | undefined, picked: boolean): Promise<void> {
   try {
     await call();
   } catch (err) {
-    if (!picked && settingsReady() === false) openSettingsAt(IMAGE_TEXT_TAB);
+    if (!picked && settingsReady() === false) openSettingsAt(tab);
     else console.warn(`[imagetext] ${label.toLowerCase()}:`, err); // a linked post with no photos, or a picked model gone
   }
 }
 
 const readImages = (messageId: string, pick: EnginePick | null): Promise<void> =>
-  ask(READ_LABEL, () => requestImageText(messageId, pick), () => imageTextStatus()?.[imageTextSettings().engine].ready, pick !== null);
+  ask(READ_LABEL, IMAGE_TEXT_TAB, () => requestImageText(messageId, pick), () => imageTextStatus()?.[imageTextSettings().engine].ready, pick !== null);
 
 const translateImages = (messageId: string, pick: TranslatePick | null): Promise<void> =>
-  ask(TRANSLATE_LABEL, () => translateImageText(messageId, pick), () => imageTextStatus()?.translator.ready, pick !== null);
+  ask(TRANSLATE_LABEL, TRANSLATION_TAB, () => translateImageText(messageId, pick), () => imageTextStatus()?.translator.ready, pick !== null);
 
 /** A group per provider that can be used now, headed by its name, of an item per model. */
 function modelGroups(providers: readonly ProviderModels[], item: (p: ProviderModels, model: ProviderModels['models'][number]) => MenuItem): MenuGroup[] {
@@ -48,7 +48,7 @@ function engineGroups(messageId: string): MenuGroup[] {
   return [...windows, ...vision];
 }
 
-/** Every model that can translate now, of the providers the menu lists (Settings → Image text). Empty while status is unknown. */
+/** Every model that can translate now, of the providers the menu lists (Settings → Translation). Empty while status is unknown. */
 function translatorGroups(messageId: string): MenuGroup[] {
   const s = imageTextSettings();
   const listed = (imageTextStatus()?.translateProviders ?? []).filter((p) => inTranslateMenu(s, p));

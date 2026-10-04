@@ -38,7 +38,7 @@ const settingsVision = (ctx: Ctx): Engine => {
 
 /** A translator with `providerId` and `model` into Settings' language, or why it can't translate. */
 function translatorOf(ctx: Ctx, providerId: string | null, model: string | null): Exclude<Translator, null> {
-  if (!providerId || !model) return { unavailable: 'Choose a translation model: Settings → Image text.' };
+  if (!providerId || !model) return { unavailable: 'Choose a translation model: Settings → Translation.' };
   const why = ctx.ai.unavailable(providerId);
   if (why) return { unavailable: why };
   const provider = ctx.ai.provider(providerId);
@@ -160,7 +160,7 @@ export default defineCorePlugin(plugin, (ctx) => {
       if (pick !== null && !picked) throw new Error('Not a model image text translates with.');
       const s = settings();
       const chosen = picked ?? (s.translateProvider && s.translateModel ? { provider: s.translateProvider, model: s.translateModel } : null);
-      if (!chosen) throw new Error('Choose a translation model: Settings → Image text.');
+      if (!chosen) throw new Error('Choose a translation model: Settings → Translation.');
       reader.translate(messageId, chosen);
     },
     retryFailed: () => reader.retryFailed(),

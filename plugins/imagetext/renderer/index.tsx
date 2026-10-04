@@ -1,8 +1,10 @@
-// Image text's renderer side: Settings → Image text, and Read and Translate image text in a message's right-click menu.
+// Image text's renderer side: Settings → Image text and → Translation, and Read and Translate image text in a message's
+// right-click menu.
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { X_STATUS_PATH, embedShowsPictures, mediaKind, type ArchiveEmbed, type ArchiveMessage } from '@plugin-sdk/shared';
-import { IMAGE_TEXT_TAB, plugin } from '../shared';
+import { IMAGE_TEXT_TAB, TRANSLATION_TAB, plugin } from '../shared';
 import { ImageTextSection } from './ImageTextSection';
+import { TranslationSection } from './TranslationSection';
 import { imageTextItems } from './menu';
 
 // The same tests as core's image list (archive.images).
@@ -14,7 +16,7 @@ const linksPost = (m: ArchiveMessage): boolean => (m.content.match(URL_IN_TEXT) 
 const hasImages = (m: ArchiveMessage): boolean => m.attachments.some(mayBeImage) || m.embeds.some(showsImage) || linksPost(m);
 
 export default defineRendererPlugin(plugin, {
-  settings: { [IMAGE_TEXT_TAB]: { body: ImageTextSection } },
+  settings: { [IMAGE_TEXT_TAB]: { body: ImageTextSection }, [TRANSLATION_TAB]: { body: TranslationSection } },
   messageMenu: {
     readImages: {
       // Desktop windows only: the phone can't request image text or open Settings.
