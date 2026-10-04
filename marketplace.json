@@ -340,8 +340,15 @@
     {
       "id": "transcription",
       "name": "Transcription",
-      "description": "Turns voice messages and audio into text on this computer, for rules, Jev, summaries and search.",
+      "description": "Turns voice messages, audio and video into text on this computer, for rules, Jev, summaries and search.",
       "releases": [
+        {
+          "version": "1.2.0",
+          "tag": "transcription-v1.2.0",
+          "asset": "transcription-1.2.0.tar.gz",
+          "sha256": "eef53edd45fc0b46c00deb625aece28f1fc3be215ee9f608daebaa08c014bfb3",
+          "sdk": "2.4.0"
+        },
         {
           "version": "1.0.1",
           "tag": "transcription-v1.0.1",
