@@ -98,6 +98,13 @@
       "description": "Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.",
       "releases": [
         {
+          "version": "1.7.2",
+          "tag": "imagetext-v1.7.2",
+          "asset": "imagetext-1.7.2.tar.gz",
+          "sha256": "022151a86edc2939c8da29d6a238f75723fee03cce1a0ab81e9f72dd967c583d",
+          "sdk": "2.4.0"
+        },
+        {
           "version": "1.0.1",
           "tag": "imagetext-v1.0.1",
           "asset": "imagetext-1.0.1.tar.gz",
