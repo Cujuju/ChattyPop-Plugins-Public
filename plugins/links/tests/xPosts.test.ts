@@ -71,6 +71,8 @@ describe('X posts from FxTwitter', () => {
     expect(refreshes).toBe(1);
     const embed = x.fill(items)[0]!.embed!;
     expect(embed).toMatchObject({ url: status.url, imageUrl: status.media.photos[0]!.url, author: { name: 'Some User (@some_user)' } });
+    // One photo: no gallery.
+    expect(embed.moreImages).toBeUndefined();
     // Plain text is escaped for the markdown renderer; URLs stay whole.
     expect(embed.description).toBe('hi \\@some\\_user\\_name \\*not em\\* https://example.com/a_b');
   });
@@ -90,6 +92,19 @@ describe('X posts from FxTwitter', () => {
     x.fill(items);
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
     expect(fetch.mock.calls.at(-1)![0]).toMatch(/\/3$/);
+  });
+});
+
+describe('an X post with several photos', () => {
+  it('gives its card every photo: the first as its image, the rest as its gallery', () => {
+    const db = adoptLinks(tempDb());
+    const photo = (n: number) => ({ url: `https://pbs.twimg.com/media/p${n}.jpg`, width: 900, height: 1200 });
+    const post = { url: 'https://x.com/u/status/9', text: 'three', author: { name: 'U', screen_name: 'u', avatar_url: null }, media: { photos: [photo(1), photo(2), photo(3)] } };
+    db.prepare(`INSERT INTO ${X_POSTS} (status_id, state, status_json, fetched_at) VALUES ('9', 'ok', ?, 0)`).run(JSON.stringify(post));
+    const x = new XPosts(db, vi.fn(), hostLinks(db), () => undefined);
+    const embed = x.fill([item(9, post.url)])[0]!.embed!;
+    expect(embed.imageUrl).toBe(photo(1).url);
+    expect(embed.moreImages).toEqual([2, 3].map((n) => ({ url: photo(n).url, size: { width: 900, height: 1200 } })));
   });
 });
 

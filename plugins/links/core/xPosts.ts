@@ -47,9 +47,13 @@ const escapeMarkdown = (text: string): string =>
     .map((part, i) => (i % 2 ? part : part.replace(MARKDOWN_SPECIAL, '\\$&')))
     .join('');
 
-/** A post as the embed card draws it: author (linking to the post), text, and its first photo or video still. */
+/**
+ * A post as the embed card draws it: author (linking to the post), text, and its photos (one image, or the card's
+ * gallery for several; X allows four, the gallery's limit) or video still.
+ */
 function xEmbed(s: FxStatus): ArchiveEmbed {
-  const photo = s.media?.photos?.[0], video = s.media?.videos?.[0];
+  const [photo, ...morePhotos] = s.media?.photos ?? [];
+  const video = s.media?.videos?.[0];
   return {
     type: 'link',
     url: s.url,
@@ -62,6 +66,7 @@ function xEmbed(s: FxStatus): ArchiveEmbed {
     thumbnailSize: null,
     imageUrl: photo?.url ?? video?.thumbnail_url ?? null,
     imageSize: mediaSize(photo ?? video),
+    ...(morePhotos.length ? { moreImages: morePhotos.map((p) => ({ url: p.url, size: mediaSize(p) })) } : {}),
     videoUrl: null,
     videoSize: null,
     footer: null,
