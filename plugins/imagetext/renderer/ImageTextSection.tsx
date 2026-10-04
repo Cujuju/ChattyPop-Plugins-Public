@@ -1,16 +1,13 @@
-// Settings → Image text: the engine that reads images, when it reads them, and its queue.
+// Settings → Image text: the engine that reads images, when it reads them, their translation, and its queue.
 import { For, Show } from 'solid-js';
 import { IMAGE_TEXT_TAB } from '../shared';
-import type { EngineStatus, ImageTextEngine, VisionProvider } from '../shared/types';
+import { TRANSLATE_LANGUAGES, type EngineStatus, type ImageTextEngine, type TranslateLanguage } from '../shared/types';
 import { imageTextSettings, imageTextStatus, patchImageTextSettings, retryFailedImageText } from './state';
-import { Card, createAction, ErrorNote, LinkButton, look, Note, openSettingsAt, Page, Row, Select, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
+import { Card, createAction, ErrorNote, LinkButton, look, openSettingsAt, Page, Row, Select, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
+import { AI_SETTINGS, ModelRows } from './ModelRows';
 import styles from './ImageText.module.css';
 
 const ENGINE_LABEL: Record<ImageTextEngine, string> = { windows: 'Windows OCR (built in)', vision: 'Vision model' };
-/** Settings → AI: where a provider installs models (Ollama's "Install a model"). */
-const AI_SETTINGS = 'ai';
-/** The select's choice while none (or one no longer listed) is saved. */
-const NONE = '';
 
 /** An engine's state and its one-line detail; unknown while status hasn't loaded. */
 const engineHint = (s: EngineStatus | undefined): string => (s ? `${s.ready ? 'Ready' : 'Can’t run'} · ${s.detail}` : 'Status unknown');
@@ -49,7 +46,21 @@ export function ImageTextSection() {
           </For>
         </div>
         <Show when={s().engine === 'vision'}>
-          <VisionRows />
+          <ModelRows
+            id="imagetext-vision"
+            providers={imageTextStatus()?.providers ?? []}
+            providerId={s().visionProvider}
+            modelId={s().visionModel}
+            onChange={(visionProvider, visionModel) => patchImageTextSettings({ visionProvider, visionModel })}
+            none="None of the AI providers reads images."
+            kind="that reads images"
+            modelHint={
+              <>
+                An instruct model reads an image in seconds; a thinking one (qwen3-vl:8b) takes up to a minute.{' '}
+                <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Install another</LinkButton>
+              </>
+            }
+          />
         </Show>
       </Card>
       <Card title="Reading">
@@ -66,6 +77,35 @@ export function ImageTextSection() {
           control={<Switch id="imagetext-ask-jev" checked={s().askJev} onChange={(askJev) => patchImageTextSettings({ askJev })} />}
         />
       </Card>
+      <Card title="Translation">
+        <Row
+          label="Translate image text automatically"
+          for="imagetext-translate"
+          hint={`Each image’s text not already in ${s().translateLanguage} is translated; both are kept, so rules and search match either. Others: right-click a message → Translate image text. ${engineHint(imageTextStatus()?.translator)}`}
+          control={<Switch id="imagetext-translate" checked={s().translate} onChange={(translate) => patchImageTextSettings({ translate })} />}
+        />
+        <Row
+          label="Into"
+          for="imagetext-translate-language"
+          control={
+            <Select
+              id="imagetext-translate-language"
+              class={styles.control}
+              value={s().translateLanguage}
+              options={TRANSLATE_LANGUAGES.map((l) => ({ value: l, label: l }))}
+              onChange={(v) => patchImageTextSettings({ translateLanguage: v as TranslateLanguage })}
+            />
+          }
+        />
+        <ModelRows
+          id="imagetext-translate"
+          providers={imageTextStatus()?.translateProviders ?? []}
+          providerId={s().translateProvider}
+          modelId={s().translateModel}
+          onChange={(translateProvider, translateModel) => patchImageTextSettings({ translateProvider, translateModel })}
+          none="No AI provider is on."
+        />
+      </Card>
       <Card title="Queue">
         <Row
           label="Images"
@@ -79,65 +119,5 @@ export function ImageTextSection() {
       </Card>
       <ErrorNote error={action.error()} />
     </Page>
-  );
-}
-
-/** The vision engine's provider and model. */
-function VisionRows() {
-  const s = imageTextSettings;
-  const providers = (): VisionProvider[] => imageTextStatus()?.providers ?? [];
-  const provider = (): VisionProvider | undefined => providers().find((p) => p.id === s().visionProvider);
-  const models = () => provider()?.models ?? [];
-  const providerOptions = () => [
-    ...(provider() ? [] : [{ value: NONE, label: 'Pick a provider…' }]),
-    ...providers().map((p) => ({ value: p.id, label: p.unavailable ? `${p.label} (${p.unavailable})` : p.label })),
-  ];
-  const modelValue = (): string => (models().some((m) => m.id === s().visionModel) ? (s().visionModel ?? NONE) : NONE);
-  const modelOptions = () => [...(modelValue() === NONE ? [{ value: NONE, label: 'Pick a model…' }] : []), ...models().map((m) => ({ value: m.id, label: m.label }))];
-  return (
-    <>
-      <Show when={providers().length} fallback={<Note>None of the AI providers reads images.</Note>}>
-        <Row
-          label="Provider"
-          for="imagetext-provider"
-          hint={provider()?.unavailable ?? undefined}
-          control={
-            <Select
-              id="imagetext-provider"
-              class={styles.control}
-              value={provider()?.id ?? NONE}
-              options={providerOptions()}
-              // Models belong to a provider: a new provider starts with none picked.
-              onChange={(v) => patchImageTextSettings({ visionProvider: v || null, visionModel: null })}
-            />
-          }
-        />
-      </Show>
-      <Show when={provider()}>
-        {(p) => (
-          <Show
-            when={models().length}
-            fallback={
-              <Note>
-                No model on {p().label} that reads images is installed.{' '}
-                <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Install one in Settings → AI</LinkButton>
-              </Note>
-            }
-          >
-            <Row
-              label="Model"
-              for="imagetext-model"
-              hint={
-                <>
-                  An instruct model reads an image in seconds; a thinking one (qwen3-vl:8b) takes up to a minute.{' '}
-                  <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Install another</LinkButton>
-                </>
-              }
-              control={<Select id="imagetext-model" class={styles.control} value={modelValue()} options={modelOptions()} onChange={(v) => patchImageTextSettings({ visionModel: v || null })} />}
-            />
-          </Show>
-        )}
-      </Show>
-    </>
   );
 }

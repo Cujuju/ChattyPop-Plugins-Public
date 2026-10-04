@@ -1,13 +1,13 @@
 // Image text: reads the text in images messages show (attachments, link previews, fetched posts' photos) on this
-// computer. Its text is derived text: rules, Jev, the Trading label's cashtags and search read it.
+// computer, and translates it. Its text is derived text: rules, Jev, the Trading label's cashtags and search read it.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus } from './types';
+import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus, type TranslatePick } from './types';
 
 export const manifest = {
   id: 'imagetext',
   name: 'Image text',
   version: '1.0.1',
-  description: 'Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.',
+  description: 'Reads the text in screenshots and charts on this computer, and can translate it, so rules, Jev, labels and search see it.',
 };
 
 /** Settings tab id. */
@@ -33,6 +33,11 @@ export interface ImageTextCoreCalls {
    * Throws when that engine can't run.
    */
   request(messageId: string, pick: EnginePick | null): void;
+  /**
+   * Translates the text of every image of the message with `pick` (null: Settings' translation model) into Settings'
+   * language, reading first an image never read. Throws when that model can't run.
+   */
+  translate(messageId: string, pick: TranslatePick | null): void;
   /** Queues again every image that failed. */
   retryFailed(): void;
   /** Main's answer to FETCH_IMAGE `requestId`: the image is at the requested path, or `error`. */
@@ -50,6 +55,7 @@ export const plugin = definePlugin({
     core: {
       status: { audiences: ['renderer'], writes: false },
       request: ['renderer'],
+      translate: ['renderer'],
       retryFailed: ['renderer'],
       imageFetched: { audiences: ['main'], completion: { max: IMAGE_FETCHES_MAX } },
     },

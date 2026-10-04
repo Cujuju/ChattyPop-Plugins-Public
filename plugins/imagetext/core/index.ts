@@ -1,12 +1,13 @@
-// Image text's core side: the queue, its engines, image text as derived text and attachment notes, and the calls
+// Image text's core side: the queue, its engines and translators, image text as derived text and attachment notes, and the calls
 // Settings, the message menu and main make.
 import { join } from 'node:path';
 import { defineCorePlugin, IS_WINDOWS, type CoreContext } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
-import { normalizePick, type EnginePick, type EngineStatus, type ImageTextStatus, type VisionProvider } from '../shared/types';
+import { normalizePick, normalizeTranslatePick, type EnginePick, type EngineStatus, type ImageTextStatus, type ProviderModels, type TranslatePick } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
 import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes } from './store';
+import { translateText, type Translator } from './translate';
 import { readWithVision } from './vision';
 import { WindowsOcr } from './windowsOcr';
 
@@ -35,24 +36,47 @@ const settingsVision = (ctx: Ctx): Engine => {
   return visionEngine(ctx, s.visionProvider, s.visionModel);
 };
 
-/** Providers declared to read images, each with its models that do (listing reaches the provider: Ollama's server). */
-async function visionProviders(ctx: Ctx): Promise<VisionProvider[]> {
-  return Promise.all(
-    ctx.ai
-      .providers()
-      .filter((p) => p.images)
-      .map(async (p): Promise<VisionProvider> => {
-        if (p.unavailable) return { id: p.id, label: p.label, unavailable: p.unavailable, models: [] };
-        try {
-          const models = await ctx.ai.provider(p.id).listModels();
-          return { id: p.id, label: p.label, unavailable: null, models: models.filter((m) => m.images).map((m) => ({ id: m.id, label: m.label })) };
-        } catch (err) {
-          return { id: p.id, label: p.label, unavailable: errorMessage(err), models: [] };
-        }
-      }),
-  );
+/** A translator with `providerId` and `model` into Settings' language, or why it can't translate. */
+function translatorOf(ctx: Ctx, providerId: string | null, model: string | null): Exclude<Translator, null> {
+  if (!providerId || !model) return { unavailable: 'Choose a translation model: Settings → Image text.' };
+  const why = ctx.ai.unavailable(providerId);
+  if (why) return { unavailable: why };
+  const provider = ctx.ai.provider(providerId);
+  return {
+    name: `${providerId}:${model}`,
+    translate: (text, channelId, signal) => translateText(provider, model, ctx.preferences.get('settings').translateLanguage, text, [channelId], signal),
+  };
 }
 
+/** Settings' translation model. */
+const settingsTranslator = (ctx: Ctx): Exclude<Translator, null> => {
+  const s = ctx.preferences.get('settings');
+  return translatorOf(ctx, s.translateProvider, s.translateModel);
+};
+
+const statusOf = (e: { name: string } | { unavailable: string }): EngineStatus =>
+  'unavailable' in e ? { ready: false, detail: e.unavailable } : { ready: true, detail: e.name.split(':').join(' · ') };
+
+/**
+ * Every provider with all its models, listed once (listing reaches the provider: Ollama's server): the translation
+ * model's choices, and, of those declared to read images, their models that do: the vision engine's.
+ */
+async function providerModels(ctx: Ctx): Promise<{ vision: ProviderModels[]; text: ProviderModels[] }> {
+  const listed = await Promise.all(
+    ctx.ai.providers().map(async (p) => {
+      const base = { id: p.id, label: p.label };
+      if (p.unavailable) return { images: p.images, all: { ...base, unavailable: p.unavailable, models: [] }, vision: [] };
+      try {
+        const models = await ctx.ai.provider(p.id).listModels();
+        const choice = (m: { id: string; label: string }) => ({ id: m.id, label: m.label });
+        return { images: p.images, all: { ...base, unavailable: null, models: models.map(choice) }, vision: models.filter((m) => m.images).map(choice) };
+      } catch (err) {
+        return { images: p.images, all: { ...base, unavailable: errorMessage(err), models: [] }, vision: [] };
+      }
+    }),
+  );
+  return { vision: listed.filter((l) => l.images).map((l) => ({ ...l.all, models: l.vision })), text: listed.map((l) => l.all) };
+}
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.storage.migrate(IMAGE_TEXT_MIGRATIONS);
   const db = ctx.storage.db;
@@ -66,6 +90,8 @@ export default defineCorePlugin(plugin, (ctx) => {
     if (pick) return pick.engine === 'vision' ? visionEngine(ctx, pick.provider, pick.model) : windowsEngine();
     return settings().engine === 'vision' ? settingsVision(ctx) : windowsEngine();
   };
+  // A job's pick, or Settings' automatic translation when it is on.
+  const translator = (pick: TranslatePick | null): Translator => (pick ? translatorOf(ctx, pick.provider, pick.model) : settings().translate ? settingsTranslator(ctx) : null);
   let statusTimer: NodeJS.Timeout | null = null;
   const statusChanged = (): void => {
     statusTimer ??= setTimeout(() => {
@@ -77,6 +103,7 @@ export default defineCorePlugin(plugin, (ctx) => {
     db,
     images: (ids) => ctx.archive.images.of(ids),
     engine,
+    translator,
     auto: () => settings().auto,
     attachmentsDir: ctx.archive.attachmentsDir,
     workDir: join(ctx.storage.dataDir, WORK_DIR),
@@ -111,17 +138,30 @@ export default defineCorePlugin(plugin, (ctx) => {
     statusChanged();
   });
   ctx.ai.onSettingsChange(() => reader.kick()); // a vision provider turned on
-  const engineStatus = async (): Promise<{ windows: EngineStatus; vision: EngineStatus }> => {
-    const vision = settingsVision(ctx);
-    return { windows: await ocr.status(), vision: 'unavailable' in vision ? { ready: false, detail: vision.unavailable } : { ready: true, detail: vision.name.split(':').slice(1).join(' · ') } };
+  const vision = (): EngineStatus => {
+    const e = settingsVision(ctx);
+    // Its name less the engine's ('vision:'): provider · model.
+    return 'unavailable' in e ? statusOf(e) : statusOf({ name: e.name.split(':').slice(1).join(':') });
   };
   ctx.channels.serve({
-    status: async (): Promise<ImageTextStatus> => ({ ...(await engineStatus()), providers: await visionProviders(ctx), counts: counts(db) }),
+    status: async (): Promise<ImageTextStatus> => {
+      const [windows, models] = await Promise.all([ocr.status(), providerModels(ctx)]);
+      return { windows, vision: vision(), providers: models.vision, translator: statusOf(settingsTranslator(ctx)), translateProviders: models.text, counts: counts(db) };
+    },
     // Normalized: a pick that isn't one is refused, not read as Settings' engine.
     request: (messageId, pick) => {
       const picked = pick === null ? null : normalizePick(pick);
       if (pick !== null && !picked) throw new Error('Not an engine image text reads with.');
       reader.request(messageId, picked);
+    },
+    // Null: Settings' translation model, used now whether or not automatic translation is on.
+    translate: (messageId, pick) => {
+      const picked = pick === null ? null : normalizeTranslatePick(pick);
+      if (pick !== null && !picked) throw new Error('Not a model image text translates with.');
+      const s = settings();
+      const chosen = picked ?? (s.translateProvider && s.translateModel ? { provider: s.translateProvider, model: s.translateModel } : null);
+      if (!chosen) throw new Error('Choose a translation model: Settings → Image text.');
+      reader.translate(messageId, chosen);
     },
     retryFailed: () => reader.retryFailed(),
   });

@@ -1,5 +1,5 @@
-// Image text: reading the text in the images messages show (screenshots, charts) with Windows' OCR or a vision model.
-// Settings, status and jobs as core, main and the renderer exchange them.
+// Image text: reading the text in the images messages show (screenshots, charts) with Windows' OCR or a vision model,
+// and translating it with a text model. Settings, status and jobs as core, main and the renderer exchange them.
 import { bool, isObj, oneOf, textOrNull } from '@plugin-sdk/shared';
 
 /** How images are read: Windows' built-in OCR (text only), or a vision model through an AI provider (text and charts). */
@@ -19,9 +19,30 @@ export interface ImageTextSettings {
    * text settles (a cashtag's Trading label) use it.
    */
   askJev: boolean;
+  /** Each reading not already in `translateLanguage` is translated with the translation model; both texts are kept. */
+  translate: boolean;
+  translateLanguage: TranslateLanguage;
+  /** The AI provider translations ask; null = none chosen. */
+  translateProvider: string | null;
+  /** Its model; null = none chosen (nothing is translated until one is). */
+  translateModel: string | null;
 }
 
-export const DEFAULT_IMAGE_TEXT_SETTINGS: ImageTextSettings = { engine: 'windows', visionProvider: 'ollama', visionModel: null, auto: true, askJev: false };
+/** Translation targets offered in Settings. Assumption: widely used languages cover the owner; add one here. */
+export const TRANSLATE_LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Russian', 'Japanese', 'Korean', 'Chinese (Simplified)'] as const;
+export type TranslateLanguage = (typeof TRANSLATE_LANGUAGES)[number];
+
+export const DEFAULT_IMAGE_TEXT_SETTINGS: ImageTextSettings = {
+  engine: 'windows',
+  visionProvider: 'ollama',
+  visionModel: null,
+  auto: true,
+  askJev: false,
+  translate: false,
+  translateLanguage: 'English',
+  translateProvider: 'ollama',
+  translateModel: null,
+};
 
 export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
   const src = isObj(v) ? v : {};
@@ -32,6 +53,10 @@ export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
     visionModel: textOrNull(src['visionModel']),
     auto: bool(src['auto'], d.auto),
     askJev: bool(src['askJev'], d.askJev),
+    translate: bool(src['translate'], d.translate),
+    translateLanguage: oneOf(TRANSLATE_LANGUAGES, src['translateLanguage'], d.translateLanguage),
+    translateProvider: 'translateProvider' in src ? textOrNull(src['translateProvider']) : d.translateProvider,
+    translateModel: textOrNull(src['translateModel']),
   };
 }
 
@@ -47,6 +72,20 @@ export function normalizePick(v: unknown): EnginePick | null {
   return v['engine'] === 'vision' && provider && model ? { engine: 'vision', provider, model } : null;
 }
 
+/** A text model picked for one translation (the message menu's Translate image text submenu). */
+export interface TranslatePick {
+  provider: string;
+  model: string;
+}
+
+/** A translation pick as the renderer sent it, or as a job stored it; null when it isn't one. */
+export function normalizeTranslatePick(v: unknown): TranslatePick | null {
+  if (!isObj(v)) return null;
+  const provider = textOrNull(v['provider']);
+  const model = textOrNull(v['model']);
+  return provider && model ? { provider, model } : null;
+}
+
 /** queued → fetching (main downloads an image the store doesn't hold) → running → done | failed. */
 export type ImageJobState = 'queued' | 'fetching' | 'running' | 'done' | 'failed';
 
@@ -57,26 +96,30 @@ export interface EngineStatus {
   detail: string;
 }
 
-/** A model the vision engine may use: one its provider says reads images. */
-export interface VisionModel {
+/** A model a provider offers. */
+export interface ProviderModel {
   id: string;
   label: string;
 }
 
-/** A provider declared to read images, and its models that do. */
-export interface VisionProvider {
+/** An AI provider and its models of one kind (that read images, or any for translation). */
+export interface ProviderModels {
   id: string;
   label: string;
   /** Why it can't be used now (its plugin is off, it isn't reachable); null while it can. */
   unavailable: string | null;
-  models: VisionModel[];
+  models: ProviderModel[];
 }
 
 export interface ImageTextStatus {
   windows: EngineStatus;
   vision: EngineStatus;
-  /** Providers the vision engine can pick from. */
-  providers: VisionProvider[];
+  /** Providers declared to read images, with their models that do: the vision engine's choices. */
+  providers: ProviderModels[];
+  /** Settings' translation model: whether it can translate. */
+  translator: EngineStatus;
+  /** Every available provider with all its models: the translation model's choices. */
+  translateProviders: ProviderModels[];
   /** Jobs by state. */
   counts: Record<ImageJobState, number>;
 }

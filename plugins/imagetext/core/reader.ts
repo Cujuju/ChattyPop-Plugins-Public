@@ -6,9 +6,10 @@ import { join } from 'node:path';
 import { errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { MEANING_LOOKBACK_MS, SerialLoop, storedAttachmentPath, type MessageImage, type PluginDb } from '@plugin-sdk/core';
 import { IMAGE_FETCHES_MAX } from '../shared';
-import type { EnginePick, ImageFetchRequest } from '../shared/types';
+import type { EnginePick, ImageFetchRequest, TranslatePick } from '../shared/types';
 import { imageText } from './chartTickers';
-import { dropJobs, enqueue, fail, finish, jobOf, jobText, messageActive, messageJobs, nextJob, PRIORITY, queuedJobs, resetInterrupted, retryFailed, setState, type ImageJob } from './store';
+import { dropJobs, enqueue, fail, finish, jobOf, jobText, messageActive, messageJobs, nextJob, PRIORITY, queuedJobs, resetInterrupted, retryFailed, setState, withTranslation, type ImageJob, type JobRequest } from './store';
+import { translateReading, type Translator } from './translate';
 
 /** How long main may take to report a download before its job fails. Assumption: an image downloads well within it. */
 export const DOWNLOAD_REPORT_MAX_MS = 5 * MS_PER_MIN;
@@ -33,6 +34,7 @@ export interface Reading {
 
 /** The engine chosen now: its name for the record, and how it reads a file; or why it can't run. */
 export type Engine = { name: string; read(path: string, channelId: string, signal: AbortSignal): Promise<Reading> } | { unavailable: string };
+type ReadyEngine = Exclude<Engine, { unavailable: string }>;
 
 /** A job ended. `text`: the derived text ('' clears an earlier reading's); null: nothing to store (no text, never any). */
 export type ImageSettled =
@@ -83,6 +85,8 @@ export interface ReaderDeps {
   images(messageIds: readonly string[]): Map<string, MessageImage[]>;
   /** The engine for a job: pick, or Settings' engine (null). */
   engine(pick: EnginePick | null): Engine;
+  /** The translator for a job: `pick`, or Settings' automatic translation (null), which may be off. */
+  translator(pick: TranslatePick | null): Translator;
   /** Settings → Image text's automatic reading. */
   auto(): boolean;
   attachmentsDir: string;
@@ -120,7 +124,7 @@ export class ImageReader {
     if (!m || m.ts < Date.now() - MEANING_LOOKBACK_MS) return;
     const images = this.d.images([messageId]).get(messageId) ?? [];
     this.forgetGone(messageId, new Set(images.map((i) => i.key)));
-    if (this.queue(messageId, m.channelId, images, PRIORITY.automatic, false)) this.kick();
+    if (this.queue(messageId, m.channelId, images, PRIORITY.automatic, null)) this.kick();
   }
 
   /**
@@ -153,7 +157,7 @@ export class ImageReader {
       const images = this.d.images(batch.map((m) => m.id));
       for (const m of batch) {
         const list = images.get(m.id);
-        if (list && this.queue(m.id, m.channelId, list, PRIORITY.automatic, false)) queued = true;
+        if (list && this.queue(m.id, m.channelId, list, PRIORITY.automatic, null)) queued = true;
       }
     }
     if (queued) this.kick();
@@ -163,10 +167,21 @@ export class ImageReader {
   request(messageId: string, pick: EnginePick | null): void {
     const engine = this.d.engine(pick);
     if ('unavailable' in engine) throw new Error(engine.unavailable);
+    this.requested(messageId, { pick, translate: null, reuse: false });
+  }
+
+  /** The owner asked: the text of every image of the message is translated with `pick`; an image never read is read first. */
+  translate(messageId: string, pick: TranslatePick): void {
+    const t = this.d.translator(pick);
+    if (t && 'unavailable' in t) throw new Error(t.unavailable);
+    this.requested(messageId, { pick: null, translate: pick, reuse: true });
+  }
+
+  private requested(messageId: string, request: JobRequest): void {
     const m = this.d.db.prepare('SELECT channel_id AS channelId FROM archive_all_messages WHERE id = ?').get(messageId) as { channelId: string } | undefined;
     const images = m && this.d.images([messageId]).get(messageId);
     if (!m || !images) throw new Error('This message shows no images.');
-    this.queue(messageId, m.channelId, images, PRIORITY.requested, true, pick);
+    this.queue(messageId, m.channelId, images, PRIORITY.requested, request);
     this.kick();
   }
 
@@ -250,11 +265,11 @@ export class ImageReader {
     }, RETRY_MS).unref();
   }
 
-  /** Queues `images` of the message; `again` re-reads those already read, with `pick`. Returns whether any was queued. */
-  private queue(messageId: string, channelId: string, images: readonly MessageImage[], priority: number, again: boolean, pick: EnginePick | null = null): boolean {
-    const known = again ? null : new Set(messageJobs(this.d.db, messageId).map((j) => j.imageKey));
+  /** Queues `images` of the message; a `request` queues those already read again. Returns whether any was queued. */
+  private queue(messageId: string, channelId: string, images: readonly MessageImage[], priority: number, request: JobRequest | null): boolean {
+    const known = request ? null : new Set(messageJobs(this.d.db, messageId).map((j) => j.imageKey));
     const fresh = known ? images.filter((i) => !known.has(i.key)) : images;
-    if (!fresh.length || !enqueue(this.d.db, messageId, channelId, fresh, priority, Date.now(), again, pick)) return false;
+    if (!fresh.length || !enqueue(this.d.db, messageId, channelId, fresh, priority, Date.now(), request)) return false;
     this.d.events.changed(messageId);
     return true;
   }
@@ -266,9 +281,11 @@ export class ImageReader {
       const job = nextJob(this.d.db, Date.now() - ATTACHMENT_STORE_WAIT_MS, 'unavailable' in settings);
       if (!job) break;
       const engine = job.pick ? this.d.engine(job.pick) : settings;
-      // A picked engine that can't run fails its job: the pick was the owner's, made once.
-      if ('unavailable' in engine) this.abandon(job, engine.unavailable);
-      else if (!(await this.run(job, engine))) return; // waits for a download's report, which kicks the queue
+      const reused = job.reuse ? jobText(this.d.db, job.seq) : null;
+      // An owner's request whose engine can't run fails: a pick, or an image to translate that was never read.
+      const source = reused !== null ? { text: reused } : engine;
+      if ('unavailable' in source) this.abandon(job, source.unavailable);
+      else if (!(await this.run(job, source))) return; // waits for a download's report, which kicks the queue
     }
     // Jobs waiting on the store's downloads, or on Settings' engine.
     if (!this.signal.aborted && queuedJobs(this.d.db)) this.retryLater();
@@ -297,40 +314,54 @@ export class ImageReader {
     return fetched && existsSync(fetched) ? fetched : null;
   }
 
-  /** Runs `job`, or asks main for its image; false when that would pass IMAGE_FETCHES_MAX, leaving it queued. */
-  private async run(job: ImageJob, engine: Exclude<Engine, { unavailable: string }>): Promise<boolean> {
-    const input = this.input(job);
-    if (!input) {
-      if (this.d.session.fetches.size >= IMAGE_FETCHES_MAX) return false;
-      await mkdir(this.d.workDir, { recursive: true });
-      if (this.signal.aborted) return true;
-      const requestId = ++this.d.session.lastRequestId;
-      // Its own file per request: a late report of an earlier request can't touch a retry's.
-      const fetched = join(this.d.workDir, `${job.seq}-${requestId}.image`);
-      const asked = this.d.reports.dispatch(requestId, () => {
-        setState(this.d.db, job.seq, 'fetching');
-        const deadline = setTimeout(() => (this.d.session.latest ?? this).fetchLate(requestId), DOWNLOAD_REPORT_MAX_MS).unref();
-        this.d.session.fetches.set(requestId, { seq: job.seq, path: fetched, deadline });
-        this.d.events.fetchImage(
-          job.attachmentId
-            ? { requestId, url: job.url, path: fetched, kind: 'attachment', attachmentId: job.attachmentId, messageId: job.messageId, channelId: job.channelId }
-            : { requestId, url: job.url, path: fetched, kind: 'shown' },
-        );
-      });
-      if (!asked) return false;
-      this.d.events.changed(job.messageId);
-      return true;
+  /** Asks main for the job's image; false when that would pass IMAGE_FETCHES_MAX, leaving it queued. */
+  private async fetch(job: ImageJob): Promise<boolean> {
+    if (this.d.session.fetches.size >= IMAGE_FETCHES_MAX) return false;
+    await mkdir(this.d.workDir, { recursive: true });
+    if (this.signal.aborted) return true;
+    const requestId = ++this.d.session.lastRequestId;
+    // Its own file per request: a late report of an earlier request can't touch a retry's.
+    const fetched = join(this.d.workDir, `${job.seq}-${requestId}.image`);
+    const asked = this.d.reports.dispatch(requestId, () => {
+      setState(this.d.db, job.seq, 'fetching');
+      const deadline = setTimeout(() => (this.d.session.latest ?? this).fetchLate(requestId), DOWNLOAD_REPORT_MAX_MS).unref();
+      this.d.session.fetches.set(requestId, { seq: job.seq, path: fetched, deadline });
+      this.d.events.fetchImage(
+        job.attachmentId
+          ? { requestId, url: job.url, path: fetched, kind: 'attachment', attachmentId: job.attachmentId, messageId: job.messageId, channelId: job.channelId }
+          : { requestId, url: job.url, path: fetched, kind: 'shown' },
+      );
+    });
+    if (!asked) return false;
+    this.d.events.changed(job.messageId);
+    return true;
+  }
+
+  /**
+   * Runs `job` with `source` (an engine reading its image, or text already read), then its translation; asks main for an
+   * image to read that isn't here (fetch), returning its answer.
+   */
+  private async run(job: ImageJob, source: ReadyEngine | { text: string }): Promise<boolean> {
+    let read: () => Promise<string>;
+    if ('text' in source) read = async () => source.text;
+    else {
+      const input = this.input(job);
+      if (!input) return this.fetch(job);
+      read = async () => {
+        const r = await source.read(input, job.channelId, this.signal);
+        return imageText(r.text, r.tickers);
+      };
     }
     const before = jobText(this.d.db, job.seq);
     setState(this.d.db, job.seq, 'running');
     this.d.events.changed(job.messageId);
     try {
       this.signal.throwIfAborted();
-      const r = await engine.read(input, job.channelId, this.signal);
-      const text = imageText(r.text, r.tickers);
-      const record = (): void => finish(this.d.db, job.seq, engine.name, text, Date.now());
+      const text = await read();
+      const t = await translateReading(this.d.translator(job.translate), job.translate !== null, text, job.channelId, this.signal);
+      const record = (): void => finish(this.d.db, job.seq, { engine: 'name' in source ? source.name : null, text, ...t }, Date.now());
       // No text: nothing to store, unless an earlier reading's text must be cleared.
-      const derived = text || (before ? '' : null);
+      const derived = withTranslation(text, t.translation) || (before ? '' : null);
       this.d.events.settled({ ok: true, messageId: job.messageId, seq: job.seq, text: derived, requestedAt: job.requestedAt, record });
     } catch (err) {
       if (this.signal.aborted) return true; // turned off: queued again on the next start
