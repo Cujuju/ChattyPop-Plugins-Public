@@ -3,7 +3,7 @@ import type { CitationCheck, Citation, Summary, SummaryItem, SummaryPageQuery, S
 import type { AppUsage, TokenUsage } from '@plugin-sdk/shared';
 import type { ProviderId } from '@plugin-sdk/shared';
 import type { SummaryGrouping, SummaryTrigger } from '../shared/settings';
-import { SUMMARIES_TABLE, VISIBLE_SUMMARIES } from './schema';
+import { PEOPLE_LINKED_ALL, SUMMARIES_TABLE, VISIBLE_SUMMARIES } from './schema';
 import type { CoverageSpan, PluginDb } from '@plugin-sdk/core';
 import { sumCosts } from '@plugin-sdk/core';
 import type { LogLine } from './summaryJev';
@@ -158,7 +158,7 @@ export function insertSummary(db: PluginDb, r: NewSummary): Summary {
       `INSERT INTO ${SUMMARIES_TABLE} (cache_key, created_at, provider, model, since_ts, until_ts, channel_ids, message_count, duration_ms, headline, items_json,
                               input_tokens, cached_input_tokens, output_tokens, skipped_count, jev_cost_usd, themes_json, run_trigger, grouping, actions_json,
                               api_cost_usd, people_linked)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${PEOPLE_LINKED_ALL})`,
     )
     .run(
       r.cacheKey, Date.now(), r.providerId, r.model, r.req.sinceTs, r.untilTs, JSON.stringify(r.channelIds), r.sent, Date.now() - r.started, r.headline,

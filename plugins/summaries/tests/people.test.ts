@@ -10,8 +10,8 @@ import { aiSettingsFrom } from '@shared/aiProviders';
 import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { adoptSummaries, fakeRegistry } from './summariesHarness';
 import { Summarizer } from '../core/summarize';
-import { SUMMARIES_TABLE } from '../core/schema';
-import { linkMarked, linkNames, peopleByName, peopleByTag, unmarked } from '../core/people';
+import { PEOPLE_LINKED, SUMMARIES_TABLE } from '../core/schema';
+import { leadsNotWords, linkMarked, linkNames, peopleByLead, peopleByName, peopleByTag, unmarked } from '../core/people';
 import { linkStoredPeople } from '../core/linkStored';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { namedText, textRuns } from '../shared/people';
@@ -36,6 +36,16 @@ describe('people in summary text', () => {
   it('links whole names in old text, longest first, never inside a word', () => {
     const byName = new Map([['stat', '1'], ['stat [WWW]', '2'], ['Sal', '3']]);
     expect(linkNames('stat [WWW] and stat met Salchipapa; statistics', byName)).toBe('<@2> and <@1> met Salchipapa; statistics');
+  });
+
+  it("takes a name's lead before its decoration as a shortened name only one person has", () => {
+    const byLead = peopleByLead([
+      ['Flipper | Must.stop..grinning…', '1'], ['The Senator™', '2'], ['stat [WWW]', '3'], ['Kim 🌸', '4'], ['Kim ✨', '5'], ['Al 🍕', '6'], ['Sam', '7'], ['Sam ☕', '8'],
+    ]);
+    // stat: lower case; Kim: two people; Al: too short; Sam: someone's whole name.
+    expect([...byLead]).toEqual([['Flipper', '1'], ['The Senator', '2'], ['the Senator', '2'], ['Senator', '2']]);
+    expect(linkNames('The Senator and the Senator; Senator agreed', byLead)).toBe('<@2> and <@2>; <@2> agreed');
+    expect([...leadsNotWords(new Map([['Will', '1'], ['Flipper', '2']]), ['Will said it will rain', 'Flipper agreed'])]).toEqual([['Flipper', '2']]);
   });
 
   it('splits text into runs and writes names into plain text', () => {
@@ -99,6 +109,18 @@ describe('summaries name people as they are now', () => {
     const [shown] = s.page({ limit: 1 });
     expect(shown!.headline).toBe(`<@${SAL.id}> got the knife`);
     expect(shown!.items[0]!.parts[0]!.text).toBe(`<@${STAT.id}> cheered <@${SAL.id}>`);
+    expect(await linkStoredPeople(db, () => false)).toBe(0);
+  });
+
+  it('links shortened names in summaries the whole-name pass already went over, once', async () => {
+    const decorated = { ...SAL, global_name: 'Salchipapa | knives' };
+    archive.ingestMessages([rawMessage(GENERAL, Date.now() - MS_PER_DAY, 'sharp', { author: decorated })], ARRIVAL.gateway);
+    const s = summarizer('Salchipapa got the knife', 'stat cheered Salchipapa');
+    const { id } = await run(s);
+    db.prepare(`UPDATE ${SUMMARIES_TABLE} SET headline = ?, people_linked = ? WHERE id = ?`).run('Salchipapa got the knife', PEOPLE_LINKED.names, id);
+
+    expect(await linkStoredPeople(db, () => false)).toBe(1);
+    expect(s.page({ limit: 1 })[0]!.headline).toBe(`<@${SAL.id}> got the knife`);
     expect(await linkStoredPeople(db, () => false)).toBe(0);
   });
 });
