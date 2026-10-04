@@ -55,7 +55,7 @@ export const TOOLS: readonly ToolEntry[] = [
   {
     id: 'ffmpeg',
     label: 'ffmpeg',
-    description: 'Converts voice messages (Ogg Opus) into audio whisper reads.',
+    description: 'Converts voice messages, audio and video into audio whisper reads.',
     exe: 'ffmpeg',
     cpu: {
       url: 'https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip',

@@ -1,23 +1,40 @@
 // Local speech-to-text (whisper.cpp + ffmpeg): settings, toolchain status and transcripts as core and renderer exchange them.
 import { bool, isObj, textOrNull } from '@plugin-sdk/shared';
 
+/** What can be transcribed automatically: voice messages, other audio files, video files, and videos embeds show. */
+export const AUTO_KINDS = ['voice', 'audio', 'video', 'embedVideo'] as const;
+export type AutoKind = (typeof AUTO_KINDS)[number];
+
 export interface TranscriptionSettings {
-  /** New voice messages are transcribed once their audio is archived. */
-  autoVoice: boolean;
-  /** Voice messages sent before this are only transcribed on request; core sets it when autoVoice is first seen on. */
-  autoSince: number | null;
+  /** Per kind: new ones are transcribed once they reach ChattyPop (an attachment once its file is archived). */
+  auto: Record<AutoKind, boolean>;
+  /** Per kind: ones sent before this are only transcribed on request; core stamps it when the kind is first seen on. */
+  since: Record<AutoKind, number | null>;
   /** Catalog id of the whisper model to use; null = none chosen. */
   model: string | null;
 }
 
-export const DEFAULT_TRANSCRIPTION_SETTINGS: TranscriptionSettings = { autoVoice: true, autoSince: null, model: null };
+/** Voice messages only: whisper's time on audio files and videos is the owner's choice. */
+export const DEFAULT_TRANSCRIPTION_SETTINGS: TranscriptionSettings = {
+  auto: { voice: true, audio: false, video: false, embedVideo: false },
+  since: { voice: null, audio: null, video: null, embedVideo: null },
+  model: null,
+};
 
+const stamp = (v: unknown): number | null => {
+  const n = Number(v);
+  return v !== null && Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/** Settings saved before per-kind switches had `autoVoice` and `autoSince` (voice messages): read as voice's. */
 export function normalizeTranscriptionSettings(v: unknown): TranscriptionSettings {
   const src = isObj(v) ? v : {};
-  const since = Number(src['autoSince']);
+  const auto = isObj(src['auto']) ? src['auto'] : { voice: src['autoVoice'] };
+  const since = isObj(src['since']) ? src['since'] : { voice: src['autoSince'] };
+  const d = DEFAULT_TRANSCRIPTION_SETTINGS;
   return {
-    autoVoice: bool(src['autoVoice'], DEFAULT_TRANSCRIPTION_SETTINGS.autoVoice),
-    autoSince: src['autoSince'] !== null && Number.isFinite(since) && since > 0 ? since : null,
+    auto: Object.fromEntries(AUTO_KINDS.map((k) => [k, bool(auto[k], d.auto[k])])) as Record<AutoKind, boolean>,
+    since: Object.fromEntries(AUTO_KINDS.map((k) => [k, stamp(since[k])])) as Record<AutoKind, number | null>,
     model: textOrNull(src['model'], false),
   };
 }
@@ -79,13 +96,13 @@ export interface ArchiveTranscript {
   error: string | null;
 }
 
-/** Core asks main to download an attachment's audio to `path` (its file is not in the store); main answers with audioFetched. */
-export interface TranscriptAudioRequest {
+/**
+ * Core asks main to download a job's media to `path`: an attachment whose file is not in the store, or an embed's video
+ * (Discord's media proxy). Main answers with audioFetched.
+ */
+export type TranscriptMediaRequest = {
   /** Names this download in main's answer, so a report from an earlier request or core run is told apart. */
   requestId: number;
-  attachmentId: string;
-  messageId: string;
-  channelId: string;
   url: string;
   path: string;
-}
+} & ({ kind: 'attachment'; attachmentId: string; messageId: string; channelId: string } | { kind: 'embed' });

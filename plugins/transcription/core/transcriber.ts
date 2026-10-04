@@ -1,12 +1,14 @@
-// Runs queued transcripts one at a time (whisper uses the whole GPU or every core), fetching pruned audio through main.
+// Runs queued transcripts one at a time (whisper uses the whole GPU or every core), fetching media through main: pruned
+// attachments, and embeds' videos.
 import { existsSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { errorMessage, MS_PER_HOUR, MS_PER_MIN } from '@plugin-sdk/shared';
-import { type PluginDb, type ArchivePayloadReader, SerialLoop, storedAttachmentPath } from '@plugin-sdk/core';
+import { type PluginDb, SerialLoop, storedAttachmentPath } from '@plugin-sdk/core';
 import { AUDIO_FETCHES_MAX } from '../shared';
-import type { TranscriptAudioRequest, TranscriptState, TranscriptionSettings } from '../shared/types';
-import { PRIORITY, audioAttachment, audioOfMessage, enqueue, fail, finish, jobState, messageOf, nextJob, resetInterrupted, setState, type AudioAttachment, type TranscriptJob } from './store';
+import { AUTO_KINDS, type TranscriptMediaRequest, type TranscriptState, type TranscriptionSettings } from '../shared/types';
+import { mediaSources, type MediaSource, type TranscriptionArchive } from './sources';
+import { PRIORITY, attachmentMessage, enqueue, fail, finish, jobOf, nextJob, resetInterrupted, setState, transcriptKey, type TranscriptJob } from './store';
 import type { Toolchain, ToolPaths } from './toolchain';
 import { transcribe } from './whisper';
 
@@ -14,24 +16,28 @@ import { transcribe } from './whisper';
 const JOB_TIMEOUT_MS = MS_PER_HOUR;
 /**
  * How long main may take to report a download before its job fails, so one main never reports (it hung or crashed) can't
- * hold the job in 'fetching'. Assumption: an audio attachment (at most Discord's 500 MB upload) downloads well within
- * this on a slow link (about 4.5 Mbit/s).
+ * hold the job in 'fetching'. Assumption: an attachment or embed video (at most Discord's 500 MB upload) downloads well
+ * within this on a slow link (about 4.5 Mbit/s).
  */
 export const DOWNLOAD_REPORT_MAX_MS = 15 * MS_PER_MIN;
 const DOWNLOAD_LATE = `no download finished within ${DOWNLOAD_REPORT_MAX_MS / MS_PER_MIN} minutes`;
 export const NOT_SET_UP = 'Set up transcription first: Settings → Transcription.';
 /** Transcript states still heading for done or failed. */
 const ACTIVE_STATES: ReadonlySet<TranscriptState> = new Set(['queued', 'fetching', 'running']);
-/** attachments.status before the file is downloaded. */
+/** attachments.status before the file is downloaded, and once it is. */
 const DOWNLOAD_PENDING = 'pending';
+const DOWNLOAD_STORED = 'stored';
 
 /**
  * A transcript job ended. `requestedAt`: when it was queued, i.e. when its audio reached ChattyPop; `seq`: its job's
  * place in the queue's history.
  */
 export type TranscriptSettled =
-  /** `record`: stores the job's result; runs in the same transaction as the host storing the text. */
-  | { messageId: string; ok: true; attachmentId: string; seq: number; text: string; requestedAt: number; record: () => void }
+  /**
+   * `key`: the transcript's derived text key (transcriptKey); `part`: the part key it is of. `record`: stores the job's
+   * result; runs in the same transaction as the host storing the text.
+   */
+  | { messageId: string; ok: true; key: string; part: string; seq: number; text: string; requestedAt: number; record: () => void }
   | { messageId: string; ok: false };
 
 /** Where a download report writes: its finalizer's grant, or the running activation's own services. */
@@ -45,8 +51,8 @@ export interface FetchBookkeeping {
 export interface TranscriberEvents {
   /** A transcript of the message changed state (its attachment note). */
   changed(messageId: string): void;
-  /** Main is to download audio the store no longer holds; it answers with audioFetched. */
-  fetchAudio(request: TranscriptAudioRequest): void;
+  /** Main is to download a job's media; it answers with audioFetched. */
+  fetchAudio(request: TranscriptMediaRequest): void;
   /** A transcript finished (`ok`: its message's text changed) or failed. */
   settled(s: TranscriptSettled): void;
 }
@@ -60,7 +66,7 @@ export interface TranscriptionSession {
    * Downloads asked of main and not reported, by request id (their audioFetched key): at most AUDIO_FETCHES_MAX, one per
    * job in the fetching state. Each fails at its deadline as if main reported DOWNLOAD_LATE.
    */
-  readonly fetches: Map<number, { attachmentId: string; deadline: NodeJS.Timeout }>;
+  readonly fetches: Map<number, { seq: number; deadline: NodeJS.Timeout }>;
   lastRequestId: number;
   /** The latest activation's transcriber: a download past its deadline is failed through it while it runs. */
   latest: Transcriber | null;
@@ -88,11 +94,11 @@ export class Transcriber {
 
   constructor(
     private readonly db: PluginDb,
-    private readonly payloads: ArchivePayloadReader,
+    private readonly archive: TranscriptionArchive,
     private readonly toolchain: Toolchain,
     private readonly settings: () => TranscriptionSettings,
     private readonly attachmentsDir: string,
-    /** Scratch space: audio fetched again for pruned files, and per-job WAV/JSON. */
+    /** Scratch space: media main fetched, and per-job WAV/JSON. */
     private readonly workDir: string,
     private readonly events: TranscriberEvents,
     private readonly runJob: typeof transcribe = transcribe,
@@ -102,43 +108,61 @@ export class Transcriber {
     private readonly reports: DownloadReports = { dispatch: (_, send) => (send(), true), withdraw: () => undefined },
   ) {
     this.signal = lifetime ? AbortSignal.any([this.stop.signal, lifetime]) : this.stop.signal;
-    resetInterrupted(db, [...session.fetches.values()].map((f) => f.attachmentId));
+    resetInterrupted(db, [...session.fetches.values()].map((f) => f.seq));
     session.latest = this;
   }
 
-  /** An attachment was stored: a new voice message is queued when automatic transcription is on and set up. */
+  /** An attachment was stored: queues what automatic transcription covers of its message. */
   attachmentStored(attachmentId: string): void {
-    const audio = audioAttachment(this.db, this.payloads, attachmentId);
-    if (!audio || !this.autoCovers(audio)) return;
-    if (enqueue(this.db, attachmentId, PRIORITY.automatic, Date.now())) this.changed(audio.messageId);
-    this.kick();
+    const messageId = attachmentMessage(this.db, attachmentId);
+    if (messageId && this.queueAutomatic(messageId)) this.kick();
   }
 
-  /** A transcript of the message is queued or running, or will be queued once its voice message's audio is stored. */
+  /** A message was stored or updated (embeds arrive by edit). Runs inside ingest: only queues; the queue runs after. */
+  shown(messageId: string): void {
+    if (this.queueAutomatic(messageId)) setImmediate(() => this.kick());
+  }
+
+  /** Queues the message's parts automatic transcription covers and that can run now; returns whether any was queued. */
+  private queueAutomatic(messageId: string): boolean {
+    const auto = this.settings().auto;
+    if (!AUTO_KINDS.some((k) => auto[k])) return false; // every message stored runs this: skip reading its parts
+    const due =this.sources(messageId).filter((s) => s.transcript === null && this.autoCovers(s) && (s.download === null || s.download === DOWNLOAD_STORED));
+    const queued = due.filter((s) => enqueue(this.db, s, PRIORITY.automatic, Date.now())).length > 0;
+    if (queued) this.changed(messageId);
+    return queued;
+  }
+
+  /** A transcript of the message is queued or running, or will be queued once an attachment's file is stored. */
   due(messageId: string): boolean {
-    return audioOfMessage(this.db, this.payloads, messageId).some(
-      (a) => (a.transcript !== null && ACTIVE_STATES.has(a.transcript)) || (a.transcript === null && a.status === DOWNLOAD_PENDING && this.autoCovers(a)),
+    return this.sources(messageId).some(
+      (s) => (s.transcript !== null && ACTIVE_STATES.has(s.transcript)) || (s.transcript === null && s.download === DOWNLOAD_PENDING && this.autoCovers(s)),
     );
   }
 
-  /** Automatic transcription is on, set up, and covers this voice message. */
-  private autoCovers(audio: AudioAttachment): boolean {
-    const s = this.settings();
-    return s.autoVoice && s.autoSince !== null && audio.voice && audio.ts >= s.autoSince && !!this.toolchain.ready(s.model);
+  private sources(messageId: string): MediaSource[] {
+    return mediaSources(this.db, this.archive, [messageId]);
   }
 
-  /** The owner asked for a transcript (any audio attachment, however old). */
-  request(attachmentId: string): void {
+  /** Automatic transcription is set up and covers this part: its kind is on, and it was sent since. */
+  private autoCovers(s: MediaSource): boolean {
+    const settings = this.settings();
+    const since = settings.since[s.auto];
+    return settings.auto[s.auto] && since !== null && s.ts >= since && !!this.toolchain.ready(settings.model);
+  }
+
+  /** The owner asked for transcripts of the message's audio and video (`part`, or each one; however old). */
+  request(messageId: string, part: string | null): void {
     if (!this.toolchain.ready(this.settings().model)) throw new Error(NOT_SET_UP);
-    const audio = audioAttachment(this.db, this.payloads, attachmentId);
-    if (!audio) throw new Error('Only audio attachments can be transcribed.');
-    if (enqueue(this.db, attachmentId, PRIORITY.requested, Date.now())) this.changed(audio.messageId);
+    const sources = this.sources(messageId).filter((s) => part === null || s.partKey === part);
+    if (!sources.length) throw new Error(part === null ? 'This message has no audio or video.' : 'Not audio or video of this message.');
+    if (sources.filter((s) => enqueue(this.db, s, PRIORITY.requested, Date.now())).length) this.changed(messageId);
     this.kick();
   }
 
-  /** Where main writes audio fetched again for a job whose file isn't in the store. */
-  fetchedPath(attachmentId: string): string {
-    return join(this.workDir, `${attachmentId}.audio`);
+  /** Where main writes a job's media when its file isn't in the store. */
+  fetchedPath(seq: number): string {
+    return join(this.workDir, `${seq}.media`);
   }
 
   /**
@@ -152,11 +176,12 @@ export class Transcriber {
     clearTimeout(asked.deadline);
     this.session.fetches.delete(requestId);
     this.reports.withdraw(requestId); // a report after its deadline counts for nothing (reported: already gone)
-    const { attachmentId } = asked;
-    const messageId = messageOf(done.db, attachmentId);
-    if (!messageId || jobState(done.db, attachmentId) !== 'fetching') return;
-    if (error) fail(done.db, attachmentId, `The audio could not be downloaded again: ${error}`);
-    else setState(done.db, attachmentId, 'queued');
+    const { seq } = asked;
+    const job = jobOf(done.db, seq);
+    if (job?.state !== 'fetching') return;
+    const { messageId } = job;
+    if (error) fail(done.db, seq, `It could not be downloaded: ${error}`);
+    else setState(done.db, seq, 'queued');
     this.changed(messageId);
     if (error) done.failed(messageId);
     this.kick();
@@ -196,39 +221,43 @@ export class Transcriber {
     }
   }
 
-  /** Runs `job`, or asks main for its audio; false when that would pass AUDIO_FETCHES_MAX, leaving it queued. */
+  /** Runs `job`, or asks main for its media; false when that would pass AUDIO_FETCHES_MAX, leaving it queued. */
   private async run(job: TranscriptJob, ready: { tools: ToolPaths; model: string; id: string }): Promise<boolean> {
-    const stored = job.sha256 ? storedAttachmentPath(this.attachmentsDir, job.sha256, job.filename) : null;
-    const fetched = this.fetchedPath(job.attachmentId);
+    const stored = job.sha256 && job.filename ? storedAttachmentPath(this.attachmentsDir, job.sha256, job.filename) : null;
+    const fetched = this.fetchedPath(job.seq);
     const input = stored && existsSync(stored) ? stored : existsSync(fetched) ? fetched : null;
     if (!input) {
       if (this.session.fetches.size >= AUDIO_FETCHES_MAX) return false;
-      // Pruned, failed or not yet downloaded: main fetches it through the Discord session; the store's cap is left alone.
+      // An embed's video, or an attachment pruned, failed or not yet downloaded: main fetches it through the Discord
+      // session; the store's cap is left alone.
       await mkdir(this.workDir, { recursive: true });
       if (this.signal.aborted) return true; // a later activation owns the job now
       const requestId = ++this.session.lastRequestId;
       const asked = this.reports.dispatch(requestId, () => {
-        setState(this.db, job.attachmentId, 'fetching');
+        setState(this.db, job.seq, 'fetching');
         // Unreported by then: failed through the activation running at that time.
         const deadline = setTimeout(() => (this.session.latest ?? this).fetchLate(requestId), DOWNLOAD_REPORT_MAX_MS).unref(); // never holds core open
-        this.session.fetches.set(requestId, { attachmentId: job.attachmentId, deadline });
-        this.events.fetchAudio({ requestId, attachmentId: job.attachmentId, messageId: job.messageId, channelId: job.channelId, url: job.url, path: fetched });
+        this.session.fetches.set(requestId, { seq: job.seq, deadline });
+        const at = { requestId, url: job.url, path: fetched };
+        this.events.fetchAudio(
+          job.attachmentId ? { ...at, kind: 'attachment', attachmentId: job.attachmentId, messageId: job.messageId, channelId: job.channelId } : { ...at, kind: 'embed' },
+        );
       });
       if (!asked) return false; // the report's max are out: waits for one, as at AUDIO_FETCHES_MAX
       this.changed(job.messageId);
       return true;
     }
-    setState(this.db, job.attachmentId, 'running');
+    setState(this.db, job.seq, 'running');
     this.changed(job.messageId);
     try {
       await mkdir(this.workDir, { recursive: true });
       this.signal.throwIfAborted();
       const r = await this.runJob(ready.tools, ready.model, input, this.workDir, AbortSignal.any([AbortSignal.timeout(JOB_TIMEOUT_MS), this.signal]));
-      const record = (): void => finish(this.db, job.attachmentId, r, ready.id, Date.now());
-      this.events.settled({ messageId: job.messageId, ok: true, attachmentId: job.attachmentId, seq: job.seq, text: r.text, requestedAt: job.requestedAt, record });
+      const record = (): void => finish(this.db, job.seq, r, ready.id, Date.now());
+      this.events.settled({ messageId: job.messageId, ok: true, key: transcriptKey(job), part: job.partKey, seq: job.seq, text: r.text, requestedAt: job.requestedAt, record });
     } catch (err) {
       if (this.signal.aborted) return true; // turned off: left running, queued again on the next start
-      fail(this.db, job.attachmentId, errorMessage(err));
+      fail(this.db, job.seq, errorMessage(err));
       this.events.settled({ messageId: job.messageId, ok: false });
     } finally {
       // Turned off: fetched audio stays for the next activation's run of the job.

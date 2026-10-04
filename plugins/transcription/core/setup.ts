@@ -1,9 +1,10 @@
 // Transcription in core: the toolchain, the queue, their settings and the calls Settings, the message menu and main make.
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PluginDb, PluginFetch, ArchivePayloadReader } from '@plugin-sdk/core';
+import type { PluginDb, PluginFetch } from '@plugin-sdk/core';
 import type { TranscriptionCoreCalls } from '../shared';
-import type { TranscriptionSettings, TranscriptionStatus } from '../shared/types';
+import { AUTO_KINDS, type TranscriptionSettings, type TranscriptionStatus } from '../shared/types';
+import type { TranscriptionArchive } from './sources';
 import { Toolchain } from './toolchain';
 import { Transcriber, type DownloadReports, type FetchBookkeeping, type TranscriberEvents, type TranscriptionSession } from './transcriber';
 
@@ -17,7 +18,9 @@ export interface Transcription {
   audioFetched(requestId: number, error: string | null, done: FetchBookkeeping): void;
   /** An attachment reached the store. */
   attachmentStored(attachmentId: string): void;
-  /** A transcript of the message is queued or running, or will be once its voice message's audio is stored. */
+  /** A message was stored or updated (archive.parts.onShown); runs inside ingest. */
+  shown(messageId: string): void;
+  /** A transcript of the message is queued or running, or will be once an attachment's file is stored. */
   due(messageId: string): boolean;
   /** Settings → Transcription was saved. */
   settingChanged(): void;
@@ -27,7 +30,7 @@ export interface Transcription {
 
 export function setupTranscription(o: {
   db: PluginDb;
-  payloads: ArchivePayloadReader;
+  archive: TranscriptionArchive;
   /** Programs, models and scratch files (the plugin's data folder). */
   toolsDir: string;
   /** Downloads programs and models (the context's net.fetch). */
@@ -46,13 +49,15 @@ export function setupTranscription(o: {
 }): Transcription {
   const settings = (): TranscriptionSettings => o.settings.get();
   /**
-   * Automatic transcription covers voice messages sent from when it was turned on, not the history before. Returns
-   * whether it saved the stamp (a save of its own, which settingChanged hears).
+   * Automatic transcription covers each kind sent from when it was turned on, not the history before. Returns whether
+   * it saved a stamp (a save of its own, which settingChanged hears).
    */
   const stampAutoSince = (): boolean => {
     const s = settings();
-    if (!s.autoVoice || s.autoSince !== null) return false;
-    o.settings.set({ ...s, autoSince: Date.now() });
+    const unstamped = AUTO_KINDS.filter((k) => s.auto[k] && s.since[k] === null);
+    if (!unstamped.length) return false;
+    const now = Date.now();
+    o.settings.set({ ...s, since: { ...s.since, ...Object.fromEntries(unstamped.map((k) => [k, now])) } });
     return true;
   };
   const workDir = join(o.toolsDir, WORK_DIR);
@@ -76,7 +81,7 @@ export function setupTranscription(o: {
     o.fetch,
     o.session.installs,
   );
-  const transcriber = new Transcriber(o.db, o.payloads, toolchain, settings, o.attachmentsDir, workDir, o.events, undefined, o.session, o.lifetime, o.reports);
+  const transcriber = new Transcriber(o.db, o.archive, toolchain, settings, o.attachmentsDir, workDir, o.events, undefined, o.session, o.lifetime, o.reports);
   stampAutoSince();
   transcriber.kick(); // jobs a quit interrupted
   return {
@@ -89,10 +94,15 @@ export function setupTranscription(o: {
       },
       cancel: (id) => toolchain.cancel(id),
       deleteModel: (id) => toolchain.deleteModel(id),
-      request: (attachmentId) => transcriber.request(attachmentId),
+      // Checked: a renderer's arguments reach core as sent.
+      request: (messageId, part) => {
+        if (typeof messageId !== 'string' || (part !== null && typeof part !== 'string')) throw new Error('Not a message part to transcribe.');
+        transcriber.request(messageId, part);
+      },
     },
     audioFetched: (requestId, error, done) => transcriber.audioFetched(requestId, error, done),
     attachmentStored: (id) => transcriber.attachmentStored(id),
+    shown: (messageId) => transcriber.shown(messageId),
     due: (messageId) => transcriber.due(messageId),
     settingChanged: () => {
       if (stampAutoSince()) return; // the stamp's own save runs the rest

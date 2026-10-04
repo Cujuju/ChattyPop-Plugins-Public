@@ -1,6 +1,6 @@
 // Settings → Transcription and transcripts in the Archive: the toolchain status core pushes, and the owner's requests.
 import { STATUS_EVENT, plugin } from '../shared';
-import type { ToolBuild, TranscriptionStatus } from '../shared/types';
+import type { AutoKind, ToolBuild, TranscriptionStatus } from '../shared/types';
 import { desktopCoreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 
 /** Installing and requesting: Settings → Transcription's and the attachment menu's calls, served to desktop windows only. */
@@ -21,9 +21,11 @@ export const transcriptionReady = (): boolean => transcriptionStatus()?.ready ??
 export const installTranscriptionItem = (id: string, build: ToolBuild | null = null): Promise<void> => desktop.install(id, build);
 export const cancelTranscriptionItem = (id: string): Promise<void> => desktop.cancel(id);
 export const deleteTranscriptionModel = (id: string): Promise<void> => desktop.deleteModel(id);
-export const requestTranscript = (attachmentId: string): Promise<void> => desktop.request(attachmentId);
+/** Every audio and video part of the message not transcribed or in progress. */
+export const requestTranscripts = (messageId: string): Promise<void> => desktop.request(messageId, null);
 
-/** Turning automatic transcription on starts from now: core stamps the time when `autoSince` is empty. */
-export function setAutoVoice(on: boolean): void {
-  patchTranscriptionSettings({ autoVoice: on, autoSince: null });
+/** Turning a kind's automatic transcription on starts from now: core stamps the time when its `since` is empty. */
+export function setAuto(kind: AutoKind, on: boolean): void {
+  const s = transcriptionSettings();
+  patchTranscriptionSettings({ auto: { ...s.auto, [kind]: on }, since: { ...s.since, [kind]: null } });
 }

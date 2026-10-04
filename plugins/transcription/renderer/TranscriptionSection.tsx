@@ -1,12 +1,12 @@
 import { For, Show, type JSX } from 'solid-js';
-import type { InstallItem, ModelScore, ToolBuild } from '../shared/types';
+import { AUTO_KINDS, type AutoKind, type InstallItem, type ModelScore, type ToolBuild } from '../shared/types';
 import {
   cancelTranscriptionItem,
   deleteTranscriptionModel,
   installTranscriptionItem,
   recheckTranscription,
   patchTranscriptionSettings,
-  setAutoVoice,
+  setAuto,
   transcriptionSettings,
   transcriptionStatus,
 } from './state';
@@ -26,6 +26,14 @@ import {
 import styles from './Transcription.module.css';
 
 const BUILD_LABEL: Record<ToolBuild, string> = { gpu: 'GPU build', cpu: 'CPU build' };
+
+/** Overview's automatic switches: each kind's label and what it covers. */
+const AUTO_ROWS: Record<AutoKind, { label: string; hint: string }> = {
+  voice: { label: 'Voice messages', hint: "Discord's recorded voice messages." },
+  audio: { label: 'Audio files', hint: 'Other sound files posted as attachments.' },
+  video: { label: 'Video files', hint: 'Videos posted as attachments; their sound is transcribed.' },
+  embedVideo: { label: 'Videos in link previews', hint: "A linked post's video, fetched through Discord." },
+};
 
 /** A model's measured accuracy, and its speed on the whisper.cpp build in use. */
 function scoreText(s: ModelScore, build: ToolBuild): string {
@@ -63,9 +71,9 @@ export function TranscriptionSection() {
     <SectionsPage
       id="transcription"
       title="Transcription"
-      lede="Voice messages are turned into text on this computer (whisper.cpp), so they show up in search, rules and summaries. Audio never leaves your machine."
+      lede="Voice messages, audio and video are turned into text on this computer (whisper.cpp), so they show up in search, rules and summaries. Their sound never leaves your machine."
       sections={[
-        { id: 'overview', label: 'Overview', meta: () => `${status()?.ready ? 'Ready' : 'Not set up'} · ${transcriptionSettings().autoVoice ? 'automatic' : 'on request'}`, body: OverviewBody },
+        { id: 'overview', label: 'Overview', meta: () => `${status()?.ready ? 'Ready' : 'Not set up'} · ${AUTO_KINDS.some((k) => transcriptionSettings().auto[k]) ? 'automatic' : 'on request'}`, body: OverviewBody },
         { id: 'programs', label: 'Programs', meta: () => readyCount(status()?.tools), body: ProgramsBody },
         { id: 'models', label: 'Models', meta: () => `Using ${modelLabel()}`, body: ModelsBody },
       ]}
@@ -79,13 +87,20 @@ function OverviewBody() {
     <>
       <Card>
         <Row label="Status" hint={status()?.ready ? 'Ready.' : 'Not set up: install both programs and a model, then pick the model to use.'} />
-        <Row
-          label="Transcribe new voice messages automatically"
-          for="transcribe-auto"
-          hint="Older voice messages: right-click one in the Archive → Transcribe."
-          control={<Switch id="transcribe-auto" checked={transcriptionSettings().autoVoice} onChange={setAutoVoice} />}
-        />
       </Card>
+      <Card title="Transcribe new ones automatically">
+        <For each={AUTO_KINDS}>
+          {(kind) => (
+            <Row
+              label={AUTO_ROWS[kind].label}
+              for={`transcribe-auto-${kind}`}
+              hint={AUTO_ROWS[kind].hint}
+              control={<Switch id={`transcribe-auto-${kind}`} checked={transcriptionSettings().auto[kind]} onChange={(on) => setAuto(kind, on)} />}
+            />
+          )}
+        </For>
+      </Card>
+      <Note>Anything older, or switched off here: right-click its message in the Archive → Transcribe.</Note>
       <Note>
         The only network use is downloading the programs and models, from GitHub and Hugging Face, each checked against a pinned checksum.
       </Note>

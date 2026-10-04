@@ -7,12 +7,14 @@ import { attachmentFileName } from '@shared/media';
 import { VOICE_MESSAGE_FLAG } from '@shared/discord';
 import { MS_PER_MIN } from '@shared/units';
 import type { Archive } from '@core/archive';
-import { registerAttachmentNotes } from '@core/attachmentNotes';
+import { registerPartNotes } from '@core/attachmentNotes';
 import { ARRIVAL, type Arrival } from '@core/arrival';
 import type { Db } from '@core/db';
 import { storeDerivedText } from '@core/derivedText';
 import { attachmentStored } from '@core/mediaQueue';
+import { messageParts, partKey } from '@core/messageParts';
 import { adoptBundledData } from '@core/plugins/adoption';
+import { migratePlugin } from '@core/plugins/api';
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { messagePage } from '@core/queries/messages';
 import { addedTextArrival, textMessage } from '@core/queries/messageText';
@@ -20,9 +22,9 @@ import { searchMessages } from '@core/queries/search';
 import type { RuleMatcher } from '@core/rules/matcher';
 import type { RuleService } from '@core/rules/ruleService';
 import { fakeModel, fakeTool, hostRuleStack, nextTs, rawMessage, ruleInput, runsOf, seedArchive, tempDb, tempDir } from '@chattypop/host-testing';
-import type { TranscriptAudioRequest, TranscriptionSettings } from '../shared/types';
+import { DEFAULT_TRANSCRIPTION_SETTINGS, type TranscriptMediaRequest, type TranscriptionSettings } from '../shared/types';
 import transcriptionShared from '../shared';
-import { JOBS_TABLE } from '../core/schema';
+import { JOBS_TABLE, TRANSCRIPTION_MIGRATIONS } from '../core/schema';
 import { transcriptNotes } from '../core/store';
 import { Toolchain } from '../core/toolchain';
 import { Transcriber, type TranscriberEvents, type TranscriptSettled } from '../core/transcriber';
@@ -36,7 +38,7 @@ let archive: Archive;
 let watcher: RuleMatcher;
 let events: AppEvent[];
 /** fetchAudio requests the transcriber sent main, and messages whose notes changed. */
-let fetches: TranscriptAudioRequest[];
+let fetches: TranscriptMediaRequest[];
 let notesChanged: string[];
 let settings: TranscriptionSettings;
 let spoken: Map<string, string>;
@@ -66,12 +68,14 @@ function installFakes(toolsDir: string): void {
 beforeEach(() => {
   db = tempDb();
   adoptBundledData(db, [transcriptionShared]);
-  registerAttachmentNotes('transcription', 0, (ids) => transcriptNotes(db, ids));
+  migratePlugin(db, 'transcription', TRANSCRIPTION_MIGRATIONS);
+  registerPartNotes('transcription', 0, (ids) => transcriptNotes(db, ids));
   events = [];
   fetches = [];
   notesChanged = [];
   spoken = new Map();
-  settings = { autoVoice: true, autoSince: Date.now() - MS_PER_MIN, model: MODEL };
+  const d = DEFAULT_TRANSCRIPTION_SETTINGS;
+  settings = { ...d, since: { ...d.since, voice: Date.now() - MS_PER_MIN }, model: MODEL };
   const emit = (e: AppEvent): void => void events.push(e);
   // As core wires it: every message text through the host's rules.
   ({ matcher: watcher, rules } = hostRuleStack(db, emit, () => null));
@@ -87,18 +91,21 @@ beforeEach(() => {
   // As the plugin and host wire it: a finished transcript is derived text for its message (an edit to the rules).
   const settled = (s: TranscriptSettled): void => {
     if (!s.ok) return;
-    storeDerivedText(db, s.messageId, `transcription:${s.attachmentId}`, s.seq, s.text, s.record);
+    storeDerivedText(db, s.messageId, `transcription:${s.key}`, s.seq, s.text, s.record, s.part);
     const m = textMessage(db, s.messageId);
     if (m) watcher.check(m, addedTextArrival(db, s.messageId, s.requestedAt));
   };
   io = {
     changed: (id: string) => void notesChanged.push(id),
-    fetchAudio: (r: TranscriptAudioRequest) => void fetches.push(r),
+    fetchAudio: (r: TranscriptMediaRequest) => void fetches.push(r),
     settled,
   };
   workDir = join(toolsDir, 'work');
-  transcriber = new Transcriber(db, (ids) => archivePayloads(db, ids), toolchain, () => settings, attachmentsDir, workDir, io, fakeRun);
+  transcriber = new Transcriber(db, reads(), toolchain, () => settings, attachmentsDir, workDir, io, fakeRun);
 });
+
+/** The archive reads, as core passes them. */
+const reads = () => ({ payloads: (ids: readonly string[]) => archivePayloads(db, ids), parts: (ids: readonly string[]) => messageParts(db, ids) });
 
 /** A fake content hash, distinct per message. */
 const sha = (messageId: string): string => (SHA + messageId).slice(-64);
@@ -150,7 +157,7 @@ describe('automatic transcription', () => {
 
   it('skips audio that is not a voice message, and voice messages sent before it was turned on', async () => {
     const plain = voiceMessage('song', { voice: false });
-    const old = voiceMessage('old news', { ts: settings.autoSince! - 1 });
+    const old = voiceMessage('old news', { ts: settings.since.voice! - 1 });
     transcriber.attachmentStored(plain.attachmentId);
     transcriber.attachmentStored(old.attachmentId);
     await settle();
@@ -172,14 +179,14 @@ describe('automatic transcription', () => {
       started++;
       return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
     };
-    const off = new Transcriber(db, (ids) => archivePayloads(db, ids), toolchain, () => settings, attachmentsDir, workDir, io, hang);
+    const off = new Transcriber(db, reads(), toolchain, () => settings, attachmentsDir, workDir, io, hang);
     off.attachmentStored(attachmentId);
     await vi.waitFor(() => expect(started).toBe(1));
     off.dispose();
     await vi.waitFor(() => expect(off.busy).toBe(false));
     expect(transcript(attachmentId)?.state).toBe('running'); // left for the next start
     expect(textMessage(db, messageId)?.content).not.toContain('hello');
-    const on = new Transcriber(db, (ids) => archivePayloads(db, ids), toolchain, () => settings, attachmentsDir, workDir, io, fakeRun);
+    const on = new Transcriber(db, reads(), toolchain, () => settings, attachmentsDir, workDir, io, fakeRun);
     on.kick();
     await vi.waitFor(() => expect(on.busy).toBe(false));
     expect(transcript(attachmentId)).toMatchObject({ state: 'done', text: 'hello' });
@@ -187,7 +194,7 @@ describe('automatic transcription', () => {
   });
 
   it('does nothing when switched off', async () => {
-    settings = { ...settings, autoVoice: false };
+    settings = { ...settings, auto: { ...settings.auto, voice: false } };
     const { attachmentId } = voiceMessage('hi');
     transcriber.attachmentStored(attachmentId);
     await settle();
@@ -199,20 +206,20 @@ describe('requested transcription', () => {
   it('transcribes any audio attachment, however old, and records a failure', async () => {
     const old = voiceMessage('from last year', { ts: Date.UTC(2025, 0, 1) });
     const broken = voiceMessage(null);
-    transcriber.request(old.attachmentId);
-    transcriber.request(broken.attachmentId);
+    transcriber.request(old.messageId, null);
+    transcriber.request(broken.messageId, partKey.attachment(broken.attachmentId));
     await settle();
     expect(transcript(old.attachmentId)).toMatchObject({ state: 'done', text: 'from last year', priority: 1 });
     expect(transcript(broken.attachmentId)).toMatchObject({ state: 'failed', error: 'whisper-cli failed: bad audio' });
   });
 
   it('asks main for audio the store no longer holds, then transcribes what it fetched', async () => {
-    const { attachmentId } = voiceMessage(null, { ts: Date.UTC(2025, 0, 1), store: false });
-    transcriber.request(attachmentId);
+    const { attachmentId, messageId } = voiceMessage(null, { ts: Date.UTC(2025, 0, 1), store: false });
+    transcriber.request(messageId, null);
     await settle();
     expect(transcript(attachmentId)?.state).toBe('fetching');
     const ask = fetches[0];
-    expect(ask).toMatchObject({ attachmentId, url: `https://cdn.example/${attachmentId}` });
+    expect(ask).toMatchObject({ kind: 'attachment', attachmentId, url: `https://cdn.example/${attachmentId}` });
     mkdirSync(join(ask!.path, '..'), { recursive: true });
     writeFileSync(ask!.path, '');
     spoken.set(ask!.path, 'fetched again');
@@ -221,18 +228,19 @@ describe('requested transcription', () => {
     expect(transcript(attachmentId)).toMatchObject({ state: 'done', text: 'fetched again' });
   });
 
-  it('refuses before setup, and only audio', () => {
-    const { attachmentId } = voiceMessage('x');
-    expect(() => transcriber.request('missing')).toThrow('Only audio');
+  it('refuses before setup, and only audio or video', () => {
+    const { messageId } = voiceMessage('x');
+    expect(() => transcriber.request('missing', null)).toThrow('no audio or video');
+    expect(() => transcriber.request(messageId, partKey.attachment('other'))).toThrow('Not audio or video');
     settings = { ...settings, model: null };
-    expect(() => transcriber.request(attachmentId)).toThrow('Set up transcription');
+    expect(() => transcriber.request(messageId, null)).toThrow('Set up transcription');
   });
 });
 
 describe('transcripts reach search, rules and the Archive', () => {
   it('search finds spoken words, listing a message once', async () => {
-    const { attachmentId, messageId } = voiceMessage('meet at the lighthouse', { content: 'lighthouse plans' });
-    transcriber.request(attachmentId);
+    const { messageId } = voiceMessage('meet at the lighthouse', { content: 'lighthouse plans' });
+    transcriber.request(messageId, null);
     await settle();
     const hits = searchMessages(db, 'lighthouse', 10);
     expect(hits.map((h) => h.messageId)).toEqual([messageId]);
@@ -249,8 +257,8 @@ describe('transcripts reach search, rules and the Archive', () => {
       });
     const id = rules.create(watchFor('boat'));
     // Sent after the rule was made, so the host fires it; an older message's history is the alerts plugin's.
-    const { attachmentId, messageId } = voiceMessage('the boat leaves at noon');
-    transcriber.request(attachmentId);
+    const { messageId } = voiceMessage('the boat leaves at noon');
+    transcriber.request(messageId, null);
     await settle();
     const matched = () => runsOf({ rules }, id).map(([m]) => m);
     expect(matched()).toEqual([messageId]);
@@ -260,13 +268,16 @@ describe('transcripts reach search, rules and the Archive', () => {
   });
 
   it('the Archive shows the transcript on its attachment', async () => {
-    const { attachmentId } = voiceMessage('see you soon');
-    transcriber.request(attachmentId);
+    const { attachmentId, messageId } = voiceMessage('see you soon');
+    transcriber.request(messageId, null);
     await settle();
     const [m] = messagePage(db, { channelId: 'c1', limit: 10 });
+    const part = partKey.attachment(attachmentId);
     expect(m?.attachments[0]?.notes).toEqual([
-      { pluginId: 'transcription', kind: 'transcript', state: 'done', label: 'audio transcription · en', text: 'see you soon' },
+      { pluginId: 'transcription', part, kind: 'transcript', state: 'done', label: 'audio transcription · en', text: 'see you soon' },
     ]);
+    // Keyed by attachment id, as before part jobs, and naming its part.
+    expect(db.prepare('SELECT source, part FROM derived_texts WHERE message_id = ?').all(messageId)).toEqual([{ source: `transcription:${attachmentId}`, part }]);
     expect(notesChanged).toContain(m?.id);
   });
 });

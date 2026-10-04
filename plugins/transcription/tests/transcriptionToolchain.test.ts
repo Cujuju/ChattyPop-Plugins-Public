@@ -1,13 +1,14 @@
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { IS_WINDOWS, exeName } from '@core/ai/resolveCli';
+import { IS_WINDOWS, exeName, findExecutable } from '@core/ai/resolveCli';
 import type { PluginFetch } from '@core/plugins/net';
 import { MODELS } from '../core/catalog';
 import { downloadVerified } from '../core/download';
 import { Toolchain } from '../core/toolchain';
-import { ffmpegArgs, parseWhisperJson, whisperArgs } from '../core/whisper';
+import { NO_SOUND, ffmpegArgs, parseWhisperJson, transcribe, whisperArgs } from '../core/whisper';
 import { fakeModel, fakeTool, tempDir } from '@chattypop/host-testing';
 
 const bytes = Buffer.from('model weights');
@@ -143,5 +144,30 @@ describe('whisper', () => {
         { fromMs: 3000, toMs: 4200, text: 'See you soon.' },
       ],
     });
+  });
+});
+
+/** ffmpeg on PATH, to check what the pinned build is asked to do on real files; skipped without one. */
+const FFMPEG = findExecutable('ffmpeg');
+
+describe.runIf(FFMPEG)('ffmpeg on videos', () => {
+  /** A one-second MP4 made by ffmpeg's own sources: a test picture, with a tone when `sound`. */
+  const video = (sound: boolean): string => {
+    const path = join(tempDir(), sound ? 'sound.mp4' : 'silent.mp4');
+    const tone = sound ? ['-f', 'lavfi', '-i', 'sine=duration=1', '-c:a', 'aac'] : [];
+    const made = spawnSync(FFMPEG!, ['-nostdin', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=duration=1:size=64x64:rate=10', ...tone, '-c:v', 'mpeg4', '-shortest', '-y', path]);
+    expect(made.status).toBe(0);
+    return path;
+  };
+
+  it("decodes a video's sound to WAV", () => {
+    const wav = join(tempDir(), 'out.wav');
+    expect(spawnSync(FFMPEG!, ffmpegArgs(video(true), wav)).status).toBe(0);
+    expect(existsSync(wav)).toBe(true);
+  });
+
+  it('fails a video without sound as no sound', async () => {
+    const tools = { ffmpeg: FFMPEG!, 'whisper-cli': 'never-run' };
+    await expect(transcribe(tools, 'model.bin', video(false), tempDir(), never)).rejects.toThrow(NO_SOUND);
   });
 });

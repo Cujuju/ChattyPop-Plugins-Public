@@ -9,6 +9,12 @@ import type { ToolPaths } from './toolchain';
 const WHISPER_SAMPLE_RATE = 16_000;
 /** The end of a program's error output kept for the failure message. */
 const STDERR_TAIL_CHARS = 2000;
+/** The input's first audio stream: a video's sound. */
+const AUDIO_STREAM = '0:a:0';
+/** ffmpeg's error when AUDIO_STREAM is absent (a video without sound), as ffmpeg 8.0 words it. */
+const NO_AUDIO_STREAM = /matches no streams/;
+/** A transcript's failure when its media has no sound to transcribe. */
+export const NO_SOUND = 'no sound';
 
 export interface TranscriptSegment {
   fromMs: number;
@@ -23,7 +29,7 @@ export interface TranscriptResult {
   segments: TranscriptSegment[];
 }
 
-/** Any input ffmpeg reads (Discord voice messages are Ogg Opus); video streams are dropped. */
+/** Any input ffmpeg reads (voice messages are Ogg Opus, videos MP4 or WebM): its first audio stream only. */
 export const ffmpegArgs = (input: string, wav: string): string[] => [
   '-nostdin',
   '-hide_banner',
@@ -31,7 +37,8 @@ export const ffmpegArgs = (input: string, wav: string): string[] => [
   'error',
   '-i',
   input,
-  '-vn',
+  '-map',
+  AUDIO_STREAM,
   '-ac',
   '1',
   '-ar',
@@ -73,11 +80,23 @@ export async function transcribe(tools: ToolPaths, model: string, input: string,
   try {
     const wav = join(dir, 'audio.wav');
     const out = join(dir, 'transcript');
-    await run(tools.ffmpeg, ffmpegArgs(input, wav), signal);
+    await run(tools.ffmpeg, ffmpegArgs(input, wav), signal).catch((err: unknown) => {
+      throw err instanceof ProgramFailed && NO_AUDIO_STREAM.test(err.stderr) ? new Error(NO_SOUND) : err;
+    });
     await run(tools['whisper-cli'], whisperArgs(model, wav, out), signal);
     return parseWhisperJson(await readFile(`${out}.json`, 'utf8'));
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/** A program exited with an error; `stderr`: the end of its error output. */
+class ProgramFailed extends Error {
+  constructor(
+    message: string,
+    readonly stderr: string,
+  ) {
+    super(message);
   }
 }
 
@@ -90,7 +109,7 @@ function run(command: string, args: string[], signal: AbortSignal): Promise<void
     child.on('close', (code) => {
       const last = stderr.trim().split(/\r?\n/).pop();
       if (code === 0) resolve();
-      else reject(new Error(`${basename(command)} failed: ${last || `exit code ${code}`}`));
+      else reject(new ProgramFailed(`${basename(command)} failed: ${last || `exit code ${code}`}`, stderr));
     });
   });
 }

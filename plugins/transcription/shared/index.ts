@@ -1,23 +1,25 @@
-// Transcription: voice messages and audio to text on this computer (whisper.cpp + ffmpeg). Transcripts are derived
+// Transcription: voice messages, audio and video to text on this computer (whisper.cpp + ffmpeg). Transcripts are derived
 // text: rules, Jev, summaries, search and Autopost's {transcript} read them.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { DEFAULT_TRANSCRIPTION_SETTINGS, normalizeTranscriptionSettings, type ToolBuild, type TranscriptAudioRequest, type TranscriptionStatus } from './types';
+import { DEFAULT_TRANSCRIPTION_SETTINGS, normalizeTranscriptionSettings, type ToolBuild, type TranscriptMediaRequest, type TranscriptionStatus } from './types';
 
 export const manifest = {
   id: 'transcription',
   name: 'Transcription',
   version: '1.0.1',
-  description: 'Turns voice messages and audio into text on this computer, for rules, Jev, summaries and search.',
+  description: 'Turns voice messages, audio and video into text on this computer, for rules, Jev, summaries and search.',
 };
 
 /** Settings tab id. */
 export const TRANSCRIPTION_TAB = 'transcription' as const;
 /** Plugin event: programs or models changed (a download started, progressed or ended); payload TranscriptionStatus. */
 export const STATUS_EVENT = 'status' as const;
-/** Core → main: download audio the store no longer holds (TranscriptAudioRequest); main answers with audioFetched. */
+/** Core → main: download a job's media (TranscriptMediaRequest); main answers with audioFetched. */
 export const FETCH_AUDIO = 'fetchAudio' as const;
 /** AttachmentNote.kind of a transcript. */
 export const TRANSCRIPT_NOTE = 'transcript';
+/** Embed types whose video has no sound (a GIF), as the host's messageParts leaves them out. */
+export const SILENT_EMBED_TYPES: ReadonlySet<string> = new Set(['gifv']);
 /**
  * Downloads main is asked for at once, and so the audioFetched report's bound; a job needing one more waits for a report.
  * Assumption: a few in parallel keep the queue moving past one slow download; more would share the link without
@@ -36,15 +38,18 @@ export interface TranscriptionCoreCalls {
   install(id: string, build: ToolBuild | null): void;
   cancel(id: string): void;
   deleteModel(id: string): Promise<void>;
-  /** Queues a transcript of an audio attachment ahead of automatic ones. Throws when transcription isn't set up. */
-  request(attachmentId: string): void;
+  /**
+   * Queues transcripts of the message's audio and video ahead of automatic ones: `part` (a part key, archive.parts), or
+   * every part not transcribed or in progress (null). Throws when transcription isn't set up or there is no such part.
+   */
+  request(messageId: string, part: string | null): void;
   /** Main's answer to FETCH_AUDIO `requestId`: the audio is at the requested path, or `error`. */
   audioFetched(requestId: number, error: string | null): void;
 }
 
 export interface TranscriptionEvents {
   [STATUS_EVENT]: TranscriptionStatus;
-  [FETCH_AUDIO]: TranscriptAudioRequest;
+  [FETCH_AUDIO]: TranscriptMediaRequest;
 }
 
 export const plugin = definePlugin({
@@ -63,7 +68,7 @@ export const plugin = definePlugin({
   }),
   settings: [
     // A microphone: its capsule (a rounded 6 × 11 rect at 9, 3), its stand's arc and foot.
-    { id: TRANSCRIPTION_TAB, label: 'Transcription', tab: { after: 'archive', iconPath: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3' } },
+    { id: TRANSCRIPTION_TAB, label: 'Transcription', tab: { after: 'translation', iconPath: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3' } },
   ],
   // Pinned programs and models (core/catalog.ts): Hugging Face and GitHub releases, and the CDNs they redirect to.
   network: { hosts: ['huggingface.co', 'hf.co', 'github.com', 'githubusercontent.com'] },
