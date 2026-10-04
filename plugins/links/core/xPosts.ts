@@ -1,7 +1,7 @@
 // Fetch and cache linked X posts, and supply their text to the archive.
 import { MS_PER_HOUR, mediaSize, type ArchiveEmbed } from '@plugin-sdk/shared';
 import { MEANING_LOOKBACK_MS, X_POST_URL_PREFIX, X_STATUS_PATH, type CoreContext, type LinkImage, type PluginDb, type TextMessage } from '@plugin-sdk/core';
-import type { LinkItem } from '../shared/types';
+import type { LinkCard } from '../shared/types';
 import { X_POSTS } from './tables';
 
 /** The context's fetch: HTTPS to the descriptor's network hosts only. */
@@ -166,8 +166,8 @@ export class XPosts {
   }
 
   /** Gives X links without a Discord preview their fetched post's card; queues posts not fetched yet. */
-  fill(items: LinkItem[]): LinkItem[] {
-    const ids = new Map<LinkItem, string>();
+  fill<T extends LinkCard>(items: T[]): T[] {
+    const ids = new Map<T, string>();
     for (const it of items) {
       const id = it.platform === 'x' && !it.embed ? statusId(it.url) : null;
       if (id) ids.set(it, id);

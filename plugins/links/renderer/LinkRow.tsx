@@ -1,7 +1,7 @@
-import { Show, type JSX } from 'solid-js';
+import { Show } from 'solid-js';
 import { MS_PER_DAY, PLATFORM_INFO } from '@plugin-sdk/shared';
 import { Embeds, MessageRow, clockTime, isMediaOnly, look, openArchive, shortDate } from '@plugin-sdk/renderer/kit';
-import { LINK_WORTH_LEVELS, type LinkItem } from '../shared/types';
+import { LINK_WORTH_LEVELS, type LinkCard, type LinkItem } from '../shared/types';
 import styles from './Links.module.css';
 
 /** Link embeds carry no user mentions to resolve. */
@@ -13,31 +13,26 @@ const when = (ts: number): string => (Date.now() - ts < MS_PER_DAY ? clockTime(t
 /** Display text when Discord didn't unfurl a title: host plus path. */
 const bareUrl = (url: string): string => url.replace(/^https?:\/\/(www\.)?/, '');
 
-/**
- * One shared link, drawn as the Archive draws the message that shared it: avatar with the platform badge under it,
- * name and time, then the message. The name line adds where it was shared (opens it in the Archive), and the date when the
- * list has no day headings (`dated`).
- */
-export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
-  const it = () => props.item;
-  /** The message draws its own embeds; the link's card is added only when it came from elsewhere (a later share, FxTwitter). */
-  const extraCard = () => {
-    const e = it().embed;
-    return e && !it().message?.embeds.some((m) => m.url === e.url) ? e : null;
-  };
-  const badge = () => (
+/** The link's platform, as the badge under the sharer's avatar. */
+function PlatformBadge(props: { item: LinkCard }) {
+  return (
     <span
       class={`${styles.badge} ${look.platformBadge} ${look.text}`}
       data-size="2xs"
       data-weight="semibold"
       data-tracking="label-sm"
       data-line="none"
-      title={PLATFORM_INFO[it().platform].label}
+      title={PLATFORM_INFO[props.item.platform].label}
     >
-      {PLATFORM_INFO[it().platform].badge}
+      {PLATFORM_INFO[props.item.platform].badge}
     </span>
   );
-  const judgment = () => (
+}
+
+/** Jev's reading of the link, when it has one. */
+function Judgment(props: { item: LinkCard }) {
+  const it = () => props.item;
+  return (
     <Show when={it().category || it().flagged || it().worth !== null}>
       <span
         class={look.text}
@@ -55,25 +50,38 @@ export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
       </span>
     </Show>
   );
-  const card = () => <Show when={extraCard()}>{(e) => <Embeds embeds={[e()]} mentions={NO_MENTIONS} />}</Show>;
-  const open = () => void openArchive(it().channelId, it().messageId);
+}
+
+/**
+ * One shared link, drawn as the Archive draws the message that shared it: avatar with the platform badge under it,
+ * name and time, then the message. The name line adds where it was shared (opens it in the Archive), and the date when the
+ * list has no day headings (`dated`).
+ */
+export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
+  const it = () => props.item;
+  /** The message draws its own embeds; the link's card is added only when it came from elsewhere (a later share, FxTwitter). */
+  const extraCard = () => {
+    const e = it().embed;
+    return e && !it().message?.embeds.some((m) => m.url === e.url) ? e : null;
+  };
   return (
     <div class={styles.share} data-platform={it().platform}>
-      <Show when={it().message} fallback={<Unarchived item={it()} badge={badge()} judgment={judgment()} card={card()} open={open} />}>
+      {/* The sharing message is no longer in the archive: the link's card stands alone. */}
+      <Show when={it().message} fallback={<LinkCardRow item={it()} />}>
         {(m) => (
           <MessageRow
             message={m()}
             density="cozy"
             grouped={false}
             focused={false}
-            gutter={badge()}
+            gutter={<PlatformBadge item={it()} />}
             headExtra={
               <button
                 type="button"
                 class={`${styles.origin} ${look.quietLink} ${look.text}`}
                 data-size="2xs"
                 data-font="sans"
-                onClick={open}
+                onClick={() => void openArchive(it().channelId, it().messageId)}
                 title="Show the message in the Archive"
               >
                 <Show when={props.dated}>{shortDate(it().ts)} · </Show>#{it().channelName}
@@ -82,8 +90,8 @@ export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
               </button>
             }
           >
-            {card()}
-            {judgment()}
+            <Show when={extraCard()}>{(e) => <Embeds embeds={[e()]} mentions={NO_MENTIONS} />}</Show>
+            <Judgment item={it()} />
           </MessageRow>
         )}
       </Show>
@@ -91,8 +99,11 @@ export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
   );
 }
 
-/** The sharing message is no longer in the archive: badge, who/where/when, the link and its card. */
-function Unarchived(props: { item: LinkItem; badge: JSX.Element; judgment: JSX.Element; card: JSX.Element; open: () => void }) {
+/**
+ * A link without the message that shared it: badge, who/where/when, the link and its card. `own`: in a person's own
+ * list, so their name is left out, the server is named, and the card is brief (every description clamped).
+ */
+export function LinkCardRow(props: { item: LinkCard; own?: boolean }) {
   const it = () => props.item;
   const cardHasTitle = (): boolean => {
     const e = it().embed;
@@ -100,20 +111,24 @@ function Unarchived(props: { item: LinkItem; badge: JSX.Element; judgment: JSX.E
   };
   return (
     <article class={`${styles.row} ${look.row}`}>
-      {props.badge}
+      <PlatformBadge item={it()} />
       <div class={styles.main}>
         <button
           type="button"
           class={`${styles.meta} ${look.quietLink} ${look.text}`}
           data-size="xs"
           data-line="meta"
-          onClick={() => props.open()}
+          onClick={() => void openArchive(it().channelId, it().messageId)}
           title="Show the message in the Archive"
         >
-          <span class={look.text} data-weight="semibold" data-tone="secondary">{it().authorName}</span> · #{it().channelName} · {when(it().ts)}
+          <Show when={!props.own}>
+            <span class={look.text} data-weight="semibold" data-tone="secondary">{it().authorName}</span> ·{' '}
+          </Show>
+          #{it().channelName}
+          <Show when={props.own && it().guildName}> · {it().guildName}</Show> · {when(it().ts)}
           <Show when={it().shares > 1}> · shared {it().shares}×</Show>
         </button>
-        {props.judgment}
+        <Judgment item={it()} />
         <Show when={!cardHasTitle()}>
           <a
             class={`${styles.linkTitle} ${look.link} ${look.text}`}
@@ -128,7 +143,7 @@ function Unarchived(props: { item: LinkItem; badge: JSX.Element; judgment: JSX.E
             {it().title ?? bareUrl(it().url)}
           </a>
         </Show>
-        {props.card}
+        <Show when={it().embed}>{(e) => <Embeds embeds={[e()]} mentions={NO_MENTIONS} brief={props.own} />}</Show>
       </div>
     </article>
   );

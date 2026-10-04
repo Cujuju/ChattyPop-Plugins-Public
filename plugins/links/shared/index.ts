@@ -1,7 +1,7 @@
 // Links (#106): the Links panel's feed of shared links, Jev's reading of them (#61 category, #62 spam/scam/NSFW, #63 worth
 // reading), and X posts Discord never previewed, fetched from FxTwitter. The link index itself is the host's.
 import { defineChannels, definePlugin, definePreference, finiteOr, type JevFeatureDecl, type JevQueryDecl, type Platform } from '@plugin-sdk/shared';
-import type { LinkFilter, LinkItem, LinkPageQuery } from './types';
+import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } from './types';
 
 export const manifest = {
   id: 'links',
@@ -21,6 +21,8 @@ export interface LinksCoreCalls {
   page(q: LinkPageQuery): LinkItem[];
   /** Link counts per platform for a filter (its platform filter ignored). */
   counts(f: LinkFilter): Partial<Record<Platform, number>>;
+  /** The links a person shared, each at their latest share of it, newest first. Privacy mode applies. */
+  sharedBy(q: PersonLinksQuery): LinkCard[];
   /** Moves the seen watermark to core's clock now: every link shared so far is seen, on the desktop and the phone. */
   markSeen(): void;
 }
@@ -123,6 +125,8 @@ export const plugin = definePlugin({
     core: {
       page: { audiences: ['renderer', 'phone'], writes: false },
       counts: { audiences: ['renderer', 'phone'], writes: false },
+      // The Person window is the desktop's.
+      sharedBy: { audiences: ['renderer'], writes: false },
       markSeen: { audiences: ['renderer', 'phone'], writes: true, decode: decodeMarkSeen },
     },
     events: { [UPDATED_EVENT]: ['renderer', 'phone'] },
@@ -142,8 +146,8 @@ export const plugin = definePlugin({
   jev: { queries: QUERIES, features: FEATURES },
   // FxTwitter's public status API, for X posts Discord never previewed.
   network: { hosts: ['api.fxtwitter.com'] },
-  // Beside Summaries in the phone's drawer.
-  slots: { phoneSections: [{ id: 'feed', after: 'summaries.summary' }] },
+  // Beside Summaries in the phone's drawer; a person's links, as previews, in the Person window.
+  slots: { phoneSections: [{ id: 'feed', after: 'summaries.summary' }], personLinks: [{ id: 'previews' }] },
   /** Links first shared after this count as new. The phone reads it, and moves it through markSeen. */
   preferences: { seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }) },
   // Its tables and watermark from when it was built in.

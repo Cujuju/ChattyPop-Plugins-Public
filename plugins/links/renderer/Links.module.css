@@ -1,4 +1,4 @@
-/* Links panel and its link rows. Header is ui/PanelHeader.
+/* Links panel, its link rows, and a person's links in the Person window. Header is ui/PanelHeader.
    Ground comes from the layout slot (surface-3). A share is drawn by the Archive's message row (chat/MessageRow, Cozy.module.css);
    this file places the platform badge under its avatar and the origin on its name line, and sizes its embeds through their tokens.
    Rows are virtualized (absolutely positioned and height-measured): vertical spacing is padding, never margin.
@@ -31,6 +31,33 @@
   --cp-embed-desc-lines: var(--cp-link-desc-lines);
   --cp-attachment-max-h: var(--cp-link-media-max-h);
   --cp-embed-thumb: var(--cp-link-thumb);
+}
+
+/* A person's links: the same cards, smaller, in the Person window's list inset. */
+.brief {
+  --cp-embed-max-w: var(--cp-link-brief-w);
+  --cp-embed-desc-lines: var(--cp-link-brief-desc-lines);
+  --cp-attachment-max-h: var(--cp-link-brief-media-max-h);
+  --cp-embed-thumb: var(--cp-link-brief-thumb);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.brief .row {
+  padding-inline: var(--cp-space-4);
+}
+
+/* Loading, none, or a failed read: at the rows' inset. */
+.briefNote {
+  margin: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+/* Under the last loaded link, at the rows' inset. */
+.older {
+  align-self: flex-start;
+  margin: var(--cp-space-4);
 }
 
 /* Fallback row when the sharing message is no longer archived: badge | meta, title and preview card. */

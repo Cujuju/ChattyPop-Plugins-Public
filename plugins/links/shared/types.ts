@@ -8,8 +8,8 @@ export type LinkCategory = (typeof LINK_CATEGORIES)[number];
 /** Worth-reading levels (#63), lowest first. LinkItem.worth is Jev's expected level: 0 to length − 1, fractional. */
 export const LINK_WORTH_LEVELS = ['skip', 'low', 'some', 'good', 'must see'] as const;
 
-/** A shared link as the Links panel renders it, from its first-seen message. */
-export interface LinkItem {
+/** A shared link with its preview card, at one share of it: the first (the feed) or a person's latest (their links). */
+export interface LinkCard {
   id: number;
   url: string;
   platform: Platform;
@@ -31,14 +31,24 @@ export interface LinkItem {
    * Discord never previewed gets its card from FxTwitter once fetched. null when neither exists.
    */
   embed: ArchiveEmbed | null;
-  /** The message that first shared the link, as the Archive shows it (text, avatar, reactions); null if it left the archive. */
-  message: ArchiveMessage | null;
   /** Jev's reading (#61–#63), when that feature is on and the link has been judged; otherwise null / false. */
   category: LinkCategory | null;
   /** Likely spam, a scam or NSFW (#62). */
   flagged: boolean;
   /** Expected level in LINK_WORTH_LEVELS, 0–4 and fractional (#63). */
   worth: number | null;
+}
+
+/** A shared link as the Links panel renders it, from its first-seen message. */
+export interface LinkItem extends LinkCard {
+  /** The message that first shared the link, as the Archive shows it (text, avatar, reactions); null if it left the archive. */
+  message: ArchiveMessage | null;
+}
+
+/** A person's links, newest first by their latest share of each: the first `limit`. */
+export interface PersonLinksQuery {
+  userId: string;
+  limit: number;
 }
 
 /** Keyset cursor: the last item of the previous page. `worth` is part of it when sorting by worth (-1 = unjudged). */

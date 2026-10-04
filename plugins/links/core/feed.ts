@@ -1,7 +1,7 @@
 // The Links feed: shared links from the host's link index, with Jev's judgments and each link's best preview card.
 import type { ArchiveEmbed, ArchiveMessage, Platform } from '@plugin-sdk/shared';
 import { embedsFrom, normalizeUrl, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
-import type { LinkFilter, LinkItem, LinkPageQuery } from '../shared/types';
+import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } from '../shared/types';
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
 
@@ -36,7 +36,12 @@ function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
   return { sql: parts.join(' AND '), params };
 }
 
-type LinkRow = Omit<LinkItem, 'embed' | 'flagged' | 'message'> & { flagged: number | null };
+type LinkRow = Omit<LinkCard, 'embed' | 'flagged'> & { flagged: number | null };
+
+/** What a row reads of the link itself and its judgment; `l` is archive_links, `j` its judgment. */
+const LINK_COLUMNS = `l.id, l.url, l.platform, l.title, l.description, l.thumbnail_url AS thumbnailUrl, l.site,
+              (SELECT COUNT(*) FROM archive_all_message_links ml WHERE ml.link_id = l.id) AS shares,
+              j.category, j.flagged, j.worth`;
 
 /** Sort key for worth: unjudged links sort below every judged one. */
 const UNJUDGED_WORTH = -1;
@@ -92,11 +97,9 @@ export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesB
   const cursorParams = !q.after ? [] : byWorth ? [q.after.worth ?? UNJUDGED_WORTH, q.after.ts, q.after.id] : [q.after.ts, q.after.id];
   const rows = db
     .prepare(
-      `SELECT l.id, l.url, l.platform, l.title, l.description, l.thumbnail_url AS thumbnailUrl, l.site, l.first_ts AS ts, l.first_message_id AS messageId,
+      `SELECT ${LINK_COLUMNS}, l.first_ts AS ts, l.first_message_id AS messageId,
               l.first_channel_id AS channelId, COALESCE(c.name, l.first_channel_id) AS channelName, COALESCE(g.name, '') AS guildName,
-              l.author_name AS authorName,
-              (SELECT COUNT(*) FROM archive_all_message_links ml WHERE ml.link_id = l.id) AS shares,
-              j.category, j.flagged, j.worth
+              l.author_name AS authorName
        FROM archive_links l
        LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
        LEFT JOIN archive_all_channels c ON c.id = l.first_channel_id
@@ -105,26 +108,57 @@ export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesB
        ORDER BY ${byWorth ? `${WORTH_KEY} DESC, ` : ''}l.first_ts DESC, l.id DESC LIMIT ?`,
     )
     .all(...w.params, ...cursorParams, q.limit) as LinkRow[];
+  const cards = cardsOf(db, payloads, rows);
+  const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
+  return cards.map(({ card, source }) => {
+    const m = messages.get(card.messageId) ?? null;
+    // A card from another share (an embed fixer's) replaces the first message's own card for this link.
+    const message = m && source && source !== m.id ? { ...m, embeds: m.embeds.filter((e) => e.url === null || normalizeUrl(e.url) !== card.url) } : m;
+    return { ...card, message };
+  });
+}
+
+/** Each row with its preview card, and the share the card came from (null: the link's stored unfurl, or no card). */
+function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[]): { card: LinkCard; source: string | null }[] {
   const shares = new Map<number, Share[]>();
   if (rows.length) {
     const all = db
       .prepare(
-        `SELECT ml.link_id AS linkId, m.id AS messageId, m.id AS payloadId
+        `SELECT ml.link_id AS linkId, m.id AS messageId
          FROM archive_all_message_links ml JOIN archive_all_messages m ON m.id = ml.message_id
          WHERE ml.link_id IN (${rows.map(() => '?').join(',')}) ORDER BY m.ts`,
       )
-      .all(...rows.map((r) => r.id)) as { linkId: number; messageId: string; payloadId: string }[];
-    const details = payloads(all.map((s) => s.payloadId));
-    for (const s of all) shares.set(s.linkId, [...(shares.get(s.linkId) ?? []), { messageId: s.messageId, embedsJson: details.get(s.payloadId)?.embedsJson ?? null, bot: details.get(s.payloadId)?.bot ?? null }]);
+      .all(...rows.map((r) => r.id)) as { linkId: number; messageId: string }[];
+    const details = payloads(all.map((s) => s.messageId));
+    for (const s of all) shares.set(s.linkId, [...(shares.get(s.linkId) ?? []), { messageId: s.messageId, embedsJson: details.get(s.messageId)?.embedsJson ?? null, bot: details.get(s.messageId)?.bot ?? null }]);
   }
-  const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
   return rows.map((r) => {
     const { embed, source } = embedFor(r, shares.get(r.id) ?? []);
-    const m = messages.get(r.messageId) ?? null;
-    // A card from another share (an embed fixer's) replaces the first message's own card for this link.
-    const message = m && source && source !== m.id ? { ...m, embeds: m.embeds.filter((e) => e.url === null || normalizeUrl(e.url) !== r.url) } : m;
-    return { ...r, flagged: (r.flagged ?? 0) >= FLAG_AT, embed, message };
+    return { card: { ...r, flagged: (r.flagged ?? 0) >= FLAG_AT, embed }, source };
   });
+}
+
+/**
+ * The links a person shared, one row per link at their latest share of it, newest first. Only their messages privacy
+ * mode shows count, and a link it hides is left out.
+ */
+export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: PersonLinksQuery): LinkCard[] {
+  const rows = db
+    .prepare(
+      // SQLite fills the bare columns of `s` from the MAX(ts) row: their latest share of the link.
+      `SELECT ${LINK_COLUMNS}, s.ts, s.messageId, s.channelId, COALESCE(c.name, s.channelId) AS channelName, COALESCE(g.name, '') AS guildName,
+              (SELECT m.author_name FROM archive_all_messages m WHERE m.id = s.messageId) AS authorName
+       FROM (SELECT ml.link_id AS linkId, m.id AS messageId, m.channel_id AS channelId, MAX(m.ts) AS ts
+             FROM archive_messages m JOIN archive_all_message_links ml ON ml.message_id = m.id
+             WHERE m.author_id = ? GROUP BY ml.link_id) s
+       JOIN archive_links l ON l.id = s.linkId
+       LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
+       LEFT JOIN archive_all_channels c ON c.id = s.channelId
+       LEFT JOIN archive_all_guilds g ON g.id = c.guild_id
+       ORDER BY s.ts DESC, l.id DESC LIMIT ?`,
+    )
+    .all(q.userId, q.limit) as LinkRow[];
+  return cardsOf(db, payloads, rows).map((c) => c.card);
 }
 
 /** Link counts per platform for a filter (platform filter ignored so every chip shows its count). */

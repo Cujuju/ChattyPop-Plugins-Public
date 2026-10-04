@@ -5,9 +5,9 @@ import { storeLinkText } from '@core/derivedText';
 import { storeLinkImages, type LinkImage } from '@core/messageImages';
 import { adoptBundledData } from '@core/plugins/adoption';
 import { messagesByIds } from '@core/queries/messages';
-import { linkPage } from '../core/feed';
+import { linkPage, personLinkPage } from '../core/feed';
 import { plugin } from '../shared';
-import type { LinkItem, LinkPageQuery } from '../shared/types';
+import type { LinkCard, LinkItem, LinkPageQuery, PersonLinksQuery } from '../shared/types';
 
 /** Renames the host's link tables into the plugin's, as core init does before plugins start. */
 export function adoptLinks(db: Db): Db {
@@ -17,6 +17,9 @@ export function adoptLinks(db: Db): Db {
 
 /** A page of the Links feed, with the sharing messages as the Archive shows them. */
 export const linkFeed = (db: Db, q: LinkPageQuery): LinkItem[] => linkPage(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q);
+
+/** A person's links, each at their latest share of it. */
+export const personLinks = (db: Db, q: PersonLinksQuery): LinkCard[] => personLinkPage(db, (ids) => archivePayloads(db, ids), q);
 
 /** The host's link stores for the Links plugin: its text (core wiring judges again the messages it returns) and images. */
 export const hostLinks = (db: Db, onText: (messageIds: string[]) => void = () => undefined) => ({

@@ -1,9 +1,10 @@
-// Links' renderer side: the Links panel, its new-link count on the top bar, the l shortcut that brings it forward, and
-// the phone's Links section.
+// Links' renderer side: the Links panel, its new-link count on the top bar, the l shortcut that brings it forward, the
+// phone's Links section, and a person's links in the Person window.
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { revealPanel } from '@plugin-sdk/renderer/kit';
 import { LINKS_PANEL, plugin } from '../shared';
 import { LinksPanel } from './LinksPanel';
+import { PersonLinks } from './PersonLinks';
 import { markLinksSeen, newLinkCount, onLinksShown } from './state';
 
 /**
@@ -19,6 +20,7 @@ const PhoneLinks = () => (
 export default defineRendererPlugin(plugin, {
   panels: { [LINKS_PANEL]: { view: LinksPanel, unread: { count: newLinkCount, markSeen: markLinksSeen, onShown: onLinksShown } } },
   shortcuts: { l: () => revealPanel(LINKS_PANEL) },
+  personLinks: { previews: { Component: PersonLinks } },
   phoneSections: { feed: { label: 'Links', overview: { noun: 'links' }, section: LINKS_PANEL, Component: PhoneLinks, badge: newLinkCount } },
   jevFeatures: {
     linkCategories: { group: 'Links', hint: 'Jev sorts each link into a category (video, article, tool…).' },
