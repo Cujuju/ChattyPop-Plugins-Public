@@ -94,12 +94,12 @@ export const plugin = definePlugin({
   }],
   shortcuts: [{
     key: 'j',
-    hint: 'citations',
+    hint: 'next/prev source',
     hintGroup: 'citations',
     after: 'layout',
   }, {
     key: 'k',
-    hint: 'citations',
+    hint: 'next/prev source',
     hintGroup: 'citations',
     after: 'j',
   }],
