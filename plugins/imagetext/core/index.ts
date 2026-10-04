@@ -6,7 +6,7 @@ import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
 import { HOSTED_VISION_OFF, normalizePick, type EnginePick, type EngineStatus, type ImageTextSettings, type ImageTextStatus, type ProviderModels } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
-import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes } from './store';
+import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes, readingParts } from './store';
 import { readWithVision } from './vision';
 import { WindowsOcr } from './windowsOcr';
 
@@ -71,6 +71,7 @@ async function providerModels(ctx: Ctx): Promise<ProviderModels[]> {
 }
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.storage.migrate(IMAGE_TEXT_MIGRATIONS);
+  ctx.archive.derivedText.tagParts(readingParts(ctx.storage.db));
   const db = ctx.storage.db;
   const settings = () => ctx.preferences.get('settings');
   const ocr = new WindowsOcr(ctx.storage.dataDir);

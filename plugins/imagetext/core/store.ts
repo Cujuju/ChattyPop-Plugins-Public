@@ -149,6 +149,12 @@ export function dropJobs(db: PluginDb, seqs: readonly number[]): void {
 /** Whether any job is queued. */
 export const queuedJobs = (db: PluginDb): boolean => db.prepare(`SELECT 1 FROM ${JOBS_TABLE} WHERE state = 'queued' LIMIT 1`).get() !== undefined;
 
+/** Each read image's derived text key (its job's seq) → its part key: tags texts stored before parts existed. */
+export function readingParts(db: PluginDb): Map<string, string> {
+  const rows = db.prepare(`SELECT seq, image_key AS part FROM ${JOBS_TABLE} WHERE state = 'done' AND text != ''`).all() as { seq: number; part: string }[];
+  return new Map(rows.map((r) => [String(r.seq), r.part]));
+}
+
 export function counts(db: PluginDb): Record<ImageJobState, number> {
   const out: Record<ImageJobState, number> = { queued: 0, fetching: 0, running: 0, done: 0, failed: 0 };
   for (const r of db.prepare(`SELECT state, COUNT(*) AS n FROM ${JOBS_TABLE} GROUP BY state`).all() as { state: ImageJobState; n: number }[]) out[r.state] = r.n;
