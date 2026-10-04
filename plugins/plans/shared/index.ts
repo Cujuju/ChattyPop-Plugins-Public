@@ -1,5 +1,5 @@
-// Plans & decisions (#67): Jev spots a plan or a decision in a message; the default AI provider extracts its details.
-import { MESSAGE_SEES, defineChannels, definePlugin, definePreference, stringsOr, type JevQueryDecl } from '@plugin-sdk/shared';
+// Plans & decisions (#67): Jev spots a plan or a decision in a message; the AI provider chosen for it extracts its details.
+import { MESSAGE_SEES, defineChannels, definePlugin, definePreference, isObj, normalizeProviderId, stringsOr, type JevQueryDecl, type ProviderId } from '@plugin-sdk/shared';
 import type { PlanItem } from './types';
 
 export const manifest = {
@@ -14,6 +14,16 @@ export const PLANS_PANEL = 'plans' as const;
 export const PLAN_SUBJECT = 'plan';
 /** Settings → Jev → Queries id (kept from when it was built in); its ticked options and threshold decide what is extracted. */
 export const PLAN_QUERY = 'messages.plans';
+
+/** Plans' own settings (Settings → Jev → Detect plans and decisions). */
+export interface PlansSettings {
+  /** Who extracts each detected plan, with its Settings → AI model; null = none chosen. Seeded from the retired global default. */
+  defaultProvider: ProviderId | null;
+}
+
+export const DEFAULT_PLANS_SETTINGS: PlansSettings = { defaultProvider: null };
+
+export const normalizePlansSettings = (v: unknown): PlansSettings => ({ defaultProvider: normalizeProviderId(isObj(v) ? v['defaultProvider'] : null) });
 
 /** Core's calls, from the panel. */
 export interface PlansCoreCalls {
@@ -58,9 +68,18 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: ['renderer'] } }),
   /** The items listed when the panel was last on screen; null until first stored. */
-  preferences: { seen: definePreference<string[] | null>({ default: null, normalize: stringsOr(null) }) },
-  // The host's migrations created plans when it was built in; its switch kept its key.
-  adopts: { tables: { plans: 'items' }, settings: { 'plans.seen': 'seen' }, jevFeatures: { planDetection: 'planDetection' } },
+  preferences: {
+    seen: definePreference<string[] | null>({ default: null, normalize: stringsOr(null) }),
+    settings: definePreference({ default: DEFAULT_PLANS_SETTINGS, normalize: normalizePlansSettings }),
+  },
+  // The host's migrations created plans when it was built in; its switch kept its key. Extraction used the global default
+  // provider, which Settings → AI no longer has: it seeds Plans' own.
+  adopts: {
+    tables: { plans: 'items' },
+    settings: { 'plans.seen': 'seen' },
+    settingFields: [{ key: 'ai', field: 'defaultProvider', name: 'settings', shared: true }],
+    jevFeatures: { planDetection: 'planDetection' },
+  },
   panels: [
     {
       id: PLANS_PANEL,

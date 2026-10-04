@@ -17,9 +17,10 @@ function start<D extends PluginDescriptor>(core: CorePlugin<D>, o: TestOptions<D
   return t;
 }
 
-/** Claude as the default provider, answering through `complete`. */
-const claude = (complete: LlmProvider['complete'], maxInputChars = 100_000) => ({
-  providers: [{ id: 'claude', provider: { id: 'claude', maxInputChars, complete, listModels: async () => [] } }],
+/** Claude answering through `complete`, chosen for Plans. */
+const claude = (complete: LlmProvider['complete'], maxInputChars = 100_000): TestOptions<typeof plansCore.plugin> => ({
+  ai: { providers: [{ id: 'claude', provider: { id: 'claude', maxInputChars, complete, listModels: async () => [] } }] },
+  preferences: { settings: { defaultProvider: 'claude' } },
 });
 
 /** A request someone else answers later. */
@@ -34,7 +35,7 @@ describe('Plans turned off mid-extraction', () => {
 
   it('keeps the running and the queued hit, and extracts both when Plans is back on', async () => {
     const requests: Held<CompletionResult>[] = [];
-    const t = start(plansCore, { ai: claude((req) => new Promise<CompletionResult>((resolve) => requests.push({ signal: req.signal, answer: resolve }))) });
+    const t = start(plansCore, claude((req) => new Promise<CompletionResult>((resolve) => requests.push({ signal: req.signal, answer: resolve }))));
     // Jev's hits are archived messages; the extraction reads their text from the archive. The harness doesn't run Jev's
     // per-message matcher, so the test answers the registered question as it would.
     const hits: string[] = [];
@@ -68,7 +69,7 @@ describe('Plans with a stalled provider', () => {
       const asked: (AbortSignal | undefined)[] = [];
       // The first call stalls, ignoring its signal; later ones answer at once.
       const complete = (req: CompletionRequest) => (asked.push(req.signal), asked.length === 1 ? new Promise<CompletionResult>(() => undefined) : Promise.resolve({ text: '', json: { title: 'Game night', when: null, who: [], details: '' } }));
-      const t = start(plansCore, { ai: claude(complete) });
+      const t = start(plansCore, claude(complete));
       const question = () => messageQuestions().find((q) => q.subject === PLAN_SUBJECT)!;
       const ids = [0, 1].map((i) => {
         const content = i === 0 ? 'game night friday?' : 'game night saturday?';

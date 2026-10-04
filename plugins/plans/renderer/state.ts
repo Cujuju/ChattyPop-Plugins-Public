@@ -33,6 +33,9 @@ const [seenPlans, setSeenPlans] = pluginPreference(plugin, 'seen', {
   seedWhen: () => callable(plugin, 'list'),
 });
 
+/** Plans' settings: the provider that extracts each detected plan. */
+export const [plansSettings, , { patch: patchPlansSettings }] = pluginPreference(plugin, 'settings');
+
 /** Plans and decisions listed since the Plans panel was last on screen. */
 export const unseenPlanCount = (): number => {
   const seen = seenPlans();

@@ -1,6 +1,6 @@
-// #67 plans and decisions: Jev spots a plan or a decision in a message (the per-message request); the owner's default AI provider then extracts its details into the plans table. Dates are resolved against the message's own time and checked in code, since Jev and LLMs are weak at date math.
+// #67 plans and decisions: Jev spots a plan or a decision in a message (the per-message request); the provider chosen for it (Settings → Jev → Detect plans and decisions) then extracts its details into the plans table. Dates are resolved against the message's own time and checked in code, since Jev and LLMs are weak at date math.
 import type { PlanItem, PlanKind } from '../shared/types';
-import { cutText, errorMessage, MS_PER_MIN, type ProviderId } from '@plugin-sdk/shared';
+import { cutText, errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { clipMessage, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, } from '@plugin-sdk/core';
 import { PLAN_QUERY, PLAN_SUBJECT } from '../shared';
 import { PENDING_TABLE, PLANS_TABLE } from './schema';
@@ -29,13 +29,17 @@ const SYSTEM =
   'You extract one plan or decision from a chat message as JSON. Resolve relative dates ("tomorrow", "Friday 6pm") against sent_at, ' +
   "in the sender's time zone offset given there. Never invent a date: use null when none is stated.";
 
+/** The provider chosen for extraction, with its Settings → AI model. */
+export interface PlanProvider {
+  /** Settles at once when `signal` (its deadline) aborts; rejects with LocalOnlyError when the provider may not read `reads`. */
+  complete(req: { system: string; prompt: string; schema: Record<string, unknown>; signal: AbortSignal; reads: ReadScope }): Promise<{ json?: unknown }>;
+}
+
 export interface PlanDeps {
   /** The activation's database: once it ends, the writes of an extraction still running throw, and its hit stays pending. */
   db: PluginDb;
-  /** The owner's default provider, or null when none is enabled. */
-  provider(): ProviderId | null;
-  /** Settles at once when `signal` (its deadline) aborts; rejects with LocalOnlyError when the provider may not read `reads`. */
-  complete(req: { system: string; prompt: string; schema: Record<string, unknown>; signal: AbortSignal; reads: ReadScope }): Promise<{ json?: unknown }>;
+  /** The chosen provider, or why there is none (none chosen, or it can't run): the hit is then dropped. */
+  provider(): PlanProvider | string;
   changed(channelId: string): void;
 }
 
@@ -78,7 +82,7 @@ export function parseWhen(when: string | null): number | null {
  * PENDING_TABLE apart from Jev's stored answer (which catch-up won't ask again) until its extraction ends, so neither
  * turning Plans off nor quitting loses it. Extractions run one at a time, in the order Jev found them, each on its
  * message's current text; hits left pending by an earlier activation or app session run first. Once the activation ends,
- * `complete` and every write refuse with PluginInactiveError, so the hits still queued stay pending for the next one.
+ * the provider and every write refuse with PluginInactiveError, so the hits still queued stay pending for the next one.
  */
 export function planQuestion(deps: PlanDeps): PluginMessageQuestion<'planDetection'> {
   const { db } = deps;
@@ -120,13 +124,17 @@ export function planQuestion(deps: PlanDeps): PluginMessageQuestion<'planDetecti
 async function extract(deps: PlanDeps, m: TextMessage, kind: PlanKind): Promise<void> {
   const { db } = deps;
   if (db.prepare(`SELECT 1 FROM ${PLANS_TABLE} WHERE message_id = ?`).get(m.id)) return;
-  if (!deps.provider()) return;
+  const provider = deps.provider();
+  if (typeof provider === 'string') {
+    console.warn(`[plans] not extracted: ${provider}`);
+    return;
+  }
   const prompt = JSON.stringify({ kind, sent_at: localIso(m.ts), message: clipMessage(m.content) });
   let r: { json?: unknown };
   try {
-    r = await deps.complete({ system: SYSTEM, prompt, schema: SCHEMA, signal: deadline(PLAN_EXTRACTION_DEADLINE_MS), reads: [m.channelId] });
+    r = await provider.complete({ system: SYSTEM, prompt, schema: SCHEMA, signal: deadline(PLAN_EXTRACTION_DEADLINE_MS), reads: [m.channelId] });
   } catch (err) {
-    // Local-AI-only channels (#38): a hosted default provider may not read them, so the hit is dropped.
+    // Local-AI-only channels (#38): a hosted provider may not read them, so the hit is dropped.
     if (err instanceof LocalOnlyError) return;
     throw err;
   }

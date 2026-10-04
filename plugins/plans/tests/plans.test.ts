@@ -31,13 +31,14 @@ function setup(provider: ProviderId) {
   const prompts: string[] = [];
   const q = planQuestion({
     db,
-    provider: () => provider,
-    // As ctx.ai.complete sends it: the host checks the declared reads against the default provider.
-    complete: async (req) => {
-      assertProviderMayRead(db, new ProviderRegistry(() => undefined), provider, req.reads);
-      prompts.push(req.prompt);
-      return { json: { title: 'Game night', when: '2026-10-02T19:00:00-07:00', who: ['Ana', 'Bo'], details: 'At Ana’s' } };
-    },
+    provider: () => ({
+      // As ctx.ai.provider's completions send it: the host checks the declared reads against the chosen provider.
+      complete: async (req) => {
+        assertProviderMayRead(db, new ProviderRegistry(() => undefined), provider, req.reads);
+        prompts.push(req.prompt);
+        return { json: { title: 'Game night', when: '2026-10-02T19:00:00-07:00', who: ['Ana', 'Bo'], details: 'At Ana’s' } };
+      },
+    }),
     changed: () => {},
   });
   const msg = (channelId: string, ms: number, content: string) => {
@@ -72,20 +73,33 @@ describe('plans and decisions (#67)', () => {
     expect(local.prompts).toHaveLength(1);
   });
 
+  it("drops a hit, saying why, while no provider is chosen or it can't run", async () => {
+    const { db, msg } = setup('claude');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const reason = 'claude: Turned off in Settings → AI.';
+    const q = planQuestion({ db, provider: () => reason, changed: () => {} });
+    q.onAnswer!(msg('open', Date.UTC(2026, 8, 28), 'game night friday 7?'), answer('plan', PLAN_AT + 0.1), null);
+    await settleAsync();
+    expect(warn).toHaveBeenCalledWith(`[plans] not extracted: ${reason}`);
+    expect(db.prepare(`SELECT COUNT(*) FROM ${PENDING_TABLE}`).pluck().get()).toBe(0);
+    expect(planList(db, 10)).toEqual([]);
+    warn.mockRestore();
+  });
+
   it('keeps a hit whose extraction a quit interrupted, and extracts it at the next start', async () => {
     const { db, q, prompts, msg } = setup('claude');
-    const stalled = planQuestion({ db, provider: () => 'claude', complete: () => new Promise<never>(() => undefined), changed: () => {} });
+    const stalled = planQuestion({ db, provider: () => ({ complete: () => new Promise<never>(() => undefined) }), changed: () => {} });
     stalled.onAnswer!(msg('open', Date.UTC(2026, 8, 28), 'game night friday 7?'), answer('plan', PLAN_AT + 0.1), null);
     await settleAsync();
     expect(prompts).toEqual([]);
     // The next start: `q` stands for the plugin's activation in the new core process.
-    const next = planQuestion({ db, provider: () => 'claude', complete: async (req) => (prompts.push(req.prompt), { json: { title: 'Game night', when: null, who: [], details: '' } }), changed: () => {} });
+    const next = planQuestion({ db, provider: () => ({ complete: async (req) => (prompts.push(req.prompt), { json: { title: 'Game night', when: null, who: [], details: '' } }) }), changed: () => {} });
     expect(next.subject).toBe(q.subject);
     await settleAsync();
     expect(prompts).toHaveLength(1);
     expect(planList(db, 10)).toEqual([expect.objectContaining({ kind: 'plan', title: 'Game night' })]);
     // Extracted: a later start owes nothing.
-    planQuestion({ db, provider: () => 'claude', complete: async (req) => (prompts.push(req.prompt), { json: {} }), changed: () => {} });
+    planQuestion({ db, provider: () => ({ complete: async (req) => (prompts.push(req.prompt), { json: {} }) }), changed: () => {} });
     await settleAsync();
     expect(prompts).toHaveLength(1);
   });
@@ -97,7 +111,7 @@ describe('plans and decisions (#67)', () => {
     let answer1: (r: { json?: unknown }) => void = () => undefined;
     // The activation's database, as the plugin gets it: writes refuse once the activation ended.
     const fenced = pluginDb(() => db, () => !lifetime.signal.aborted, 'plans');
-    const held = planQuestion({ db: fenced, provider: () => 'claude', complete: () => new Promise((r) => (answer1 = r)), changed: () => {} });
+    const held = planQuestion({ db: fenced, provider: () => ({ complete: () => new Promise((r) => (answer1 = r)) }), changed: () => {} });
     held.onAnswer!(msg('open', Date.UTC(2026, 8, 28), 'game night friday 7?'), answer('plan', PLAN_AT + 0.1), null);
     held.onAnswer!(msg('open', Date.UTC(2026, 8, 28, 1), 'we decided: tacos'), answer('decision', PLAN_AT + 0.1), null);
     await settleAsync();
@@ -110,7 +124,7 @@ describe('plans and decisions (#67)', () => {
     expect(reopened.prepare(`SELECT COUNT(*) FROM ${PENDING_TABLE}`).pluck().get()).toBe(2);
     // Closed with the activation still live: the failure is caught and the hit stays pending.
     let answer2: (r: { json?: unknown }) => void = () => undefined;
-    planQuestion({ db: reopened, provider: () => 'claude', complete: () => new Promise((r) => (answer2 = r)), changed: () => {} });
+    planQuestion({ db: reopened, provider: () => ({ complete: () => new Promise((r) => (answer2 = r)) }), changed: () => {} });
     await settleAsync();
     reopened.close();
     answer2({ json: { title: 'Game night', when: null, who: [], details: '' } });
