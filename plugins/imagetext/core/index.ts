@@ -137,7 +137,11 @@ export default defineCorePlugin(plugin, (ctx) => {
     reader.kick();
     statusChanged();
   });
-  ctx.ai.onSettingsChange(() => reader.kick()); // a vision provider turned on
+  // A provider turned on or off: what can run changes, and so do Settings' engine, translator and provider lists.
+  ctx.ai.onSettingsChange(() => {
+    reader.kick();
+    statusChanged();
+  });
   const vision = (): EngineStatus => {
     const e = settingsVision(ctx);
     // Its name less the engine's ('vision:'): provider · model.
