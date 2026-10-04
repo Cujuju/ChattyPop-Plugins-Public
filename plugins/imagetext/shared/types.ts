@@ -12,6 +12,8 @@ export interface ImageTextSettings {
   visionProvider: string | null;
   /** Its model; null = none chosen (the engine can't run until one is). */
   visionModel: string | null;
+  /** Hosted providers may read images, which then leave this computer. Off: only local ones are offered and run. */
+  hostedVision: boolean;
   /** Images of new messages, and those Jev still judges (its lookback), are read without being asked. */
   auto: boolean;
   /**
@@ -38,6 +40,7 @@ export const DEFAULT_IMAGE_TEXT_SETTINGS: ImageTextSettings = {
   engine: 'windows',
   visionProvider: 'ollama',
   visionModel: null,
+  hostedVision: false,
   auto: true,
   askJev: false,
   translate: false,
@@ -54,6 +57,7 @@ export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
     engine: oneOf(ENGINES, src['engine'], d.engine),
     visionProvider: 'visionProvider' in src ? textOrNull(src['visionProvider']) : d.visionProvider,
     visionModel: textOrNull(src['visionModel']),
+    hostedVision: bool(src['hostedVision'], d.hostedVision),
     auto: bool(src['auto'], d.auto),
     askJev: bool(src['askJev'], d.askJev),
     translate: bool(src['translate'], d.translate),

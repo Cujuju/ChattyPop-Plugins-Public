@@ -26,7 +26,7 @@ export function ImageTextSection() {
     <Page
       id={IMAGE_TEXT_TAB}
       title="Image text"
-      lede="Reads the text in screenshots and charts that messages show, so rules, Jev, labels and search see it. Images are read on this computer."
+      lede="Reads the text in screenshots and charts that messages show, so rules, Jev, labels and search see it. Images are read on this computer unless you allow a hosted model."
     >
       <Card title="Engine">
         <div role="radiogroup" aria-label="Engine">
@@ -46,6 +46,12 @@ export function ImageTextSection() {
           </For>
         </div>
         <Show when={s().engine === 'vision'}>
+          <Row
+            label="Send images to hosted AI"
+            for="imagetext-hosted-vision"
+            hint="Lets hosted AI providers’ models read images; the images then leave this computer. Channels set to local AI only never send theirs. Off: only local models are offered."
+            control={<Switch id="imagetext-hosted-vision" checked={s().hostedVision} onChange={(hostedVision) => patchImageTextSettings({ hostedVision })} />}
+          />
           <ModelRows
             id="imagetext-vision"
             providers={imageTextStatus()?.providers ?? []}

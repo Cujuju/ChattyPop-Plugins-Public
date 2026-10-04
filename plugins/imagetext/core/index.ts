@@ -21,10 +21,19 @@ const session = newImageTextSession();
 
 type Ctx = CoreContext<typeof plugin>;
 
+/** Why a hosted provider may not read images: the owner hasn't allowed images to leave this computer. */
+const HOSTED_VISION_OFF = 'Sending images to hosted AI is off: Settings → Image text.';
+
+/** Why a provider, local or not, may not be sent images under Settings; null when it may. */
+const hostedVisionBlock = (ctx: Ctx, local: boolean): string | null => (local || ctx.preferences.get('settings').hostedVision ? null : HOSTED_VISION_OFF);
+
+/** Why `providerId` can't read images now: it can't run, or it is hosted and hosted vision is off. */
+const visionUnavailable = (ctx: Ctx, providerId: string): string | null => ctx.ai.unavailable(providerId) ?? hostedVisionBlock(ctx, ctx.ai.isLocal(providerId));
+
 /** The vision engine for providerId and model (Settings' when null), or why it can't run. */
 function visionEngine(ctx: Ctx, providerId: string | null, model: string | null): Engine {
   if (!providerId || !model) return { unavailable: 'Choose a vision model: Settings → Image text.' };
-  const why = ctx.ai.unavailable(providerId);
+  const why = visionUnavailable(ctx, providerId);
   if (why) return { unavailable: why };
   const provider = ctx.ai.provider(providerId);
   return { name: `vision:${providerId}:${model}`, read: async (path, channelId, signal) => readWithVision(provider, model, path, [channelId], signal) };
@@ -75,7 +84,11 @@ async function providerModels(ctx: Ctx): Promise<{ vision: ProviderModels[]; tex
       }
     }),
   );
-  return { vision: listed.filter((l) => l.images).map((l) => ({ ...l.all, models: l.vision })), text: listed.map((l) => l.all) };
+  // A hosted provider lists its vision models while hosted vision is off, so the owner sees what turning it on offers.
+  const vision = listed
+    .filter((l) => l.images)
+    .map((l) => ({ ...l.all, unavailable: l.all.unavailable ?? hostedVisionBlock(ctx, l.all.local), models: l.vision }));
+  return { vision, text: listed.map((l) => l.all) };
 }
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.storage.migrate(IMAGE_TEXT_MIGRATIONS);

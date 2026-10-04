@@ -89,13 +89,13 @@ describe('the Image text plugin', () => {
     return { sent, provider };
   }
 
-  function start(images: boolean, reading = { text: 'Tesla chart', tickers: ['TSLA'] }, opts: { translate?: boolean; translating?: Translating } = {}) {
+  function start(images: boolean, reading = { text: 'Tesla chart', tickers: ['TSLA'] }, opts: { translate?: boolean; translating?: Translating; local?: boolean; hostedVision?: boolean } = {}) {
     const v = vision(reading, opts.translating);
     const t = testPlugin(imageTextCore, {
       archive: { channels: [{ id: 'c1' }] },
-      ai: { providers: [{ id: 'eyes', local: true, images, provider: v.provider }] },
+      ai: { providers: [{ id: 'eyes', local: opts.local ?? true, images, provider: v.provider }] },
       preferences: {
-        settings: { ...DEFAULT_IMAGE_TEXT_SETTINGS, engine: 'vision', visionProvider: 'eyes', visionModel: 'vl', translate: opts.translate ?? false, translateProvider: 'eyes', translateModel: 'tx' },
+        settings: { ...DEFAULT_IMAGE_TEXT_SETTINGS, engine: 'vision', hostedVision: opts.hostedVision ?? false, visionProvider: 'eyes', visionModel: 'vl', translate: opts.translate ?? false, translateProvider: 'eyes', translateModel: 'tx' },
       },
     });
     onTestFinished(() => t.dispose());
@@ -120,6 +120,16 @@ describe('the Image text plugin', () => {
     expect(sent[0]).toMatchObject({ model: 'vl', images: [{ mediaType: 'image/png', data: PNG.toString('base64') }] });
     expect(await t.client('renderer').status()).toMatchObject({ vision: { ready: true }, providers: [{ id: 'eyes', models: [{ id: 'vl' }] }], counts: { done: 1 } });
   }, OCR_START_TIMEOUT_MS);
+
+  it('a hosted provider reads images only once the owner allows sending them', async () => {
+    const off = start(true, undefined, { local: false }).t;
+    expect(await off.client('renderer').status()).toMatchObject({
+      vision: { ready: false, detail: 'Sending images to hosted AI is off: Settings → Image text.' },
+      providers: [{ id: 'eyes', unavailable: 'Sending images to hosted AI is off: Settings → Image text.', models: [{ id: 'vl' }] }],
+    });
+    const on = start(true, undefined, { local: false, hostedVision: true }).t;
+    expect(await on.client('renderer').status()).toMatchObject({ vision: { ready: true }, providers: [{ id: 'eyes', unavailable: null }] });
+  });
 
   it('two messages showing the same image each keep their own text', async () => {
     const { t, id } = start(true);
