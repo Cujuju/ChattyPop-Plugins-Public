@@ -1,6 +1,7 @@
-// Search re-rank (#65): Jev orders the top full-text hits by "does this answer the query?", all in one request. Hits
+// Search re-rank (#65): Jev orders the top full-text hits by "does this answer the query?", all in one request: the
+// query is the state and each question carries its own hit (carriedQuestion). Hits
 // Jev may not read (a local-AI-only channel) or the archive doesn't show are never sent and keep their places.
-import { clipMessage, queryRequest, queryStrength, type AiSources, type PluginDecider, type Question } from '@plugin-sdk/core';
+import { carriedQuestion, clipMessage, queryRequest, queryStrength, type AiSources, type PluginDecider, type Question } from '@plugin-sdk/core';
 import type { ArchiveMessage, SearchHit } from '@plugin-sdk/shared';
 import { RERANK_QUERY } from '../shared';
 
@@ -19,7 +20,6 @@ export interface RerankDeps {
   sources: AiSources;
 }
 
-const question = (ref: string): Question => queryRequest(RERANK_QUERY, { placeholders: { '{ref}': ref } });
 
 /**
  * Hits in Jev's order: the top RERANK_TOP sendable hits sorted by Jev's probability (each carrying it as `relevance`),
@@ -35,14 +35,15 @@ export async function rerankHits({ jev, messages, channelName, sources }: Rerank
     return m && readable.has(m.channelId) ? [{ slot, m }] : [];
   });
   if (slots.length < 2) return [...hits];
-  const candidates: Record<string, string> = {};
   const questions: Record<string, Question> = {};
-  slots.forEach(({ slot, m }, k) => {
-    candidates[`c${k}`] = `${m.author.name} in #${channelName(m.channelId)}: ${clipMessage(m.content)}`;
-    questions[`c${k}`] = question(`c${k}`);
+  slots.forEach(({ m }, k) => {
+    const q = carriedQuestion(queryRequest(RERANK_QUERY), { candidate: `${m.author.name} in #${channelName(m.channelId)}: ${clipMessage(m.content)}` });
+    // Unreachable: the query's `candidate` reference is required (its placeholder), so an edit without it is never used.
+    if (!q) throw new Error(`${RERANK_QUERY} names no \`candidate\``);
+    questions[`c${k}`] = q;
   });
   const reads = [...new Set(slots.map(({ m }) => m.channelId))];
-  const { answers } = await jev.decide({ state: { query, candidates }, questions, reads });
+  const { answers } = await jev.decide({ state: { query }, questions, reads });
   const scored = slots.map(({ slot }, k) => {
     const a = answers[`c${k}`];
     return { hit: hits[slot]!, p: a ? queryStrength(RERANK_QUERY, a) : null, k };

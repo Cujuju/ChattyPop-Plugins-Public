@@ -31,7 +31,12 @@ function start(channels: readonly string[], answer: (req: JevRequest) => Record<
   onTestFinished(() => t.dispose());
   const ids = t.db.prepare<[], string>('SELECT id FROM archive_all_messages ORDER BY ts').pluck().all();
   const hits: SearchHit[] = ids.map((messageId, i) => ({ messageId, channelId: channels[i]!, channelName: channels[i]!, authorName: 'Alice', ts: T0 + i, snippet: `m${i + 1}`, mentions: {} }));
-  const sent = (): string[] => jev.requests.flatMap((r) => Object.values((r.state as { candidates: Record<string, string> }).candidates));
+  // Each question carries its own hit; the request's state is the query alone.
+  const sent = (): string[] =>
+    jev.requests.flatMap((r) => {
+      expect(Object.keys(r.state as object)).toEqual(['query']);
+      return Object.values(r.questions).map((q) => (q.instructions as { candidate: string }).candidate);
+    });
   const order = (out: readonly SearchHit[] | null): string[] | null => out?.map((o) => hits.find((x) => x.messageId === o.messageId)!.snippet) ?? null;
   return { t, jev, hits, sent, order };
 }

@@ -18,13 +18,14 @@ const RERANK_QUERY_DEF: JevQueryDecl<'searchRerank'> = {
   group: 'Links & search',
   label: 'Search result relevance',
   features: ['searchRerank'],
-  sees: '`query` (your search) and `candidates` (the top results, author in #channel: text).',
-  placeholders: ['{ref}'],
+  sees: '`query` (your search) and `candidate` (one top result, author in #channel: text).',
+  // It names the result it is about; an edit without it can't say which, so it isn't used.
+  placeholders: ['`candidate`'],
   use: 'rank',
   condition: null,
   defaults: {
     type: 'noul',
-    question: 'Does candidate {ref} answer `query` or directly address what it asks about?',
+    question: 'Does `candidate` answer `query` or directly address what it asks about?',
     yes: 'answers or directly addresses the query',
     no: 'only shares words with it',
     minProbability: 0.5,
