@@ -12,6 +12,11 @@ import { DEFAULT_TRANSLATION_SETTINGS, type TranslationSettings } from '../share
 
 /** Long enough for a queue pass that would run to have run: the queue starts on setImmediate. */
 const SETTLE_MS = 50;
+/**
+ * Each test starts a plugin host on a freshly migrated archive; the first also pays the cold start. A CI runner's first
+ * test passed vitest's 5 s default (release run 37230529851); this leaves it room.
+ */
+const HOST_START_TIMEOUT_MS = 30_000;
 const IMAGE = 'attachment:a1';
 const AUDIO = 'attachment:a2';
 const EMBED_TEXT = 'embed-text:0';
@@ -81,7 +86,7 @@ const translations = (t: T, id: string) =>
 
 const settle = () => new Promise((r) => setTimeout(r, SETTLE_MS));
 
-describe('the Translation plugin', () => {
+describe('the Translation plugin', { timeout: HOST_START_TIMEOUT_MS }, () => {
   it('translates image text automatically when that kind is on, as derived text and a note of its part', async () => {
     const { t } = start({ translate: true });
     const id = arrive(t);

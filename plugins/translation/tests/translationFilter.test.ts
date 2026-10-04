@@ -19,6 +19,12 @@ import translationCore from '../core';
 import { messageSources } from '../core/sources';
 import { JOBS_TABLE, PRIORITY, enqueue, finish } from '../core/store';
 
+/**
+ * Each test starts a plugin host on a freshly migrated archive; the first also pays the cold start. A CI runner's first
+ * test passed vitest's 5 s default (release run 37230529851); this leaves it room.
+ */
+const HOST_START_TIMEOUT_MS = 30_000;
+
 const stops: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const stop of stops.splice(0)) await stop();
@@ -103,7 +109,7 @@ function start() {
   return { rule, say, translation, recheck, runs: (id: number) => runsOf(stack, id) };
 }
 
-describe('the "A translation" rule filter', () => {
+describe('the "A translation" rule filter', { timeout: HOST_START_TIMEOUT_MS }, () => {
   it('fires its rule when the translation arrives after the message, not before', async () => {
     const h = start();
     const id = h.rule();
