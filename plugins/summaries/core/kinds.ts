@@ -10,6 +10,7 @@ import type { plugin } from '../shared';
 import type { Summary, SummaryRequest } from '../shared/types';
 import type { SummaryPromptTemplates } from '../shared/prompts';
 import { actionRange } from '@plugin-sdk/core';
+import { namedText } from '../shared/people';
 
 /** Run service shared with the action contract tests. */
 export interface SummaryRangeDeps {
@@ -36,7 +37,7 @@ export function registerSummaryKinds(
     const { channelIds, ...span } = actionRange(r, c.lookbackMs);
     try {
       const summary = await deps.summarize(channelIds ? { ...span, channelIds } : span, c.prompts, trigger);
-      return { outcome: 'done', detail: summary.headline || null };
+      return { outcome: 'done', detail: namedText(summary.headline, summary.people) || null };
     } catch (err) {
       if (err instanceof EmptyRangeError) return { outcome: 'skipped', detail: err.message };
       if (r.event.kind === 'window') emit({ type: 'summary-auto-failed', trigger, message: errorMessage(err), ...(channelIds && { channelIds }) });

@@ -24,6 +24,7 @@ describe('edited queries drive the features', () => {
     text: `m${i}`,
     plain: `u: line ${i}`,
     filler: false,
+    people: [],
   });
 
   it('summary filler: a stricter keep threshold drops more', async () => {

@@ -15,12 +15,12 @@ import { stamp } from './summaryPrompt';
 export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: string[], sinceTs: number, untilTs: number, grouping: SummaryGrouping, skipObviousFiller = false): LogLine[] {
   if (!channelIds.length) return [];
   const rows = db.prepare(`SELECT m.id, m.channel_id AS channelId, c.name AS channelName, m.ts, m.text AS content,
-    m.deleted_at AS deletedAt, m.author_plain_name AS author
+    m.deleted_at AS deletedAt, m.author_plain_name AS author, m.author_id AS authorId
     FROM archive_all_messages m JOIN archive_all_channels c ON c.id = m.channel_id
     WHERE m.channel_id IN (${channelIds.map(() => '?').join(',')}) AND m.ts >= ? AND m.ts <= ? AND m.text != ''
     ORDER BY m.ts, length(m.id), m.id`).all(...channelIds, sinceTs, untilTs) as {
       id: string; channelId: string; channelName: string; ts: number; content: string;
-      deletedAt: number | null; author: string;
+      deletedAt: number | null; author: string; authorId: string;
     }[];
   if (!rows.length) return [];
   if (grouping === 'channel') {
@@ -44,6 +44,7 @@ export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: 
       text: `[${ref}] #${r.channelName} ${stamp(r.ts, withDate)} ${plain}`,
       plain,
       filler: skipObviousFiller && isFiller(r.content, details.get(r.id)?.isReply === 1),
+      people: [[r.author, r.authorId], ...[...r.content.matchAll(USER_MENTION)].flatMap((m) => (names[m[1]!] ? [[names[m[1]!]!, m[1]!] as const] : []))],
     };
   });
 }

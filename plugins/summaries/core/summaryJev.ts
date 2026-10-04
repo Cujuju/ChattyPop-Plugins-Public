@@ -21,6 +21,8 @@ export interface LogLine {
   plain: string;
   /** Matches the rule-based filler check (filler.ts); used only when that setting is on. */
   filler: boolean;
+  /** The people the line names, as it names them: its author and anyone it mentions (name, user id). */
+  people: (readonly [name: string, userId: string])[];
 }
 
 /** Messages judged per request. They share one state, which Jev bills once per request (TypeSafe "parallel questions"). */

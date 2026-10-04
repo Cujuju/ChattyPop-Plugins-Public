@@ -13,4 +13,6 @@ export const SUMMARY_MIGRATIONS = [
   `ALTER TABLE ${SUMMARIES_TABLE} ADD COLUMN api_cost_usd REAL`,
   // 1 when api_cost_usd was estimated later from the stored tokens, not reported by the run's calls.
   `ALTER TABLE ${SUMMARIES_TABLE} ADD COLUMN api_cost_estimated INTEGER NOT NULL DEFAULT 0`,
+  // 1 once its text names people as <@id>: written so, or linked by the one-time pass (linkStoredPeople).
+  `ALTER TABLE ${SUMMARIES_TABLE} ADD COLUMN people_linked INTEGER NOT NULL DEFAULT 0`,
 ] as const;

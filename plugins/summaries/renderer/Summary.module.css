@@ -76,6 +76,12 @@
   white-space: nowrap;
 }
 
+/* A person named in the text (look.mention), its name kept on one line. */
+.person {
+  padding: 0 var(--cp-space-1);
+  white-space: nowrap;
+}
+
 /* Jev citation check: a bullet whose cited messages don't back it. */
 .flag {
   display: inline-flex;

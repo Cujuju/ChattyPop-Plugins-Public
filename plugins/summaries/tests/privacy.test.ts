@@ -47,6 +47,8 @@ describe('summaries in privacy mode', () => {
     skippedCount: 0,
     durationMs: 0,
     headline: 'Plans in #general and #mod-chat; Secret Server is quiet',
+    people: {},
+    authors: {},
     items: [
       { parts: [{ text: 'Mods argued in mod-chat', citations: [cite(MODS, 'mod-chat')] }] },
       { parts: [{ text: 'Both rooms (general, mod-chat) agreed', citations: [cite(GENERAL, 'general'), cite(MODS, 'mod-chat')] }] },

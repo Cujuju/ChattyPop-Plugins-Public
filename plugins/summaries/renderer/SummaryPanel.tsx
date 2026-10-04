@@ -1,16 +1,14 @@
 // Summary history, controls and cited results.
-import { For, Show, createSignal } from 'solid-js';
-import { CITATION_FLAG_CONFIDENCE, type Citation, type Summary, type SummaryItem } from '../shared/types';
+import { For, Show } from 'solid-js';
+import { CITATION_FLAG_CONFIDENCE, type Summary, type SummaryItem } from '../shared/types';
 import { SUMMARY_RANGES, type SummaryRange, type SummaryTrigger } from '../shared/settings';
 import { MS_PER_S } from '@plugin-sdk/shared';
 import {
   look,
-  openArchive,
   providerLabel,
   createFollowBottom,
   Icon,
   clockTime,
-  countText,
   formatTokens,
   shortDateTime,
   usdText,
@@ -37,6 +35,8 @@ import {
 } from './state';
 import { pointGroups, spansDays } from './order';
 import styles from './Summary.module.css';
+import { PeopleText } from './People';
+import { Sources } from './Sources';
 
 /** Source chips a key theme shows once expanded; "+N more" counts the rest Jev sorted under it. */
 const THEME_CHIPS = 6;
@@ -163,7 +163,9 @@ function SummaryRun(props: { summary: Summary }) {
         <Show when={TRIGGER_TEXT[s().trigger]}>{(t) => ` · ${t()}`}</Show>
         <Show when={overlapUntil(s())}>{(t) => ` · Overlaps earlier summaries until ${shortDateTime(t())}`}</Show>
       </p>
-      <p class={`${styles.headline} ${look.text}`} data-size="lg" data-weight="semibold" data-line="normal" data-tone="primary">{s().headline}</p>
+      <p class={`${styles.headline} ${look.text}`} data-size="lg" data-weight="semibold" data-line="normal" data-tone="primary">
+        <PeopleText text={s().headline} people={s().people} channelId={s().channelIds[0]} />
+      </p>
       <p class={`${styles.meta} ${look.text}`} {...META}>
         {providerLabel(s().provider)}
         <Show when={s().model}>{(m) => ` (${m()})`}</Show> · {s().messageCount} messages
@@ -183,7 +185,7 @@ function SummaryRun(props: { summary: Summary }) {
             <For each={s().actions}>
               {(action) => (
                 <li class={`${styles.action} ${look.text}`} {...POINT} data-tone="primary">
-                  <PointParts item={action} withDay={withDay()} />
+                  <PointParts item={action} summary={s()} withDay={withDay()} />
                 </li>
               )}
             </For>
@@ -211,7 +213,7 @@ function SummaryRun(props: { summary: Summary }) {
               <For each={group.items}>
                 {(item) => (
                   <li class={`${styles.item} ${look.numbered} ${look.text}`} {...POINT} data-tone="secondary">
-                    <PointParts item={item} withDay={withDay()} />
+                    <PointParts item={item} summary={s()} withDay={withDay()} />
                     <Show when={flagOf(item)}>
                       {(f) => (
                         <span
@@ -240,8 +242,10 @@ function SummaryRun(props: { summary: Summary }) {
           <For each={s().themes!}>
             {(t) => (
               <li class={`${styles.item} ${look.numbered} ${look.text}`} {...POINT} data-tone="secondary">
-                <span class={styles.itemText}>{t.title}</span>
-                <Sources citations={t.citations} withDay={withDay()} limit={THEME_CHIPS} />
+                <span class={styles.itemText}>
+                  <PeopleText text={t.title} people={s().people} channelId={t.citations[0]?.channelId ?? s().channelIds[0]} />
+                </span>
+                <Sources citations={t.citations} summary={s()} withDay={withDay()} limit={THEME_CHIPS} />
               </li>
             )}
           </For>
@@ -252,47 +256,18 @@ function SummaryRun(props: { summary: Summary }) {
 }
 
 /** A point's parts, each followed by its own sources, so a source sits next to the thread it backs. */
-function PointParts(props: { item: SummaryItem; withDay: boolean }) {
+function PointParts(props: { item: SummaryItem; summary: Summary; withDay: boolean }) {
   return (
     <For each={props.item.parts}>
       {(part, i) => (
         <>
           {i() ? ' ' : ''}
-          <span class={styles.itemText}>{part.text}</span>
-          <Sources citations={part.citations} withDay={props.withDay} />
+          <span class={styles.itemText}>
+            <PeopleText text={part.text} people={props.summary.people} channelId={part.citations[0]?.channelId ?? props.summary.channelIds[0]} />
+          </span>
+          <Sources citations={part.citations} summary={props.summary} withDay={props.withDay} />
         </>
       )}
     </For>
-  );
-}
-
-/** A part's cited messages behind one toggle ("3 sources"); expanded, the chips, at most `limit` of them. */
-function Sources(props: { citations: Citation[]; withDay: boolean; limit?: number }) {
-  const [open, setOpen] = createSignal(false);
-  const shown = () => (props.limit === undefined ? props.citations : props.citations.slice(0, props.limit));
-  return (
-    <Show when={props.citations.length}>
-      <button type="button" class={`${styles.cite} ${look.citation} ${look.text}`} {...CHIP} aria-expanded={open()} onClick={() => setOpen(!open())}>
-        {open() ? 'Hide sources' : countText(props.citations.length, 'source')}
-      </button>
-      <Show when={open()}>
-        <For each={shown()}>{(c) => <CitationChip citation={c} withDay={props.withDay} />}</For>
-        <Show when={props.citations.length - shown().length}>{(more) => <span class={`${styles.meta} ${look.text}`} {...META}> +{more()} more</span>}</Show>
-      </Show>
-    </Show>
-  );
-}
-
-function CitationChip(props: { citation: Citation; withDay: boolean }) {
-  return (
-    <button
-      type="button"
-      class={`${styles.cite} ${look.citation} ${look.text}`}
-      {...CHIP}
-      title="Open this message in the Archive"
-      onClick={() => void openArchive(props.citation.channelId, props.citation.messageId)}
-    >
-      #{props.citation.channelName} {props.withDay ? shortDateTime(props.citation.ts) : clockTime(props.citation.ts)}
-    </button>
   );
 }

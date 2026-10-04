@@ -13,7 +13,7 @@ function log(): LogLine[] {
   for (let i = 0; i < 52; i++) {
     const ch = i % 7 === 0 && inB++ < 7 ? 'B' : 'A';
     const ref = `m${i + 1}`;
-    lines.push({ ref, citation: { messageId: String(i), channelId: ch, channelName: ch, ts: i }, text: `[${ref}] ${ch}`, plain: `${ch}:${ref}`, filler: false });
+    lines.push({ ref, citation: { messageId: String(i), channelId: ch, channelName: ch, ts: i }, text: `[${ref}] ${ch}`, plain: `${ch}:${ref}`, filler: false, people: [] });
   }
   return lines;
 }

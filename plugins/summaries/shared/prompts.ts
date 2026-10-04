@@ -14,7 +14,7 @@ export const SUMMARY_PROMPT_PLACEHOLDERS = {
   now: 'The date and time of the run.',
   bullets: 'How many points and how they are laid out (Length and Layout).',
   depth: 'How much each point says (Length).',
-  refs: 'How to cite messages. Required: sources link through it.',
+  refs: 'How to cite messages and mark names. Required: sources and people link through it.',
   actions: 'The “For you” list instructions; empty when it is off.',
   focus: 'Your “What matters to you” text; empty when blank.',
   themes: 'Key themes instructions; empty when Jev key themes are off.',

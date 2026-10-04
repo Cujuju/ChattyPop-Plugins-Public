@@ -20,6 +20,7 @@ const line = (i: number, ch = 'A'): LogLine => ({
   text: `[m${i}] #${ch} ${'x'.repeat(40)} ${String(i).padStart(3, '0')}`,
   plain: `${ch}:${i}`,
   filler: false,
+  people: [],
 });
 
 describe('#56 skip quiet stretches', () => {

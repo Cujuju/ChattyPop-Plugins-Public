@@ -8,6 +8,7 @@ import type { SummarySettings, SummaryTrigger } from '../shared/settings';
 import type { PluginDb, ArchiveReplyReader, CoverageQuery } from '@plugin-sdk/core';
 import { privacy } from '@plugin-sdk/core';
 import { shownSummary } from './privacy';
+import { linkMarked, peopleByName, unmarked, withPeople } from './people';
 import { FILLER_RULES_VERSION } from './filler';
 import type { SummaryProviders as ProviderRegistry } from './providers';
 import { SUMMARIES_TABLE } from './schema';
@@ -52,7 +53,7 @@ export class Summarizer {
   run(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger): Promise<Summary> {
     const next = this.queue.then(() => this.runNow(req, this.providers.effective(settings), prefs, trigger));
     this.queue = next.catch(() => undefined);
-    return next.then((s) => shownSummary(s, privacy(this.db)));
+    return next.then((s) => this.shown(s));
   }
 
   /**
@@ -229,15 +230,18 @@ export class Summarizer {
       final = await complete(mergePrompt(opts, untilTs), partials.join('\n\n'));
     }
 
+    // The people the model read, by the names it marks.
+    const byName = peopleByName(sent.flatMap((l) => l.people));
+    const link = (text: string): string => linkMarked(text, byName);
     const cited = (p: DraftPart): SummaryPart => ({
-      text: p.text,
+      text: link(p.text),
       citations: p.refs.map((r) => byRef.get(r.trim())).filter((c): c is Citation => c !== undefined),
     });
     const items = final.items.map((p): SummaryItem => ({ parts: p.parts.map(cited) }));
     const actions = opts.actionItems ? (final.actions ?? []).map((a): SummaryItem => ({ parts: [cited(a)] })) : [];
     if (checkJev) {
       this.emit({ type: 'summary-progress', phase: 'checking', done: chunks.length, total: chunks.length });
-      const c = await checkCitations(checkJev, final.items.map(wholePoint), lines);
+      const c = await checkCitations(checkJev, final.items.map((p) => { const w = wholePoint(p); return { ...w, text: unmarked(w.text) }; }), lines);
       this.lifetime.throwIfAborted();
       c.checks.forEach((check, i) => {
         if (check) items[i]!.check = check;
@@ -250,9 +254,9 @@ export class Summarizer {
       const t = await assignThemes(themeJev, sent, final.themes);
       this.lifetime.throwIfAborted();
       cost(t.costUsd);
-      themes = t.themes;
+      themes = t.themes.map((x) => ({ ...x, title: link(x.title) }));
     }
-    return store(final.headline, items, actions, themes, chunks.length);
+    return store(link(final.headline), items, actions, themes, chunks.length);
   }
 
   private store(r: NewSummary & { chunkCount: number }): Summary {
@@ -260,7 +264,7 @@ export class Summarizer {
     const { chunkCount, ...row } = r;
     const summary = insertSummary(this.db, row);
     this.emit({ type: 'summary-progress', phase: 'done', done: chunkCount, total: chunkCount });
-    this.emit({ type: 'summary-added', summary: shownSummary(summary, privacy(this.db)) });
+    this.emit({ type: 'summary-added', summary: this.shown(summary) });
     return summary;
   }
 
@@ -272,6 +276,11 @@ export class Summarizer {
   /** Summary runs newest first, keyset-paged by (created_at, id), as privacy mode shows them. */
   page(q: SummaryPageQuery): Summary[] {
     const p = privacy(this.db);
-    return summaryPage(this.db, q).map((s) => shownSummary(s, p));
+    return summaryPage(this.db, q).map((s) => withPeople(this.db, shownSummary(s, p)));
+  }
+
+  /** `s` as privacy mode shows it, with its people named as they are now: how every summary leaves core. */
+  private shown(s: Summary): Summary {
+    return withPeople(this.db, shownSummary(s, privacy(this.db)));
   }
 }

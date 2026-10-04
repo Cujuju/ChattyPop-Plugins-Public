@@ -73,6 +73,10 @@ export interface Summary {
   jevCostUsd: number | null;
   /** #59: key themes, each with the messages Jev sorted under it; null when not asked. */
   themes: SummaryTheme[] | null;
+  /** Each person its text names (as <@id>) or its sources cite, by user id: their name now (server nickname, else display name). */
+  people: Record<string, string>;
+  /** Each cited message's author: message id to user id. */
+  authors: Record<string, string>;
 }
 
 /** What one provider's summary runs since a time cost: runs, tokens and the model's cost at API rates. */
