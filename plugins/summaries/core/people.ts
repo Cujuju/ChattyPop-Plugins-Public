@@ -1,11 +1,29 @@
-// People in summary text: the model marks the names it writes ({{Name}}), core stores each as the person it is
-// (<@id>), and a summary read for showing carries everyone's name as it is now.
+// People in summary text: the log tags each person ({{p3}}), the model writes the tag wherever it names them, and core
+// stores each as the person it is (<@id>), only for tags the log gave out. A summary read for showing carries names now.
 import type { PluginDb } from '@plugin-sdk/core';
 import { personRef, referencedPeople } from '../shared/people';
 import { pointCitations, type Summary } from '../shared/types';
 
-/** A name the model marked, as the prompt's {refs} asks: {{Name}}. */
-const MARKED_NAME = /\{\{([^{}]+)\}\}/g;
+/** A mark in model text, as the prompt's {refs} asks: {{p3}}. */
+const MARK = /\{\{([^{}]+)\}\}/g;
+const TAG_PREFIX = 'p';
+const TAG = new RegExp(`^${TAG_PREFIX}\\d+$`);
+/** Written for a tag the log never gave out: who the model meant is unknown. */
+const UNPLACED_PERSON = 'someone';
+
+/** The `n`th person tagged in a log (from 1). */
+export const personTag = (n: number): string => `${TAG_PREFIX}${n}`;
+/** A tag as the log shows it after the person's name, and as the model writes it. */
+export const markedTag = (tag: string): string => `{{${tag}}}`;
+
+/** A person in a run's log: their tag, user id and name as the log spells it. */
+export interface TaggedPerson {
+  tag: string;
+  userId: string;
+  name: string;
+}
+
+export const peopleByTag = (people: Iterable<TaggedPerson>): Map<string, TaggedPerson> => new Map([...people].map((p) => [p.tag, p]));
 
 /** Each name to the one person it is; a name two people share is left out, since it can't say which one is meant. */
 export function peopleByName(pairs: Iterable<readonly [name: string, userId: string]>): Map<string, string> {
@@ -17,15 +35,23 @@ export function peopleByName(pairs: Iterable<readonly [name: string, userId: str
   return new Map([...byName].filter((e): e is [string, string] => e[1] !== null));
 }
 
-/** `text` with each marked name `byName` knows as its person, and any other mark dropped to the bare name. */
-export const linkMarked = (text: string, byName: ReadonlyMap<string, string>): string =>
-  text.replace(MARKED_NAME, (_, name: string) => {
-    const userId = byName.get(name.trim());
-    return userId ? personRef(userId) : name;
+/**
+ * `text` with each tag the log gave out as its person. A mark holding a name (as a template from before tags asks) is
+ * linked when one person in the log has it, else kept as the name; an unknown tag reads UNPLACED_PERSON.
+ */
+export const linkMarked = (text: string, byTag: ReadonlyMap<string, TaggedPerson>, byName: ReadonlyMap<string, string>): string =>
+  text.replace(MARK, (_, mark: string) => {
+    const m = mark.trim();
+    const userId = byTag.get(m)?.userId ?? byName.get(m);
+    return userId ? personRef(userId) : TAG.test(m) ? UNPLACED_PERSON : m;
   });
 
-/** `text` without marks: the names as the model wrote them, for Jev, which reads the log's names. */
-export const unmarked = (text: string): string => text.replace(MARKED_NAME, '$1');
+/** `text` with each mark as the name the log spells, for Jev, which reads the log's names. */
+export const unmarked = (text: string, byTag: ReadonlyMap<string, TaggedPerson>): string =>
+  text.replace(MARK, (_, mark: string) => {
+    const m = mark.trim();
+    return byTag.get(m)?.name ?? (TAG.test(m) ? UNPLACED_PERSON : m);
+  });
 
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

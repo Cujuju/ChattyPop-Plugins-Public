@@ -4,7 +4,7 @@ import { SUMMARY_BULLETS, type SummaryGrouping, type SummaryLength } from '../sh
 import type { ThemeDraft } from './summaryShape';
 
 /** Bump when prompts or schema change: cached summaries under the old version are not reused. */
-export const PROMPT_VERSION = 5;
+export const PROMPT_VERSION = 6;
 /** Bump when the theme prompt or schema changes: cached summaries with the old themes are not reused. */
 export const THEMES_VERSION = 2;
 /** #59: themes the model names; Jev then sorts each message under one. */
@@ -111,14 +111,14 @@ const themesRule = (o: PromptOptions): string =>
 const mergeActionRule = (o: PromptOptions): string =>
   o.actionItems ? 'Merge the partial action lists the same way: drop duplicates and anything a later part shows was answered or done.' : '';
 
-/** Marked names become links to the person (core/people.ts), so each shows the name they have now. */
-const PEOPLE = 'Everywhere you name a person (headline, bullets, actions, themes), write the name exactly as the log shows it, inside double braces: {{Sam}}.';
+/** Tags become links to the person (core/people.ts), so each shows the name they have now. */
+const PEOPLE = 'Each person in the log has a tag after their name, like {{p3}}. Everywhere you name a person (headline, bullets, actions, themes), write their tag in place of their name, exactly as the log shows it: {{p3}}.';
 
 const REFS: Record<SummaryPromptKind, string> = {
   summarize: `Write each bullet as one or more parts in order. A part is the sentences about one thread (one exchange, or the same people on one sub-topic) with the refs (like "m12") of the messages it covers; start a new part when the bullet moves to another thread. Use only refs that appear in the log.
 ${PEOPLE}`,
   merge: `Write each bullet as parts the same way, keeping every ref (like "m12") with the text it supports as you combine parts; never invent refs.
-Keep every name in double braces as the parts write it: {{Sam}}.`,
+Keep every person tag as the parts write it: {{p3}}.`,
 };
 
 /** The owner's template for `kind` (or the default) with every placeholder filled from the options. */

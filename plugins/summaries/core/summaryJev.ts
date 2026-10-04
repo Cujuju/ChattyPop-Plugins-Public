@@ -4,6 +4,7 @@ import { errorMessage } from '@plugin-sdk/shared';
 import { queryFingerprint, queryMatch, queryRequest } from '@plugin-sdk/core';
 import { sumCosts, type DecisionProvider, type Question } from '@plugin-sdk/core';
 import { contextBatches } from './summaryRows';
+import type { TaggedPerson } from './people';
 
 /** Settings → Jev → Queries ids used here. */
 const FILLER_QUERY = 'summaries.filler';
@@ -21,8 +22,8 @@ export interface LogLine {
   plain: string;
   /** Matches the rule-based filler check (filler.ts); used only when that setting is on. */
   filler: boolean;
-  /** The people the line names, as it names them: its author and anyone it mentions (name, user id). */
-  people: (readonly [name: string, userId: string])[];
+  /** The people the line names (its author, anyone it mentions): their log tag, user id and name as the line spells it. */
+  people: TaggedPerson[];
 }
 
 /** Messages judged per request. They share one state, which Jev bills once per request (TypeSafe "parallel questions"). */

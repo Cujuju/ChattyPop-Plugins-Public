@@ -1,6 +1,6 @@
 // A summary's sources: cited messages behind a toggle, each a chip opening the message in the Archive.
 import { For, Show, createSignal } from 'solid-js';
-import { clockTime, countText, look, openArchive, shortDateTime } from '@plugin-sdk/renderer/kit';
+import { clockTime, countText, look, openArchive, personName, shortDateTime } from '@plugin-sdk/renderer/kit';
 import type { Citation, Summary } from '../shared/types';
 import styles from './Summary.module.css';
 
@@ -26,11 +26,11 @@ export function Sources(props: { citations: Citation[]; summary: Summary; withDa
   );
 }
 
-/** A source: its channel, its author's name now and its time; opens the message. */
+/** A source: its channel, its author's name there now (live) and its time; opens the message. */
 function CitationChip(props: { citation: Citation; summary: Summary; withDay: boolean }) {
   const author = (): string | undefined => {
     const id = props.summary.authors[props.citation.messageId];
-    return id === undefined ? undefined : props.summary.people[id];
+    return id === undefined ? undefined : (personName(id, props.citation.channelId)?.name ?? props.summary.people[id]);
   };
   return (
     <button

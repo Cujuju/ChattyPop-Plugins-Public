@@ -61,8 +61,8 @@ describe('summary options reach the prompt and the stored run', () => {
     const summary = await run(s, { focus: 'release dates' });
 
     const [call] = calls;
-    expect(call!.prompt).toContain('@Bob can you review');
-    expect(call!.prompt).toMatch(/\[m1\] #general \w{3} \w{3} \d{2} \d{2}:\d{2} Alice: morning all/);
+    expect(call!.prompt).toContain('Alice {{p1}}: @Bob {{p2}} can you review');
+    expect(call!.prompt).toMatch(/\[m1\] #general \w{3} \w{3} \d{2} \d{2}:\d{2} Alice \{\{p1\}\}: morning all/);
     expect(call!.system).toContain('"Alice"');
     expect(call!.system).toContain('release dates');
     expect(summary.actions).toEqual([{ parts: [{ text: 'Reply to Bob', citations: [expect.objectContaining({ channelName: 'general' })] }] }]);
@@ -101,7 +101,7 @@ describe('summary options reach the prompt and the stored run', () => {
     const b = await run(s, { prompts: { summarize: template, merge: null } });
     expect(b.id).not.toBe(a.id);
     expect(calls[1]!.system).toBe(
-      `Summarize tersely.\nthen 6-14 bullets on the most important conversations, in the order they started.\n\nWrite each bullet as one or more parts in order. A part is the sentences about one thread (one exchange, or the same people on one sub-topic) with the refs (like "m12") of the messages it covers; start a new part when the bullet moves to another thread. Use only refs that appear in the log.\nEverywhere you name a person (headline, bullets, actions, themes), write the name exactly as the log shows it, inside double braces: {{Sam}}.\nPlain words only.`,
+      `Summarize tersely.\nthen 6-14 bullets on the most important conversations, in the order they started.\n\nWrite each bullet as one or more parts in order. A part is the sentences about one thread (one exchange, or the same people on one sub-topic) with the refs (like "m12") of the messages it covers; start a new part when the bullet moves to another thread. Use only refs that appear in the log.\nEach person in the log has a tag after their name, like {{p3}}. Everywhere you name a person (headline, bullets, actions, themes), write their tag in place of their name, exactly as the log shows it: {{p3}}.\nPlain words only.`,
     );
   });
 

@@ -41,7 +41,7 @@ export async function linkStoredPeople(db: PluginDb, aborted: () => boolean): Pr
     const r = read.get(id) as UnlinkedRow | undefined;
     if (!r) continue;
     const lines = readLog(db, NO_REPLY_FLAGS, JSON.parse(r.channel_ids) as string[], r.since_ts, r.until_ts, 'overall');
-    const byName = peopleByName(lines.flatMap((l) => l.people));
+    const byName = peopleByName(lines.flatMap((l) => l.people.map((p) => [p.name, p.userId] as const)));
     const link = (text: string): string => linkNames(text, byName);
     const themes = r.themes_json && JSON.stringify((JSON.parse(r.themes_json) as SummaryTheme[]).map((t) => ({ ...t, title: link(t.title) })));
     linked += write.run(link(r.headline), linkedPoints(r.items_json, link), linkedPoints(r.actions_json, link), themes, r.id).changes;

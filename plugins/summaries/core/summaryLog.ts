@@ -7,10 +7,12 @@ import { clipMessage } from '@plugin-sdk/core';
 import { isFiller } from './filler';
 import type { LogLine } from './summaryJev';
 import { stamp } from './summaryPrompt';
+import { markedTag, personTag, type TaggedPerson } from './people';
 
 /**
  * Log lines with short refs; refs map back to real message ids after the model answers. Chronological, or per channel
  * (in order of each channel's first message) when grouped by channel. Mentions read as names; dates show when the range spans days.
+ * Each person the model reads carries their tag after their name ({{p3}}), which it writes to name them.
  */
 export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: string[], sinceTs: number, untilTs: number, grouping: SummaryGrouping, skipObviousFiller = false): LogLine[] {
   if (!channelIds.length) return [];
@@ -32,19 +34,28 @@ export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: 
   const names: Record<string, string> = Object.fromEntries(ids.length ? db.prepare(
     `SELECT id, display_name FROM archive_users WHERE id IN (${ids.map(() => '?').join(',')})`,
   ).raw().all(...ids) as [string, string][] : []);
-  const named = (text: string): string => text.replace(USER_MENTION, (raw, id: string) => (names[id] ? `@${names[id]}` : raw));
+  const tags = new Map<string, TaggedPerson>();
+  const person = (userId: string, name: string): TaggedPerson => {
+    const known = tags.get(userId) ?? { tag: personTag(tags.size + 1), userId, name };
+    tags.set(userId, known);
+    return known;
+  };
+  const named = (text: string, tagged: boolean): string =>
+    text.replace(USER_MENTION, (raw, id: string) => (names[id] ? `@${names[id]}${tagged ? ` ${markedTag(person(id, names[id]).tag)}` : ''}` : raw));
   const details = skipObviousFiller ? payloads(rows.map((r) => r.id)) : new Map();
   const withDate = new Date(sinceTs).toDateString() !== new Date(untilTs).toDateString();
   return rows.map((r, i) => {
     const ref = `m${i + 1}`;
-    const plain = `${r.author}${r.deletedAt ? ' (deleted)' : ''}: ${clipMessage(named(r.content))}`;
+    const deleted = r.deletedAt ? ' (deleted)' : '';
+    const author = person(r.authorId, r.author);
+    const tagged = `${r.author} ${markedTag(author.tag)}${deleted}: ${clipMessage(named(r.content, true))}`;
     return {
       ref,
       citation: { messageId: r.id, channelId: r.channelId, channelName: r.channelName, ts: r.ts },
-      text: `[${ref}] #${r.channelName} ${stamp(r.ts, withDate)} ${plain}`,
-      plain,
+      text: `[${ref}] #${r.channelName} ${stamp(r.ts, withDate)} ${tagged}`,
+      plain: `${r.author}${deleted}: ${clipMessage(named(r.content, false))}`,
       filler: skipObviousFiller && isFiller(r.content, details.get(r.id)?.isReply === 1),
-      people: [[r.author, r.authorId], ...[...r.content.matchAll(USER_MENTION)].flatMap((m) => (names[m[1]!] ? [[names[m[1]!]!, m[1]!] as const] : []))],
+      people: [author, ...[...r.content.matchAll(USER_MENTION)].flatMap((m) => (names[m[1]!] ? [tags.get(m[1]!)!] : []))],
     };
   });
 }

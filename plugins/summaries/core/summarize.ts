@@ -8,7 +8,7 @@ import type { SummarySettings, SummaryTrigger } from '../shared/settings';
 import type { PluginDb, ArchiveReplyReader, CoverageQuery } from '@plugin-sdk/core';
 import { privacy } from '@plugin-sdk/core';
 import { shownSummary } from './privacy';
-import { linkMarked, peopleByName, unmarked, withPeople } from './people';
+import { linkMarked, peopleByName, peopleByTag, unmarked, withPeople } from './people';
 import { FILLER_RULES_VERSION } from './filler';
 import type { SummaryProviders as ProviderRegistry } from './providers';
 import { SUMMARIES_TABLE } from './schema';
@@ -230,9 +230,11 @@ export class Summarizer {
       final = await complete(mergePrompt(opts, untilTs), partials.join('\n\n'));
     }
 
-    // The people the model read, by the names it marks.
-    const byName = peopleByName(sent.flatMap((l) => l.people));
-    const link = (text: string): string => linkMarked(text, byName);
+    // The people the model read, by the tags it writes (or a name, from an owner's template written before tags).
+    const people = lines.flatMap((l) => l.people);
+    const byTag = peopleByTag(people);
+    const byName = peopleByName(people.map((p) => [p.name, p.userId] as const));
+    const link = (text: string): string => linkMarked(text, byTag, byName);
     const cited = (p: DraftPart): SummaryPart => ({
       text: link(p.text),
       citations: p.refs.map((r) => byRef.get(r.trim())).filter((c): c is Citation => c !== undefined),
@@ -241,7 +243,7 @@ export class Summarizer {
     const actions = opts.actionItems ? (final.actions ?? []).map((a): SummaryItem => ({ parts: [cited(a)] })) : [];
     if (checkJev) {
       this.emit({ type: 'summary-progress', phase: 'checking', done: chunks.length, total: chunks.length });
-      const c = await checkCitations(checkJev, final.items.map((p) => { const w = wholePoint(p); return { ...w, text: unmarked(w.text) }; }), lines);
+      const c = await checkCitations(checkJev, final.items.map((p) => { const w = wholePoint(p); return { ...w, text: unmarked(w.text, byTag) }; }), lines);
       this.lifetime.throwIfAborted();
       c.checks.forEach((check, i) => {
         if (check) items[i]!.check = check;

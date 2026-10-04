@@ -1,5 +1,5 @@
-// People in summary text (#291): marked names are stored as the person, shown by their name now, and old summaries are
-// linked once by the names their log held.
+// People in summary text (#291, #303): the log tags each person, the model writes tags, core stores each tag the log
+// gave out as the person (shown by their name now), and old summaries are linked once by the names their log held.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Db } from '@core/db';
@@ -11,7 +11,7 @@ import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { adoptSummaries, fakeRegistry } from './summariesHarness';
 import { Summarizer } from '../core/summarize';
 import { SUMMARIES_TABLE } from '../core/schema';
-import { linkMarked, linkNames, peopleByName } from '../core/people';
+import { linkMarked, linkNames, peopleByName, peopleByTag, unmarked } from '../core/people';
 import { linkStoredPeople } from '../core/linkStored';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { namedText, textRuns } from '../shared/people';
@@ -25,10 +25,12 @@ const STAT = { id: '400000000000000002', username: 'stat', global_name: 'stat' }
 const SINCE = Date.now() - 3 * MS_PER_DAY;
 
 describe('people in summary text', () => {
-  it('links only names one person holds, and unwraps marks it cannot place', () => {
+  it('links tags the log gave out, a name only one person holds, and no tag it never gave out', () => {
     const byName = peopleByName([['Sam', '1'], ['Kim', '2'], ['Kim', '3'], ['Sam', '1']]);
     expect([...byName]).toEqual([['Sam', '1']]);
-    expect(linkMarked("{{Sam}}'s fix, {{Kim}} and {{Lee}}", byName)).toBe("<@1>'s fix, Kim and Lee");
+    const byTag = peopleByTag([{ tag: 'p1', userId: '2', name: 'Kim' }, { tag: 'p2', userId: '3', name: 'Kim' }]);
+    expect(linkMarked("{{p1}} and {{p2}}, {{p9}}; {{Sam}}'s fix, {{Kim}} and {{Lee}}", byTag, byName)).toBe("<@2> and <@3>, someone; <@1>'s fix, Kim and Lee");
+    expect(unmarked('{{p2}} asked {{p9}} and {{Lee}}', byTag)).toBe('Kim asked someone and Lee');
   });
 
   it('links whole names in old text, longest first, never inside a word', () => {
@@ -65,8 +67,17 @@ describe('summaries name people as they are now', () => {
   };
   const run = (s: Summarizer) => s.run({ sinceTs: SINCE }, aiSettingsFrom({}), { ...DEFAULT_SUMMARY_SETTINGS, actionItems: false }, 'manual');
 
+  it('tags people in the log and stores the tags the model writes as people', async () => {
+    const { calls, registry } = fakeRegistry(() => db, () => ({ headline: '{{p1}} got the knife', items: [{ parts: [{ text: '{{p2}} cheered {{p1}}', refs: ['m1'] }] }] }));
+    const summary = await run(new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {}));
+    expect(calls[0]!.prompt).toContain(`Salchipapa {{p1}}: knife arrived`);
+    expect(calls[0]!.prompt).toContain(`stat {{p2}}: @Salchipapa {{p1}} nice`);
+    expect(summary.headline).toBe(`<@${SAL.id}> got the knife`);
+    expect(summary.items[0]!.parts[0]!.text).toBe(`<@${STAT.id}> cheered <@${SAL.id}>`);
+  });
+
   it('stores marked names as people and shows their server nickname, live', async () => {
-    const s = summarizer('{{Salchipapa}} got the knife', '{{stat}} cheered {{Salchipapa}}');
+    const s = summarizer('{{p1}} got the knife', '{{p2}} cheered {{p1}}');
     const summary = await run(s);
     expect(summary.headline).toBe(`<@${SAL.id}> got the knife`);
     expect(summary.items[0]!.parts[0]!.text).toBe(`<@${STAT.id}> cheered <@${SAL.id}>`);
