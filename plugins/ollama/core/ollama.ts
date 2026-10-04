@@ -10,7 +10,14 @@ const OLLAMA_NUM_CTX_TOKENS = 16_384;
 const OLLAMA_MAX_INPUT_CHARS = 32_000;
 
 interface OllamaTags {
-  models: { name: string }[];
+  /** size: bytes on disk. */
+  models: { name: string; size: number }[];
+}
+
+/** An installed model: its name and size on disk. */
+export interface InstalledModel {
+  name: string;
+  bytes: number;
 }
 
 /** `/api/ps`: the models loaded in memory, each with the context window it was loaded with. */
@@ -52,14 +59,20 @@ async function modelTraits(net: PluginFetch, baseUrl: string, model: string): Pr
 }
 
 /** Lists installed models; throws ProviderUnavailableError when the server can't be reached. */
-export async function listOllamaModels(net: PluginFetch, baseUrl: string): Promise<string[]> {
+export async function listOllamaModels(net: PluginFetch, baseUrl: string): Promise<InstalledModel[]> {
   try {
     const res = await net(new URL('/api/tags', baseUrl).href, { signal: AbortSignal.timeout(LIST_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return ((await res.json()) as OllamaTags).models.map((m) => m.name);
+    return ((await res.json()) as OllamaTags).models.map((m) => ({ name: m.name, bytes: m.size }));
   } catch (err) {
     throw new ProviderUnavailableError(`Ollama not reachable at ${baseUrl} (${errorMessage(err)}).`);
   }
+}
+
+/** Removes an installed model from Ollama (its files on disk). */
+export async function deleteOllamaModel(net: PluginFetch, baseUrl: string, model: string): Promise<void> {
+  const res = await net(new URL('/api/delete', baseUrl).href, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
+  if (!res.ok) throw new Error(`Ollama ${res.status}: ${await res.text()}`);
 }
 
 /** `keep_alive` as a request field: absent leaves the server's own (OLLAMA_KEEP_ALIVE, 5 minutes by default). */
@@ -102,18 +115,18 @@ export class OllamaProvider implements LlmProvider {
   ) {}
 
   async listModels(): Promise<ModelOption[]> {
-    const names = await listOllamaModels(this.net, this.baseUrl);
+    const installed = await listOllamaModels(this.net, this.baseUrl);
     return Promise.all(
-      names.map(async (m, i) => {
-        const { efforts, images } = await modelTraits(this.net, this.baseUrl, m);
+      installed.map(async ({ name, bytes }, i) => {
+        const { efforts, images } = await modelTraits(this.net, this.baseUrl, name);
         // complete() falls back to the first installed model.
-        return { id: m, label: m, ...(efforts ? { efforts } : {}), ...(images ? { images } : {}), ...(i === 0 ? { isDefault: true } : {}) };
+        return { id: name, label: name, bytes, ...(efforts ? { efforts } : {}), ...(images ? { images } : {}), ...(i === 0 ? { isDefault: true } : {}) };
       }),
     );
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
-    const model = req.model ?? this.model ?? (await listOllamaModels(this.net, this.baseUrl))[0];
+    const model = req.model ?? this.model ?? (await listOllamaModels(this.net, this.baseUrl))[0]?.name;
     if (!model) throw new ProviderUnavailableError('No Ollama models installed.');
     const res = await this.net(new URL('/api/chat', this.baseUrl).href, {
       method: 'POST',

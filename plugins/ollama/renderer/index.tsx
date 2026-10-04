@@ -9,6 +9,8 @@ import { SUGGESTED_VISION_MODEL, type OllamaPull } from '../shared/types';
 
 const [settings, setSettings, { patch }] = pluginPreference(plugin, 'settings');
 const desktop = desktopCoreClient(plugin);
+/** Model deletes from Settings → AI's list: one at a time, the latest one's error shown. */
+const deletes = createAction();
 const pulls = pluginResource(plugin, 'pulls', () => [], [] as OllamaPull[]);
 onEvent(plugin, PULLS_EVENT, (list) => pulls.mutate(list));
 // A new model lists in Settings → AI and in every model picker.
@@ -91,6 +93,7 @@ function OllamaRows() {
         )}
       </For>
       <ErrorNote error={action.error()} />
+      <ErrorNote error={deletes.error()} />
     </>
   );
 }
@@ -102,4 +105,13 @@ const setupNote = (models: readonly unknown[] | null): string | undefined => {
   return undefined;
 };
 
-export default defineRendererPlugin(plugin, { providers: { ollama: { rows: OllamaRows, note: (status) => setupNote(status.models) } } });
+/** An installed model's Delete, beside its Use choice in Settings → AI; its error shows under Ollama's rows. */
+function DeleteModel(props: { model: { id: string } }) {
+  return (
+    <SettingsButton disabled={deletes.busy()} onClick={() => void deletes.run(() => desktop.deleteModel(props.model.id))}>
+      Delete
+    </SettingsButton>
+  );
+}
+
+export default defineRendererPlugin(plugin, { providers: { ollama: { rows: OllamaRows, note: (status) => setupNote(status.models), modelAction: DeleteModel } } });

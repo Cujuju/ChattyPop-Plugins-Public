@@ -2,7 +2,7 @@
 import { defineCorePlugin, type ProviderReport } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { INSTALLED_EVENT, PULLS_EVENT, plugin } from '../shared';
-import { OllamaProvider, applyUnloadAfter } from './ollama';
+import { OllamaProvider, applyUnloadAfter, deleteOllamaModel } from './ollama';
 import { ModelPulls } from './pulls';
 
 export default defineCorePlugin(plugin, (ctx) => {
@@ -31,6 +31,10 @@ export default defineCorePlugin(plugin, (ctx) => {
     pulls: () => pulls.list(),
     pull: (model) => pulls.pull(model),
     cancelPull: (model) => pulls.cancel(model),
+    deleteModel: async (model) => {
+      await deleteOllamaModel(ctx.net.fetch, settings().ollamaUrl, model);
+      ctx.channels.emit(INSTALLED_EVENT, model);
+    },
   });
   let unloadAfterS = settings().unloadAfterS;
   ctx.preferences.onChange('settings', () => {

@@ -5,7 +5,7 @@ import type { OllamaPull } from './types';
 
 /** Plugin event: a download started, progressed, failed or ended; payload every download still listed. */
 export const PULLS_EVENT = 'pulls' as const;
-/** Plugin event: a model finished installing; payload its name. */
+/** Plugin event: a model finished installing or was deleted; payload its name. */
 export const INSTALLED_EVENT = 'installed' as const;
 /** Ollama's site, where it is downloaded: linked beside Settings → AI's Ollama title. */
 export const OLLAMA_SITE = 'https://ollama.com';
@@ -18,6 +18,8 @@ export interface OllamaCoreCalls {
   pull(model: string): void;
   /** Stops a download (Ollama keeps what it has, so pulling again resumes) or clears a failed one. */
   cancelPull(model: string): void;
+  /** Removes an installed model; INSTALLED_EVENT follows, so model lists refresh. */
+  deleteModel(model: string): Promise<void>;
 }
 
 export interface OllamaEvents {
@@ -48,6 +50,7 @@ export const plugin = definePlugin({
       pulls: { audiences: ['renderer'], writes: false },
       pull: ['renderer'],
       cancelPull: ['renderer'],
+      deleteModel: ['renderer'],
     },
     events: { [PULLS_EVENT]: ['renderer'], [INSTALLED_EVENT]: ['renderer'] },
   }),
