@@ -385,6 +385,20 @@
           "sdk": "1.1.0"
         }
       ]
+    },
+    {
+      "id": "translation",
+      "name": "Translation",
+      "description": "Translates image text, transcripts and link previews into your language with an AI model, so rules, Jev and search see it.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "translation-v1.0.0",
+          "asset": "translation-1.0.0.tar.gz",
+          "sha256": "5267e959b4809330868e20a6c0443d563b992da0c830b6b314102584be42f650",
+          "sdk": "2.4.0"
+        }
+      ]
     }
   ]
 }
