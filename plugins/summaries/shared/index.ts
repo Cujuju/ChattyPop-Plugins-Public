@@ -16,6 +16,8 @@ export interface SummaryCalls {
   usageSince(provider: ProviderId, sinceTs: number): AppUsage;
   /** What runs since each time cost, in order. */
   spending(sinceTs: number[]): SummarySpend[];
+  /** The owner names a person: summary `id`'s `written` (a whole word or phrase) becomes `userId`; how many it linked. */
+  linkPerson(id: number, written: string, userId: string): number;
   notifyAuto(): boolean;
 }
 
@@ -56,6 +58,7 @@ export const plugin = definePlugin({
       prompts: ['renderer'],
       usageSince: { audiences: ['renderer', 'phone'], writes: false },
       spending: { audiences: ['renderer'], writes: false },
+      linkPerson: ['renderer'],
       notifyAuto: ['main'],
     },
     events: {

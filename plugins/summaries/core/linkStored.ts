@@ -3,6 +3,7 @@
 // and open profiles as new ones do.
 import type { ArchiveReplyReader, PluginDb } from '@plugin-sdk/core';
 import type { SummaryItem, SummaryTheme } from '../shared/types';
+import { personRef } from '../shared/people';
 import { leadsNotWords, linkNames, peopleByLead, peopleByName } from './people';
 import { PEOPLE_LINKED, PEOPLE_LINKED_ALL, SUMMARIES_TABLE } from './schema';
 import { readLog } from './summaryLog';
@@ -27,6 +28,30 @@ const linkedPoints = (json: string, link: (t: string) => string): string =>
   JSON.stringify((JSON.parse(json) as (SummaryItem | { text: string })[]).map((i) =>
     'parts' in i ? { ...i, parts: i.parts.map((p) => ({ ...p, text: link(p.text) })) } : { ...i, text: link(i.text) },
   ));
+
+/**
+ * The owner names a person the passes couldn't (a first name, another spelling): each whole-word `written` in summary
+ * `id` becomes `userId`. Returns how many it linked; none for a person the archive doesn't know.
+ */
+export function linkPerson(db: PluginDb, id: number, written: string, userId: string): number {
+  if (!written.trim() || !db.prepare('SELECT 1 FROM archive_users WHERE id = ?').get(userId)) return 0;
+  const r = db.prepare(`SELECT headline, items_json, actions_json, themes_json FROM ${SUMMARIES_TABLE} WHERE id = ?`).get(id) as
+    | Pick<UnlinkedRow, 'headline' | 'items_json' | 'actions_json' | 'themes_json'>
+    | undefined;
+  if (!r) return 0;
+  const ref = personRef(userId);
+  const refs = (text: string): number => text.split(ref).length - 1;
+  let linked = 0;
+  const link = (text: string): string => {
+    const out = linkNames(text, new Map([[written, userId]]));
+    linked += refs(out) - refs(text);
+    return out;
+  };
+  const themes = r.themes_json && JSON.stringify((JSON.parse(r.themes_json) as SummaryTheme[]).map((t) => ({ ...t, title: link(t.title) })));
+  const [headline, items, actions] = [link(r.headline), linkedPoints(r.items_json, link), linkedPoints(r.actions_json, link)];
+  if (linked) db.prepare(`UPDATE ${SUMMARIES_TABLE} SET headline = ?, items_json = ?, actions_json = ?, themes_json = ? WHERE id = ?`).run(headline, items, actions, themes, id);
+  return linked;
+}
 
 /** A stored point list's texts (either shape). */
 const pointTexts = (json: string): string[] =>

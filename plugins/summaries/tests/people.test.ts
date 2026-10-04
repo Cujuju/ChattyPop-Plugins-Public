@@ -12,7 +12,7 @@ import { adoptSummaries, fakeRegistry } from './summariesHarness';
 import { Summarizer } from '../core/summarize';
 import { PEOPLE_LINKED, SUMMARIES_TABLE } from '../core/schema';
 import { leadsNotWords, linkMarked, linkNames, peopleByLead, peopleByName, peopleByTag, unmarked } from '../core/people';
-import { linkStoredPeople } from '../core/linkStored';
+import { linkPerson, linkStoredPeople } from '../core/linkStored';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { namedText, textRuns } from '../shared/people';
 
@@ -110,6 +110,17 @@ describe('summaries name people as they are now', () => {
     expect(shown!.headline).toBe(`<@${SAL.id}> got the knife`);
     expect(shown!.items[0]!.parts[0]!.text).toBe(`<@${STAT.id}> cheered <@${SAL.id}>`);
     expect(await linkStoredPeople(db, () => false)).toBe(0);
+  });
+
+  it("links the owner's naming of a person in one summary, only for someone the archive knows", async () => {
+    const s = summarizer('Sal got the knife; Salty', 'stat cheered Sal');
+    const { id } = await run(s);
+    expect(linkPerson(db, id, 'Sal', '400000000000000404')).toBe(0);
+    expect(linkPerson(db, id, 'Sal', SAL.id)).toBe(2);
+    const [shown] = s.page({ limit: 1 });
+    expect(shown!.headline).toBe(`<@${SAL.id}> got the knife; Salty`);
+    expect(shown!.items[0]!.parts[0]!.text).toBe(`stat cheered <@${SAL.id}>`);
+    expect(linkPerson(db, id, 'Sal', SAL.id)).toBe(0);
   });
 
   it('links shortened names in summaries the whole-name pass already went over, once', async () => {

@@ -9,7 +9,7 @@ import { registerSummaryKinds } from './kinds';
 import { migrateAutoSummaries } from './autoSummaries';
 import { coverageSpans, summarySpend } from './summaryRows';
 import { estimateMissingCosts } from './costBackfill';
-import { linkStoredPeople } from './linkStored';
+import { linkPerson, linkStoredPeople } from './linkStored';
 import { SUMMARY_MIGRATIONS } from './schema';
 
 /** Activates the complete summary service through the host context. */
@@ -55,6 +55,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     prompts: (own) => summarizer.prompts(ctx.ai.settings(), withOwnPrompts(prefs(), own)),
     usageSince: (provider, sinceTs) => summarizer.usageSince(provider, sinceTs),
     spending: (starts) => starts.map((sinceTs) => summarySpend(ctx.storage.db, sinceTs)),
+    linkPerson: (id, written, userId) => linkPerson(ctx.storage.db, id, written, userId),
     notifyAuto: () => prefs().notifyAuto,
   });
   migrateAutoSummaries(ctx, Date.now(), ctx.session.lastSeenAt());
