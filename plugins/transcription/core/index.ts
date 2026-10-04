@@ -1,6 +1,7 @@
 // Transcription's core side: the queue and toolchain, transcripts as derived text and notes on their parts, and the calls Settings, the message menu and main make.
 import { defineCorePlugin } from '@plugin-sdk/core';
 import { FETCH_AUDIO, STATUS_EVENT, plugin } from '../shared';
+import { registerTranscriptFilter } from './rules';
 import { TRANSCRIPTION_MIGRATIONS } from './schema';
 import { setupTranscription } from './setup';
 import { transcriptNotes, transcriptParts } from './store';
@@ -12,6 +13,7 @@ const session = newTranscriptionSession();
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.storage.migrate(TRANSCRIPTION_MIGRATIONS);
   ctx.archive.derivedText.tagParts(transcriptParts(ctx.storage.db));
+  registerTranscriptFilter(ctx.rules, ctx.storage.db);
   const t = setupTranscription({
     db: ctx.storage.db,
     archive: { payloads: ctx.archive.payloads, parts: (ids) => ctx.archive.parts.of(ids) },

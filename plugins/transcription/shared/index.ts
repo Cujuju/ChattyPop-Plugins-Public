@@ -2,6 +2,7 @@
 // text: rules, Jev, summaries, search and Autopost's {transcript} read them.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { DEFAULT_TRANSCRIPTION_SETTINGS, normalizeTranscriptionSettings, type ToolBuild, type TranscriptMediaRequest, type TranscriptionStatus } from './types';
+import { transcribed } from './rules';
 
 export const manifest = {
   id: 'transcription',
@@ -73,6 +74,7 @@ export const plugin = definePlugin({
   /** Settings → Transcription. */
   preferences: { settings: definePreference({ default: DEFAULT_TRANSCRIPTION_SETTINGS, normalize: normalizeTranscriptionSettings }) },
   slots: { messageMenu: [{ id: 'transcribe', after: 'copy' }] },
+  rules: { filters: [transcribed] },
   // Its queue's table, settings and downloads' folder from when it was built in.
   adopts: { tables: { transcripts: 'jobs' }, settings: { transcription: 'settings' }, dataDir: 'transcription' },
 });

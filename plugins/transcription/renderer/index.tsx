@@ -3,6 +3,7 @@ import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { embedVideoHasSound, mediaKind, type AttachmentNote } from '@plugin-sdk/shared';
 import { openSettingsAt, type MenuItem } from '@plugin-sdk/renderer/kit';
 import { TRANSCRIPTION_TAB, TRANSCRIPT_NOTE, plugin } from '../shared';
+import { transcribed } from '../shared/rules';
 import { requestTranscripts, transcriptionReady } from './state';
 import { TranscriptionSection } from './TranscriptionSection';
 
@@ -28,4 +29,6 @@ export default defineRendererPlugin(plugin, {
       },
     },
   },
+  // No options: the Rules editor's checkbox is the whole filter.
+  rules: { filters: { [transcribed.type]: { Editor: () => null, summary: () => transcribed.label, chips: () => [transcribed.label] } } },
 });
