@@ -95,4 +95,11 @@ function OllamaRows() {
   );
 }
 
-export default defineRendererPlugin(plugin, { providers: { ollama: { rows: OllamaRows } } });
+/** Setup steps after the status line, by its model list: none listed (unreachable) or none installed. */
+const setupNote = (models: readonly unknown[] | null): string | undefined => {
+  if (models === null) return ' Not installed yet? Download it from ollama.com and start it, then Refresh model lists.';
+  if (models.length === 0) return ' Install one below: Install a model.';
+  return undefined;
+};
+
+export default defineRendererPlugin(plugin, { providers: { ollama: { rows: OllamaRows, note: (status) => setupNote(status.models) } } });

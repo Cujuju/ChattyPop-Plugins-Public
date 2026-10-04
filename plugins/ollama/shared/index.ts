@@ -7,6 +7,8 @@ import type { OllamaPull } from './types';
 export const PULLS_EVENT = 'pulls' as const;
 /** Plugin event: a model finished installing; payload its name. */
 export const INSTALLED_EVENT = 'installed' as const;
+/** Ollama's site, where it is downloaded: linked beside Settings → AI's Ollama title. */
+export const OLLAMA_SITE = 'https://ollama.com';
 
 /** Core's calls from Settings → AI. */
 export interface OllamaCoreCalls {
@@ -39,6 +41,7 @@ export const plugin = definePlugin({
     local: true,
     // Vision models (Ollama's `vision` capability) read images sent with a prompt.
     images: true,
+    site: OLLAMA_SITE,
   }],
   channels: defineChannels<{ core: OllamaCoreCalls; events: OllamaEvents }>()({
     core: {
