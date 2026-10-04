@@ -26,6 +26,8 @@ export interface ImageTextSettings {
   translateProvider: string | null;
   /** Its model; null = none chosen (nothing is translated until one is). */
   translateModel: string | null;
+  /** Providers the owner turned on or off for the Translate image text menu, by id; one not here: on when local. */
+  translateMenu: Record<string, boolean>;
 }
 
 /** Translation targets offered in Settings. Assumption: widely used languages cover the owner; add one here. */
@@ -42,6 +44,7 @@ export const DEFAULT_IMAGE_TEXT_SETTINGS: ImageTextSettings = {
   translateLanguage: 'English',
   translateProvider: 'ollama',
   translateModel: null,
+  translateMenu: {},
 };
 
 export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
@@ -57,7 +60,16 @@ export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
     translateLanguage: oneOf(TRANSLATE_LANGUAGES, src['translateLanguage'], d.translateLanguage),
     translateProvider: 'translateProvider' in src ? textOrNull(src['translateProvider']) : d.translateProvider,
     translateModel: textOrNull(src['translateModel']),
+    translateMenu: isObj(src['translateMenu']) ? Object.fromEntries(Object.entries(src['translateMenu']).filter((e): e is [string, boolean] => typeof e[1] === 'boolean')) : {},
   };
+}
+
+/**
+ * Whether the Translate image text menu lists `p`'s models: the owner's switch, else on for a local provider. Cloud ones
+ * start off: they may list hundreds of models (OpenRouter) and cost per request.
+ */
+export function inTranslateMenu(s: ImageTextSettings, p: Pick<ProviderModels, 'id' | 'local'>): boolean {
+  return s.translateMenu[p.id] ?? p.local;
 }
 
 /** An engine picked for one request (the message menu's Read image text submenu) in place of Settings' choice. */
@@ -106,6 +118,8 @@ export interface ProviderModel {
 export interface ProviderModels {
   id: string;
   label: string;
+  /** Runs on this PC. */
+  local: boolean;
   /** Why it can't be used now (its plugin is off, it isn't reachable); null while it can. */
   unavailable: string | null;
   models: ProviderModel[];

@@ -11,7 +11,7 @@ import imageTextCore from '../core';
 import { chartTickers, imageText, tickerOf } from '../core/chartTickers';
 import { counts, JOBS_TABLE } from '../core/store';
 import { WindowsOcr } from '../core/windowsOcr';
-import { DEFAULT_IMAGE_TEXT_SETTINGS } from '../shared/types';
+import { DEFAULT_IMAGE_TEXT_SETTINGS, inTranslateMenu, normalizeImageTextSettings } from '../shared/types';
 
 /** Starting the Windows OCR worker (status() does) takes seconds on a loaded machine or a CI runner. */
 const OCR_START_TIMEOUT_MS = 60_000;
@@ -52,6 +52,17 @@ describe('chart tickers', () => {
     expect(imageText('  ', [])).toBe('');
     expect(tickerOf('BRK.B')).toBe('BRK.B');
     expect(tickerOf('TOOLONG')).toBeNull();
+  });
+});
+
+describe('the Translate image text menu', () => {
+  it('lists local providers and leaves cloud ones out until the owner turns them on, or local ones off', () => {
+    const s = normalizeImageTextSettings({ translateMenu: { openrouter: true, ollama: false, bad: 'yes' } });
+    expect(s.translateMenu).toEqual({ openrouter: true, ollama: false });
+    expect(inTranslateMenu(DEFAULT_IMAGE_TEXT_SETTINGS, { id: 'ollama', local: true })).toBe(true);
+    expect(inTranslateMenu(DEFAULT_IMAGE_TEXT_SETTINGS, { id: 'openrouter', local: false })).toBe(false);
+    expect(inTranslateMenu(s, { id: 'openrouter', local: false })).toBe(true);
+    expect(inTranslateMenu(s, { id: 'ollama', local: true })).toBe(false);
   });
 });
 

@@ -1,9 +1,9 @@
 // Settings → Image text: the engine that reads images, when it reads them, their translation, and its queue.
 import { For, Show } from 'solid-js';
 import { IMAGE_TEXT_TAB } from '../shared';
-import { TRANSLATE_LANGUAGES, type EngineStatus, type ImageTextEngine, type TranslateLanguage } from '../shared/types';
+import { inTranslateMenu, TRANSLATE_LANGUAGES, type EngineStatus, type ImageTextEngine, type ProviderModels, type TranslateLanguage } from '../shared/types';
 import { imageTextSettings, imageTextStatus, patchImageTextSettings, retryFailedImageText } from './state';
-import { Card, createAction, ErrorNote, LinkButton, look, openSettingsAt, Page, Row, Select, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
+import { Card, createAction, ErrorNote, LinkButton, look, Note, openSettingsAt, Page, Row, Select, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
 import { AI_SETTINGS, ModelRows } from './ModelRows';
 import styles from './ImageText.module.css';
 
@@ -105,6 +105,7 @@ export function ImageTextSection() {
           onChange={(translateProvider, translateModel) => patchImageTextSettings({ translateProvider, translateModel })}
           none="No AI provider is on."
         />
+        <MenuProviderRows />
       </Card>
       <Card title="Queue">
         <Row
@@ -119,5 +120,34 @@ export function ImageTextSection() {
       </Card>
       <ErrorNote error={action.error()} />
     </Page>
+  );
+}
+
+/** A switch per provider: whether a message's Translate image text menu lists its models. */
+function MenuProviderRows() {
+  const s = imageTextSettings;
+  const providers = () => imageTextStatus()?.translateProviders ?? [];
+  const hint = (p: ProviderModels): string =>
+    p.unavailable ?? `${p.models.length} ${p.models.length === 1 ? 'model' : 'models'}${p.local ? ' · on this computer' : ''}`;
+  return (
+    <Show when={providers().length}>
+      <Note>In a message’s Translate image text menu:</Note>
+      <For each={providers()}>
+        {(p) => (
+          <Row
+            label={p.label}
+            for={`imagetext-translate-menu-${p.id}`}
+            hint={hint(p)}
+            control={
+              <Switch
+                id={`imagetext-translate-menu-${p.id}`}
+                checked={inTranslateMenu(s(), p)}
+                onChange={(on) => patchImageTextSettings({ translateMenu: { ...s().translateMenu, [p.id]: on } })}
+              />
+            }
+          />
+        )}
+      </For>
+    </Show>
   );
 }

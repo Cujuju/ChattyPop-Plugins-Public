@@ -64,7 +64,7 @@ const statusOf = (e: { name: string } | { unavailable: string }): EngineStatus =
 async function providerModels(ctx: Ctx): Promise<{ vision: ProviderModels[]; text: ProviderModels[] }> {
   const listed = await Promise.all(
     ctx.ai.providers().map(async (p) => {
-      const base = { id: p.id, label: p.label };
+      const base = { id: p.id, label: p.label, local: p.local ?? false };
       if (p.unavailable) return { images: p.images, all: { ...base, unavailable: p.unavailable, models: [] }, vision: [] };
       try {
         const models = await ctx.ai.provider(p.id).listModels();
