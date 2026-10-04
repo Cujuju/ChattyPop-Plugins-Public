@@ -13,7 +13,7 @@ const sept = (day: number): number => new Date(2026, 8, day, 12).getTime();
 describe('archive search', () => {
   let db: Db;
   const hits = (q: string): string[] =>
-    searchMessages(db, q, 50)
+    searchMessages(db, q, 50, 'relevance')
       .map((h) => h.snippet.replaceAll(SEARCH_MATCH_START, '').replaceAll(SEARCH_MATCH_END, ''))
       .sort();
 
@@ -26,7 +26,7 @@ describe('archive search', () => {
   it('filters by a shown tag, case-insensitively', () => {
     const tags = startTags(db);
     const id = tags.create({ name: 'Calls', jevQuestion: null, auto: false });
-    const [one] = searchMessages(db, 'one', 1);
+    const [one] = searchMessages(db, 'one', 1, 'relevance');
     tags.setManual(one!.messageId, id, true);
     expect(hits('tag:calls')).toEqual(['alpha one']);
     tags.setManual(one!.messageId, id, false);

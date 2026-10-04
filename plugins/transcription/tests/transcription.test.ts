@@ -242,9 +242,9 @@ describe('transcripts reach search, rules and the Archive', () => {
     const { messageId } = voiceMessage('meet at the lighthouse', { content: 'lighthouse plans' });
     transcriber.request(messageId, null);
     await settle();
-    const hits = searchMessages(db, 'lighthouse', 10);
+    const hits = searchMessages(db, 'lighthouse', 10, 'relevance');
     expect(hits.map((h) => h.messageId)).toEqual([messageId]);
-    expect(searchMessages(db, 'meet', 10).map((h) => h.messageId)).toEqual([messageId]);
+    expect(searchMessages(db, 'meet', 10, 'relevance').map((h) => h.messageId)).toEqual([messageId]);
   });
 
   it('a rule matches a transcript, and editing the rule keeps that run', async () => {
