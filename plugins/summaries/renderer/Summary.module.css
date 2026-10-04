@@ -76,9 +76,8 @@
   white-space: nowrap;
 }
 
-/* A person named in the text (look.mention), its name kept on one line. */
+/* A person named in the text (look.mention), its name kept on one line and flush with the words around it. */
 .person {
-  padding: 0 var(--cp-space-1);
   white-space: nowrap;
 }
 
