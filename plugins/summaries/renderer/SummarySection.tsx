@@ -108,7 +108,7 @@ function ProviderBody() {
     return listed?.find((m) => (chosen ? m.id === chosen : m.isDefault))?.label ?? chosen ?? 'provider default';
   };
   return (
-    <Card title="Provider">
+    <Card>
       <Row
         label="Provider"
         for="summary-provider"
