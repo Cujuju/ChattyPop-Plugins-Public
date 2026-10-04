@@ -98,11 +98,13 @@ export const plugin = definePlugin({
   shortcuts: [{
     key: 'j',
     hint: 'next/prev source',
+    name: 'next source',
     hintGroup: 'citations',
     after: 'layout',
   }, {
     key: 'k',
     hint: 'next/prev source',
+    name: 'previous source',
     hintGroup: 'citations',
     after: 'j',
   }],
