@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { defineCorePlugin, IS_WINDOWS, type CoreContext } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
-import { normalizePick, normalizeTranslatePick, type EnginePick, type EngineStatus, type ImageTextStatus, type ProviderModels, type TranslatePick } from '../shared/types';
+import { HOSTED_VISION_OFF, normalizePick, normalizeTranslatePick, type EnginePick, type EngineStatus, type ImageTextStatus, type ProviderModels, type TranslatePick } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
 import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes } from './store';
 import { translateText, type Translator } from './translate';
@@ -20,9 +20,6 @@ const WORK_DIR = 'work';
 const session = newImageTextSession();
 
 type Ctx = CoreContext<typeof plugin>;
-
-/** Why a hosted provider may not read images: the owner hasn't allowed images to leave this computer. */
-const HOSTED_VISION_OFF = 'Sending images to hosted AI is off: Settings → Image text.';
 
 /** Why a provider, local or not, may not be sent images under Settings; null when it may. */
 const hostedVisionBlock = (ctx: Ctx, local: boolean): string | null => (local || ctx.preferences.get('settings').hostedVision ? null : HOSTED_VISION_OFF);
@@ -77,8 +74,7 @@ async function providerModels(ctx: Ctx): Promise<{ vision: ProviderModels[]; tex
       if (p.unavailable) return { images: p.images, all: { ...base, unavailable: p.unavailable, models: [] }, vision: [] };
       try {
         const models = await ctx.ai.provider(p.id).listModels();
-        const choice = (m: { id: string; label: string }) => ({ id: m.id, label: m.label });
-        return { images: p.images, all: { ...base, unavailable: null, models: models.map(choice) }, vision: models.filter((m) => m.images).map(choice) };
+        return { images: p.images, all: { ...base, unavailable: null, models }, vision: models.filter((m) => m.images) };
       } catch (err) {
         return { images: p.images, all: { ...base, unavailable: errorMessage(err), models: [] }, vision: [] };
       }

@@ -1,6 +1,6 @@
 // Image text: reading the text in the images messages show (screenshots, charts) with Windows' OCR or a vision model,
 // and translating it with a text model. Settings, status and jobs as core, main and the renderer exchange them.
-import { bool, isObj, oneOf, textOrNull } from '@plugin-sdk/shared';
+import { bool, isObj, oneOf, textOrNull, type ModelOption } from '@plugin-sdk/shared';
 
 /** How images are read: Windows' built-in OCR (text only), or a vision model through an AI provider (text and charts). */
 export const ENGINES = ['windows', 'vision'] as const;
@@ -88,6 +88,9 @@ export function normalizePick(v: unknown): EnginePick | null {
   return v['engine'] === 'vision' && provider && model ? { engine: 'vision', provider, model } : null;
 }
 
+/** Why a hosted provider may not read images: the owner hasn't allowed images to leave this computer. */
+export const HOSTED_VISION_OFF = 'Sending images to hosted AI is off: Settings → Image text.';
+
 /** A text model picked for one translation (the message menu's Translate image text submenu). */
 export interface TranslatePick {
   provider: string;
@@ -112,12 +115,6 @@ export interface EngineStatus {
   detail: string;
 }
 
-/** A model a provider offers. */
-export interface ProviderModel {
-  id: string;
-  label: string;
-}
-
 /** An AI provider and its models of one kind (that read images, or any for translation). */
 export interface ProviderModels {
   id: string;
@@ -126,7 +123,8 @@ export interface ProviderModels {
   local: boolean;
   /** Why it can't be used now (its plugin is off, it isn't reachable); null while it can. */
   unavailable: string | null;
-  models: ProviderModel[];
+  /** With what each can do (reads images, thinks) and its size, as the provider lists them. */
+  models: ModelOption[];
 }
 
 export interface ImageTextStatus {
