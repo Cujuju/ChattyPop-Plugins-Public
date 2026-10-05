@@ -385,6 +385,13 @@
       "description": "Turns voice messages, audio and video into text on this computer, for rules, Jev, summaries and search.",
       "releases": [
         {
+          "version": "1.2.1",
+          "tag": "transcription-v1.2.1",
+          "asset": "transcription-1.2.1.tar.gz",
+          "sha256": "167e5f5b6262f6931846419a22f89c7fa9045bfb363dc3b1a231760ee0dc90f1",
+          "sdk": "2.4.0"
+        },
+        {
           "version": "1.2.0",
           "tag": "transcription-v1.2.0",
           "asset": "transcription-1.2.0.tar.gz",
