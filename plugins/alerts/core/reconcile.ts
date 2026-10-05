@@ -29,7 +29,7 @@ export function reconcileAlertHistory(ctx: CoreContext<typeof plugin>, changed: 
         // A rule that isn't compiled (off, or a kind's plugin off) matches nothing meanwhile; it syncs again once it runs.
         const historySignature = history ? JSON.stringify(row.spec) : null;
         if (old?.history_signature === historySignature) continue;
-        if (history) syncHistory(db, row.id, history);
+        if (history) syncHistory(db, row.id, history, ctx.archive.messageRead);
         db.prepare(`UPDATE ${RULE_QUESTIONS} SET history_signature = ? WHERE rule_id = ?`).run(historySignature, row.id);
       }
       db.prepare(`DELETE FROM ${RULE_QUESTIONS} WHERE rule_id NOT IN (SELECT value FROM json_each(?))`)

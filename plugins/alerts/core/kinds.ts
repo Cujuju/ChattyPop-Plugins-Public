@@ -60,12 +60,14 @@ export function registerAlertKinds(ctx: CoreContext<typeof plugin>, notifier: Al
           }
         : null,
   });
-  // History and questions already answered by a reply (#54) land read; duplicates keep their existing alert.
+  // History, questions already answered by a reply (#54), and messages the owner already read (a late match: a
+  // transcript settling, a tag) land read; duplicates keep their existing alert.
   k.action('alerts.notify', (c, r) => {
     if (r.event.kind !== 'message') throw new Error('Alerts need a message.');
     const { m, hit, liveAt } = r.event;
     const at = now();
-    const read = m.ts < r.rule.armedAt || (r.rule.managed === k.managed.key(OPEN_QUESTIONS) && hasReply(ctx.archive.replyExists, m));
+    const read =
+      m.ts < r.rule.armedAt || (r.rule.managed === k.managed.key(OPEN_QUESTIONS) && hasReply(ctx.archive.replyExists, m)) || ctx.archive.messageRead(m.id);
     const text = alertText(m, () => readContents(m.id));
     const info = db
       .prepare(INSERT_ALERT)

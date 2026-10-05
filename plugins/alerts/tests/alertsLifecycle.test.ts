@@ -4,6 +4,7 @@ import { newRuleAction } from '@shared/ruleSpec';
 import { getSetting, setSetting } from '@core/db';
 import { adoptBundledData } from '@core/plugins/adoption';
 import { insertRule } from '@core/rules/ruleStore';
+import { markRead } from '@core/queries/readMarks';
 import { tempDb } from '@chattypop/host-testing';
 import { plugin } from '../shared';
 import { ALERTS } from '../core/tables';
@@ -79,6 +80,20 @@ describe('Alerts lifecycle', () => {
       spec: { ...input.spec, match: [{ type: 'text', config: { pattern: 'sale', spec: null } }] },
     });
     expect(h.alerts.calls.alerts({ limit: 10 }).map((alert) => alert.snippet)).toEqual(['sale']);
+  });
+
+  it("an edited rule's history lands read on a message the owner already read", () => {
+    const h = ruleHarness();
+    const input = ruleInput([newRuleAction('alerts.notify')], { match: { text: { pattern: 'news', spec: null } } });
+    const id = h.rules.create(input);
+    // After the rule was armed, so only the owner's reading can land it read.
+    const sale = h.say('sale');
+    h.say('sale again');
+    markRead(h.db, sale.channel_id, sale.id);
+    h.rules.update(id, { ...input, spec: { ...input.spec, match: [{ type: 'text', config: { pattern: 'sale', spec: null } }] } });
+    const alerts = h.alerts.calls.alerts({ limit: 10 });
+    expect(alerts.find((a) => a.snippet === 'sale')?.readAt).not.toBeNull();
+    expect(alerts.find((a) => a.snippet === 'sale again')?.readAt).toBeNull();
   });
 
   it('reconciles unchanged rules once per edit, without reading archive history', () => {

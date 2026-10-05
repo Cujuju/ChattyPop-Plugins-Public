@@ -1,13 +1,16 @@
 // #89 a rule's Alert history: its direct matches (keywords, or narrowing alone) over the whole archive, as topics kept
-// theirs. Messages older than the rule land read; nothing else runs for them.
+// theirs. Messages older than the rule, or the owner already read, land read; nothing else runs for them.
 import { type PluginDb, type RuleHistory } from '@plugin-sdk/core';
 import { INSERT_ALERT, alertText, snippet } from './rows';
 import { ALERTS } from './tables';
 
 const MATCH_KIND = { pattern: 'pattern' } as const;
 
-/** Synchronizes direct-match alert history, preserving kept alerts' read state. Reconcile drops Jev matches when the question changes. */
-export function syncHistory(db: PluginDb, ruleId: number, history: RuleHistory): void {
+/**
+ * Synchronizes direct-match alert history, preserving kept alerts' read state; `messageRead`: the owner read it
+ * (ctx.archive.messageRead). Reconcile drops Jev matches when the question changes.
+ */
+export function syncHistory(db: PluginDb, ruleId: number, history: RuleHistory, messageRead: (messageId: string) => boolean): void {
   const matches = history.matches();
   const keep = new Set(matches.map(({ m }) => m.id));
   const now = Date.now();
@@ -28,7 +31,7 @@ export function syncHistory(db: PluginDb, ruleId: number, history: RuleHistory):
         m.ts,
         snippet(text, hit.highlight),
         now,
-        m.ts >= history.armedAt ? null : now,
+        m.ts >= history.armedAt && !messageRead(m.id) ? null : now,
         MATCH_KIND.pattern,
         null,
       );
