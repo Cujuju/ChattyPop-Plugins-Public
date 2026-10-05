@@ -7,6 +7,10 @@ on:
   # Every push, not only plugins/**: a release whose intent push loses a race leaves its work to the winner's run.
   push:
     branches: [main]
+  # Daily, so a plugin built for a plugin SDK major the host no longer runs is rebuilt without waiting for a push.
+  # Off the hour: GitHub delays schedules at the top of the hour.
+  schedule:
+    - cron: '17 9 * * *'
   workflow_dispatch:
     inputs:
       only:
@@ -14,7 +18,7 @@ on:
         type: string
         default: ''
       sdk_rebuild:
-        description: Also release plugins whose newest release was built for another plugin SDK
+        description: Also release plugins built for another plugin SDK the host can still run (ones it can't are always rebuilt)
         type: boolean
         default: false
       dry_run:
