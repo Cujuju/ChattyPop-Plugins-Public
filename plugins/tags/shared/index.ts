@@ -34,7 +34,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'tags',
     name: 'Tags',
-    version: '1.1.0',
+    version: '1.1.1',
     description: 'Your own message tags, applied by hand, Jev or rules.',
   },
   channels: defineChannels<{
