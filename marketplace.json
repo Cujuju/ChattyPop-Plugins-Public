@@ -350,6 +350,13 @@
       "description": "The Activity panel: message counts by person, day, hour and channel.",
       "releases": [
         {
+          "version": "1.0.2",
+          "tag": "stats-v1.0.2",
+          "asset": "stats-1.0.2.tar.gz",
+          "sha256": "af56b1efa8a926fe86aa5236adf9f21edc24912f43bf7d9ef622f6a84ee92578",
+          "sdk": "2.6.0"
+        },
+        {
           "version": "1.0.1",
           "tag": "stats-v1.0.1",
           "asset": "stats-1.0.1.tar.gz",
