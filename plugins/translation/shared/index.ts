@@ -1,5 +1,4 @@
-// Translation: translates the text of a message's parts (Image text's readings, transcripts, embeds' own text) into the
-// owner's language with a text model. Its translations are derived text of their part: rules, Jev and search read them.
+// Translates message-part text into the owner's language. Part-specific derived translations feed rules, Jev, and search.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { DEFAULT_TRANSLATION_SETTINGS, normalizeTranslationSettings, type TranslatePick, type TranslationStatus } from './types';
 import { translated } from './rules';
@@ -24,10 +23,7 @@ const IMAGE_TEXT_SETTINGS_KEY = 'plugin.imagetext.settings';
 export interface TranslationCoreCalls {
   /** The translation model and the queue. */
   status(): Promise<TranslationStatus>;
-  /**
-   * Translates every part of the message that has text, however old, with `pick` (null: Settings' model). Throws when
-   * that model can't run, or the message has no such text.
-   */
+  /** Translates all textual message parts with pick or Settings' model. Throws for an unavailable model or absent text. */
   translate(messageId: string, pick: TranslatePick | null): void;
   /** Queues again every translation that failed. */
   retryFailed(): void;

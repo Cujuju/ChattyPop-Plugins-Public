@@ -1,5 +1,4 @@
-// People in summary text (#291, #303): the log tags each person, the model writes tags, core stores each tag the log
-// gave out as the person (shown by their name now), and the owner can name a person the tags missed.
+// #291, #303: tests person tags, stored mentions, current display names, and manual identification of missed people.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Db } from '@core/db';

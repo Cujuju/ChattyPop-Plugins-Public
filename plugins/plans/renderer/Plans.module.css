@@ -1,5 +1,4 @@
-/* Plans & decisions (#67): grouped rows; each row is a button into the Archive. Structure only: the look is the theme's
-   look vocabulary (@plugin-sdk/renderer look), applied in PlansPanel.tsx. */
+/* Plans/decisions rows (#67) open the Archive. TSX applies theme look attributes. */
 .root {
   display: flex;
   flex-direction: column;

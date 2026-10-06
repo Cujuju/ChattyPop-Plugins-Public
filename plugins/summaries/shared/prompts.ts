@@ -1,5 +1,4 @@
-// Editable summary prompt templates (Settings → Summaries → Prompts, and a rule's own prompt).
-// Core fills the placeholders from the summary settings; the text around them is the owner's.
+// Editable owner/rule summary templates. Core fills placeholders from summary settings.
 import { isObj } from '@plugin-sdk/shared';
 
 export const SUMMARY_PROMPT_KINDS = ['summarize', 'merge'] as const;
@@ -23,7 +22,7 @@ export type SummaryPromptPlaceholder = keyof typeof SUMMARY_PROMPT_PLACEHOLDERS;
 const REQUIRED: readonly SummaryPromptPlaceholder[] = ['refs'];
 const PLACEHOLDER = /\{([a-z]+)\}/g;
 
-/** Room for about four times the default; the prompt goes with every part of every run, so it stays bounded. */
+/** Prompt-template size limit applies to every run part. */
 export const SUMMARY_PROMPT_MAX_CHARS = 6000;
 
 export const DEFAULT_SUMMARY_PROMPTS: Record<SummaryPromptKind, string> = {

@@ -6,10 +6,7 @@ import { normalizePick, type EnginePick, type ImageJobState } from '../shared/ty
 
 export const JOBS_TABLE = pluginTable(plugin, 'jobs');
 
-/**
- * Image text's schema steps (ctx.storage.migrate); append, never edit a shipped one. `seq` orders a message's image
- * texts; `image_key` is MessageImage.key; `attachment_id` is set for an attachment (its file may be in the store).
- */
+/** Append-only image-text migrations. seq orders readings; image_key identifies the image; attachment_id identifies stored attachments. */
 export const IMAGE_TEXT_MIGRATIONS: readonly string[] = [
   `CREATE TABLE ${JOBS_TABLE} (seq INTEGER PRIMARY KEY, message_id TEXT NOT NULL, channel_id TEXT NOT NULL, image_key TEXT NOT NULL,
      url TEXT NOT NULL, attachment_id TEXT, state TEXT NOT NULL, priority INTEGER NOT NULL, requested_at INTEGER NOT NULL,
@@ -17,10 +14,7 @@ export const IMAGE_TEXT_MIGRATIONS: readonly string[] = [
    CREATE INDEX ${JOBS_TABLE}_state ON ${JOBS_TABLE} (state, priority, requested_at);`,
   // The engine the owner picked for this reading (EnginePick as JSON); null: Settings' engine.
   `ALTER TABLE ${JOBS_TABLE} ADD COLUMN pick TEXT;`,
-  // `translation`: the text in Settings' language, null when not needed or not asked; `translation_error`: why it failed.
-  // `translate`: a model picked for this job's translation (TranslatePick as JSON); null: Settings' automatic translation.
-  // `reuse`: translate the stored text instead of reading the image again.
-  // Translating moved to the Translation plugin: these columns are no longer written; a stored translation is still shown.
+  // Legacy translation columns are no longer written; stored translations remain visible. Translation now belongs to the Translation plugin.
   `ALTER TABLE ${JOBS_TABLE} ADD COLUMN translation TEXT;
    ALTER TABLE ${JOBS_TABLE} ADD COLUMN translation_error TEXT;
    ALTER TABLE ${JOBS_TABLE} ADD COLUMN translate TEXT;
@@ -52,10 +46,7 @@ export interface ImageJob {
 const json = (v: object | null): string | null => (v ? JSON.stringify(v) : null);
 const parsed = <T>(v: string | null, normalize: (x: unknown) => T | null): T | null => (v ? normalize(JSON.parse(v)) : null);
 
-/**
- * Queues each image of a message. `request` (the owner asked): every image is queued anew, whatever its state; null
- * (automatic): only images never queued. Returns whether anything changed.
- */
+/** Queues message images. Explicit requests requeue all; automatic requests queue unseen images. Returns whether jobs changed. */
 export function enqueue(db: PluginDb, messageId: string, channelId: string, images: readonly MessageImage[], priority: number, now: number, request: JobRequest | null): boolean {
   const insert = db.prepare(
     `INSERT INTO ${JOBS_TABLE} (message_id, channel_id, image_key, url, attachment_id, state, priority, requested_at, pick)
@@ -72,11 +63,7 @@ export function enqueue(db: PluginDb, messageId: string, channelId: string, imag
   return changed > 0;
 }
 
-/**
- * The next job to run: owner requests first, then oldest first. A job queued after `waitedSince` whose attachment the
- * store is still downloading waits for it (onAttachmentStored kicks the queue) without holding up images behind it; one
- * queued before fetches the image itself. `ownEngineOnly`: jobs that run without Settings' engine (it can't run).
- */
+/** Selects requested jobs first, then oldest. Recent downloads wait without blocking others; expired waits fetch directly. ownEngineOnly selects jobs independent of Settings' engine. */
 export function nextJob(db: PluginDb, waitedSince: number, ownEngineOnly: boolean): ImageJob | undefined {
   const row = db
     .prepare(

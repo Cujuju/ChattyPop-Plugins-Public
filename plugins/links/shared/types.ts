@@ -26,14 +26,11 @@ export interface LinkCard {
   authorName: string;
   /** Messages that shared this URL. */
   shares: number;
-  /**
-   * Discord's preview card for the link (earliest share that has one), rendered as the Archive renders embeds. An X post
-   * Discord never previewed gets its card from FxTwitter once fetched. null when neither exists.
-   */
+  /** Preview from the earliest embedded share, or fetched FxTwitter card for unpreviewed X posts. Null when unavailable. */
   embed: ArchiveEmbed | null;
   /** Jev's reading (#61–#63), when that feature is on and the link has been judged; otherwise null / false. */
   category: LinkCategory | null;
-  /** Likely spam, a scam or NSFW (#62). */
+  /** Jev safety flag for spam, scams, or NSFW (#62). */
   flagged: boolean;
   /** Expected level in LINK_WORTH_LEVELS, 0–4 and fractional (#63). */
   worth: number | null;

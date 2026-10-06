@@ -1,5 +1,4 @@
-// Translation's core side: the queue and its model, translations as derived text and notes of their part, and the
-// calls Settings and the message menu make.
+// Registers translation queue/model, derived text, part notes, and Settings/menu calls.
 import { defineCorePlugin, type CoreContext } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { STATUS_EVENT, plugin } from '../shared';
@@ -71,8 +70,7 @@ export default defineCorePlugin(plugin, (ctx) => {
         ctx.archive.notes.changed([messageId]);
         statusChanged();
       },
-      // A translation is its message's derived text, of the part it translates. Keyed by job: derived text keys are
-      // unique across messages. Jev isn't asked again: it reads the source's language itself.
+      // Stores translations as part-specific derived text using job keys. Translation does not trigger another Jev language judgment.
       settled: (s) =>
         s.ok && s.text !== null
           ? ctx.archive.derivedText.settle(s.messageId, { key: String(s.seq), order: s.seq, text: s.text, queuedAt: s.requestedAt, part: s.part, askJev: false }, s.record)

@@ -1,5 +1,4 @@
-// Translation (#325): other plugins' text of a message's parts and embeds' own text, translated automatically per kind
-// or on request, kept in step with its source, as derived text and a note of its part.
+// #325: tests automatic/manual part translation, source synchronization, derived text, and part notes.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { defineCorePlugin } from '@plugin-sdk/core';
 import { definePlugin, MS_PER_DAY } from '@plugin-sdk/shared';
@@ -10,12 +9,9 @@ import translationCore from '../core';
 import { JOBS_TABLE } from '../core/store';
 import { DEFAULT_TRANSLATION_SETTINGS, type TranslationSettings } from '../shared/types';
 
-/** Long enough for a queue pass that would run to have run: the queue starts on setImmediate. */
+/** Allows a setImmediate queue pass to run. */
 const SETTLE_MS = 50;
-/**
- * Each test starts a plugin host on a freshly migrated archive; the first also pays the cold start. A CI runner's first
- * test passed vitest's 5 s default (release run 37230529851); this leaves it room.
- */
+/** Plugin-host startup and archive migrations can exceed vitest's default timeout on CI. */
 const HOST_START_TIMEOUT_MS = 30_000;
 const IMAGE = 'attachment:a1';
 const AUDIO = 'attachment:a2';

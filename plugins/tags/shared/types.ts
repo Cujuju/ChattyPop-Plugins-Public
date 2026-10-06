@@ -3,7 +3,7 @@ import { validateJevQuestion, type CustomJevQuestion } from '@plugin-sdk/shared'
 
 /** Chip text stays short enough to sit beside a message. */
 export const TAG_NAME_MAX = 32;
-/** Upper bound on messages one range run asks about: bounds cost (~$0.000015 per message per tag) and time. */
+/** Maximum messages per tag range run. */
 export const TAG_RANGE_MAX = 2000;
 /** jev_judgments subject for a tag's question; distinct from the built-in 'tag' (#66) subject. */
 export const tagSubject = (id: number): string => `usertag:${id}`;
@@ -65,7 +65,7 @@ export interface TagRangeResult {
   costUsd: number | null;
 }
 
-/** Who put a tag on a message: the owner by hand, Jev (its answer met the tag's condition), or one of the owner's rules. */
+/** Tag origin: manual owner action, matching Jev answer, or owner rule. */
 export type TagChipSource = 'manual' | 'jev' | 'rule';
 /** A chip's tooltip per source. */
 export const TAG_SOURCE_TITLE: Readonly<Record<TagChipSource, string>> = {

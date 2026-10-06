@@ -1,5 +1,4 @@
-// The plans table, adopted from the host (where it was created before Plans was a plugin): the descriptor's adopts. And
-// Jev's hits still to extract, kept across quits.
+// Adopts the legacy plans table and persists Jev hits awaiting extraction across quits.
 import { pluginTable } from '@plugin-sdk/shared';
 import { plugin } from '../shared';
 

@@ -28,10 +28,7 @@ export interface LogLine {
 
 /** Messages judged per request. They share one state, which Jev bills once per request (TypeSafe "parallel questions"). */
 const TARGETS_PER_REQUEST = 20;
-/**
- * Neighbours on each side of a batch, so a reply at a batch edge is read with what it answers.
- * State stays ≤ 26 clipped messages (~5k tokens), small enough to avoid Jev's accuracy loss on large states.
- */
+/** Adds neighboring messages around batches to preserve reply context. State is capped at 26 clipped messages. */
 const CONTEXT_LINES = 3;
 
 /** The filler query about line k; its condition says when a line is kept (default: unless Jev is 80% sure it's filler). */
@@ -51,10 +48,7 @@ export interface FilterResult {
   costUsd: number | null;
 }
 
-/**
- * Leaves out messages Jev is confident are filler. Fails open: a failed request or a missing answer keeps
- * the message. Each channel is judged on its own, so context never mixes channels.
- */
+/** Drops confidently identified filler. Failed requests and missing answers keep messages; each channel is judged separately. */
 export async function skipFiller(jev: DecisionProvider, lines: LogLine[], progress: (done: number, total: number) => void): Promise<FilterResult> {
   const batches = contextBatches(lines, TARGETS_PER_REQUEST, CONTEXT_LINES);
   const drop = new Set<string>();
@@ -92,10 +86,7 @@ export interface CheckResult {
   costUsd: number | null;
 }
 
-/**
- * Checks each summary bullet against the messages it cites (TypeSafe's citation-check pattern).
- * Only annotates; nothing is removed. `log` is the full chronological log, used for each citation's preceding message.
- */
+/** Annotates bullet citation checks without removing text. Each citation includes its preceding chronological message as context. */
 export async function checkCitations(jev: DecisionProvider, items: { text: string; refs: string[] }[], log: LogLine[]): Promise<CheckResult> {
   const index = new Map(log.map((l, i) => [l.ref, i]));
   /** The same channel's message just before log[i]. */

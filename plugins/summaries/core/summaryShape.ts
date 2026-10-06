@@ -1,5 +1,4 @@
-// Jev shaping a summary run: skip quiet stretches (#56), cut long runs between conversations (#58), sort messages into
-// key themes (#59) and pick the cheap or premium model (#60). Every step fails open to the plain behaviour.
+// Jev shaping: quiet-run skipping (#56), conversation boundaries (#58), themes (#59), and model selection (#60). Failures retain default behavior.
 import type { Citation } from '../shared/types';
 import { errorMessage } from '@plugin-sdk/shared';
 import { queryFingerprint, queryMatch, queryRequest, queryStrength } from '@plugin-sdk/core';
@@ -12,9 +11,9 @@ const QUERY = { quiet: 'summaries.quiet', boundary: 'summaries.boundary', themes
 /** Identifies these queries as currently edited: cached summaries made with other versions are not reused. */
 export const summaryShapeFingerprint = (): string => queryFingerprint(Object.values(QUERY));
 
-/** #56: lines per quiet-check window; small enough to stay a focused state, large enough that a window is a stretch. */
+/** #56: lines per quiet-check window. */
 const QUIET_WINDOW = 30;
-/** #58: how far back from the size limit a cut may move, in lines; keeps every chunk at least mostly full. */
+/** #58: maximum boundary shift in lines before the size limit. */
 const BOUNDARY_WINDOW = 12;
 /** #59: messages per theme request (shared state, one choice each) and neighbours on each side for context. */
 const THEME_TARGETS = 20;
@@ -26,7 +25,7 @@ const ROUTING_SAMPLE = 40;
 const quietWindows = (lines: LogLine[]): LogLine[][] =>
   byChannel(lines).flatMap((seq) => Array.from({ length: Math.ceil(seq.length / QUIET_WINDOW) }, (_, i) => seq.slice(i * QUIET_WINDOW, (i + 1) * QUIET_WINDOW)));
 
-/** Questions each step asks, for a run's cost projection: kept next to the steps so the two can't drift apart. */
+/** Per-step question counts used for cost projection. */
 export const JEV_STEP_QUESTIONS = {
   /** #56: one per window. */
   quiet: (lines: LogLine[]): number => quietWindows(lines).length,
@@ -60,10 +59,7 @@ export async function skipQuiet(jev: DecisionProvider, lines: LogLine[]): Promis
 
 const CONTINUES = (previous: string, next: string): Question => queryRequest(QUERY.boundary, { vars: { previous, next } });
 
-/**
- * #58: splits the log into chunks under `maxChars`, moving each cut back (within BOUNDARY_WINDOW lines) to where Jev
- * finds the conversation least continuous. A failed request keeps the plain size cut.
- */
+/** #58: splits logs under maxChars, shifting cuts within BOUNDARY_WINDOW toward conversation breaks. Failed Jev requests retain size-based cuts. */
 export async function chunkByConversation(jev: DecisionProvider, lines: LogLine[], maxChars: number): Promise<{ chunks: LogLine[][]; costUsd: number | null }> {
   const chunks: LogLine[][] = [];
   const costs: number[] = [];

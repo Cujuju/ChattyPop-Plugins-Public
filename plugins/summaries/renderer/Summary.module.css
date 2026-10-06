@@ -1,6 +1,4 @@
-/* Summary panel: range picker in the shared header (ui/PanelHeader), headline and numbered points below.
-   Ground comes from the layout slot (surface-3). Structure only: the look is the theme's look vocabulary
-   (@plugin-sdk/renderer look), applied in SummaryPanel.tsx. */
+/* Summary layout: shared header/range picker, headline, numbered points. The layout slot supplies the surface; TSX applies theme look attributes. */
 
 /* Field look is app-wide in theme/forms.css; header height here. */
 .select {

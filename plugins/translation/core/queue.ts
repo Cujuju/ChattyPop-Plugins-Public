@@ -1,5 +1,4 @@
-// Translates queued parts one at a time (a local model takes the whole of what it uses), keeping each translation in
-// step with its source text: a changed source is translated again, a gone one's translation cleared.
+// Translates queued parts sequentially. Changed sources requeue; removed sources lose their translations.
 import { errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { MEANING_LOOKBACK_MS, SerialLoop, type PluginDb } from '@plugin-sdk/core';
 import { SOURCE_KINDS, type SourceKind, type TranslatePick } from '../shared/types';
@@ -52,11 +51,7 @@ export class TranslationQueue {
     return this.d.db.prepare('SELECT channel_id AS channelId, ts FROM archive_all_messages WHERE id = ?').get(messageId) as Message | undefined;
   }
 
-  /**
-   * A source of the message may have arrived or changed (a plugin's text settled, the message was shown): a recent
-   * message's sources of automatic kinds are queued; any message's translated parts follow their source. May run inside
-   * ingest: writes only its own queue.
-   */
+  /** Queues recent automatic sources and synchronizes existing translations with source changes. During ingest, writes only the plugin queue. */
   noted(messageId: string): void {
     const m = this.message(messageId);
     if (!m) return;

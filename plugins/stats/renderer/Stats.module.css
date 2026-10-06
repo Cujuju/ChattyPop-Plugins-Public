@@ -1,5 +1,4 @@
-/* Activity panel (#85). Bars, cells and rows get their size from --v (0–1, the value's share of the largest), set in the TSX.
-   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in StatsPanel.tsx. */
+/* Activity layout (#85). TSX sets --v to each value's fraction of the maximum; theme look attributes supply appearance. */
 
 /* Scope and range, as the Links filter row. */
 .filters {

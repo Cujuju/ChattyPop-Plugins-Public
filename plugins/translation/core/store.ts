@@ -7,12 +7,7 @@ import { normalizeTranslatePick, type SourceKind, type TranslatePick, type Trans
 
 export const JOBS_TABLE = pluginTable(plugin, 'jobs');
 
-/**
- * Translation's schema steps (ctx.storage.migrate); append, never edit a shipped one. `part_key` is the part's key
- * (partKey); `source_hash` the hash of the target language and text last queued or translated (sourceHash), so a
- * changed source or language is translated again; `translation` null when the text is already in the language; `pick` a
- * TranslatePick as JSON (null: Settings' model).
- */
+/** Append-only translation migrations. part_key identifies parts; source_hash tracks language/text changes; null translation marks target-language source text; pick stores TranslatePick or null for Settings' model. */
 export const TRANSLATION_MIGRATIONS: readonly string[] = [
   `CREATE TABLE ${JOBS_TABLE} (seq INTEGER PRIMARY KEY, message_id TEXT NOT NULL, channel_id TEXT NOT NULL, part_key TEXT NOT NULL,
      kind TEXT NOT NULL, source_hash TEXT NOT NULL, state TEXT NOT NULL, priority INTEGER NOT NULL, requested_at INTEGER NOT NULL,
@@ -40,11 +35,7 @@ export interface TranslationJob {
   pick: TranslatePick | null;
 }
 
-/**
- * Queues each source of a message. `pick` undefined (automatic): a part never queued is queued, and one whose source
- * changed is queued again with its earlier pick. Otherwise (the owner asked) every part is queued anew with `pick`.
- * Returns whether anything changed.
- */
+/** Automatic enqueue adds new/changed sources using earlier picks. Manual enqueue replaces all sources with pick. Returns whether jobs changed. */
 export function enqueue(db: PluginDb, messageId: string, channelId: string, sources: readonly QueuedSource[], priority: number, now: number, pick?: TranslatePick | null): boolean {
   const asked = pick !== undefined;
   const insert = db.prepare(
@@ -127,10 +118,7 @@ export function counts(db: PluginDb): Record<TranslationJobState, number> {
 
 const STATE_TEXT = { queued: 'Waiting to translate…', running: 'Translating…' } as const;
 
-/**
- * Each part's translation as a note, or where it has got to. A text already in the language gets one only when the
- * owner asked, so the answer to the request shows.
- */
+/** Produces translation or progress notes. Already-target-language text gets a note only for explicit requests. */
 export function translationNotes(db: PluginDb, messageIds: string[]): Map<string, Map<string, PluginNote>> {
   const out = new Map<string, Map<string, PluginNote>>();
   if (!messageIds.length) return out;

@@ -1,5 +1,4 @@
-// DiscordChatExporter (DCE) JSON export format: import maps it to Discord payloads; export writes it from them.
-// Lossy by nature: DCE keeps display data, not every raw field (e.g. embed proxy URLs, message flags).
+// Maps DiscordChatExporter JSON to and from Discord payloads. Display-oriented exports omit raw fields such as proxy URLs and message flags.
 import { type RawMessage, SNOWFLAKE_ID } from '@plugin-sdk/shared';
 
 /** Discord message types ChattyPop distinguishes; everything else round-trips as Default. */

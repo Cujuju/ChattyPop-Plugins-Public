@@ -36,10 +36,7 @@ export function resetInterrupted(db: PluginDb, keep: readonly number[] = []): vo
   db.prepare(`UPDATE ${JOBS_TABLE} SET state = 'queued' WHERE state IN ('fetching', 'running') AND seq NOT IN (SELECT value FROM json_each(?))`).run(JSON.stringify(keep));
 }
 
-/**
- * Queues a part. A failed one is queued again; a queued one only gains priority; one in progress or done is left alone.
- * Returns whether anything changed.
- */
+/** Requeues failed parts, prioritizes queued parts, and preserves running/completed parts. Returns whether jobs changed. */
 export function enqueue(db: PluginDb, s: JobSource, priority: number, now: number): boolean {
   const info = db
     .prepare(

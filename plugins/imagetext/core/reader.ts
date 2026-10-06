@@ -1,5 +1,4 @@
-// Reads queued images one at a time (the OCR worker and a local vision model each take the whole of what they use),
-// fetching through main the images the store doesn't hold.
+// Reads images sequentially; main fetches images absent from attachment storage.
 import { existsSync, rmSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -10,13 +9,10 @@ import type { EnginePick, ImageFetchRequest } from '../shared/types';
 import { imageText } from './chartTickers';
 import { dropJobs, enqueue, fail, finish, jobOf, jobText, messageActive, messageJobs, nextJob, PRIORITY, queuedJobs, resetInterrupted, retryFailed, setState, type ImageJob, type JobRequest } from './store';
 
-/** How long main may take to report a download before its job fails. Assumption: an image downloads well within it. */
+/** Main-process download-report timeout. */
 export const DOWNLOAD_REPORT_MAX_MS = 5 * MS_PER_MIN;
 const DOWNLOAD_LATE = `no download finished within ${DOWNLOAD_REPORT_MAX_MS / MS_PER_MIN} minutes`;
-/**
- * How long a job waits for the store to download its attachment before main fetches the image itself (a download that
- * failed, was evicted, or hangs). Assumption: the store downloads a new attachment well within it.
- */
+/** Attachment-download grace period before main fetches the image. */
 export const ATTACHMENT_STORE_WAIT_MS = 2 * MS_PER_MIN;
 /** How soon the queue looks again at work it left waiting: an attachment download, or an engine that can't run yet. */
 const RETRY_MS = MS_PER_MIN;
@@ -37,10 +33,7 @@ export interface Reading {
 export type Engine = { name: string; read(path: string, channelId: string, signal: AbortSignal): Promise<Reading> } | { unavailable: string };
 type ReadyEngine = Exclude<Engine, { unavailable: string }>;
 
-/**
- * A job ended. `text`: the derived text ('' clears an earlier reading's); null: nothing to store (no text, never any).
- * `part`: the image's key, a message part key (archive.parts).
- */
+/** Job completion: text stores or clears derived text; null stores nothing. part identifies the image part. */
 export type ImageSettled =
   | { ok: true; messageId: string; seq: number; part: string; text: string | null; requestedAt: number; record: () => void }
   | { ok: false; messageId: string };
@@ -116,10 +109,7 @@ export class ImageReader {
     d.session.latest = this;
   }
 
-  /**
-   * A message was stored or updated, or its links gained images: when reading is automatic, a recent one's new images
-   * are queued and the text of images it no longer shows is cleared. Runs inside ingest: writes only its own queue.
-   */
+  /** Queues recent images for automatic reading and removes obsolete image text. During ingest, writes only the plugin queue. */
   shown(messageId: string): void {
     if (!IMAGE_SOURCES.some((s) => this.d.auto(s))) return;
     const m = this.d.db.prepare('SELECT channel_id AS channelId, ts FROM archive_all_messages WHERE id = ?').get(messageId) as { channelId: string; ts: number } | undefined;
@@ -129,10 +119,7 @@ export class ImageReader {
     if (this.queue(messageId, m.channelId, this.automatic(images), PRIORITY.automatic, null)) this.kick();
   }
 
-  /**
-   * Jobs of images the message no longer shows (a preview removed or replaced): waiting ones are dropped; the text of
-   * read ones is cleared after the ingest that found it, so matching runs outside its transaction.
-   */
+  /** Drops waiting jobs for removed images. Clears completed image text after ingest so matching runs outside its transaction. */
   private forgetGone(messageId: string, shown: ReadonlySet<string>): void {
     const gone = messageJobs(this.d.db, messageId).filter((j) => !shown.has(j.imageKey) && j.state !== 'fetching' && j.state !== 'running');
     if (!gone.length) return;
@@ -186,10 +173,7 @@ export class ImageReader {
     this.kick();
   }
 
-  /**
-   * An image of the message is queued or being read, and an engine will read it: a queue no engine drains never holds a
-   * message's text as still coming. A picked engine that can't run fails its job, so that job is always due.
-   */
+  /** Reports pending image text only when an engine will drain the queue. Unavailable explicitly selected engines fail their jobs. */
   due(messageId: string): boolean {
     return messageActive(this.d.db, messageId, !this.ready());
   }
@@ -199,10 +183,7 @@ export class ImageReader {
     return !('unavailable' in this.d.engine(null));
   }
 
-  /**
-   * Main's answer to fetchImage `requestId` (its completion report, also while the plugin is off, writing through
-   * `done`), or its deadline: counts only for a request this session made and a job still waiting for it.
-   */
+  /** Handles fetchImage completion or timeout only for this session's requests and jobs still awaiting them. Off-state completions write through done. */
   imageFetched(requestId: number, error: string | null, done: FetchBookkeeping = { db: this.d.db, failed: (messageId) => this.d.events.settled({ ok: false, messageId }) }): void {
     const late = this.d.session.expired.get(requestId);
     if (late !== undefined) {

@@ -1,5 +1,4 @@
-// Runs queued transcripts one at a time (whisper uses the whole GPU or every core), fetching media through main: pruned
-// attachments, and embeds' videos.
+// Transcribes jobs sequentially; main fetches missing attachments and embed videos.
 import { existsSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -12,13 +11,9 @@ import { PRIORITY, attachmentMessage, enqueue, fail, finish, jobOf, nextJob, res
 import type { Toolchain, ToolPaths } from './toolchain';
 import { transcribe } from './whisper';
 
-/** A stuck program must not hold the queue forever; far above whisper's time for an hour of audio on CPU (estimate). */
+/** Transcription-process timeout. */
 const JOB_TIMEOUT_MS = MS_PER_HOUR;
-/**
- * How long main may take to report a download before its job fails, so one main never reports (it hung or crashed) can't
- * hold the job in 'fetching'. Assumption: an attachment or embed video (at most Discord's 500 MB upload) downloads well
- * within this on a slow link (about 4.5 Mbit/s).
- */
+/** Download-report timeout; expired fetches fail instead of remaining fetching indefinitely. */
 export const DOWNLOAD_REPORT_MAX_MS = 15 * MS_PER_MIN;
 const DOWNLOAD_LATE = `no download finished within ${DOWNLOAD_REPORT_MAX_MS / MS_PER_MIN} minutes`;
 export const NOT_SET_UP = 'Set up transcription first: Settings → Transcription.';
@@ -33,10 +28,7 @@ const DOWNLOAD_STORED = 'stored';
  * place in the queue's history.
  */
 export type TranscriptSettled =
-  /**
-   * `key`: the transcript's derived text key (transcriptKey); `part`: the part key it is of. `record`: stores the job's
-   * result; runs in the same transaction as the host storing the text.
-   */
+  /** key identifies derived text; part identifies its source. record stores job results in the host's text transaction. */
   | { messageId: string; ok: true; key: string; part: string; seq: number; text: string; requestedAt: number; record: () => void }
   | { messageId: string; ok: false };
 
@@ -57,15 +49,9 @@ export interface TranscriberEvents {
   settled(s: TranscriptSettled): void;
 }
 
-/**
- * What lasts for the core process, so turning transcription off and on neither loses audio main is still downloading nor
- * clears the scratch folder under it.
- */
+/** Process-lifetime downloads and scratch storage survive transcription deactivation/reactivation. */
 export interface TranscriptionSession {
-  /**
-   * Downloads asked of main and not reported, by request id (their audioFetched key): at most AUDIO_FETCHES_MAX, one per
-   * job in the fetching state. Each fails at its deadline as if main reported DOWNLOAD_LATE.
-   */
+  /** Outstanding main downloads keyed by request ID, bounded by AUDIO_FETCHES_MAX. Each fails with DOWNLOAD_LATE at its deadline. */
   readonly fetches: Map<number, { seq: number; deadline: NodeJS.Timeout }>;
   lastRequestId: number;
   /** The latest activation's transcriber: a download past its deadline is failed through it while it runs. */
@@ -165,11 +151,7 @@ export class Transcriber {
     return join(this.workDir, `${seq}.media`);
   }
 
-  /**
-   * Main's answer to fetchAudio request `requestId` (its completion report, also while the plugin is off, writing through
-   * `done`), or its deadline: only a request this session made and hasn't failed at its deadline counts, and only for a
-   * job still waiting for it.
-   */
+  /** Handles fetchAudio completion or timeout for outstanding session requests whose jobs still await them. Off-state completions write through done. */
   audioFetched(requestId: number, error: string | null, done: FetchBookkeeping = { db: this.db, failed: (messageId) => this.events.settled({ messageId, ok: false }) }): void {
     const asked = this.session.fetches.get(requestId);
     if (asked === undefined) return;
@@ -187,10 +169,7 @@ export class Transcriber {
     this.kick();
   }
 
-  /**
-   * A download main hasn't reported by its deadline: failed through this activation while it runs. Off, nothing may
-   * write, so its job stays fetching and the next activation queues it again (resetInterrupted).
-   */
+  /** Active download timeouts fail through the activation. While off, jobs remain fetching until resetInterrupted requeues them on activation. */
   private fetchLate(requestId: number): void {
     if (!this.signal.aborted) return this.audioFetched(requestId, DOWNLOAD_LATE);
     this.session.fetches.delete(requestId);
@@ -228,8 +207,7 @@ export class Transcriber {
     const input = stored && existsSync(stored) ? stored : existsSync(fetched) ? fetched : null;
     if (!input) {
       if (this.session.fetches.size >= AUDIO_FETCHES_MAX) return false;
-      // An embed's video, or an attachment pruned, failed or not yet downloaded: main fetches it through the Discord
-      // session; the store's cap is left alone.
+      // Main fetches embed videos and missing attachments through the Discord session without changing the storage cap.
       await mkdir(this.workDir, { recursive: true });
       if (this.signal.aborted) return true; // a later activation owns the job now
       const requestId = ++this.session.lastRequestId;

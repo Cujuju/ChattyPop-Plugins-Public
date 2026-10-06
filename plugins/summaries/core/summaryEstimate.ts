@@ -26,10 +26,7 @@ export interface RunPlan {
   cacheKey: string;
 }
 
-/**
- * An upper bound: every step is counted as if earlier ones dropped nothing, and the citation check as if the summary
- * used its most bullets.
- */
+/** Upper-bound estimate assumes no filtering and the maximum bullet count for citation checks. */
 export function maxJevQuestions(p: RunPlan, prefs: SummarySettings): number {
   const lines = p.afterRules;
   const bullets = SUMMARY_BULLETS[prefs.length];

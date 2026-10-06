@@ -59,7 +59,7 @@ const PLAN_QUERY_DEF: JevQueryDecl<'planDetection'> = {
       },
     ],
     alertOn: ['plan', 'decision'],
-    // Each hit is an LLM call; on a real day 0.7 passed 13 of 1,699 messages, nearly all real, and 0.6 added noise.
+    // Plan-detection probability threshold.
     minProbability: 0.7,
   },
 };
@@ -72,8 +72,7 @@ export const plugin = definePlugin({
     seen: definePreference<string[] | null>({ default: null, normalize: stringsOr(null) }),
     settings: definePreference({ default: DEFAULT_PLANS_SETTINGS, normalize: normalizePlansSettings }),
   },
-  // The host's migrations created plans when it was built in; its switch kept its key. Extraction used the global default
-  // provider, which Settings → AI no longer has: it seeds Plans' own.
+  // Adopts built-in plans and their switch. The former global provider seeds Plans' extraction provider.
   adopts: {
     tables: { plans: 'items' },
     settings: { 'plans.seen': 'seen' },

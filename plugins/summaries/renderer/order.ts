@@ -33,10 +33,7 @@ function chronological(items: SummaryItem[], from: number): { item: SummaryItem;
     .sort((a, b) => a.ts - b.ts || a.i - b.i);
 }
 
-/**
- * A run's points in reading order. Channel grouping: channels in order of first activity, points chronological within.
- * Overall: chronological, headed by day when the run spans days.
- */
+/** Orders points chronologically, optionally grouped by channel in first-activity order or by day for multi-day runs. */
 export function pointGroups(s: Pick<Summary, 'items' | 'grouping' | 'sinceTs' | 'untilTs'>): PointGroup[] {
   const points = chronological(s.items, s.sinceTs);
   if (s.grouping === 'channel') {

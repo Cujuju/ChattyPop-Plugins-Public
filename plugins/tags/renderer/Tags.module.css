@@ -1,6 +1,4 @@
-/* #78 Tags panel: the owner's tags as chips with counts, the selected tag's editor and tagged messages, and the
-   range runner. Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look) and the shared cp-*
-   classes (theme/shared-controls.css), applied in the TSX. */
+/* #78: tag chips/counts, selected-tag editor, tagged messages, and range runner. TSX applies theme looks and shared control classes. */
 /* With cp-panel-body. */
 .body {
   gap: var(--cp-space-5);

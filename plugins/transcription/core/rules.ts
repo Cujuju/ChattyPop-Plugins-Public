@@ -1,5 +1,4 @@
-// The "A transcript" filter (under "And it has"). It reads the jobs table: a transcript's job is recorded in the transaction that stores
-// its derived text, before the host checks rules again.
+// The transcript filter reads jobs recorded with derived text in the same transaction, before rule reevaluation.
 import type { CoreContext, PluginDb } from '@plugin-sdk/core';
 import type { plugin } from '../shared';
 import { JOBS_TABLE } from './schema';

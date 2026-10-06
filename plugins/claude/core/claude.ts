@@ -33,7 +33,7 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as co
 type ImageMediaType = (typeof IMAGE_TYPES)[number];
 const isImageType = (t: string): t is ImageMediaType => (IMAGE_TYPES as readonly string[]).includes(t);
 
-/** The prompt and its images as one user turn: the SDK takes content blocks only as a streamed message. Throws on a type it can't read. */
+/** Streams text and images as one SDK user message. Rejects unsupported input types. */
 function withImages(prompt: string, images: readonly CompletionImage[]): AsyncIterable<SDKUserMessage> {
   const blocks = images.map((i) => {
     if (!isImageType(i.mediaType)) throw new Error(`Claude can't read ${i.mediaType} images.`);
@@ -59,7 +59,7 @@ export class ClaudeProvider implements LlmProvider {
       // Isolation: no tools, no user/project settings, CLAUDE.md, hooks or skills, no saved transcript.
       tools: [],
       settingSources: [],
-      // The user's own MCP servers would otherwise load, and their tool definitions ride along on every call.
+      // Disables user MCP servers to omit their tool definitions from completion calls.
       mcpServers: {},
       strictMcpConfig: true,
       persistSession: false,
@@ -115,7 +115,7 @@ export class ClaudeProvider implements LlmProvider {
         id: m.value,
         label: m.displayName,
         ...(m.supportedEffortLevels?.length ? { efforts: m.supportedEffortLevels } : {}),
-        // supportedModels() reports no input types. Assumption: every model Claude Code offers reads images.
+        // supportedModels omits input types; this adapter advertises image support for every returned model.
         images: true,
         ...(m.value === DEFAULT_MODEL_VALUE ? { isDefault: true } : {}),
       }));

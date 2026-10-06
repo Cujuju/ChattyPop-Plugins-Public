@@ -1,5 +1,4 @@
-// Ollama models: installing through Ollama's /api/pull (progress over every layer, failures kept until dismissed,
-// cancel), and the owner's unload time sent with each request and applied to models already loaded.
+// Tests Ollama pull progress, failures, cancellation, and keep-alive changes for requested and loaded models.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import ollamaCore from '../core';

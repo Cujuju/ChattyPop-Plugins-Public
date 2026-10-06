@@ -45,11 +45,7 @@ const LOAD_OLDER_THRESHOLD_ROWS = 20;
 
 type Row = { kind: 'divider'; key: string } | { kind: 'day'; key: string; label: string } | { kind: 'link'; key: string; item: LinkItem };
 
-/**
- * F2 Links: every shared link for the filter bar's filter and order, oldest at the top and the top one at the bottom,
- * paging older links in as you scroll up. "N new" counts links since the watermark; a "caught up" line marks where the
- * panel was last read up to.
- */
+/** F2 Links pages older entries upward. New counts follow the watermark; a caught-up line marks the previous read position. */
 export function LinksPanel() {
   const log = createFollowBottom();
   const rows = createMemo<Row[]>(() => {
@@ -93,7 +89,7 @@ export function LinksPanel() {
         <Show when={newLinkCount() > 0}>
           <HeaderBadge>{newLinkCount()} new</HeaderBadge>
         </Show>
-        {/* The desktop's filters sit in the header, after the title; the phone keeps them in a sheet, whose button is raised while any is set. */}
+        {/* Desktop filters follow the header title; phone filters use a sheet with an active-filter indicator. */}
         <Show when={!inCompanion}>
           <LinkFilters counts={linkCounts()} />
         </Show>

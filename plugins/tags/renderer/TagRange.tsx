@@ -17,7 +17,7 @@ import {
 import { customTags, editingTag, runTagRange, tagRangeChannel, tagRangeCount, tags } from './state';
 import styles from './Tags.module.css';
 
-/** A few hours of a busy channel: enough to be useful, cheap to try (about $0.003 per tag at the documented rate). */
+/** Default message count for range runs. */
 const DEFAULT_LATEST = 200;
 
 const SCOPES = [

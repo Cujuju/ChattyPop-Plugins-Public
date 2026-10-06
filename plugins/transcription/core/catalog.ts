@@ -1,7 +1,6 @@
 import type { ModelScore } from '../shared/types';
 
-// Pinned downloads for local transcription. Every file is verified by SHA-256 before use; bump a pin by replacing
-// its URL, size and hash together (hashes: Hugging Face tree API lfs.oid, GitHub release asset digest).
+// Pinned transcription downloads verified by SHA-256. Update URL, size, and hash together; hashes come from Hugging Face lfs.oid or GitHub asset digests.
 
 export interface Download {
   url: string;
@@ -21,12 +20,7 @@ export interface ModelEntry extends Download {
 const HF_REVISION = '5359861c739e955e79d9a303bcbc70fb988958b1';
 const hf = (file: string): string => `https://huggingface.co/ggerganov/whisper.cpp/resolve/${HF_REVISION}/${file}`;
 
-// Scores, measured 2026-09-25 with whisper.cpp b5130 run exactly as ChattyPop runs it (-l auto):
-// - accuracy: 100 − mean word error rate of 100 AMI meeting utterances (ihm test, casual speech) and 99 LibriSpeech
-//   test-other utterances (3 per speaker, read speech). Lowercased, punctuation and fillers (um, uh, mm…) removed.
-// - speed: seconds of voice message per second of wall time over real Discord voice messages (20 on GPU, 6 on CPU),
-//   one run per message with ffmpeg decode and model load included. RTX 3090 (gpu) / Ryzen 9 5950X, 32 threads (cpu).
-// Speeds are that PC's; other hardware differs. Rounded to two significant figures.
+// Measured 2026-09-25: whisper.cpp b5130, -l auto. Accuracy: normalized AMI/LibriSpeech WER. Speed includes Discord audio decode/loading on RTX3090 or Ryzen5950X/32 threads. Hardware-specific; two significant figures.
 /** Multilingual models only (language is auto-detected), smallest first. */
 export const MODELS: readonly ModelEntry[] = [
   { id: 'ggml-base.bin', label: 'Base', description: 'Smallest and least accurate; fine for clear speech.', score: { accuracy: 78, speed: { gpu: 23, cpu: 9.8 } }, url: hf('ggml-base.bin'), bytes: 147951465, sha256: '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe' },

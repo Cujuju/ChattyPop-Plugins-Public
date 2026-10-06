@@ -48,10 +48,7 @@ export function setupTranscription(o: {
   reports: DownloadReports;
 }): Transcription {
   const settings = (): TranscriptionSettings => o.settings.get();
-  /**
-   * Automatic transcription covers each kind sent from when it was turned on, not the history before. Returns whether
-   * it saved a stamp (a save of its own, which settingChanged hears).
-   */
+  /** Stamps automatic transcription start times for newly enabled kinds. Returns whether settings were saved. */
   const stampAutoSince = (): boolean => {
     const s = settings();
     const unstamped = AUTO_KINDS.filter((k) => s.auto[k] && s.since[k] === null);

@@ -1,18 +1,11 @@
-// The vision engine: a model that reads images (an AI provider declared with `images`) transcribes an image's text and
-// names the tickers a chart or trading screen shows.
+// Vision-model engine transcribes image text and identifies chart tickers.
 import { readFile } from 'node:fs/promises';
 import type { PluginProvider } from '@plugin-sdk/core';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
 
-/**
- * One image, including loading the model into memory the first time. Assumption: far above a local 8B vision model's
- * seconds per image on a desktop GPU; a CPU-only machine may need the retry.
- */
+/** Per-image timeout, including initial model loading. */
 const VISION_TIMEOUT_MS = 3 * MS_PER_MIN;
-/**
- * The answer's cap: a dense screenshot's text is a few hundred tokens (measured, Qwen3-VL 8B on this archive), and a
- * model that pads its JSON answer (seen: thousands of newlines) stops here instead of running to the timeout.
- */
+/** Caps vision output tokens to bound oversized or padded responses. */
 const VISION_MAX_OUTPUT_TOKENS = 2048;
 
 const SYSTEM = 'You read images posted in a chat and reply with JSON only.';

@@ -52,11 +52,7 @@ function Judgment(props: { item: LinkCard }) {
   );
 }
 
-/**
- * One shared link, drawn as the Archive draws the message that shared it: avatar with the platform badge under it,
- * name and time, then the message. The name line adds where it was shared (opens it in the Archive), and the date when the
- * list has no day headings (`dated`).
- */
+/** Draws shared links with Archive message rows, a platform badge, and an origin link. dated adds dates when day headings are absent. */
 export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
   const it = () => props.item;
   /** The message draws its own embeds; the link's card is added only when it came from elsewhere (a later share, FxTwitter). */
@@ -99,10 +95,7 @@ export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
   );
 }
 
-/**
- * A link without the message that shared it: badge, who/where/when, the link and its card. `own`: in a person's own
- * list, so their name is left out, the server is named, and the card is brief (every description clamped).
- */
+/** Fallback link row shows origin metadata, URL, and card. own omits the person's name, includes the server, and clamps card descriptions. */
 export function LinkCardRow(props: { item: LinkCard; own?: boolean }) {
   const it = () => props.item;
   const cardHasTitle = (): boolean => {

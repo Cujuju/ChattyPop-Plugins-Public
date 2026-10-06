@@ -1,20 +1,16 @@
-// Translation: other plugins' text of a message's parts (image text, transcripts) and embeds' own text, translated with a
-// text model into the owner's language. Settings, picks and status as core and the renderer exchange them.
+// Shared translation settings, model picks, and status for image text, transcripts, and embed text.
 import { bool, isObj, oneOf, textOrNull, type ModelOption } from '@plugin-sdk/shared';
 
 /** What a part's text is, so each is translated automatically or not: Image text's, a transcript, an embed's own. */
 export const SOURCE_KINDS = ['image-text', 'transcript', 'embed-text'] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
-/** Translation targets offered in Settings. Assumption: widely used languages cover the owner; add one here. */
+/** Translation languages offered in Settings. */
 export const TRANSLATE_LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Russian', 'Japanese', 'Korean', 'Chinese (Simplified)'] as const;
 export type TranslateLanguage = (typeof TRANSLATE_LANGUAGES)[number];
 
 export interface TranslationSettings {
-  /**
-   * The automatic switch for image text: recent messages' readings are translated without being asked. Named as in
-   * Image text's settings, which it is adopted from; checkBundled requires an adopted field in this default.
-   */
+  /** Automatic image-text translation switch adopted from Image text. checkBundled requires the adopted field in defaults. */
   translate: boolean;
   /** As `translate`, for transcripts. */
   translateTranscripts: boolean;
@@ -57,10 +53,7 @@ export function normalizeTranslationSettings(v: unknown): TranslationSettings {
 export const autoFor = (s: TranslationSettings, kind: SourceKind): boolean =>
   kind === 'image-text' ? s.translate : kind === 'transcript' ? s.translateTranscripts : s.translateEmbedText;
 
-/**
- * Whether the Translate menu lists `p`'s models: the owner's switch, else on for a local provider. Cloud ones start
- * off: they may list hundreds of models (OpenRouter) and cost per request.
- */
+/** Model-menu inclusion follows the owner's switch, defaulting on for local providers and off for cloud providers. */
 export function inTranslateMenu(s: TranslationSettings, p: Pick<ProviderModels, 'id' | 'local'>): boolean {
   return s.translateMenu[p.id] ?? p.local;
 }

@@ -19,11 +19,7 @@ async function hashFile(path: string, hash: Hash): Promise<void> {
   for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
 }
 
-/**
- * Streams `d` to `dest` through a `.part` file, checking its size and SHA-256 before the rename, so a failed, corrupt or
- * cancelled download never leaves anything at `dest`. A `.part` left by a dropped connection is resumed with a Range
- * request; a cancel or a bad checksum discards it.
- */
+/** Downloads through a resumable .part file; validates size/SHA-256 before rename. Cancellation or checksum failure discards partial data. */
 export async function downloadVerified(d: Download, dest: string, onProgress: (fraction: number) => void, signal: AbortSignal, fetchImpl: PluginFetch): Promise<void> {
   await mkdir(dirname(dest), { recursive: true });
   const part = `${dest}.part`;

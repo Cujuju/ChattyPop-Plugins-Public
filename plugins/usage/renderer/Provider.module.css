@@ -1,8 +1,4 @@
-/* Plan usage: an F2 panel header (collapse toggle, title, refresh) over a meter row per provider window:
-   mark | label | bar | % | reset, the mark on the provider's first row only. Narrow slots stack the providers and
-   share one grid so rows align across them; wide slots put them side by side (see @container below).
-   Collapsed: the header alone, each provider's mark and percentages inline.
-   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in UsagePanel.tsx. */
+/* Usage layout: shared header and provider-window meters. Narrow slots share a grid; wide slots separate providers. Collapsed headers show percentages. TSX applies theme looks. */
 
 /* With cp-panel. */
 .root {
@@ -114,8 +110,7 @@
   width: var(--cp-settings-control-w);
 }
 
-/* Wide slot: two provider columns fit (2 × --cp-usage-provider-min-w + gap + 2 × pad ≈ 520px), so providers sit
-   side by side, each with its own columns. Literal: container conditions can't read custom properties. */
+/* Providers become side-by-side near 520px. Container conditions use literals because custom properties cannot supply query thresholds. */
 @container plan-usage (width >= 520px) {
   .providers {
     grid-template-columns: repeat(auto-fit, minmax(var(--cp-usage-provider-min-w), 1fr));

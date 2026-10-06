@@ -1,4 +1,4 @@
-// Jev's reading of shared links (#61 category, #62 spam/scam/NSFW, #63 worth reading): one request carries a batch of links and asks every enabled question about each, each question carrying its own link (carriedQuestion). Links first shared in a local-AI-only channel are never sent.
+// Batches enabled Jev link questions (#61–63), carrying each link with its question. Excludes links first shared in local-AI-only channels.
 import { MS_PER_DAY, errorMessage } from '@plugin-sdk/shared';
 import {
   SerialLoop,
@@ -18,17 +18,11 @@ import { LINK_QUERY as QUERY } from '../shared';
 import { LINK_CATEGORIES, type LinkCategory } from '../shared/types';
 import { JUDGMENTS } from './tables';
 
-/**
- * Links first shared this recently are judged when a feature turns on; older ones stay unjudged. A day bounds the
- * start-up cost (a busy server shares hundreds of links a day); new links are judged as they arrive.
- */
+/** Activation judges links from the preceding day; older links remain unjudged. Newly shared links are judged on arrival. */
 const LOOKBACK_MS = MS_PER_DAY;
-/** Links per request: questions for several links share one request's overhead; small enough to stay well inside Jev's input limit. */
+/** Links per batched Jev request. */
 const LINKS_PER_REQUEST = 8;
-/**
- * A stored `flagged` value at or above this counts as flagged. New judgments store 1 (the safety query's condition met)
- * or 0; links judged before the query became editable store Jev's probability, whose cut-off was also 0.7.
- */
+/** Flag threshold for legacy probability judgments. New editable-query judgments store 1 or 0. */
 export const FLAG_AT = 0.7;
 const FLAGGED = 1;
 const NOT_FLAGGED = 0;

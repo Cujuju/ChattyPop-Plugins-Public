@@ -55,10 +55,7 @@ export class Summarizer {
     return next.then((s) => this.shown(s));
   }
 
-  /**
-   * Where stored runs cover, without a gap from `q.sinceTs`, every channel a run over `q.channelIds` with Summaries'
-   * provider would read now; null when some channel isn't covered there.
-   */
+  /** Returns continuous summary coverage for every currently readable requested channel; null if any channel lacks coverage. */
   coveredFrom(q: CoverageQuery, prefs: SummarySettings): number | null {
     const providerId = prefs.defaultProvider;
     const { readable } = this.channels(q.channelIds, providerId);
@@ -71,7 +68,7 @@ export class Summarizer {
     return { requested, readable: this.providers.permitted(requested, providerId === null ? 'hosted' : { provider: providerId }) };
   }
 
-  /** What a run would cost: Jev's most questions and the model's likely cost; null when it can't run (no provider, empty range). */
+  /** Estimates maximum Jev questions and model cost; null when the provider or message range is unavailable. */
   estimate(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): SummaryEstimate | null {
     let p: RunPlan;
     try {
@@ -113,11 +110,10 @@ export class Summarizer {
 
     const lines = readLog(this.db, this.payloads, channelIds, req.sinceTs, untilTs, prefs.grouping, prefs.skipObviousFiller);
     if (!lines.length) throw new EmptyRangeError();
-    // Rules first, so Jev isn't paid to judge obvious filler. If everything is filler, the LLM sees everything rather than fail.
+    // Applies rule-based filler filtering before Jev. If all messages are filler, restores the full input.
     const afterRules = prefs.skipObviousFiller && lines.some((l) => !l.filler) ? lines.filter((l) => !l.filler) : lines;
 
-    // Jev features the user turned on (and a key is stored); each changes the result, so each is part of the cache key.
-    // Jev runs on OpenRouter: never on a run that includes local-only text. Every Jev request reads the run's channels.
+    // Enabled, keyed Jev features affect the cache key. Local-only text excludes OpenRouter Jev; every request identifies the run's channels.
     const jevFor = (f: Parameters<ProviderRegistry['decider']>[1]) => {
       const d = includesLocalOnly ? null : this.providers.decider(settings, f);
       return d && boundDecider(d, channelIds);

@@ -26,10 +26,7 @@ const stamp = (v: unknown): number | null => {
   return v !== null && Number.isFinite(n) && n > 0 ? n : null;
 };
 
-/**
- * Settings saved before per-kind switches had `autoVoice` and `autoSince` (voice messages): read as voice's. Saving
- * drops them, so a build before per-kind switches (a downgrade) reads automatic voice transcription as its default.
- */
+/** Adopts legacy autoVoice/autoSince as voice settings. Saving removes legacy fields; downgraded builds use their default automatic voice behavior. */
 export function normalizeTranscriptionSettings(v: unknown): TranscriptionSettings {
   const src = isObj(v) ? v : {};
   const auto = isObj(src['auto']) ? src['auto'] : { voice: src['autoVoice'] };
@@ -99,10 +96,7 @@ export interface ArchiveTranscript {
   error: string | null;
 }
 
-/**
- * Core asks main to download a job's media to `path`: an attachment whose file is not in the store, or an embed's video
- * (Discord's media proxy). Main answers with audioFetched.
- */
+/** Requests a media download to path for missing attachments or embed videos. Main responds with audioFetched. */
 export type TranscriptMediaRequest = {
   /** Names this download in main's answer, so a report from an earlier request or core run is told apart. */
   requestId: number;

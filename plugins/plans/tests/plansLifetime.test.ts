@@ -36,8 +36,7 @@ describe('Plans turned off mid-extraction', () => {
   it('keeps the running and the queued hit, and extracts both when Plans is back on', async () => {
     const requests: Held<CompletionResult>[] = [];
     const t = start(plansCore, claude((req) => new Promise<CompletionResult>((resolve) => requests.push({ signal: req.signal, answer: resolve }))));
-    // Jev's hits are archived messages; the extraction reads their text from the archive. The harness doesn't run Jev's
-    // per-message matcher, so the test answers the registered question as it would.
+    // Extraction reads archived messages. The harness manually answers the registered question instead of running Jev matching.
     const hits: string[] = [];
     const hit = () => {
       const [id] = t.archive.arrive([{ channelId: 'c1', ts: Date.now() + hits.length, content: 'game night friday?' }]);

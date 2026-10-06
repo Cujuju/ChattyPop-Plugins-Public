@@ -2,8 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AppUsage, PlanUsageWindow } from '@shared/contract';
 
-// The client runtime, so resources react as in a window (node resolves solid-js to its server build).
-// A dynamic import, resolved from the checkout; createRequire would resolve from this folder. By variable: it has no types.
+// Loads the checkout's Solid client runtime for window-like resource behavior. Dynamic import avoids server resolution.
 vi.mock('solid-js', () => {
   const client = 'solid-js/dist/solid.js';
   return import(client);
@@ -32,8 +31,7 @@ vi.stubGlobal('window', {
   },
 });
 
-// Renderer modules: imported by path so the node type-check doesn't follow them. The kit re-exports the host's
-// plan-limit store, which stands in for it.
+// Path imports exclude renderer modules from node type-checking. The kit re-exports the host plan-limit store for tests.
 const HOST_USAGE = '@/state/providerUsage';
 vi.mock('@plugin-sdk/renderer/kit', async () => ({
   ...((await import(HOST_USAGE)) as object),

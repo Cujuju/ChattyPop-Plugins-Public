@@ -18,10 +18,7 @@ const Field = (props: { label: string; for?: string; children: JSX.Element }) =>
   </div>
 );
 
-/**
- * The sheet, shown while `open`; a tap outside, Done or Escape closes it (`onClose`). Each change filters the feed behind
- * it at once; Reset, shown while any filter is set, puts them all back. `counts` are the platforms' totals.
- */
+/** Filter sheet closes on outside tap, Done, or Escape. Changes update the feed immediately; Reset clears filters. counts holds platform totals. */
 export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<Platform, number>>; onClose: () => void }) {
   let dialog!: HTMLDialogElement;
   createEffect(() => {

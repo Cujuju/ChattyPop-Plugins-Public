@@ -1,5 +1,4 @@
-// What a message has to translate: each part's text from other plugins (Image text's readings, transcripts), its
-// embeds' own text and its linked posts' text no card shows (both 'embed-text'), with the part's kind.
+// Collects translatable part text from image readings, transcripts, embeds, and linked posts absent from cards, with each part's kind.
 import { createHash } from 'node:crypto';
 import type { MessagePart, PartText } from '@plugin-sdk/core';
 import type { SourceKind } from '../shared/types';
@@ -18,11 +17,7 @@ ${text}`).digest('hex');
 
 const kindOf = (p: MessagePart): SourceKind => (p.kind === 'text' ? 'embed-text' : p.kind === 'image' ? 'image-text' : 'transcript');
 
-/**
- * Each message's sources in the order it shows its parts, to translate into `language`. `texts`: derived texts naming a part (derivedText.ofParts);
- * `ownId`'s are left out, so a translation is never translated. A text naming a part the message no longer shows is
- * left out.
- */
+/** Orders translation sources by displayed parts. Excludes ownId's derived texts and texts naming removed parts. */
 export function messageSources(ownId: string, language: string, parts: ReadonlyMap<string, readonly MessagePart[]>, texts: readonly PartText[]): Map<string, PartSource[]> {
   const byPart = new Map<string, string[]>();
   for (const t of texts) {

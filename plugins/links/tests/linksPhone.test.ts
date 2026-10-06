@@ -1,5 +1,4 @@
-// Links on the phone: the feed's reads and its refresh event reach it, its section sits beside Summaries, and it reads
-// and moves the watermark.
+// Tests phone feed reads, refresh events, section placement, and watermark updates.
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import { anchorCatalog, checkBundled } from '@shared/bundledCheck';

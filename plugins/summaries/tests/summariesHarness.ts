@@ -128,10 +128,7 @@ export function startSummaries(db: Db, options: {
   };
 }
 
-/**
- * A registry whose every provider answers a completion with `json(req, settings)` and records the request;
- * `decider` stands in for its per-feature Jev. Sources follow `db`'s channel policy, as the host's do.
- */
+/** Provider registry returns json(req,settings) and records requests. decider supplies Jev; sources enforce db channel policy. */
 export function fakeRegistry(
   db: () => Db,
   json: (req: CompletionRequest, s: AiSettings) => unknown,

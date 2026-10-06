@@ -1,5 +1,4 @@
-// Transcription: voice messages, audio and video to text on this computer (whisper.cpp + ffmpeg). Transcripts are derived
-// text: rules, Jev, summaries, search and Autopost's {transcript} read them.
+// Local whisper.cpp/ffmpeg transcription. Derived transcripts feed rules, Jev, summaries, search, and Autopost's {transcript}.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { DEFAULT_TRANSCRIPTION_SETTINGS, normalizeTranscriptionSettings, type ToolBuild, type TranscriptMediaRequest, type TranscriptionStatus } from './types';
 import { transcribed } from './rules';
@@ -19,28 +18,18 @@ export const STATUS_EVENT = 'status' as const;
 export const FETCH_AUDIO = 'fetchAudio' as const;
 /** AttachmentNote.kind of a transcript. */
 export const TRANSCRIPT_NOTE = 'transcript';
-/**
- * Downloads main is asked for at once, and so the audioFetched report's bound; a job needing one more waits for a report.
- * Assumption: a few in parallel keep the queue moving past one slow download; more would share the link without
- * finishing sooner.
- */
+/** Maximum concurrent main-process audio downloads. Further jobs wait for completion reports. */
 export const AUDIO_FETCHES_MAX = 4;
 
 /** Core's calls: from Settings and the message menu, and main's answer to FETCH_AUDIO. */
 export interface TranscriptionCoreCalls {
   /** Programs, models and whether transcription can run. */
   status(): TranscriptionStatus;
-  /**
-   * Starts downloading a program or model (by InstallItem id); progress arrives as STATUS_EVENT. `build` picks a
-   * program's build (null = recommended) and replaces an installed one; throws while a transcript is running.
-   */
+  /** Installs a program/model by ID and emits progress. build selects a replacement; null uses the recommendation. Throws during transcription. */
   install(id: string, build: ToolBuild | null): void;
   cancel(id: string): void;
   deleteModel(id: string): Promise<void>;
-  /**
-   * Queues transcripts of the message's audio and video ahead of automatic ones: `part` (a part key, archive.parts), or
-   * every part not transcribed or in progress (null). Throws when transcription isn't set up or there is no such part.
-   */
+  /** Prioritizes requested audio/video parts. Null selects all unfinished parts. Throws when transcription is unavailable or the part is absent. */
   request(messageId: string, part: string | null): void;
   /** Main's answer to FETCH_AUDIO `requestId`: the audio is at the requested path, or `error`. */
   audioFetched(requestId: number, error: string | null): void;

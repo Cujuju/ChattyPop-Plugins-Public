@@ -1,5 +1,4 @@
-// People in summary text: the log tags each person ({{p3}}), the model writes the tag wherever it names them, and core
-// stores each as the person it is (<@id>), only for tags the log gave out. A summary read for showing carries names now.
+// Summary logs assign person tags; core converts known tags to stored mentions. Display resolves current names.
 import type { PluginDb } from '@plugin-sdk/core';
 import { personRef, referencedPeople } from '../shared/people';
 import { pointCitations, type Summary } from '../shared/types';
@@ -25,7 +24,7 @@ export interface TaggedPerson {
 
 export const peopleByTag = (people: Iterable<TaggedPerson>): Map<string, TaggedPerson> => new Map([...people].map((p) => [p.tag, p]));
 
-/** Each name to the one person it is; a name two people share is left out, since it can't say which one is meant. */
+/** Maps unique names to people; excludes names shared by multiple people. */
 export function peopleByName(pairs: Iterable<readonly [name: string, userId: string]>): Map<string, string> {
   const byName = new Map<string, string | null>();
   for (const [name, userId] of pairs) {
@@ -35,10 +34,7 @@ export function peopleByName(pairs: Iterable<readonly [name: string, userId: str
   return new Map([...byName].filter((e): e is [string, string] => e[1] !== null));
 }
 
-/**
- * `text` with each tag the log gave out as its person. A mark holding a name (as a template from before tags asks) is
- * linked when one person in the log has it, else kept as the name; an unknown tag reads UNPLACED_PERSON.
- */
+/** Converts known tags to mentions. Legacy names link only when unique in the log; unknown tags become UNPLACED_PERSON. */
 export const linkMarked = (text: string, byTag: ReadonlyMap<string, TaggedPerson>, byName: ReadonlyMap<string, string>): string =>
   text.replace(MARK, (_, mark: string) => {
     const m = mark.trim();
@@ -55,16 +51,13 @@ export const unmarked = (text: string, byTag: ReadonlyMap<string, TaggedPerson>)
 
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/**
- * `text` with each whole name in `byName` (case as written, not inside a longer word) as its person; longer names first,
- * so one containing another wins. The owner's naming of a person (linkPerson.ts) uses it.
- */
+/** Replaces whole, case-sensitive names with mentions, longest first. Used when the owner identifies a person. */
 export function linkNames(text: string, byName: ReadonlyMap<string, string>): string {
   const names = [...byName.keys()].filter((n) => n.trim()).sort((a, b) => b.length - a.length);
   return names.length ? text.replace(wholeWords(names), (name) => personRef(byName.get(name)!)) : text;
 }
 
-/** Any of `words` as a whole word (not inside a longer word); where two start together, the one listed first. */
+/** Matches whole words, preferring the first listed match when starts coincide. */
 const wholeWords = (words: readonly string[]): RegExp =>
   new RegExp(`(?<![\\p{L}\\p{N}_])(?:${words.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}_])`, 'gu');
 
@@ -77,10 +70,7 @@ const textsOf = (s: Summary): string[] => [
   ...(s.themes ?? []).map((t) => t.title),
 ];
 
-/**
- * `s` with its cited messages' authors and every person's name now: their nickname in a server of its channels (when
- * its channels span servers, any one of theirs), else their display name. Read from the views privacy mode filters.
- */
+/** Resolves cited authors and people through privacy-filtered views, preferring a nickname from a summary channel's server over display names. */
 export function withPeople(db: PluginDb, s: Summary): Summary {
   const messageIds = [...new Set([...s.items, ...s.actions].flatMap(pointCitations).concat((s.themes ?? []).flatMap((t) => t.citations)).map((c) => c.messageId))];
   const authors: Record<string, string> = messageIds.length

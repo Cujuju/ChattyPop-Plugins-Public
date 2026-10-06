@@ -1,5 +1,4 @@
-// Image text (#196): charts' tickers as cashtags, and the plugin reading an embed's image through main end to end, its
-// text a derived text and a note of that image (#325).
+// #196, #325: chart cashtags and embed-image reading through main, producing derived text and an image note.
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,9 +14,9 @@ import { counts, JOBS_TABLE } from '../core/store';
 import { WindowsOcr } from '../core/windowsOcr';
 import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings } from '../shared/types';
 
-/** Starting the Windows OCR worker (status() does) takes seconds on a loaded machine or a CI runner. */
+/** Windows OCR startup timeout allowance for loaded machines and CI. */
 const OCR_START_TIMEOUT_MS = 60_000;
-/** Long enough for a queue pass that would run to have run: the queue starts on setImmediate. */
+/** Allows a setImmediate queue pass to run. */
 const SETTLE_MS = 50;
 
 describe('chart tickers', () => {

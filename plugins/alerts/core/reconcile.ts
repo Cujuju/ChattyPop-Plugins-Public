@@ -24,7 +24,7 @@ export function reconcileAlertHistory(ctx: CoreContext<typeof plugin>, changed: 
           db.prepare(`DELETE FROM ${ALERTS} WHERE rule_id = ? AND match_kind = 'meaning'`).run(row.id);
         save.run(row.id, signature);
         if (!row.spec?.actions.some((action) => action.type === 'alerts.notify')) continue;
-        // Cheap: the archive is read only by syncHistory, after the signature shows the stored history is stale.
+        // Reads the archive only after signature comparison identifies stale history.
         const history = ctx.rules.history('alerts.notify', row.id);
         // A rule that isn't compiled (off, or a kind's plugin off) matches nothing meanwhile; it syncs again once it runs.
         const historySignature = history ? JSON.stringify(row.spec) : null;

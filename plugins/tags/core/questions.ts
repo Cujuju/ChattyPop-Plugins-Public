@@ -119,11 +119,7 @@ function askable(store: TagStore, tagIds: number[]): {
   });
 }
 
-/**
- * Asks the chosen tags' questions about every message in the range, one request per message, and applies the tags
- * Jev's answers meet. Refuses local-AI-only channels. Failed requests are counted and skipped. `revision`: a tag's
- * identity and question, never reused; an answer for a tag whose revision changed meanwhile is dropped unstored.
- */
+/** Asks each selected tag question per message. Rejects local-only channels, skips failed requests, and discards answers when the tag's revision changed. */
 export async function tagRange(db: PluginDb, store: TagStore, judge: RangeJudgments, jev: PluginDecider, sources: Pick<AiSources, 'permitted'>, req: TagRangeRequest, events: TagEvents, active: () => boolean, revision: (tagId: number) => number): Promise<TagRangeResult> {
   const tags = askable(store, req.tagIds);
   if (!tags.length) throw new Error('Pick at least one tag with a Jev question.');

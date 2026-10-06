@@ -93,7 +93,7 @@ export interface ContextBatch {
   count: number;
 }
 
-/** Per-channel batches of up to 	argets lines, each with up to context neighbours on either side; channels never mix. */
+/** Per-channel batches of up to targets lines with context neighbors on each side. */
 export function contextBatches(lines: LogLine[], targets: number, context: number): ContextBatch[] {
   return byChannel(lines).flatMap((seq) =>
     Array.from({ length: Math.ceil(seq.length / targets) }, (_, b) => {
@@ -184,7 +184,7 @@ export function coverageSpans(db: PluginDb): CoverageSpan[] {
   }));
 }
 
-/** Recent priced runs a cost-per-message rate averages; enough to smooth one unusual run, few enough to follow price changes. */
+/** Priced-run sample size for cost-per-message averaging. */
 const RATE_RUNS = 10;
 
 /** The model's cost per message read over its last RATE_RUNS priced runs, in USD; null when none was priced. */
@@ -226,10 +226,7 @@ export function summaryPage(db: PluginDb, q: SummaryPageQuery): Summary[] {
   return rows.map(toSummary);
 }
 
-/**
- * Where stored runs cover every one of `channelIds` without a gap from `sinceTs`: each channel's runs are chained from
- * there while one starts at or before the covered end; the least channel's end. Null when some channel isn't covered.
- */
+/** Returns the earliest continuously covered endpoint across requested channels from sinceTs; null when any channel lacks coverage. */
 export function coveredFrom(db: PluginDb, channelIds: readonly string[], sinceTs: number): number | null {
   const runs = (db.prepare(`SELECT channel_ids, since_ts, until_ts FROM ${SUMMARIES_TABLE} WHERE until_ts > ? ORDER BY since_ts`).all(sinceTs) as {
     channel_ids: string;

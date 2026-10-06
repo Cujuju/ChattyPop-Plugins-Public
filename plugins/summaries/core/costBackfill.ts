@@ -6,10 +6,7 @@ import { SUMMARIES_TABLE } from './schema';
 /** Claude Code's model aliases; OpenRouter's `-latest` ids name the release each alias resolves to. */
 const CLAUDE_ALIASES = new Set(['opus', 'sonnet', 'haiku']);
 
-/**
- * The OpenRouter id pricing a stored run's model; null when unknown. Covers the providers that stored runs without a
- * cost: Codex and Claude (plan-paid) and OpenRouter (its own ids). Claude's alias is priced at today's release.
- */
+/** Resolves stored models to OpenRouter pricing IDs; unknown models return null. Claude aliases resolve to current releases. */
 function openRouterId(provider: ProviderId, model: string | null): string | null {
   if (!model) return null;
   if (provider === 'codex') return `openai/${model}`;
@@ -27,11 +24,7 @@ interface UnpricedRow {
   output_tokens: number | null;
 }
 
-/**
- * Prices every run that called a model but stored no cost, at today's API list rates, and marks it estimated. The
- * stored sums don't split out cache writes or the largest single prompt, so writes are priced as fresh prompt and
- * long-context tiers are missed: an estimate on the low side. Runs it can't price stay unpriced and are retried next start.
- */
+/** Estimates missing run costs at current API rates. Treats cache writes as fresh prompts, omits long-context tiers, and retries unpriceable runs next start. */
 export async function estimateMissingCosts(db: PluginDb, price: PriceAtApiRates): Promise<number> {
   const rows = db
     .prepare(

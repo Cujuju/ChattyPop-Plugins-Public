@@ -2,21 +2,12 @@
 import { pluginTable } from '@plugin-sdk/shared';
 import { plugin } from '../shared';
 
-/**
- * Audio attachments' jobs, adopted from `transcripts` (when it was built in; the descriptor's adopts). Copied into
- * JOBS_TABLE once and kept, not kept in step: a Transcription build before part jobs (a downgrade) opening the profile
- * sees only the jobs made before the copy, so it may transcribe a newer one again.
- */
+/** Adopts legacy transcripts once into JOBS_TABLE. Downgraded builds see only pre-copy jobs and may transcribe newer attachments again. */
 export const ATTACHMENT_JOBS_TABLE = pluginTable(plugin, 'jobs');
 /** One job per audio or video part of a message (archive.parts). */
 export const JOBS_TABLE = pluginTable(plugin, 'part_jobs');
 
-/**
- * Transcription's schema steps (ctx.storage.migrate); append, never edit a shipped one.
- * Step 1: JOBS_TABLE keyed by message and part key (`attachment:<id>` for an attachment, as partKey made it then);
- * `kind` is audio | video; `url` is set where there is no attachment row to read it from. AUTOINCREMENT: `seq` keys a
- * part's derived text, so it is never reused. The adopted table is created empty when the profile never had it.
- */
+/** Append-only transcription migrations. JOBS_TABLE keys message/part; kind identifies audio/video; url covers nonattachments. AUTOINCREMENT seq prevents derived-text key reuse. Missing legacy tables start empty. */
 export const TRANSCRIPTION_MIGRATIONS: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS ${ATTACHMENT_JOBS_TABLE} (seq INTEGER PRIMARY KEY, attachment_id TEXT NOT NULL UNIQUE, message_id TEXT NOT NULL,
      state TEXT NOT NULL, priority INTEGER NOT NULL, requested_at INTEGER NOT NULL, text TEXT, segments TEXT, language TEXT, model TEXT,

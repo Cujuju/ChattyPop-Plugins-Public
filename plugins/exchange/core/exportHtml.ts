@@ -1,5 +1,4 @@
-// Standalone HTML page for an exported channel: readable offline in any browser, no scripts, no remote styles.
-// Styling lives here because the page leaves the app: it can't use the app's theme tokens.
+// Standalone offline HTML export without scripts or remote styles. Export styles are independent of app theme tokens.
 import type { DceExport, DceMessage } from './dce';
 
 const IMAGE_FILE = /\.(png|jpe?g|gif|webp|avif)$/i;
@@ -20,10 +19,7 @@ const PAGE_CSS = `
   a { color: #00a8fc; }
 `;
 
-/**
- * Scripts never run in the page, whatever a payload smuggles past escaping (inline, javascript: links, plugins); styles,
- * images and links stay as they are.
- */
+/** CSP disables scripts and plugins while allowing styles, images, and links. */
 const PAGE_CSP = "script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 /** Link and image schemes the page may use; a URL with no scheme is a copied media file's relative path. */
 const SAFE_SCHEMES = new Set(['http:', 'https:']);

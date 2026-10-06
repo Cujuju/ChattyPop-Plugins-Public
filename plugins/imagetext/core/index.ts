@@ -1,5 +1,4 @@
-// Image text's core side: the queue, its engines, image text as derived text and notes of its image, and the calls
-// Settings, the message menu and main make.
+// Registers image-reading queues, engines, derived text, notes, and Settings/menu/main calls.
 import { join } from 'node:path';
 import { defineCorePlugin, IS_WINDOWS, type CoreContext, type MessageImageSource } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
@@ -48,10 +47,7 @@ const autoFor = (s: ImageTextSettings, source: MessageImageSource): boolean =>
 const statusOf = (e: { name: string } | { unavailable: string }): EngineStatus =>
   'unavailable' in e ? { ready: false, detail: e.unavailable } : { ready: true, detail: e.name.split(':').join(' · ') };
 
-/**
- * Providers declared to read images, with their models that do (listing reaches the provider: Ollama's server): the
- * vision engine's choices. A hosted one lists them while hosted vision is off, so the owner sees what turning it on offers.
- */
+/** Lists vision-capable providers and models, including hosted choices while hosted vision is disabled. Model discovery queries the provider. */
 async function providerModels(ctx: Ctx): Promise<ProviderModels[]> {
   return Promise.all(
     ctx.ai
@@ -109,8 +105,7 @@ export default defineCorePlugin(plugin, (ctx) => {
         statusChanged();
       },
       fetchImage: (request) => ctx.channels.emit(FETCH_IMAGE, request),
-      // An image's text is its message's derived text of that image (its part), read after the content in the order its
-      // job was queued. Keyed by job: derived text keys are unique across messages, and two messages may show one image.
+      // Stores image readings as part-specific derived text in queue order. Job keys distinguish messages sharing the same image.
       settled: (s) =>
         s.ok && s.text !== null
           ? ctx.archive.derivedText.settle(s.messageId, { key: String(s.seq), order: s.seq, text: s.text, queuedAt: s.requestedAt, part: s.part, askJev: settings().askJev }, s.record)

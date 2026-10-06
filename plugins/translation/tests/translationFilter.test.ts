@@ -1,6 +1,4 @@
-// "A translation" in the host's rule engine: a rule narrowed by it fires when its message's translation arrives
-// after the message (settled without asking Jev), because the job's record lands in the derived text's transaction,
-// before the rule check. A text already in the owner's language is no translation.
+// Tests late-translation filter reevaluation, transactional job records, and exclusion of already-target-language text.
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineCorePlugin, type CoreContext } from '@plugin-sdk/core';
@@ -19,10 +17,7 @@ import translationCore from '../core';
 import { messageSources } from '../core/sources';
 import { JOBS_TABLE, PRIORITY, enqueue, finish } from '../core/store';
 
-/**
- * Each test starts a plugin host on a freshly migrated archive; the first also pays the cold start. A CI runner's first
- * test passed vitest's 5 s default (release run 37230529851); this leaves it room.
- */
+/** Plugin-host startup and archive migrations can exceed vitest's default timeout on CI. */
 const HOST_START_TIMEOUT_MS = 30_000;
 
 const stops: (() => Promise<void>)[] = [];
@@ -89,10 +84,7 @@ function start() {
     archive.ingestMessages([m], ARRIVAL.gateway);
     return m.id;
   };
-  /**
-   * The message's part's translation settles as the queue settles it: its source queued as the queue hashes it, the job
-   * finished by the record, and derived text only when there is a translation (null: already in the language).
-   */
+  /** Settles a translation like the queue: hashes the source, records completion, and stores derived text only when translation exists. */
   const translation = (messageId: string, text: string | null): void => {
     const pdb = ctx.storage.db;
     const language = ctx.preferences.get('settings').translateLanguage;

@@ -2,11 +2,11 @@
 import { errorMessage } from '@plugin-sdk/shared';
 import { ProviderUnavailableError, type CompletionRequest, type CompletionResult, type LlmProvider, type ModelOption, type PluginFetch } from '@plugin-sdk/core';
 
-/** Short enough to keep Settings responsive when Ollama isn't running (tags and per-model show). */
+/** Ollama model-discovery timeout. */
 const LIST_TIMEOUT_MS = 2000;
 /** Context window requested per call; Ollama's own default is too small for chat logs. */
 const OLLAMA_NUM_CTX_TOKENS = 16_384;
-/** ~4 chars/token: prompt fills about half the window, leaving room for system prompt and answer. */
+/** Estimates four characters per token and reserves half the context window for system text and output. */
 const OLLAMA_MAX_INPUT_CHARS = 32_000;
 
 interface OllamaTags {
@@ -78,12 +78,7 @@ export async function deleteOllamaModel(net: PluginFetch, baseUrl: string, model
 /** `keep_alive` as a request field: absent leaves the server's own (OLLAMA_KEEP_ALIVE, 5 minutes by default). */
 const keepAliveField = (unloadAfterS: number | null): { keep_alive?: number } => (unloadAfterS === null ? {} : { keep_alive: unloadAfterS });
 
-/**
- * Gives the models Ollama has loaded the owner's unload time now rather than at their next request (a model kept
- * "Never" would otherwise stay loaded). A request with no prompt only sets the timer; 0 unloads at once. It names the
- * loaded context window: any other (Ollama's default when none is named) reloads the model at that size (measured:
- * 7.8 GB at 16K became 15 GB at 64K).
- */
+/** Updates loaded models' keep-alive without a prompt; zero unloads immediately. Preserves the loaded context size to avoid reloading at Ollama's default. */
 export async function applyUnloadAfter(net: PluginFetch, baseUrl: string, unloadAfterS: number | null): Promise<void> {
   const res = await net(new URL('/api/ps', baseUrl).href, { signal: AbortSignal.timeout(LIST_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Ollama ${res.status}: ${await res.text()}`);

@@ -1,5 +1,4 @@
-// Windows' built-in OCR (Windows.Media.Ocr) through one long-lived Windows PowerShell worker: starting PowerShell and
-// loading WinRT takes about a second, reading an image tens of milliseconds (measured on this archive's screenshots).
+// Windows.Media.Ocr adapter using a persistent Windows PowerShell worker.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,9 +10,9 @@ import { OCR_SCRIPT } from './ocrScript';
 
 /** Windows PowerShell 5.1 by its fixed path: the only PowerShell that loads WinRT types, and not found through PATH alone. */
 const WINDOWS_POWERSHELL = join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-/** Starting PowerShell and loading WinRT; far above the ~1 s it takes (estimate), for a busy or cold machine. */
+/** Worker startup timeout, including WinRT loading. */
 const START_TIMEOUT_MS = 30 * MS_PER_S;
-/** One image, far above the <1 s the largest archived images took (measured), so a hung worker can't hold the queue. */
+/** Per-image OCR timeout prevents stalled reads from blocking the queue. */
 const READ_TIMEOUT_MS = MS_PER_MIN;
 /** An idle worker holds a PowerShell process and WinRT's OCR engine; stopped after this, started again on the next read. */
 const WORKER_IDLE_MS = 5 * MS_PER_MIN;

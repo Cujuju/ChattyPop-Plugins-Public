@@ -79,10 +79,7 @@ function filter(): LinkFilter {
 
 // --- Seen watermark ----------------------------------------------------------
 
-/**
- * Links first shared after this count as new; advanced while the Links panel is on screen. Null until loaded. First run
- * has no watermark: it starts at the end of the previous app session, like "since you were last here".
- */
+/** New-link watermark advances while Links is visible. Null until loaded; first run starts at the previous app session's end. */
 const [seenUpTo, , { loaded: watermarkLoaded }] = pluginPreference(plugin, 'seenUpTo', {
   seed: lastSeenAt,
 });
@@ -107,10 +104,7 @@ export function onLinksShown(): void {
   setLinkDivider(seenUpTo());
 }
 
-/**
- * Core moves the watermark, so a phone's mark is stored as a desktop window's is. The count clears at once, and a count
- * read begun earlier is dropped; core's setting change then recounts.
- */
+/** Core stores the watermark for desktop and phone. Clears the count immediately, discards stale reads, and recounts after the setting change. */
 export function markLinksSeen(): void {
   if (newCount() === 0 && seenUpTo() !== null) return;
   countReads++;
@@ -175,8 +169,7 @@ onAppEvent('privacy-changed', () => {
 function refresh(): void {
   void refreshNewCount();
   if (!links.items.length || !feedOn()) return;
-  // Worth order shifts as links are judged: reload it. Newest order keeps the older links already loaded; the newest
-  // page replaces the rest, new links landing at the bottom.
+  // Worth-order changes reload the feed. Newest-order refreshes replace the latest page and preserve older loaded links.
   if (linkSort() === 'worth') return void reloadLinks();
   const f = filter();
   let counts: Partial<Record<Platform, number>> = {};

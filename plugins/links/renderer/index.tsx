@@ -1,5 +1,4 @@
-// Links' renderer side: the Links panel, its new-link count on the top bar, the l shortcut that brings it forward, the
-// phone's Links section, and a person's links in the Person window.
+// Registers Links panel, top-bar count, l shortcut, phone section, and Person-window links.
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { revealPanel } from '@plugin-sdk/renderer/kit';
 import { LINKS_PANEL, plugin } from '../shared';
@@ -7,10 +6,7 @@ import { LinksPanel } from './LinksPanel';
 import { PersonLinks } from './PersonLinks';
 import { markLinksSeen, newLinkCount, onLinksShown } from './state';
 
-/**
- * The phone's Links section. A screen of its own there, it takes a primary panel's look (the filled icon tile, as
- * Summaries has), where the desktop's panel is secondary. The wrapper only scopes the theme: it lays nothing out.
- */
+/** Phone Links uses a primary-panel look. The wrapper scopes theme attributes without adding layout. */
 const PhoneLinks = () => (
   <div data-importance="primary" style={{ display: 'contents' }}>
     <LinksPanel />

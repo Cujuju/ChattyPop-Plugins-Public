@@ -4,10 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { tempDir } from '@chattypop/host-testing';
 import { JsonRpcStdio } from '../core/jsonRpcStdio';
 
-/**
- * A stand-in app-server: answers "echo", fails "fail", emits a notification and a server request on "poke", writes a
- * non-JSON line before answering "garble", and exits with code 3 on "die".
- */
+/** Fake app-server supports echo, failure, notifications, server requests, malformed output, and exit-code scenarios. */
 const SERVER = String.raw`
 const rl = require('readline').createInterface({ input: process.stdin });
 const send = (m) => process.stdout.write(JSON.stringify(m) + '\n');

@@ -1,5 +1,4 @@
-// Image text: reading the text in the images messages show (screenshots, charts) with Windows' OCR or a vision model.
-// Settings, status and jobs as core, main and the renderer exchange them.
+// Shared settings, status, and job types for Windows OCR and vision-model image reading.
 import { bool, isObj, oneOf, textOrNull, type ModelOption } from '@plugin-sdk/shared';
 
 /** How images are read: Windows' built-in OCR (text only), or a vision model through an AI provider (text and charts). */
@@ -20,10 +19,7 @@ export interface ImageTextSettings {
   autoEmbeds: boolean;
   /** As autoAttachments, for fetched posts' photos (link images). */
   autoLinks: boolean;
-  /**
-   * Jev is asked about a message again once its image text arrives. Off: only rules' direct matches and the answers the
-   * text settles (a cashtag's Trading label) use it.
-   */
+  /** Enables Jev reevaluation after image text arrives. When off, direct rules and text-settled labels still update. */
   askJev: boolean;
 }
 
@@ -41,8 +37,7 @@ export const DEFAULT_IMAGE_TEXT_SETTINGS: ImageTextSettings = {
 export function normalizeImageTextSettings(v: unknown): ImageTextSettings {
   const src = isObj(v) ? v : {};
   const d = DEFAULT_IMAGE_TEXT_SETTINGS;
-  // `auto`: one switch for every source, before each had its own. Saving drops it, so an Image text build before
-  // per-source switches (a downgrade) reads automatic reading as its default, on; hosted vision stays as saved.
+  // Legacy auto applies to all sources. Saving removes it; older builds then use default automatic reading while retaining hosted vision settings.
   const auto = (field: string, fallback: boolean): boolean => bool(src[field], bool(src['auto'], fallback));
   return {
     engine: oneOf(ENGINES, src['engine'], d.engine),

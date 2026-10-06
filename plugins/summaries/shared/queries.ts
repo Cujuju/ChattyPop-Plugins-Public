@@ -1,10 +1,7 @@
 // Built-in Jev queries that shape summaries (#50, #51, #56, #58, #59, #60). Defaults are the tuned originals.
 import type { JevFeatureDecl, JevQueryDef } from '@plugin-sdk/shared';
 
-/**
- * Keeping is the safe error for summary input: a wrongly kept message costs a few tokens, a wrongly dropped one can
- * cost a summary point. So a message or stretch is dropped only when Jev puts the chance it matters below 20%.
- */
+/** Drops messages or stretches only below 20% relevance probability to favor retaining summary input. */
 const KEEP_AT = 0.2;
 const CONVERSATION_SEES = '`conversation`: a run of chat lines (author: text) from one channel, in order.';
 

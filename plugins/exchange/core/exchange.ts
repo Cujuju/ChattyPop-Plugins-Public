@@ -26,11 +26,7 @@ const DCE_TYPE_NAMES = Object.fromEntries(Object.entries(DCE_CHANNEL_TYPES).map(
 /** Characters Windows forbids in file names. */
 const UNSAFE_FILE_CHARS = /[<>:"/\\|?*\u0000-\u001f]/g;
 
-/**
- * Imports DCE JSON exports. Each channel is archived (opted in) so sync keeps it current; messages already stored
- * are compared like any re-fetch (changed text becomes a revision). Local attachment paths are kept as metadata only.
- * Each file is checked whole, then imported whole or not at all; one that isn't is skipped and the others still count.
- */
+/** Imports each validated DCE file atomically; skips failures. Archives channels, records changed messages as revisions, and preserves local attachment paths as metadata. */
 export function importDceFiles(archive: Importer, paths: string[]): ExchangeResult {
   const result: ExchangeResult = { channelIds: [], messages: 0, skippedFiles: [] };
   for (const path of paths) {
@@ -83,10 +79,7 @@ interface ChannelRow {
 
 const safeName = (s: string): string => s.replace(UNSAFE_FILE_CHARS, '_').trim() || 'channel';
 
-/**
- * Writes one file per channel (plus a <name>_files folder of attachments when asked) into `req.dir`, named as
- * DiscordChatExporter names them: server - channel [channel id], so channels with the same names never share one.
- */
+/** Exports each channel to req.dir using server - channel [id] names, with an optional attachment folder. */
 export function exportChannels(db: PluginDb, attachmentsDir: string, req: ExportRequest): ExchangeResult {
   const result: ExchangeResult = { channelIds: [], messages: 0, skippedFiles: [] };
   const channel = db.prepare(
@@ -115,7 +108,7 @@ export function exportChannels(db: PluginDb, attachmentsDir: string, req: Export
       if (!existsSync(src)) return a.url;
       mkdirSync(join(req.dir, filesDir), { recursive: true });
       copyFileSync(src, join(req.dir, filesDir, name));
-      // A page's link is a URL: "#" or "%" in a name would end or garble it. DCE's JSON keeps the plain path.
+      // URL-encodes HTML attachment paths so # and % retain filename meaning. DCE JSON keeps plain paths.
       return req.format === 'html' ? [filesDir, name].map(encodeURIComponent).join('/') : `${filesDir}/${name}`;
     };
     const doc: DceExport = {

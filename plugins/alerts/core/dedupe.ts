@@ -3,7 +3,7 @@ import { errorMessage, MS_PER_HOUR } from '@plugin-sdk/shared';
 import { clipMessage, LocalOnlyError, queryMatch, queryRequest, type PluginDecider, type PluginDb } from '@plugin-sdk/core';
 import { ALERTS } from './tables';
 
-/** A repeat within a few hours is usually the same news making the rounds; after that it's more likely a new event. */
+/** Repeat-comparison lookback. */
 const DEDUPE_WINDOW_MS = 6 * MS_PER_HOUR;
 /** Settings → Jev → Queries id; its condition decides what counts as a repeat. */
 const SAME_EVENT_QUERY = 'alerts.sameEvent';
@@ -22,11 +22,7 @@ export const alertText = (db: PluginDb, alertId: number): AlertText | undefined 
     )
     .get(alertId) as AlertText | undefined;
 
-/**
- * Resolves true when the alert repeats the rule's most recent earlier alert (within the window), and records that
- * on the alert. Resolves false (notify) when there is nothing to compare, the text is local-only, or Jev fails.
- * Earlier is by (ts, id): alerts judged at once never pick each other, so a burst can't mark every alert a repeat.
- */
+/** Records repeats against the latest earlier (ts, id) alert within the window. Missing comparisons, local-only text, or Jev failures return false and allow notification. */
 export async function isRepeat(db: PluginDb, jev: PluginDecider, ruleId: number, alertId: number, active: () => boolean = () => true): Promise<boolean> {
   const now = Date.now();
   const prevId = (

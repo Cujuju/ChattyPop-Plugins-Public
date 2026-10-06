@@ -8,7 +8,7 @@ export const manifest = {
   description: 'Jev re-orders the top search results by how well they answer your query.',
 };
 
-/** Settings → Jev → Queries id (kept from when it was built in, so the owner's edits still apply); {ref} is a candidate's key. */
+/** Preserved Jev query ID; {ref} identifies the candidate. */
 export const RERANK_QUERY = 'search.rerank';
 
 const RERANK_QUERY_DEF: JevQueryDecl<'searchRerank'> = {
@@ -19,7 +19,7 @@ const RERANK_QUERY_DEF: JevQueryDecl<'searchRerank'> = {
   label: 'Search result relevance',
   features: ['searchRerank'],
   sees: '`query` (your search) and `candidate` (one top result, author in #channel: text).',
-  // It names the result it is about; an edit without it can't say which, so it isn't used.
+  // Requires the candidate placeholder in edited questions.
   placeholders: ['`candidate`'],
   use: 'rank',
   condition: null,

@@ -79,11 +79,7 @@ export class AlertNotifier {
     for (const d of devices) this.db.prepare(`UPDATE ${ALERTS} SET ${HELD_COLUMN[d]} = ? WHERE id = ?`).run(reason, id);
   }
 
-  /**
-   * Queues a notification to each device the action notifies when the message is live, the alert unread and visible
-   * (privacy mode), its place not muted, Jev doesn't find it not urgent, the device's cooldown has passed, and (#55) Jev
-   * doesn't find it repeats the rule's last alert. Muted, not urgent and cooldown are recorded on the alert.
-   */
+  /** Notifies configured devices for live, unread, visible alerts after mute, urgency, cooldown, and repeat checks. Records mute, urgency, and cooldown outcomes. */
   private notifyIfDue(f: Fresh, urgent: boolean | null): void {
     const devices = NOTIFY_DEVICES.filter((d) => f.cooldowns[d] !== null);
     if (!devices.length || !isLive(f.liveAt)) return;

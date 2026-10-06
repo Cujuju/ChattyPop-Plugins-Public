@@ -96,10 +96,7 @@ export class TagStore {
       .run(messageId, tagId, on ? TAG_STATE.manual : TAG_STATE.removed, Date.now());
   }
 
-  /**
-   * Jev's verdict for one message: `value` (the answer that met the tag's condition) applies the tag, null clears
-   * Jev's earlier one. Messages the owner tagged or untagged by hand are left alone. Returns whether the chip changed.
-   */
+  /** Applies Jev's matching value or clears its previous tag. Preserves manual tagging decisions; returns whether the chip changed. */
   applyJev(messageId: string, tagId: number, value: number | null): boolean {
     const cur = this.db.prepare(`SELECT state FROM ${MESSAGE_TAGS} WHERE message_id = ? AND tag_id = ?`).get(messageId, tagId) as { state: string } | undefined;
     if (cur && cur.state !== TAG_STATE.jev) return false;
@@ -113,7 +110,7 @@ export class TagStore {
     return !cur;
   }
 
-  /** A rule puts the tag on: never over the owner's removal, and a tag already shown stays as it is. Jev never clears it. */
+  /** Rule-applied tags preserve manual removals and existing tags; Jev never clears them. */
   applyRule(messageId: string, tagId: number): RuleTagResult {
     if (!this.row(tagId)) return 'noTag';
     const cur = this.db.prepare(`SELECT state FROM ${MESSAGE_TAGS} WHERE message_id = ? AND tag_id = ?`).get(messageId, tagId) as { state: string } | undefined;

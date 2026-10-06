@@ -13,7 +13,7 @@ type LinkStores = Pick<CoreContext['archive'], 'linkText' | 'linkImages'>;
 const FXTWITTER_STATUS_API = 'https://api.fxtwitter.com/2/status/';
 /** Names the app to FxTwitter's operators instead of Node's generic agent. */
 const USER_AGENT = 'ChattyPop (personal Discord archive)';
-/** A hung request would stall every post queued behind it. */
+/** Per-post request timeout. */
 const FETCH_TIMEOUT_MS = 15_000;
 /** After an outage or rate limit, a later view tries again at most this often. */
 const RETRY_AFTER_ERROR_MS = MS_PER_HOUR;
@@ -47,10 +47,7 @@ const escapeMarkdown = (text: string): string =>
     .map((part, i) => (i % 2 ? part : part.replace(MARKDOWN_SPECIAL, '\\$&')))
     .join('');
 
-/**
- * A post as the embed card draws it: author (linking to the post), text, and its photos (one image, or the card's
- * gallery for several; X allows four, the gallery's limit) or video still.
- */
+/** Builds a post card with linked author, text, photos, or video still; multiple photos use the gallery. */
 function xEmbed(s: FxStatus): ArchiveEmbed {
   const [photo, ...morePhotos] = s.media?.photos ?? [];
   const video = s.media?.videos?.[0];
@@ -88,12 +85,7 @@ async function fetchStatus(net: Fetch, id: string, lifetime: AbortSignal): Promi
   }
 }
 
-/**
- * X posts for links Discord never previewed, fetched from FxTwitter one at a time as the Links views ask for them or a
- * new message shares one, and kept in its table. A post not yet fetched shows once it arrives (onFetched triggers a
- * refresh); its text becomes the link's text (setLinkText). Turned off, fetching pauses; queued posts wait for the next
- * activation, which also queues posts shared while it was off.
- */
+/** Fetches unpreviewed X posts sequentially from FxTwitter, stores them, and updates link text. Deactivation pauses fetching; activation resumes queued and missed posts. */
 export class XPosts {
   private draining = false;
 
@@ -108,10 +100,7 @@ export class XPosts {
     private readonly lifetime: AbortSignal = new AbortController().signal,
   ) {}
 
-  /**
-   * On activation: gives recently shared posts fetched before their photos as link images (fetched before Links supplied
-   * them), queues those never fetched (shared while Links was off), then fetches the queue.
-   */
+  /** Activation publishes images from stored posts, queues recently shared unfetched posts, and starts fetching. */
   resume(): void {
     const ids = this.db
       .prepare(
@@ -125,10 +114,7 @@ export class XPosts {
     void this.drain();
   }
 
-  /**
-   * Fetches the posts behind a new message's X links that have no text (Discord sent no preview), so Jev and the labels
-   * read the post, not the URL. Only for messages Jev still judges (the lookback), so backfill doesn't flood FxTwitter.
-   */
+  /** Queues unpreviewed X posts from new messages within Jev's lookback, supplying post text for Jev and labels. */
   fetchFor(m: TextMessage): void {
     if (m.ts < Date.now() - MEANING_LOOKBACK_MS) return;
     const ids = this.db

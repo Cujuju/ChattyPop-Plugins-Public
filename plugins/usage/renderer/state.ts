@@ -11,10 +11,7 @@ const active = (): boolean => isActive(plugin);
 export const shownProviders = (): ReturnType<typeof aiProviders> =>
   aiProviders().filter((d) => d.planUsage && aiSettings().providers[d.id]?.enabled);
 
-/**
- * ChattyPop's completed runs and tokens per shown provider and plan window, read only while Plan usage is on.
- * Re-read when the plugins reporting usage change, over the last windows read, whatever the plan-limit refresh is doing.
- */
+/** Reads completed ChattyPop runs/tokens for displayed providers and windows while Plan usage is enabled. Provider changes refresh the last-read windows. */
 export const [appTokens] = createResource(
   () => {
     usageReporters();

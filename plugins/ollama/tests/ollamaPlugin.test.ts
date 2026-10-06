@@ -1,5 +1,4 @@
-// The Ollama plugin: an upgraded profile's address moves into its setting with its value intact, and the provider
-// reaches that address through ctx.net.fetch; with the plugin absent, the address survives AI settings saves.
+// Tests address migration, ctx.net.fetch routing, and preservation of provider settings while Ollama is absent.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizeAiSettings } from '@shared/settings';
 import { getSetting, setSetting } from '@core/db';

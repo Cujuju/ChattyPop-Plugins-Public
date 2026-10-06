@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PluginInactiveError } from '@shared/pluginCall';
 import type { PlanItem } from '../shared/types';
 
-// The client runtime, so effects and resources react as in a window (node resolves solid-js to its server build).
-// A dynamic import, resolved from the checkout; createRequire would resolve from this folder. By variable: it has no types.
+// Loads the checkout's Solid client runtime so effects and resources behave as in a window. Dynamic import avoids server resolution.
 vi.mock('solid-js', () => {
   const client = 'solid-js/dist/solid.js';
   return import(client);
@@ -61,8 +60,7 @@ describe('Plans seen baseline', () => {
   it('waits for Plans to be readable, keeps no baseline from an inactive read, and then counts only later arrivals', async () => {
     let existing = [plan('a'), plan('b')];
     env.list = async () => existing;
-    // The app starts with Plans off: nothing to read, so no baseline yet.
-    // A renderer module: imported by path so the node type-check doesn't follow it.
+    // Starts with Plans disabled and no seen baseline. Path import excludes renderer modules from node type-checking.
     const statePath = '../renderer/state.ts';
     const state = (await import(statePath)) as { unseenPlanCount(): number; plans: { refetch(): Promise<void> } };
     await settle();

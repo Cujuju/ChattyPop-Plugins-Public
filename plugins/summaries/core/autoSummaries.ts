@@ -1,5 +1,4 @@
-// #96 the catch-up and daily digest settings became timed rules, created once from what was stored. Each keeps its
-// on/off, its hours or time, and where it had got to.
+// #96: migrates catch-up/digest settings to timed rules, preserving activation, timing, and progress.
 import type { CoreContext } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { clampInt, isObj } from '@plugin-sdk/shared';
@@ -10,10 +9,7 @@ export const CATCH_UP_RULE_NAME = 'Catch me up';
 export const DIGEST_RULE_NAME = 'Daily digest';
 
 
-/**
- * Creates the two rules unless done before; returns whether it did. Settings the owner never changed meant both on (the
- * old defaults). null meant off: the rule is made switched off, ready to turn on.
- */
+/** Creates legacy automatic-summary rules once. Unchanged settings enable both; null settings create disabled rules. Returns whether rules were created. */
 export function migrateAutoSummaries(ctx: CoreContext<typeof plugin>, now: number, lastSeenAt: number): boolean {
   if (ctx.preferences.get('autoMigrated')) return false;
   // The retired fields are read from the stored value: the preference's normalizer drops them.

@@ -1,5 +1,4 @@
-// Image text: reads the text in images messages show (attachments, link previews, fetched posts' photos) on this
-// computer. Its text is derived text of its image: rules, Jev, the Trading label's cashtags, search and Translation read it.
+// Reads message images locally into part-specific derived text consumed by rules, Jev, Trading labels, search, and Translation.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus } from './types';
 
@@ -18,20 +17,14 @@ export const STATUS_EVENT = 'status' as const;
 export const FETCH_IMAGE = 'fetchImage' as const;
 /** AttachmentNote.kind of an image's text. */
 export const IMAGE_TEXT_NOTE = 'image-text';
-/**
- * Downloads main is asked for at once, and so the imageFetched report's bound; a job needing one more waits for a
- * report. Assumption: images are small next to the link, so a few in parallel keep the queue ahead of the engine.
- */
+/** Maximum concurrent main-process image downloads. Further jobs wait for completion reports. */
 export const IMAGE_FETCHES_MAX = 4;
 
 /** Core's calls: from Settings and the message menu, and main's answer to FETCH_IMAGE. */
 export interface ImageTextCoreCalls {
   /** Engines, vision models and the queue. */
   status(): Promise<ImageTextStatus>;
-  /**
-   * Reads every image of the message again, ahead of automatic work, with `pick` (this once) or Settings' engine (null).
-   * Throws when that engine can't run.
-   */
+  /** Prioritizes rereading all message images with pick or Settings' engine. Throws if the engine is unavailable. */
   request(messageId: string, pick: EnginePick | null): void;
   /** Queues again every image that failed. */
   retryFailed(): void;

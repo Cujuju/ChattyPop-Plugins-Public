@@ -1,5 +1,4 @@
-/* Alerts panel: rows of dot | avatar | rule chip, #channel, author … tags, age / snippet. Header is ui/PanelHeader.
-   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
+/* Alerts rows and shared PanelHeader layout. Theme look attributes are applied in TSX. */
 
 /* Header rule picker: the trigger is a header action; the checklist floats below it, opening leftward. */
 .ruleFilter {

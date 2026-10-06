@@ -1,5 +1,4 @@
-// Links (#106): the Links panel's feed of shared links, Jev's reading of them (#61 category, #62 spam/scam/NSFW, #63 worth
-// reading), and X posts Discord never previewed, fetched from FxTwitter. The link index itself is the host's.
+// #106: Links feed, Jev judgments (#61–63), and FxTwitter previews for unpreviewed X posts. The host owns the link index.
 import { defineChannels, definePlugin, definePreference, finiteOr, type JevFeatureDecl, type JevQueryDecl, type Platform } from '@plugin-sdk/shared';
 import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } from './types';
 
@@ -38,7 +37,7 @@ export interface LinksEvents {
 export const LINK_QUERY = { category: 'links.category', safety: 'links.safety', worth: 'links.worth' } as const;
 
 const LINK_SEES = '`link`: one link, with its url, title, description, site and `shared_with` (the message that shared it).';
-/** Every question names the link it is about; an edit without it can't say which link it means, so it isn't used. */
+/** Requires the link placeholder in edited questions. */
 const LINK_REF = ['`link`'];
 const LINK_GROUP = 'Links & search';
 
@@ -97,7 +96,7 @@ const QUERIES: readonly JevQueryDecl<(typeof FEATURES)[number]['key']>[] = [
       question: 'Is `link` spam, a scam or phishing, or NSFW (sexual or graphic content)?',
       yes: 'spam, scam, phishing, or NSFW',
       no: 'an ordinary link',
-      // Clearly likely: a flag hides the link when "Hide flagged" is on.
+      // Safety flags hide links when Hide flagged is enabled.
       minProbability: 0.7,
     },
   },

@@ -25,7 +25,7 @@ const GENERAL = '200000000000000001';
 const RELEASES = '200000000000000002';
 const BOB = { id: '400000000000000001', username: 'bob', global_name: 'Bob' };
 
-/** Answers every call with a bullet in two parts citing the first and second log refs and, when the schema asks for them, an action. */
+/** Fake completion returns a two-part bullet citing the first two refs, plus an action when requested by the schema. */
 const fakeProvider = () =>
   fakeRegistry(() => db, (req) => {
     const [first = '', second = ''] = [...req.prompt.matchAll(/\[(m\d+)\]/g)].map((m) => m[1]!);

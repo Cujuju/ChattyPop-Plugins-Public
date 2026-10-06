@@ -2,20 +2,13 @@
 import type { PluginProvider } from '@plugin-sdk/core';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
 
-/**
- * One translation, including loading the model the first time. Assumption: a local model translates a screenshot's or
- * voice message's few hundred tokens in well under Image text's per-image allowance, which this matches.
- */
+/** Per-translation timeout, including initial model loading; matches Image text's allowance. */
 const TRANSLATE_TIMEOUT_MS = 3 * MS_PER_MIN;
-/**
- * The answer's cap: twice Image text's vision reading cap (2048), since a translation out of CJK text takes more
- * tokens than its source; a model padding its JSON stops here instead of at the timeout.
- */
+/** Translation output cap is twice vision's cap (2048), bounding padded responses. */
 const TRANSLATE_MAX_OUTPUT_TOKENS = 4096;
 
 const SYSTEM = 'You translate text from a chat (read from images, transcribed from audio, or a link preview), and reply with JSON only.';
-// The model names the language and always translates; code decides whether it was needed. Measured (qwen3-vl:8b-instruct):
-// asked to judge "needed" itself, a small model answered false even for wholly Japanese text.
+// The model names the source language and translates; code decides whether translation was needed.
 const SCHEMA = {
   type: 'object',
   properties: { language: { type: 'string' }, translation: { type: 'string' } },
@@ -31,10 +24,7 @@ const prompt = (language: string, text: string): string =>
     text,
   ].join('\n');
 
-/**
- * The model named `named` for text whose target is `target`: the same language, so no translation. A target with a
- * variant ("Chinese (Simplified)") matches its base name; so text in another variant of it isn't translated.
- */
+/** Matches model-named language to the target's base name; target variants are treated as the same language. */
 const sameLanguage = (named: string, target: string): boolean => {
   const base = (l: string): string => l.replace(/\(.*\)/, '').trim().toLowerCase();
   return base(named) === base(target);

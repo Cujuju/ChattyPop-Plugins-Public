@@ -1,5 +1,4 @@
-// Codex's Settings → AI cost note names ChattyPop's AI calls with the word it is given. The host's aiRunWording,
-// which picks that word (the AI-run owner's plural, else "requests"), is tested in the app.
+// Codex's AI cost note uses the supplied call wording. Host tests cover aiRunWording's owner plural and requests fallback.
 import { describe, expect, it } from 'vitest';
 import { overheadNote } from '../renderer/overhead';
 

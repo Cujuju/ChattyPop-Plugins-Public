@@ -1,9 +1,5 @@
-/* The Links filters (LinkFilters), in the panel header (PanelHeader.module.css, a wrapping flex row): the channel
-   picker, the platform chips and the range, order and flagged controls all trail the title on its one line. The phone
-   has a sheet instead (further down). Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer
-   look), applied in the TSX. */
-/* Zero basis: the group never wraps the header. Its grow factor, far above the title group's 1, gives it the title
-   line's free width, which it fills from the end; the picker shrinks into what is left. */
+/* Desktop header filters share the title line; phone filters use a sheet. TSX applies theme look attributes. */
+/* Zero flex basis keeps filters on the header line. High grow consumes remaining width; controls align right and the picker shrinks. */
 .tools {
   display: flex;
   align-items: center;

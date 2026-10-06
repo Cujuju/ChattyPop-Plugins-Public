@@ -1,5 +1,4 @@
-// Transcription's main side: downloads a job's media through the Discord session (law 4): an attachment the store no
-// longer holds, or an embed's video through Discord's media proxy.
+// Main downloads missing transcription media through the Discord session or media proxy.
 import { defineMainPlugin } from '@plugin-sdk/main';
 import { FETCH_AUDIO, plugin } from '../shared';
 

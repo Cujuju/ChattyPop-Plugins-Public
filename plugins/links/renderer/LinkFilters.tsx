@@ -36,11 +36,7 @@ const ORDERS: readonly { value: LinkSort; label: string; brief: string }[] = [
 const orderOf = (value: LinkSort) => ORDERS.find((o) => o.value === value) ?? ORDERS[0]!;
 const otherOrder = (value: LinkSort) => ORDERS.find((o) => o.value !== value) ?? ORDERS[0]!;
 
-/**
- * Platform chips: each platform with links for the filter, or picked. `class` lays the group out, `chipClass` each
- * chip, `textSize` the chip's text (`look.text` data-size). Full: icon, name and count. `brief`: the icon alone, name
- * and count in the chip's tooltip and accessible name (the desktop header, where width is short).
- */
+/** Shows platforms with links or selected filters. Full chips show icon, name, count; brief chips move names/counts to tooltips and accessible labels. */
 export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; textSize: 'xs' | 'md'; brief?: boolean }) {
   const togglePlatform = (p: Platform): void => {
     setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
@@ -107,11 +103,7 @@ const OrderButton = () => (
   </button>
 );
 
-/**
- * The Links panel's filters in its header, all on the title's line: the channel picker, the platform chips (icons
- * alone), the range, the order button and the flagged switch; the picker gives way first. `counts` are the
- * per-platform totals for the filter.
- */
+/** Header filters: channel, platform icons, range, order, flagged. The channel picker shrinks first; counts contains filtered platform totals. */
 export function LinkFilters(props: { counts: Counts }) {
   return (
     <div class={styles.tools}>

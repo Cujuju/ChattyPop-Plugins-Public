@@ -23,10 +23,7 @@ onAppEvent('privacy-changed', () => void plans.refetch());
 
 /** Detection can reach older messages (backfill), so seen items are tracked by identity, not by a time watermark. */
 const planKey = (p: PlanItem): string => `${p.messageId}:${p.kind}`;
-/**
- * Items listed when the Plans panel was last on screen; null until loaded. Nothing stored yet (first run): the items that
- * already exist count as seen, once Plans can be read; an inactive read stores nothing.
- */
+/** Last-visible Plans items; null until loaded. First successful read marks existing items seen. Inactive reads store nothing. */
 const [seenPlans, setSeenPlans] = pluginPreference(plugin, 'seen', {
   // seedWhen holds it to where the list is callable: a desktop window.
   seed: async () => (await desktopCoreClient(plugin).list(PLAN_LIMIT)).map(planKey),

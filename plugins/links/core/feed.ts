@@ -5,10 +5,7 @@ import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } 
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
 
-/**
- * WHERE clause and params for a filter; `l` is the links table. Privacy mode hides a link whose first share it hides, or
- * that points into a hidden channel or server.
- */
+/** Builds filter SQL and parameters; l aliases links. Privacy hides links with hidden first shares or hidden channel/server destinations. */
 function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
   const parts: string[] = ['1'];
   const params: (string | number)[] = [];
@@ -56,11 +53,7 @@ interface Share {
 /** A share's embed for this link: its first embed whose URL normalizes to the link. */
 const shareEmbed = (r: LinkRow, s: Share): ArchiveEmbed | undefined => embedsFrom(s.embedsJson).find((e) => e.url !== null && normalizeUrl(e.url) === r.url);
 
-/**
- * The link's preview card and the share it came from. A bot's share comes first: an embed fixer reposts a link to give
- * it a fuller card than Discord's own unfurl. Then the earliest share that has one; then the unfurl fields stored on
- * the link (source null).
- */
+/** Chooses preview cards from bot shares first, then the earliest share with an embed, then stored unfurl fields with null source. */
 function embedFor(r: LinkRow, shares: Share[]): { embed: ArchiveEmbed | null; source: string | null } {
   for (const s of [...shares.filter((x) => x.bot), ...shares.filter((x) => !x.bot)]) {
     const own = shareEmbed(r, s);
@@ -85,10 +78,7 @@ function embedFor(r: LinkRow, shares: Share[]): { embed: ArchiveEmbed | null; so
   } };
 }
 
-/**
- * Links newest first (by first share), or most worth reading first (#63); keyset-paged either way. `messagesByIds`: the
- * sharing messages as the Archive shows them (privacy mode applied).
- */
+/** Keyset-paged links sorted newest or most worthwhile (#63), with privacy-filtered sharing messages. */
 export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkPageQuery): LinkItem[] {
   const w = where(q);
   const byWorth = q.sort === 'worth';
@@ -138,10 +128,7 @@ function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[]):
   });
 }
 
-/**
- * The links a person shared, one row per link at their latest share of it, newest first. Only their messages privacy
- * mode shows count, and a link it hides is left out.
- */
+/** Lists each visible link at the person's latest visible share, newest first. */
 export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: PersonLinksQuery): LinkCard[] {
   const rows = db
     .prepare(

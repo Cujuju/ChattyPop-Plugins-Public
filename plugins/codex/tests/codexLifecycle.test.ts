@@ -1,5 +1,4 @@
-// Codex's warm app-server across the plugin turning off: a failed start disposed mid-way raises nothing unhandled, and
-// a disposed provider never starts another app-server.
+// Tests disposal during app-server startup, handled startup failures, and prevention of starts after disposal.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const started: string[] = [];

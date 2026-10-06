@@ -2,7 +2,7 @@
 import { type Privacy } from '@plugin-sdk/core';
 import type { Citation, Summary, SummaryItem, SummaryTheme } from '../shared/types';
 
-/** What stays of something citing messages: all of it while it cites none (nothing to hide) or any visible one, minus hidden citations. */
+/** Keeps uncited items or items with visible citations; removes hidden citations. */
 function visibleCitations(citations: Citation[], p: Privacy): Citation[] | null {
   const visible = citations.filter((c) => !p.hiddenChannels.has(c.channelId));
   return citations.length && !visible.length ? null : visible;

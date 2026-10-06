@@ -1,6 +1,4 @@
-// Search re-rank (#65): Jev orders the top full-text hits by "does this answer the query?", all in one request: the
-// query is the state and each question carries its own hit (carriedQuestion). Hits
-// Jev may not read (a local-AI-only channel) or the archive doesn't show are never sent and keep their places.
+// #65: Jev reranks readable full-text hits in one request. Hidden and local-AI-only hits remain in place and are never sent.
 import { carriedQuestion, clipMessage, queryRequest, queryStrength, type AiSources, type PluginDecider, type Question } from '@plugin-sdk/core';
 import type { ArchiveMessage, SearchHit } from '@plugin-sdk/shared';
 import { RERANK_QUERY } from '../shared';
@@ -21,11 +19,7 @@ export interface RerankDeps {
 }
 
 
-/**
- * Hits in Jev's order: the top RERANK_TOP sendable hits sorted by Jev's probability (each carrying it as `relevance`),
- * then those it didn't answer, unmarked; the others and the rest of the list unchanged in place. What Jev reads of a hit
- * (author, channel, text) is the archive's, never the caller's.
- */
+/** Ranks top sendable hits by Jev probability, followed by unanswered hits. Other positions remain unchanged; hit text and metadata come from the archive. */
 export async function rerankHits({ jev, messages, channelName, sources }: RerankDeps, query: string, hits: readonly SearchHit[]): Promise<SearchHit[]> {
   const top = hits.slice(0, RERANK_TOP);
   const stored = new Map(messages(top.map((h) => h.messageId)).map((m) => [m.id, m]));

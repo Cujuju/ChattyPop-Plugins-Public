@@ -1,5 +1,4 @@
-// Tags' kind declarations load whole when its shared module is imported before the registry: an import cycle through
-// rules.ts once left undefined entries in the kind lists.
+// Regression test: importing shared declarations before the registry preserves complete rule-kind lists.
 import { describe, expect, it } from 'vitest';
 import tags from '../shared';
 import type { PluginDescriptor } from '@shared/bundledTypes';

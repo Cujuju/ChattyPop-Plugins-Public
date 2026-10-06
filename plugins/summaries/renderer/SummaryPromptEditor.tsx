@@ -15,10 +15,7 @@ const KIND_TEXT: Record<SummaryPromptKind, { title: string; hint: string }> = {
 
 const lines = (text: string): number => text.split('\n').length;
 
-/**
- * Edits summary prompt templates (Settings → Summaries, a rule's own prompt). `inherited` is what a kind uses while
- * its template is null; saving text equal to it stores null. `preview` is the filled prompts as a run would send them.
- */
+/** Edits summary templates. inherited supplies null-template defaults; saving identical text stores null. preview shows filled prompts. */
 export function SummaryPromptEditor(props: {
   idPrefix: string;
   templates: SummaryPromptTemplates;

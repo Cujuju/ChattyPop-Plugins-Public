@@ -3,10 +3,7 @@
 /** Bump when the rules change: cached summaries made with the old rules are not reused. */
 export const FILLER_RULES_VERSION = 1;
 
-/**
- * Longest text (after links and emoji are removed) treated as a throwaway: "lol", "W", "yeah true", "facts".
- * Longer text usually carries a clause worth reading.
- */
+/** Maximum filler-text length after stripping links and emoji. */
 export const FILLER_MAX_CHARS = 12;
 
 const URL = /<?https?:\/\/\S+>?/g;
@@ -14,13 +11,10 @@ const URL = /<?https?:\/\/\S+>?/g;
 const CUSTOM_EMOJI = /<a?:\w+:\d+>/g;
 /** Pictographs plus the joiners, skin tones, variation selectors and flag letters that build them. */
 const UNICODE_EMOJI = /[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}‍️]/gu;
-/** Digits or a question in short text usually mean a fact ("6pm", "$40") or a question ("you in?"). */
+/** Digits and question marks exempt short text from filler filtering. */
 const CARRIES_FACT = /[\d?]/;
 
-/**
- * True when a message adds nothing a summary needs: only links and emoji, or short text with no digits or
- * question mark. A short reply is kept, since it may be the answer ("no, Friday").
- */
+/** Detects link/emoji-only or short digit/question-free filler. Keeps short replies because they may answer earlier messages. */
 export function isFiller(content: string, isReply: boolean): boolean {
   const rest = content.replace(URL, '').replace(CUSTOM_EMOJI, '').replace(UNICODE_EMOJI, '').trim();
   if (!rest) return true;

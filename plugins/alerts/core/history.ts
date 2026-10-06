@@ -1,5 +1,4 @@
-// #89 a rule's Alert history: its direct matches (keywords, or narrowing alone) over the whole archive, as topics kept
-// theirs. Messages older than the rule, or the owner already read, land read; nothing else runs for them.
+// #89: archives direct rule matches. Matches predating the rule or already read by the owner are stored read without further processing.
 import { type PluginDb, type RuleHistory } from '@plugin-sdk/core';
 import { INSERT_ALERT, alertText, snippet } from './rows';
 import { ALERTS } from './tables';

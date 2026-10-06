@@ -1,5 +1,4 @@
-// Image text's main side: downloads images the store doesn't hold, an attachment through the Discord session (law 4),
-// an embed's through Discord's media proxy, a fetched post's photo from X.
+// Main downloads missing images through the Discord session, Discord media proxy, or X photo URLs.
 import { defineMainPlugin } from '@plugin-sdk/main';
 import { FETCH_IMAGE, plugin } from '../shared';
 

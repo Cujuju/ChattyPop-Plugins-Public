@@ -1,5 +1,4 @@
-// Plans' own provider choice: seeded from the retired global default, asked with its Settings → AI model, and why a
-// hit is dropped without one.
+// Tests Plans' provider migration, selected model, and missing-provider behavior.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { LlmProvider } from '@plugin-sdk/core';
 import { testPlugin, type TestOptions } from '@plugin-sdk/core/testing';

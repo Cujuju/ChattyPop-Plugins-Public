@@ -1,8 +1,4 @@
-/* Links panel, its link rows, and a person's links in the Person window. Header is ui/PanelHeader.
-   Ground comes from the layout slot (surface-3). A share is drawn by the Archive's message row (chat/MessageRow, Cozy.module.css);
-   this file places the platform badge under its avatar and the origin on its name line, and sizes its embeds through their tokens.
-   Rows are virtualized (absolutely positioned and height-measured): vertical spacing is padding, never margin.
-   Structure only: the look is the theme's look vocabulary (@plugin-sdk/renderer look), applied in the TSX. */
+/* Links rows reuse Archive message styling with platform badges and origin metadata. Virtualized rows use vertical padding. TSX applies theme look attributes. */
 
 /* The list owns the panel's scroll; its geometry (flex, virtual rows) is inline. No padding: rows are offset-measured. */
 .list {

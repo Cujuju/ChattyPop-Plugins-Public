@@ -128,11 +128,7 @@ function ProviderUsage(props: { provider: Provider }) {
   );
 }
 
-/**
- * Plan usage for every enabled provider that reports it, side by side when the slot is wide and stacked when narrow:
- * one meter row per plan window (whole-plan %, reset), led by the provider's mark; what ChattyPop itself used is in
- * each row's tooltip. Collapses to its header with each provider's percentages inline.
- */
+/** Displays enabled providers' plan-window usage and resets, with ChattyPop totals in tooltips. Collapsed headers retain percentages; layout adapts to width. */
 export function UsagePanel() {
   const collapsed = (): boolean => isPanelCollapsed(USAGE_PANEL);
   const loading = (): boolean => shownProviders().some((d) => planUsageLoadingOf(d.id));

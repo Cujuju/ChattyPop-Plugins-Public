@@ -1,14 +1,10 @@
-// Tickers an image's text shows when it is a chart or quote, written as cashtags ($TSLA) after its text so the Trading
-// label and rules read a chart as they read a message naming the ticker. Patterns come from this archive's charts' OCR.
+// Extracts chart tickers from OCR and appends cashtags for Trading labels and rule matching. Patterns derive from archived charts.
 
 /** A symbol as charts print it: letters first, then letters, digits, `.`, `/`, `!`, `-` (BRK.B, ES1!, BTC/USD). */
 const SYMBOL = String.raw`[A-Z][A-Z0-9.\/!-]{0,11}`;
 /** A price in an OHLC legend. */
 const PRICE = String.raw`\$?[\d.,]+`;
-/**
- * The legend charting tools draw: `LULU - O: 98.02 H: 101.77 L: 97.97 C: 100.96`, colons and separators optional, and
- * the O as OCR may read it (0).
- */
+/** OHLC legend pattern; accepts optional separators and OCR zero in place of O. */
 const OHLC_LEGEND = new RegExp(String.raw`(?<![A-Za-z0-9])(${SYMBOL})\s*[-–—·•:,]?\s*[O0]\s*:?\s*${PRICE}\s+H\s*:?\s*${PRICE}\s+L\s*:?\s*${PRICE}\s+C\s*:?\s*${PRICE}`, 'g');
 /** Exchanges and venues charts prefix a symbol with (`NASDAQ: TMC`, `BINANCE:BTCUSDT`); Google's indexes too (`INDEXNYSEGIS: MOVE`). */
 const EXCHANGES = ['NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'TSX', 'LSE', 'CME', 'CME_MINI', 'COMEX', 'NYMEX', 'CBOT', 'BINANCE', 'COINBASE', 'BYBIT', 'KRAKEN', 'BITSTAMP', 'OKX', 'INDEX[A-Z]*'];
@@ -49,10 +45,7 @@ export function chartTickers(text: string): string[] {
   return found;
 }
 
-/**
- * The derived text of an image: what it says, then each ticker it shows (an engine's, else those its text names) as a
- * cashtag the text doesn't already carry. '' when it shows neither.
- */
+/** Combines image text with missing ticker cashtags, preferring engine tickers over extracted ones. Returns empty text when neither exists. */
 export function imageText(text: string, tickers: readonly string[]): string {
   const clean = text.trim();
   const named = [...new Set([...tickers.map(tickerOf), ...chartTickers(clean)].filter((t): t is string => t !== null))];

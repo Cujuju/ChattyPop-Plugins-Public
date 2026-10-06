@@ -20,10 +20,7 @@ import { JsonRpcStdio } from './jsonRpcStdio';
 export const CODEX_CLI: CliSpec = { bin: 'codex', npm: '@openai/codex', name: 'Codex CLI' };
 
 const CLIENT_INFO = { name: 'chattypop', title: 'ChattyPop', version: __APP_VERSION__ };
-/**
- * Codex features that add tool definitions or context to every turn; a read-only completion thread uses none.
- * Turning them off cut a one-line call from 16.4k to 12.3k input tokens (measured 2026-09-25, codex-cli 0.156.1).
- */
+/** Optional Codex features disabled for completion threads to reduce per-turn context and tool definitions. */
 const UNUSED_FEATURES = [
   'apps',
   'browser_use',
@@ -57,11 +54,7 @@ const UNUSED_FEATURES = [
   'remote_plugin',
 ];
 
-/**
- * Per-thread overrides of the user's config.toml: no plugin/MCP processes, AGENTS.md or notify hook
- * (it launches a program per turn), no optional features. Codex's core agent prompt (~12k tokens)
- * can't be switched off from app-server (#46); Settings says so.
- */
+/** Thread overrides disable plugins, MCP processes, AGENTS.md, notify hooks, and optional features. The app-server core prompt remains (#46). */
 const READ_ONLY_THREAD_CONFIG = {
   mcp_servers: {},
   plugins: {},
@@ -71,7 +64,7 @@ const READ_ONLY_THREAD_CONFIG = {
   features: Object.fromEntries(UNUSED_FEATURES.map((f) => [f, false])),
 };
 
-/** Delegates to sub-agents; completion threads turn multi_agent off, so it would only add cost. */
+/** Disabled multi_agent feature adds unused completion-thread context. */
 const HIDDEN_EFFORTS: ReadonlySet<string> = new Set(['ultra']);
 
 interface ListedModel {

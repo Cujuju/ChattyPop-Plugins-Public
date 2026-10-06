@@ -12,12 +12,7 @@ import { markedTag, personTag, type TaggedPerson } from './people';
 /** Precedes what a message links to (a fetched post's text, a preview), so the model tells it from what was said. */
 const LINKED_MARK = '↳ links to:';
 
-/**
- * Log lines with short refs; refs map back to real message ids after the model answers. Chronological, or per channel
- * (in order of each channel's first message) when grouped by channel. Mentions read as names; dates show when the range spans days.
- * Each person the model reads carries their tag after their name ({{p3}}), which it writes to name them. A message's
- * linked text (a shared tweet's) follows its own, clipped as it is.
- */
+/** Builds chronological or channel-grouped logs with short message refs, person tags, resolved mentions, multi-day dates, and clipped linked text. */
 export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: string[], sinceTs: number, untilTs: number, grouping: SummaryGrouping, skipObviousFiller = false): LogLine[] {
   if (!channelIds.length) return [];
   const rows = db.prepare(`SELECT m.id, m.channel_id AS channelId, c.name AS channelName, m.ts, m.text AS content, m.linked,

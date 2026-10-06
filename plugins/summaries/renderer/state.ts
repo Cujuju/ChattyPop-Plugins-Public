@@ -110,7 +110,7 @@ function midnight(daysBack: number): number {
   return d.getTime();
 }
 
-/** A range's span, open-ended (to now) unless it ends earlier; "since the last summary" falls back to "since you were last here" before the first run. */
+/** Resolves range spans through now unless bounded. Before the first summary, last-summary ranges use the previous session. */
 async function rangeOf(id: SummaryRange): Promise<{ sinceTs: number; untilTs?: number }> {
   const ms = SUMMARY_RANGES[id].ms;
   if (ms !== null) return { sinceTs: Date.now() - ms };
@@ -133,10 +133,7 @@ export async function runSummary(): Promise<void> {
   if (run && active()) addRun(run);
 }
 
-/**
- * The system prompts a run would send, with `own` (a rule's prompts) over the owner's; rebuilt when either or the
- * AI or summary settings change. null when core can't build them. Call inside a component.
- */
+/** Builds system-prompt previews from rule overrides, owner templates, and AI/summary settings. Null when unavailable; call inside a component. */
 export function createPromptPreview(own: () => SummaryPromptTemplates | undefined = () => undefined) {
   return pluginResource(plugin, 'prompts', () => {
     // Core builds them from the AI and summary settings as well: re-read when either changes.
@@ -164,10 +161,7 @@ export function createSpending() {
   }, []);
 }
 
-/**
- * Where the part of a run already covered by runs listed before it ends; null when none overlaps.
- * Only loaded runs count: the oldest one listed gains its label once the page before it loads.
- */
+/** Returns the endpoint covered by earlier loaded runs, or null without overlap. Earlier pages can change the oldest displayed run's label. */
 export function overlapUntil(s: Summary): number | null {
   let covered = -Infinity;
   for (const earlier of history.items) {

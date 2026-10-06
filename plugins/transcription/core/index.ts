@@ -1,4 +1,4 @@
-// Transcription's core side: the queue and toolchain, transcripts as derived text and notes on their parts, and the calls Settings, the message menu and main make.
+// Registers transcription queue/toolchain, derived text, part notes, and Settings/menu/main calls.
 import { defineCorePlugin } from '@plugin-sdk/core';
 import { FETCH_AUDIO, STATUS_EVENT, plugin } from '../shared';
 import { registerTranscriptFilter } from './rules';

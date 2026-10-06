@@ -1,14 +1,11 @@
-# Releases every plugin that changed (ChattyPop docs/plugin-architecture.md §16, Releasing): stamps new versions in a
-# release-intent commit on main, publishes them and lists them in marketplace.json. The private plugin repo calls this
-# workflow too, so both repos release the same way.
+# Releases changed plugins: commits versions on main, publishes packages, and updates marketplace.json. The private repository reuses this workflow. See ChattyPop docs/plugin-architecture.md §16.
 name: Release plugins
 
 on:
   # Every push, not only plugins/**: a release whose intent push loses a race leaves its work to the winner's run.
   push:
     branches: [main]
-  # Daily, so a plugin built for a plugin SDK major the host no longer runs is rebuilt without waiting for a push.
-  # Off the hour: GitHub delays schedules at the top of the hour.
+  # Daily rebuilds refresh plugins targeting an obsolete SDK major. Scheduled off the hour to reduce delays.
   schedule:
     - cron: '17 9 * * *'
   workflow_dispatch:

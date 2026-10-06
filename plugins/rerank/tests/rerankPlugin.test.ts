@@ -1,5 +1,4 @@
-// Search re-rank as a plugin (#65, #156): its ranker orders the top hits Jev may read by Jev's answers, leaves the rest
-// in place, and changes nothing while its switch or the plugin is off; the owner's pre-plugin switch is adopted.
+// #65, #156: tests readable-hit ranking, unchanged excluded hits, disabled behavior, and adoption of the legacy switch.
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import type { SearchHit } from '@shared/contract';

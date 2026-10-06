@@ -1,4 +1,4 @@
-// #67 plans and decisions: Jev spots a plan or a decision in a message (the per-message request); the provider chosen for it (Settings → Jev → Detect plans and decisions) then extracts its details into the plans table. Dates are resolved against the message's own time and checked in code, since Jev and LLMs are weak at date math.
+// #67: Jev detects plans and decisions; the selected provider extracts details. Code validates dates against message timestamps.
 import type { PlanItem, PlanKind } from '../shared/types';
 import { cutText, errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { clipMessage, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, } from '@plugin-sdk/core';
@@ -7,10 +7,7 @@ import { PENDING_TABLE, PLANS_TABLE } from './schema';
 
 /** Longest title kept; the panel shows one line. */
 const MAX_TITLE_CHARS = 120;
-/**
- * How long one extraction may take before the hit is dropped, so a stalled provider never holds up later hits.
- * Assumption: a short message's small JSON extraction answers well within this.
- */
+/** Extraction timeout; timed-out hits are dropped so later hits can proceed. */
 export const PLAN_EXTRACTION_DEADLINE_MS = 2 * MS_PER_MIN;
 
 const SCHEMA = {
@@ -62,10 +59,7 @@ function localIso(ts: number): string {
 /** ISO 8601 as the schema asks: a date, optionally a time (seconds and fraction optional) and an offset. */
 const ISO_WHEN = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
 
-/**
- * Code-checked date: ISO 8601 naming a real calendar day and clock time (Date.parse rolls 02-30 over to March), and a
- * date-only value means that local day (not UTC midnight). Anything else is null.
- */
+/** Validates ISO dates against calendar and clock values. Date-only values use local midnight; invalid values return null. */
 export function parseWhen(when: string | null): number | null {
   const parts = when ? ISO_WHEN.exec(when) : null;
   if (!when || !parts) return null;
@@ -77,13 +71,7 @@ export function parseWhen(when: string | null): number | null {
   return Number.isFinite(ts) ? ts : null;
 }
 
-/**
- * The plan question (Settings → Jev → planDetection); the plugin registers it with ctx.jev.questions. A hit is kept in
- * PENDING_TABLE apart from Jev's stored answer (which catch-up won't ask again) until its extraction ends, so neither
- * turning Plans off nor quitting loses it. Extractions run one at a time, in the order Jev found them, each on its
- * message's current text; hits left pending by an earlier activation or app session run first. Once the activation ends,
- * the provider and every write refuse with PluginInactiveError, so the hits still queued stay pending for the next one.
- */
+/** Registers planDetection and persists hits until extraction completes. Sequential processing resumes pending hits first; deactivation rejects writes and leaves queued hits for the next activation. */
 export function planQuestion(deps: PlanDeps): PluginMessageQuestion<'planDetection'> {
   const { db } = deps;
   let queue: Promise<void> = Promise.resolve();
@@ -101,8 +89,7 @@ export function planQuestion(deps: PlanDeps): PluginMessageQuestion<'planDetecti
     }
     db.prepare(`DELETE FROM ${PENDING_TABLE} WHERE message_id = ?`).run(id);
   };
-  // A failure outside extraction (the database gone, or turned off) drops only its hit, which stays pending; later hits
-  // still run, or refuse the same way.
+  // Failures outside extraction leave the hit pending; later hits continue processing.
   const schedule = (id: string): void =>
     void (queue = queue.then(() => run(id)).catch((err: unknown) => void (err instanceof PluginInactiveError || console.warn('[plans] pending hit failed:', errorMessage(err)))));
   for (const id of db.prepare(`SELECT message_id FROM ${PENDING_TABLE} ORDER BY queued_at, rowid`).pluck().all() as string[]) schedule(id);
@@ -155,7 +142,7 @@ async function extract(deps: PlanDeps, m: TextMessage, kind: PlanKind): Promise<
 
 /** Plans soonest first (undated after dated), then decisions newest first. */
 export function planList(db: PluginDb, limit: number): PlanItem[] {
-  // CROSS JOIN keeps plans driving: SQLite would otherwise scan every visible message to find the few with plans.
+  // CROSS JOIN forces plan-driven archive lookups.
   const rows = db
     .prepare(
       `SELECT p.message_id AS messageId, p.channel_id AS channelId, COALESCE(c.name, p.channel_id) AS channelName, p.kind, p.title,

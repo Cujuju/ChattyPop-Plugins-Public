@@ -1,6 +1,4 @@
-// Line icons for every link platform, on the icons' 24-unit grid (look.lineIcon strokes them); the header's chips are
-// these icons alone. YouTube, Instagram and Twitch are after Lucide (ISC); Bluesky and Threads after Tabler Icons
-// (MIT); the rest are drawn here.
+// 24-unit platform icons. YouTube, Instagram, Twitch derive from Lucide (ISC); Bluesky and Threads from Tabler (MIT); remaining icons are original.
 import type { Platform } from '@plugin-sdk/shared';
 
 export const PLATFORM_ICON_PATHS: Record<Platform, string> = {

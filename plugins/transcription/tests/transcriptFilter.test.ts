@@ -1,5 +1,4 @@
-// "A transcript" in the host's rule engine: a rule narrowed by it fires when its message's transcript arrives after
-// the message, because the job's record lands in the derived text's transaction, before the rule check.
+// Tests transcript-filter reevaluation after late transcripts; jobs and derived text are recorded together before rule checks.
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineCorePlugin, type CoreContext } from '@plugin-sdk/core';
