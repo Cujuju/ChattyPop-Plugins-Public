@@ -56,6 +56,13 @@
       "description": "Claude as an AI provider, through your own Claude Code install and sign-in.",
       "releases": [
         {
+          "version": "1.1.1",
+          "tag": "claude-v1.1.1",
+          "asset": "claude-1.1.1.tar.gz",
+          "sha256": "102ce68c1a3376f2c1125468f678257b1f65be6194b6cbb66a2a64b5a18e4202",
+          "sdk": "2.6.0"
+        },
+        {
           "version": "1.1.0",
           "tag": "claude-v1.1.0",
           "asset": "claude-1.1.0.tar.gz",
