@@ -532,6 +532,13 @@
       "description": "Translates image text, transcripts and link previews into your language with an AI model, so rules, Jev and search see it.",
       "releases": [
         {
+          "version": "1.0.2",
+          "tag": "translation-v1.0.2",
+          "asset": "translation-1.0.2.tar.gz",
+          "sha256": "1dbfe60f0b5fb579609ea5773ff4061c0a3b4be32ae0711b0db100e5e1923a4a",
+          "sdk": "2.6.0"
+        },
+        {
           "version": "1.0.1",
           "tag": "translation-v1.0.1",
           "asset": "translation-1.0.1.tar.gz",
