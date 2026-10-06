@@ -245,6 +245,13 @@
       "description": "Local models through Ollama, for channels set to local AI only and anything else you point at it.",
       "releases": [
         {
+          "version": "1.2.1",
+          "tag": "ollama-v1.2.1",
+          "asset": "ollama-1.2.1.tar.gz",
+          "sha256": "91942654ba85affadaf156e0c3ae5e65811adf5c626e92dff35b4acdb0e84cbc",
+          "sdk": "2.6.0"
+        },
+        {
           "version": "1.2.0",
           "tag": "ollama-v1.2.0",
           "asset": "ollama-1.2.0.tar.gz",
