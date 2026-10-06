@@ -5,7 +5,7 @@ import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePic
 export const manifest = {
   id: 'imagetext',
   name: 'Image text',
-  version: '1.7.2',
+  version: '1.7.3',
   description: 'Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.',
 };
 

@@ -5,7 +5,7 @@ import { STATS_RANGES, STATS_SCOPES, isKey, type ActivityQuery, type ActivitySta
 export const manifest = {
   id: 'stats',
   name: 'Activity',
-  version: '1.0.1',
+  version: '1.0.2',
   description: 'The Activity panel: message counts by person, day, hour and channel.',
 };
 

@@ -5,7 +5,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'claude',
     name: 'Claude',
-    version: '1.1.0',
+    version: '1.1.1',
     description: 'Claude as an AI provider, through your own Claude Code install and sign-in.',
   },
   providers: [{

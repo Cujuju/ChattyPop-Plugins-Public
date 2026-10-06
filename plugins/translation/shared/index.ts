@@ -6,7 +6,7 @@ import { translated } from './rules';
 export const manifest = {
   id: 'translation',
   name: 'Translation',
-  version: '1.0.1',
+  version: '1.0.2',
   description: 'Translates image text, transcripts and link previews into your language with an AI model, so rules, Jev and search see it.',
 };
 
