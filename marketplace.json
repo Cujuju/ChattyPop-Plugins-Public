@@ -322,6 +322,13 @@
       "description": "Any OpenRouter model as an AI provider, paid by the OpenRouter key that lists it.",
       "releases": [
         {
+          "version": "1.1.1",
+          "tag": "openrouter-v1.1.1",
+          "asset": "openrouter-1.1.1.tar.gz",
+          "sha256": "eb01073113e411b77813f510b1e2bc7c4368cc5a7e8acea7059b0774bebdd417",
+          "sdk": "2.20.0"
+        },
+        {
           "version": "1.1.0",
           "tag": "openrouter-v1.1.0",
           "asset": "openrouter-1.1.0.tar.gz",
