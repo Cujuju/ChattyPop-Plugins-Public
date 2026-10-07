@@ -112,6 +112,13 @@
       "description": "Imports DiscordChatExporter JSON exports; exports channels as JSON or a standalone HTML page (Settings → Archive).",
       "releases": [
         {
+          "version": "1.1.0",
+          "tag": "exchange-v1.1.0",
+          "asset": "exchange-1.1.0.tar.gz",
+          "sha256": "99f5ba48bb4ed329e480d88814bf35bf910718c5ced6514e792d48ba8c79fdb7",
+          "sdk": "2.20.0"
+        },
+        {
           "version": "1.0.2",
           "tag": "exchange-v1.0.2",
           "asset": "exchange-1.0.2.tar.gz",
