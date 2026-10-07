@@ -46,7 +46,7 @@ export const plugin = definePlugin({
   }),
   settings: [
     // A glyph and a letter A: one language into another.
-    { id: TRANSLATION_TAB, label: 'Translation', tab: { after: 'imagetext', iconPath: 'M3 5h8M7 3v2M5 5c0 4 2.5 6.5 6 8M9 5c0 4-2.5 6.5-6 8M13 21l4-9 4 9M14.5 18h5' } },
+    { id: TRANSLATION_TAB, label: 'Translation', tab: { after: 'transcription', iconPath: 'M3 5h8M7 3v2M5 5c0 4 2.5 6.5 6 8M9 5c0 4-2.5 6.5-6 8M13 21l4-9 4 9M14.5 18h5' } },
   ],
   /** Settings → Translation. */
   preferences: { settings: definePreference({ default: DEFAULT_TRANSLATION_SETTINGS, normalize: normalizeTranslationSettings }) },

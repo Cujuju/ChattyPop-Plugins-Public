@@ -57,7 +57,7 @@ export const plugin = definePlugin({
   }),
   settings: [
     // A microphone: its capsule (a rounded 6 × 11 rect at 9, 3), its stand's arc and foot.
-    { id: TRANSCRIPTION_TAB, label: 'Transcription', tab: { after: 'translation', iconPath: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3' } },
+    { id: TRANSCRIPTION_TAB, label: 'Transcription', tab: { after: 'imagetext', iconPath: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3' } },
   ],
   // Pinned programs and models (core/catalog.ts): Hugging Face and GitHub releases, and the CDNs they redirect to.
   network: { hosts: ['huggingface.co', 'hf.co', 'github.com', 'githubusercontent.com'] },
