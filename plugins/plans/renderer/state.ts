@@ -4,7 +4,7 @@ import type { PlanItem } from '../shared/types';
 import {
   ARCHIVE_REFRESH_DEBOUNCE_MS,
   callable,
-  desktopCoreClient,
+  coreClient,
   onAppEvent,
   onAppEventDebounced,
   pluginPreference,
@@ -14,7 +14,7 @@ import {
 /** Plans and decisions shown (#67). */
 const PLAN_LIMIT = 200;
 
-/** Fetched while this window may call core's list (the plugin is on; not on the phone). */
+/** Fetched while this window may call core's list (the plugin is on). */
 export const plans = pluginResource(plugin, 'list', () => [PLAN_LIMIT], []);
 
 // New plans arrive with archive changes.
@@ -25,8 +25,8 @@ onAppEvent('privacy-changed', () => void plans.refetch());
 const planKey = (p: PlanItem): string => `${p.messageId}:${p.kind}`;
 /** Last-visible Plans items; null until loaded. First successful read marks existing items seen. Inactive reads store nothing. */
 const [seenPlans, setSeenPlans] = pluginPreference(plugin, 'seen', {
-  // seedWhen holds it to where the list is callable: a desktop window.
-  seed: async () => (await desktopCoreClient(plugin).list(PLAN_LIMIT)).map(planKey),
+  // Seeding waits until this window can read the list.
+  seed: async () => (await coreClient(plugin).list(PLAN_LIMIT)).map(planKey),
   seedWhen: () => callable(plugin, 'list'),
 });
 

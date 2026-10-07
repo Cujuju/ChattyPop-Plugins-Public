@@ -1,11 +1,11 @@
 // Settings → Translation and the message menu: the model and queue status from core, the settings, and the owner's requests.
 import { STATUS_EVENT, plugin } from '../shared';
 import type { TranslatePick, TranslationStatus } from '../shared/types';
-import { desktopCoreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
+import { coreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { providerStatus } from '@plugin-sdk/renderer/kit';
 
-/** Requests from Settings → Translation and the message menu, served to desktop windows only. */
-const desktop = desktopCoreClient(plugin);
+/** Requests from Settings → Translation and the message menu, served to desktop and phone windows. */
+const core = coreClient(plugin);
 
 export const [translationSettings, , { patch: patchTranslationSettings }] = pluginPreference(plugin, 'settings');
 
@@ -27,5 +27,5 @@ onEvent(plugin, STATUS_EVENT, () => void status.refetch());
 export const translationStatus = (): TranslationStatus | null => status();
 
 /** Translates every part of the message with text, with `pick` or Settings' model (null). */
-export const translateMessage = (messageId: string, pick: TranslatePick | null): Promise<void> => desktop.translate(messageId, pick);
-export const retryFailedTranslations = (): Promise<void> => desktop.retryFailed();
+export const translateMessage = (messageId: string, pick: TranslatePick | null): Promise<void> => core.translate(messageId, pick);
+export const retryFailedTranslations = (): Promise<void> => core.retryFailed();

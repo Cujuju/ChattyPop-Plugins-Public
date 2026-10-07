@@ -1,5 +1,6 @@
 // Reads message images locally into part-specific derived text consumed by rules, Jev, Trading labels, search, and Translation.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
+import { decodeNoArgs, decodeRequest } from './calls';
 import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus } from './types';
 
 export const manifest = {
@@ -41,12 +42,12 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: ImageTextCoreCalls; events: ImageTextEvents }>()({
     core: {
-      status: { audiences: ['renderer'], writes: false },
-      request: ['renderer'],
-      retryFailed: ['renderer'],
+      status: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
+      request: { audiences: ['renderer', 'phone'], writes: true, decode: decodeRequest },
+      retryFailed: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
       imageFetched: { audiences: ['main'], completion: { max: IMAGE_FETCHES_MAX } },
     },
-    events: { [STATUS_EVENT]: ['renderer'], [FETCH_IMAGE]: ['main'] },
+    events: { [STATUS_EVENT]: ['renderer', 'phone'], [FETCH_IMAGE]: ['main'] },
   }),
   settings: [
     // A picture: its frame, a hill line and the sun.

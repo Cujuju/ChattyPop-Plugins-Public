@@ -1,5 +1,6 @@
 // Summaries: archived recaps, scheduled rules, citations and notifications.
 import { defineChannels, definePlugin, definePreference, finiteOr, type AppUsage, type ProviderId } from '@plugin-sdk/shared';
+import { decodePrompts, decodeSpending } from './calls';
 import { summarize } from './rules';
 import { SUMMARY_FEATURES, SUMMARY_QUERIES } from './queries';
 import { decodeSummaryRequest } from './request';
@@ -53,9 +54,9 @@ export const plugin = definePlugin({
       summarize: { audiences: ['renderer', 'phone'], writes: true, decode: decodeSummaryRequest },
       page: { audiences: ['renderer', 'phone'], writes: false },
       estimate: { audiences: ['renderer', 'phone'], writes: false },
-      prompts: ['renderer'],
+      prompts: { audiences: ['renderer', 'phone'], writes: false, decode: decodePrompts },
       usageSince: { audiences: ['renderer', 'phone'], writes: false },
-      spending: { audiences: ['renderer'], writes: false },
+      spending: { audiences: ['renderer', 'phone'], writes: false, decode: decodeSpending },
       linkPerson: ['renderer'],
       notifyAuto: ['main'],
     },

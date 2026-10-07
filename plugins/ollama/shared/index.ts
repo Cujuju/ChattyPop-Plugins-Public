@@ -1,5 +1,6 @@
 // Ollama: local models on this PC or the LAN, at the address the owner sets (docs/research.md §2).
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
+import { decodeModel, decodeNoArgs } from './calls';
 import { DEFAULT_OLLAMA_SETTINGS, OLLAMA_DEFAULT_URL, normalizeOllamaSettings } from './settings';
 import type { OllamaPull } from './types';
 
@@ -47,12 +48,12 @@ export const plugin = definePlugin({
   }],
   channels: defineChannels<{ core: OllamaCoreCalls; events: OllamaEvents }>()({
     core: {
-      pulls: { audiences: ['renderer'], writes: false },
-      pull: ['renderer'],
-      cancelPull: ['renderer'],
-      deleteModel: ['renderer'],
+      pulls: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
+      pull: { audiences: ['renderer', 'phone'], writes: true, decode: decodeModel },
+      cancelPull: { audiences: ['renderer', 'phone'], writes: true, decode: decodeModel },
+      deleteModel: { audiences: ['renderer', 'phone'], writes: true, decode: decodeModel },
     },
-    events: { [PULLS_EVENT]: ['renderer'], [INSTALLED_EVENT]: ['renderer'] },
+    events: { [PULLS_EVENT]: ['renderer', 'phone'], [INSTALLED_EVENT]: ['renderer', 'phone'] },
   }),
   /** Where its server listens, and how long it keeps a model loaded. */
   preferences: { settings: definePreference({ default: DEFAULT_OLLAMA_SETTINGS, normalize: normalizeOllamaSettings }) },

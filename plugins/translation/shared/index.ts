@@ -1,5 +1,6 @@
 // Translates message-part text into the owner's language. Part-specific derived translations feed rules, Jev, and search.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
+import { decodeNoArgs, decodeTranslate } from './calls';
 import { DEFAULT_TRANSLATION_SETTINGS, normalizeTranslationSettings, type TranslatePick, type TranslationStatus } from './types';
 import { translated } from './rules';
 
@@ -37,11 +38,11 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: TranslationCoreCalls; events: TranslationEvents }>()({
     core: {
-      status: { audiences: ['renderer'], writes: false },
-      translate: ['renderer'],
-      retryFailed: ['renderer'],
+      status: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
+      translate: { audiences: ['renderer', 'phone'], writes: true, decode: decodeTranslate },
+      retryFailed: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
     },
-    events: { [STATUS_EVENT]: ['renderer'] },
+    events: { [STATUS_EVENT]: ['renderer', 'phone'] },
   }),
   settings: [
     // A glyph and a letter A: one language into another.

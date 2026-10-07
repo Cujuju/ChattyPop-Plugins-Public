@@ -1,6 +1,6 @@
 // Ollama's renderer side: its rows in Settings → AI (address, unload time, installing models).
 import { For, createSignal } from 'solid-js';
-import { defineRendererPlugin, desktopCoreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
+import { defineRendererPlugin, coreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { createAction, ErrorNote, formatBytes, percentText, Row, Select, SettingsButton, refetchProviderStatus } from '@plugin-sdk/renderer/kit';
 import styles from './Ollama.module.css';
 import { INSTALLED_EVENT, PULLS_EVENT, plugin } from '../shared';
@@ -8,7 +8,7 @@ import { UNLOAD_AFTER_CHOICES } from '../shared/settings';
 import { SUGGESTED_VISION_MODEL, type OllamaPull } from '../shared/types';
 
 const [settings, setSettings, { patch }] = pluginPreference(plugin, 'settings');
-const desktop = desktopCoreClient(plugin);
+const core = coreClient(plugin);
 /** Model deletes from Settings → AI's list: one at a time, the latest one's error shown. */
 const deletes = createAction();
 const pulls = pluginResource(plugin, 'pulls', () => [], [] as OllamaPull[]);
@@ -30,7 +30,7 @@ const pullText = (p: OllamaPull): string =>
 function OllamaRows() {
   const action = createAction();
   const [name, setName] = createSignal('');
-  const install = (): void => void action.run(() => desktop.pull(name()).then(() => setName('')));
+  const install = (): void => void action.run(() => core.pull(name()).then(() => setName('')));
   return (
     <>
       <Row
@@ -88,7 +88,7 @@ function OllamaRows() {
           <Row
             label={p.model}
             hint={pullText(p)}
-            control={<SettingsButton onClick={() => void action.run(() => desktop.cancelPull(p.model))}>{p.state === 'failed' ? 'Dismiss' : 'Cancel'}</SettingsButton>}
+            control={<SettingsButton onClick={() => void action.run(() => core.cancelPull(p.model))}>{p.state === 'failed' ? 'Dismiss' : 'Cancel'}</SettingsButton>}
           />
         )}
       </For>
@@ -108,7 +108,7 @@ const setupNote = (models: readonly unknown[] | null): string | undefined => {
 /** An installed model's Delete, beside its Use choice in Settings → AI; its error shows under Ollama's rows. */
 function DeleteModel(props: { model: { id: string } }) {
   return (
-    <SettingsButton disabled={deletes.busy()} onClick={() => void deletes.run(() => desktop.deleteModel(props.model.id))}>
+    <SettingsButton disabled={deletes.busy()} onClick={() => void deletes.run(() => core.deleteModel(props.model.id))}>
       Delete
     </SettingsButton>
   );

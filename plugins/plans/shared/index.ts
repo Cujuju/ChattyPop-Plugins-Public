@@ -1,5 +1,6 @@
 // Plans & decisions (#67): Jev spots a plan or a decision in a message; the AI provider chosen for it extracts its details.
 import { MESSAGE_SEES, defineChannels, definePlugin, definePreference, isObj, normalizeProviderId, stringsOr, type JevQueryDecl, type ProviderId } from '@plugin-sdk/shared';
+import { decodeList } from './calls';
 import type { PlanItem } from './types';
 
 export const manifest = {
@@ -66,7 +67,7 @@ const PLAN_QUERY_DEF: JevQueryDecl<'planDetection'> = {
 
 export const plugin = definePlugin({
   manifest,
-  channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: ['renderer'] } }),
+  channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: { audiences: ['renderer', 'phone'], writes: false, decode: decodeList } } }),
   /** The items listed when the panel was last on screen; null until first stored. */
   preferences: {
     seen: definePreference<string[] | null>({ default: null, normalize: stringsOr(null) }),

@@ -1,5 +1,6 @@
 // Local whisper.cpp/ffmpeg transcription. Derived transcripts feed rules, Jev, summaries, search, and Autopost's {transcript}.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
+import { decodeInstall, decodeItem, decodeNoArgs, decodeRequest } from './calls';
 import { DEFAULT_TRANSCRIPTION_SETTINGS, normalizeTranscriptionSettings, type ToolBuild, type TranscriptMediaRequest, type TranscriptionStatus } from './types';
 import { transcribed } from './rules';
 
@@ -45,11 +46,11 @@ export const plugin = definePlugin({
   // The phone's message menu shows whether transcription is set up, as it did before this was a plugin.
   channels: defineChannels<{ core: TranscriptionCoreCalls; events: TranscriptionEvents }>()({
     core: {
-      status: { audiences: ['renderer', 'phone'], writes: false },
-      install: ['renderer'],
-      cancel: ['renderer'],
-      deleteModel: ['renderer'],
-      request: ['renderer'],
+      status: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
+      install: { audiences: ['renderer', 'phone'], writes: true, decode: decodeInstall },
+      cancel: { audiences: ['renderer', 'phone'], writes: true, decode: decodeItem },
+      deleteModel: { audiences: ['renderer', 'phone'], writes: true, decode: decodeItem },
+      request: { audiences: ['renderer', 'phone'], writes: true, decode: decodeRequest },
       audioFetched: { audiences: ['main'], completion: { max: AUDIO_FETCHES_MAX } },
     },
     events: { [STATUS_EVENT]: ['renderer', 'phone'], [FETCH_AUDIO]: ['main'] },

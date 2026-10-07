@@ -7,6 +7,7 @@ import {
   channelLabel,
   countText,
   errorText,
+  inCompanion,
   Note,
   Row,
   Select,
@@ -26,6 +27,14 @@ const summary = (verb: string, r: ExchangeResult): string =>
 
 /** Settings → Archive: export channels (DCE JSON or HTML) and import DiscordChatExporter JSON. */
 export function ExchangeControls() {
+  return (
+    <Show when={!inCompanion} fallback={<Note>Import and export archives on the PC.</Note>}>
+      <DesktopExchangeControls />
+    </Show>
+  );
+}
+
+function DesktopExchangeControls() {
   const channels = () => archivedChannels().map((ch) => ({ value: ch.id, label: channelLabel(ch, ch.guildName) }));
   const [channel, setChannel] = createSignal(ALL);
   const [days, setDays] = createSignal(0);
