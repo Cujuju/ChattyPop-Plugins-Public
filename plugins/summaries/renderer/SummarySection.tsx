@@ -114,8 +114,8 @@ function ProviderBody() {
         for="summary-provider"
         hint={
           <>
-            Every summary uses it, automatic ones included{model() ? `, with ${model()}` : ''}. Its model is picked in Settings → AI.{' '}
-            <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Open Settings → AI</LinkButton>
+            Every summary uses it, automatic ones included{model() ? `, with ${model()}` : ''}. Its model is picked in Settings → AI providers.{' '}
+            <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Open Settings → AI providers</LinkButton>
           </>
         }
         control={<ProviderSelect id="summary-provider" value={s().defaultProvider} onChange={(defaultProvider) => update({ defaultProvider })} />}

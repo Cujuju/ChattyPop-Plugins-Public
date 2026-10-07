@@ -10,7 +10,7 @@ export function PlanProvider() {
       <Row
         label="Provider"
         for={FIELD_ID}
-        hint="Writes each detected plan; uses the model picked for it in Settings → AI."
+        hint="Writes each detected plan; uses the model picked for it in Settings → AI providers."
         control={<ProviderSelect id={FIELD_ID} value={plansSettings().defaultProvider} onChange={(id) => patchPlansSettings({ defaultProvider: id })} />}
       />
     </Card>

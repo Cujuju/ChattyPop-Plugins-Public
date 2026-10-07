@@ -76,7 +76,7 @@ describe('plans and decisions (#67)', () => {
   it("drops a hit, saying why, while no provider is chosen or it can't run", async () => {
     const { db, msg } = setup('claude');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const reason = 'claude: Turned off in Settings → AI.';
+    const reason = 'claude: Turned off in Settings → AI providers.';
     const q = planQuestion({ db, provider: () => reason, changed: () => {} });
     q.onAnswer!(msg('open', Date.UTC(2026, 8, 28), 'game night friday 7?'), answer('plan', PLAN_AT + 0.1), null);
     await settleAsync();
