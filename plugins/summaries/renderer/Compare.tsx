@@ -10,11 +10,13 @@ import {
   compareRunning,
   createComparisonList,
   createOpenComparison,
+  inputCheck,
   modelText,
   openComparisonId,
   rangeText,
   removeComparison,
   runComparison,
+  sameInput,
   setOpenComparisonId,
   totalsText,
 } from './compareState';
@@ -154,6 +156,16 @@ function ComparisonView(props: { comparison: Comparison }) {
       <div class={styles.compareHead}>
         <p class={`${styles.meta} ${look.text}`} {...META}>
           {head()}
+          <Show when={inputCheck(c())}>
+            {(check) => (
+              <>
+                <br />
+                <span class={look.text} data-tone={check().ok ? 'success' : 'danger'} role={check().ok ? undefined : 'alert'}>
+                  {check().text}
+                </span>
+              </>
+            )}
+          </Show>
         </p>
         <button type="button" class="cp-button" onClick={() => exportComparison(c())}>
           Export HTML
@@ -166,6 +178,11 @@ function ComparisonView(props: { comparison: Comparison }) {
               <p class={look.text} data-size="sm" data-weight="semibold" data-font="sans" data-tone="primary">
                 {modelText(r.model)}
               </p>
+              <Show when={sameInput(c(), r) === false}>
+                <p class={look.text} data-size="xs" data-tone="danger" role="alert">
+                  This model was sent different input from the others.
+                </p>
+              </Show>
               <Show
                 when={r.summary}
                 fallback={

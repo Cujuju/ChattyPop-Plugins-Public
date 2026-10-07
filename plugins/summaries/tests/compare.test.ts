@@ -44,7 +44,8 @@ function setup(budgets: Partial<Record<ProviderId, number>>, failing: ProviderId
     complete: async (req): Promise<CompletionResult> => {
       (calls[id] ??= []).push(req);
       if (failing.includes(id)) throw new Error(`${id} is down`);
-      return { text: '', json: DRAFT, usage: USAGE, apiCostUsd: CALL_USD };
+      // Each model writes its own draft, so a merge's input is that model's own.
+      return { text: '', json: { ...DRAFT, headline: id }, usage: USAGE, apiCostUsd: CALL_USD };
     },
     listModels: async () => [],
   });
@@ -65,12 +66,17 @@ describe('model comparison', () => {
   it('sends each model the same parts and prompts, cut at the smallest budget, with its own model and thinking level', async () => {
     const { calls, comparer } = setup({ codex: SMALL_BUDGET });
     const c = await comparer.run({ sinceTs: 0, models: [model('claude', 'opus', 'high'), model('codex', 'gpt', null)] }, DEFAULT_AI_SETTINGS, PREFS);
-    const sent = (id: string) => calls[id]!.map((r) => [r.system, r.prompt]);
+    // Every call but the last summarizes a part; the last merges that model's own drafts.
+    const parts = (id: string) => calls[id]!.slice(0, -1).map(({ model: _m, effort: _e, ...sent }) => sent);
+    const merge = (id: string) => calls[id]!.at(-1)!.prompt;
     expect(calls['claude']!.length).toBeGreaterThan(2); // parts and a merge, though claude alone would take one call
-    expect(sent('claude')).toEqual(sent('codex'));
+    expect(parts('claude')).toEqual(parts('codex'));
+    expect(merge('claude')).not.toEqual(merge('codex'));
+    expect(c.inputDigest).toMatch(/^[0-9a-f]{64}$/);
+    expect(c.results.map((r) => r.inputDigest)).toEqual([c.inputDigest, c.inputDigest]);
     expect(calls['claude']!.every((r) => r.model === 'opus' && r.effort === 'high')).toBe(true);
     expect(calls['codex']!.every((r) => r.model === 'gpt' && r.effort === undefined)).toBe(true);
-    expect(c.results.map((r) => [r.model.provider, r.summary?.headline])).toEqual([['claude', 'h'], ['codex', 'h']]);
+    expect(c.results.map((r) => [r.model.provider, r.summary?.headline])).toEqual([['claude', 'claude'], ['codex', 'codex']]);
   });
 
   it('keeps the other columns when one model fails', async () => {

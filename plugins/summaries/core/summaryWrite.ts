@@ -1,6 +1,6 @@
 // The stages of a summary run around its model calls: preparing the log once, and writing it with one model.
 import type { TokenUsage } from '@plugin-sdk/shared';
-import type { DecisionProvider, PluginProvider } from '@plugin-sdk/core';
+import type { DecisionProvider, PluginCompletionRequest, PluginProvider } from '@plugin-sdk/core';
 import { chosenModel, sumCosts } from '@plugin-sdk/core';
 import type { Citation, SummaryItem, SummaryPart, SummaryProgress, SummaryTheme } from '../shared/types';
 import { checkCitations, skipFiller, type LogLine } from './summaryJev';
@@ -77,15 +77,27 @@ export interface WriteInput {
   jev: { check: DecisionProvider | null; theme: DecisionProvider | null };
 }
 
-/** Summarizes each part, merges the parts, then links people and runs Jev's citation check and key themes. */
-export async function writeSummary(w: WriteInput, progress: Progress, signal: AbortSignal): Promise<Written> {
+/** A request as it reaches a provider, before the model and thinking level are added. */
+export type SentRequest = Omit<PluginCompletionRequest, 'model' | 'effort'>;
+
+/** The requests that summarize each part of the log, in order: the same for every model given the same parts. */
+export const partRequests = (w: Pick<WriteInput, 'chunks' | 'opts' | 'untilTs' | 'channelIds'>): SentRequest[] =>
+  w.chunks.map((c) => ({ system: systemPrompt(w.opts, w.untilTs), prompt: c.map((l) => l.text).join('\n'), schema: schemaFor(w.opts), reads: w.channelIds }));
+
+/** Summarizes each part, merges the parts, then links people and runs Jev's citation check and key themes. `onSend` sees each request first. */
+export async function writeSummary(
+  w: WriteInput,
+  progress: Progress,
+  signal: AbortSignal,
+  onSend: (stage: 'part' | 'merge', req: SentRequest) => void = () => undefined,
+): Promise<Written> {
   const { provider, channelIds, lines, chunks, opts, untilTs } = w;
   const jevCosts: number[] = [];
   const callUsage: TokenUsage[] = [];
   const callCosts: (number | undefined)[] = [];
-  const schema = schemaFor(opts);
-  const complete = async (system: string, prompt: string): Promise<Draft> => {
-    const r = await provider.complete({ system, prompt, schema, ...chosenModel({ model: w.model, effort: w.effort }), reads: channelIds });
+  const complete = async (stage: 'part' | 'merge', req: SentRequest): Promise<Draft> => {
+    onSend(stage, req);
+    const r = await provider.complete({ ...req, ...chosenModel({ model: w.model, effort: w.effort }) });
     signal.throwIfAborted();
     if (r.usage) callUsage.push(r.usage);
     callCosts.push(r.apiCostUsd);
@@ -93,16 +105,16 @@ export async function writeSummary(w: WriteInput, progress: Progress, signal: Ab
   };
 
   const drafts: Draft[] = [];
-  for (const [i, c] of chunks.entries()) {
+  for (const [i, req] of partRequests(w).entries()) {
     progress('summarizing', i, chunks.length);
-    drafts.push(await complete(systemPrompt(opts, untilTs), c.map((l) => l.text).join('\n')));
+    drafts.push(await complete('part', req));
   }
   const byRef = new Map(lines.map((l) => [l.ref, l.citation]));
   let final = drafts[0]!;
   if (drafts.length > 1) {
     progress('merging', chunks.length, chunks.length);
     const partials = drafts.map((d, i) => partialText(d, i + 1, (ref) => byRef.get(ref)?.channelName, opts.grouping));
-    final = await complete(mergePrompt(opts, untilTs), partials.join('\n\n'));
+    final = await complete('merge', { system: mergePrompt(opts, untilTs), prompt: partials.join('\n\n'), schema: schemaFor(opts), reads: channelIds });
   }
 
   // The people the model read, by the tags it writes (or a name, from an owner's template written before tags).

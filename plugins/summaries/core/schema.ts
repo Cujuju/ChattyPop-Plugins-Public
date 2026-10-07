@@ -27,4 +27,6 @@ export const SUMMARY_MIGRATIONS = [
      results_json TEXT NOT NULL)`,
   // What a run was asked to read (SummaryScope JSON); null: everything.
   `ALTER TABLE ${SUMMARIES_TABLE} ADD COLUMN scope_json TEXT`,
+  // SHA-256 of the part requests every model in a comparison was to be sent.
+  `ALTER TABLE ${COMPARISONS_TABLE} ADD COLUMN input_digest TEXT`,
 ] as const;

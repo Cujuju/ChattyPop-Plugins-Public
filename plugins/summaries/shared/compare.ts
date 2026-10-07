@@ -22,6 +22,8 @@ export interface CompareResult {
   /** Null when the model failed; its durationMs is the time its own calls took. */
   summary: Summary | null;
   error: string | null;
+  /** Fingerprint of the part requests this model was sent; null when unknown (failed first, or an older comparison). */
+  inputDigest: string | null;
 }
 
 /** A stored comparison as the list shows it. */
@@ -46,6 +48,8 @@ export interface Comparison extends ComparisonHead {
   grouping: SummaryGrouping;
   /** What Jev's shared steps (filler, quiet stretches, conversation parts) cost, in USD; null when none reported a cost. */
   jevCostUsd: number | null;
+  /** Fingerprint of the part requests every model was to be sent; null for comparisons from before it was kept. */
+  inputDigest: string | null;
   results: CompareResult[];
 }
 

@@ -5,8 +5,12 @@ import type { Comparison, ComparisonHead, CompareProgress, CompareRequest } from
 import type { SummarySettings } from '../shared/settings';
 import type { SummaryProviders } from './providers';
 import { NOTHING_NOTABLE, withModel, type Summarizer } from './summarize';
-import { chunkLog, prepareLog, writeSummary } from './summaryWrite';
+import { chunkLog, partRequests, prepareLog, writeSummary, type SentRequest } from './summaryWrite';
+import { createHash } from 'node:crypto';
 import { comparisonHeads, deleteComparison, insertComparison, readComparison, type StoredResult } from './compareRows';
+
+/** A fingerprint of the requests that summarize the log's parts: equal only when every byte sent is equal. */
+const digestOf = (reqs: SentRequest[]): string => createHash('sha256').update(JSON.stringify(reqs)).digest('hex');
 
 export class Comparer {
   constructor(
@@ -29,24 +33,29 @@ export class Comparer {
     // Throws, naming why, when a provider can't run or is turned off in Settings → AI providers.
     const models = req.models.map((m) => ({ m, provider: this.providers.get(m.provider, withModel(settings, m.provider, m.model, m.effort)) }));
     const input = this.summarizer.input(req, settings, prefs, [...new Set(req.models.map((m) => m.provider))]);
-    const { sent, jevCosts } = await prepareLog(input.afterRules, input.jev, () => undefined, signal);
+    const { sent: log, jevCosts } = await prepareLog(input.afterRules, input.jev, () => undefined, signal);
     // One cut for all: the smallest input budget, so every model reads the same parts.
     const maxChars = Math.min(...models.map((x) => x.provider.maxInputChars));
-    const { chunks, jevCosts: chunkCosts } = sent.length ? await chunkLog(sent, maxChars, input.jev.chunk, signal) : { chunks: [], jevCosts: [] };
+    const { chunks, jevCosts: chunkCosts } = log.length ? await chunkLog(log, maxChars, input.jev.chunk, signal) : { chunks: [], jevCosts: [] };
 
+    // What every model must be sent; each model's own record of what it sent is checked against it.
+    const inputDigest = digestOf(partRequests({ ...input, chunks }));
     let done = 0;
     this.progress({ phase: 'writing', done, total });
     const results = await Promise.all(models.map(async ({ m, provider }): Promise<StoredResult> => {
       const started = Date.now();
+      const sent: SentRequest[] = [];
       try {
         // #56: a range with nothing notable needs no summary call.
-        if (!sent.length) return { model: m, error: null, durationMs: 0, headline: NOTHING_NOTABLE, items: [], actions: [], themes: null, usage: null, apiCostUsd: null, jevCostUsd: null };
-        const w = await writeSummary({ ...input, provider, model: m.model, effort: m.effort, sent, chunks }, () => undefined, signal);
+        if (!log.length) return { model: m, error: null, durationMs: 0, inputDigest, headline: NOTHING_NOTABLE, items: [], actions: [], themes: null, usage: null, apiCostUsd: null, jevCostUsd: null };
+        const w = await writeSummary({ ...input, provider, model: m.model, effort: m.effort, sent: log, chunks }, () => undefined, signal, (stage, req) => {
+          if (stage === 'part') sent.push(req);
+        });
         const { jevCosts: own, ...written } = w;
-        return { model: m, error: null, durationMs: Date.now() - started, ...written, jevCostUsd: own.length ? sumCosts(own) : null };
+        return { model: m, error: null, durationMs: Date.now() - started, inputDigest: digestOf(sent), ...written, jevCostUsd: own.length ? sumCosts(own) : null };
       } catch (err) {
         signal.throwIfAborted();
-        return { model: m, error: errorMessage(err), durationMs: Date.now() - started };
+        return { model: m, error: errorMessage(err), durationMs: Date.now() - started, inputDigest: sent.length ? digestOf(sent) : null };
       } finally {
         this.progress({ phase: 'writing', done: ++done, total });
       }
@@ -57,10 +66,11 @@ export class Comparer {
       sinceTs: req.sinceTs,
       untilTs: input.untilTs,
       channelIds: input.channelIds,
-      messageCount: sent.length,
-      skippedCount: input.lines.length - sent.length,
+      messageCount: log.length,
+      skippedCount: input.lines.length - log.length,
       grouping: input.opts.grouping,
       jevCostUsd: shared.length ? sumCosts(shared) : null,
+      inputDigest,
       results,
     });
     this.progress({ phase: 'done', done: total, total });

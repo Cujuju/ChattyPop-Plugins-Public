@@ -7,7 +7,7 @@ import { namedText } from '../shared/people';
 import { pointCitations, type Citation, type Summary, type SummaryItem } from '../shared/types';
 import { pointGroups } from './order';
 import { FLAG_TEXT, flagOf, usageParts } from './SummaryContent';
-import { modelText, rangeText, totalsText } from './compareState';
+import { inputCheck, modelText, rangeText, totalsText } from './compareState';
 
 const HTML_TYPE = 'text/html';
 
@@ -85,6 +85,7 @@ export function comparisonHtml(c: Comparison): string {
     rangeText(c.sinceTs, c.untilTs),
     `${countText(c.messageCount, 'message')} every model read${c.skippedCount ? ` (${c.skippedCount} left out as filler or quiet)` : ''}`,
     totalsText(c),
+    inputCheck(c)?.text ?? '',
     channelsText(c.channelIds),
   ].filter(Boolean);
   const cols = c.results.map(

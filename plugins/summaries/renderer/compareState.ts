@@ -59,6 +59,22 @@ export const createOpenComparison = () =>
 export const rangeText = (sinceTs: number, untilTs: number): string =>
   spansDays({ sinceTs, untilTs }) ? `${weekdayDateTime(sinceTs)} – ${weekdayDateTime(untilTs)}` : `${weekdayDateTime(sinceTs)} – ${clockTime(untilTs)}`;
 
+/** Hex digits of an input fingerprint shown: enough to tell two apart at a glance. */
+const FINGERPRINT_SHOWN = 8;
+
+/** Whether model `r` was sent exactly the comparison's input; null when unknown (it sent nothing, or an older comparison). */
+export const sameInput = (c: Comparison, r: Comparison['results'][number]): boolean | null =>
+  c.inputDigest === null || r.inputDigest === null ? null : r.inputDigest === c.inputDigest;
+
+/** The input check over every model: its fingerprint when all match, else which ones differed; null before fingerprints were kept. */
+export function inputCheck(c: Comparison): { ok: boolean; text: string } | null {
+  if (c.inputDigest === null) return null;
+  const differed = c.results.filter((r) => sameInput(c, r) === false).map((r) => modelText(r.model));
+  return differed.length
+    ? { ok: false, text: `Input differed for ${differed.join(', ')}` }
+    : { ok: true, text: `Every model got the same input (fingerprint ${c.inputDigest.slice(0, FINGERPRINT_SHOWN)})` };
+}
+
 /** What every finished model used together: tokens, and API cost when each one reported it. */
 export function totalsText(c: Comparison): string {
   const done = c.results.flatMap((r) => (r.summary ? [r.summary] : []));

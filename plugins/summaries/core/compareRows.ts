@@ -12,6 +12,8 @@ export interface StoredResult {
   error: string | null;
   /** The time the model's own calls took. */
   durationMs: number;
+  /** Fingerprint of the part requests this model was sent; null when it failed before sending any. */
+  inputDigest?: string | null;
   headline?: string;
   items?: SummaryItem[];
   actions?: SummaryItem[];
@@ -30,6 +32,8 @@ export interface NewComparison {
   skippedCount: number;
   grouping: SummaryGrouping;
   jevCostUsd: number | null;
+  /** Fingerprint of the part requests every model was to be sent. */
+  inputDigest: string;
   results: StoredResult[];
 }
 
@@ -44,15 +48,16 @@ interface ComparisonRow {
   grouping: SummaryGrouping;
   jev_cost_usd: number | null;
   results_json: string;
+  input_digest: string | null;
 }
 
 export function insertComparison(db: PluginDb, c: NewComparison): number {
   const info = db
     .prepare(
-      `INSERT INTO ${COMPARISONS_TABLE} (created_at, since_ts, until_ts, channel_ids, message_count, skipped_count, grouping, jev_cost_usd, results_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO ${COMPARISONS_TABLE} (created_at, since_ts, until_ts, channel_ids, message_count, skipped_count, grouping, jev_cost_usd, results_json, input_digest)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(Date.now(), c.sinceTs, c.untilTs, JSON.stringify(c.channelIds), c.messageCount, c.skippedCount, c.grouping, c.jevCostUsd, JSON.stringify(c.results));
+    .run(Date.now(), c.sinceTs, c.untilTs, JSON.stringify(c.channelIds), c.messageCount, c.skippedCount, c.grouping, c.jevCostUsd, JSON.stringify(c.results), c.inputDigest);
   return Number(info.lastInsertRowid);
 }
 
@@ -113,7 +118,8 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
     skippedCount: r.skipped_count,
     grouping: r.grouping,
     jevCostUsd: r.jev_cost_usd,
-    results: stored.map((x) => ({ model: x.model, error: x.error, summary: x.error === null ? shown(summaryOf(x)) : null })),
+    inputDigest: r.input_digest,
+    results: stored.map((x) => ({ model: x.model, error: x.error, inputDigest: x.inputDigest ?? null, summary: x.error === null ? shown(summaryOf(x)) : null })),
   };
 }
 
