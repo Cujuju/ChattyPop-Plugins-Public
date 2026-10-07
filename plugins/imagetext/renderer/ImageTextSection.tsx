@@ -37,6 +37,17 @@ export function ImageTextSection() {
       title="Image text"
       lede="Reads the text in screenshots and charts that messages show, so rules, Jev, labels and search see it. Images are read on this computer unless you allow a hosted model."
     >
+      <Card title="Queue">
+        <Row
+          label="Images"
+          hint={queueText()}
+          control={
+            <Show when={(counts()?.failed ?? 0) > 0}>
+              <SettingsButton onClick={() => void action.run(retryFailedImageText)}>Retry failed</SettingsButton>
+            </Show>
+          }
+        />
+      </Card>
       <Card title="Engine">
         <div role="radiogroup" aria-label="Engine">
           <For each={Object.keys(ENGINE_LABEL) as ImageTextEngine[]}>
