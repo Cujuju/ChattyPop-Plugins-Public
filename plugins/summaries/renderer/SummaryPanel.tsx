@@ -106,6 +106,7 @@ export function SummaryPanel() {
           <ProviderSelect
             class={styles.select}
             label="Provider"
+            short
             value={summarySettings().defaultProvider}
             onChange={(defaultProvider) => patchSummarySettings({ defaultProvider })}
           />
