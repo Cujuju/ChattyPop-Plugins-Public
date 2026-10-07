@@ -5,7 +5,7 @@ import type { ExchangeResult, ExportOptions, ExportRequest } from './types';
 export const manifest = {
   id: 'exchange',
   name: 'Import and export',
-  version: '1.0.2',
+  version: '1.1.0',
   description: 'Imports DiscordChatExporter JSON exports; exports channels as JSON or a standalone HTML page (Settings → Archive).',
 };
 

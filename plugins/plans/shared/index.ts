@@ -6,7 +6,7 @@ import type { PlanItem } from './types';
 export const manifest = {
   id: 'plans',
   name: 'Plans & decisions',
-  version: '1.1.1',
+  version: '1.2.1',
   description: 'Jev spots plans and decisions in messages; your AI provider extracts the details for the Plans & decisions panel.',
 };
 
