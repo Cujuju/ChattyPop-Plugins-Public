@@ -88,15 +88,15 @@ export function SummarySection() {
           meta: () => `${LENGTH_LABEL[s().length]} · ${GROUPINGS[s().grouping].meta}`,
           body: StyleBody,
         },
-        { id: 'auto', label: 'Automatic summaries', meta: autoMeta, body: AutoBody },
-        { id: 'spending', label: 'Spending', meta: spendMeta, body: () => <SpendingBody spending={spending} /> },
-        { id: 'compare', label: 'Compare models', divider: true, meta: () => countText(s().compareModels.length, 'model'), body: CompareBody },
         {
           id: 'prompts',
           label: 'Prompts',
           meta: () => (Object.values(s().prompts).some((t) => t !== null) ? 'Customized' : 'Default'),
           body: PromptsBody,
         },
+        { id: 'auto', label: 'Automatic summaries', meta: autoMeta, body: AutoBody },
+        { id: 'spending', label: 'Spending', meta: spendMeta, body: () => <SpendingBody spending={spending} /> },
+        { id: 'compare', label: 'Compare models', divider: true, meta: () => countText(s().compareModels.length, 'model'), body: CompareBody },
       ]}
     />
   );
