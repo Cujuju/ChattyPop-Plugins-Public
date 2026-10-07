@@ -1,9 +1,9 @@
 // Model comparisons: the stored list, the one open, and a run's progress.
 import { createMemo, createSignal } from 'solid-js';
 import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
-import { createAction, effortLabel, providerName, providerStatus } from '@plugin-sdk/renderer/kit';
+import { createAction, effortLabel, formatTokens, providerName, providerStatus, usdText } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
-import type { CompareModel, CompareProgress } from '../shared/compare';
+import type { CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
 import { summarySettings } from './settings';
 import { rangeOf } from './state';
@@ -53,6 +53,19 @@ export const createOpenComparison = () =>
     const id = openComparisonId();
     return id === null ? null : [id];
   }, null);
+
+/** What every finished model used together: tokens, and API cost when each one reported it. */
+export function totalsText(c: Comparison): string {
+  const done = c.results.flatMap((r) => (r.summary ? [r.summary] : []));
+  const used = done.flatMap((s) => (s.usage ? [s.usage] : []));
+  const priced = done.flatMap((s) => (s.apiCostUsd !== null ? [s.apiCostUsd] : []));
+  const unpriced = done.filter((s) => s.apiCostUsd === null && s.messageCount > 0).length;
+  return [
+    ...(used.length ? [`${formatTokens(used.reduce((n, u) => n + u.inputTokens, 0))} in`, `${formatTokens(used.reduce((n, u) => n + u.outputTokens, 0))} out`] : []),
+    ...(priced.length ? [`≈${usdText(priced.reduce((n, x) => n + x, 0))} at API rates${unpriced ? ` (${unpriced} without a cost)` : ''}`] : []),
+    ...(c.jevCostUsd !== null ? [`Jev's shared steps ${usdText(c.jevCostUsd)}`] : []),
+  ].join(' · ');
+}
 
 /** A model as its column and the export name it: provider, model and thinking level. */
 export function modelText(m: CompareModel): string {

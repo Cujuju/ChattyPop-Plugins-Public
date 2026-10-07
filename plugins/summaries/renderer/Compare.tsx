@@ -1,24 +1,9 @@
 // Settings → Summaries → Compare models: pick models, run them on one range, read their summaries side by side.
 import { createSignal, For, Show } from 'solid-js';
-import type { ProviderId } from '@plugin-sdk/shared';
-import {
-  Card,
-  EffortRow,
-  ModelRow,
-  Note,
-  ProviderSelect,
-  Row,
-  Select,
-  countText,
-  look,
-  providerSettingsOf,
-  providerStatus,
-  usdText,
-  weekdayDateTime,
-} from '@plugin-sdk/renderer/kit';
+import { Card, Note, Row, Select, countText, look, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import type { Comparison } from '../shared/compare';
-import { patchSummarySettings as update, summarySettings } from './settings';
+import { summarySettings } from './settings';
 import {
   compareError,
   compareProgress,
@@ -30,145 +15,27 @@ import {
   removeComparison,
   runComparison,
   setOpenComparisonId,
+  totalsText,
 } from './compareState';
 import { exportComparison } from './compareExport';
+import { ModelsCard } from './CompareModels';
 import { spansDays } from './order';
 import { META, SummaryContent } from './SummaryContent';
 import styles from './Summary.module.css';
 
 const RANGE_OPTIONS = Object.entries(SUMMARY_RANGES).map(([id, r]) => ({ value: id, label: r.label }));
-const NO_CHOICE = { model: null, effort: null };
 
 export function CompareBody() {
   return (
     <>
       <Note>
-        Summarizes one range with each model below and shows their summaries side by side. The messages are read and
-        prepared once (filler, quiet stretches and parts, with Jev's steps as you've set them), so every model gets
-        exactly the same messages and prompts. Each summary then gets its own citation check and key themes.
-        Comparisons stay here, out of the Summary panel; what they cost counts in Spending.
+        Summarize one range with several models and read the results side by side. Every model gets the same messages
+        and prompts. Comparisons stay out of the Summary panel; their cost counts in Spending.
       </Note>
       <ModelsCard />
       <RunCard />
       <PastCard />
     </>
-  );
-}
-
-/** The saved models, each edited, moved or removed in place; and a provider, model and thinking level to add or save. */
-function ModelsCard() {
-  const models = () => summarySettings().compareModels;
-  const [picked, setPicked] = createSignal<ProviderId | null>(null);
-  const provider = () => picked() ?? summarySettings().defaultProvider;
-  const [choice, setChoice] = createSignal<{ model: string | null; effort: string | null }>(NO_CHOICE);
-  /** The listed model the fields below edit; null while they add a new one. */
-  const [editing, setEditing] = createSignal<number | null>(null);
-  const reset = (): void => {
-    setEditing(null);
-    setPicked(null);
-    setChoice(NO_CHOICE);
-  };
-  const edit = (i: number): void => {
-    const m = models()[i]!;
-    setEditing(i);
-    setPicked(m.provider);
-    setChoice({ model: m.model, effort: m.effort });
-  };
-  const remove = (i: number): void => {
-    update({ compareModels: models().filter((_, j) => j !== i) });
-    const e = editing();
-    if (e === i) reset();
-    else if (e !== null && e > i) setEditing(e - 1);
-  };
-  /** Swaps model `i` with its neighbour `by` places away; the one being edited stays the one being edited. */
-  const move = (i: number, by: -1 | 1): void => {
-    const list = [...models()];
-    [list[i], list[i + by]] = [list[i + by]!, list[i]!];
-    update({ compareModels: list });
-    const e = editing();
-    if (e === i) setEditing(i + by);
-    else if (e === i + by) setEditing(i);
-  };
-  // A model left on "from Settings → AI providers" is saved as the one that is now, so the comparison names it.
-  const save = (p: ProviderId): void => {
-    const { model, effort } = choice();
-    const resolved = model ?? providerSettingsOf(p).model ?? providerStatus().find((s) => s.id === p)?.models?.find((m) => m.isDefault)?.id ?? null;
-    const entry = { provider: p, model: resolved, effort };
-    const e = editing();
-    update({ compareModels: e === null ? [...models(), entry] : models().map((m, j) => (j === e ? entry : m)) });
-    reset();
-  };
-  return (
-    <Card title="Models" meta={countText(models().length, 'model')}>
-      <For each={models()} fallback={<Note>None yet. Pick a provider, model and thinking level below, then add it.</Note>}>
-        {(m, i) => (
-          <Row
-            label={`${i() + 1}. ${modelText(m)}`}
-            hint={editing() === i() ? 'Editing below.' : undefined}
-            control={
-              <span class={styles.buttons}>
-                <button type="button" class="cp-button" aria-label={`Move ${modelText(m)} up`} title="Move up" disabled={i() === 0} onClick={() => move(i(), -1)}>
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  class="cp-button"
-                  aria-label={`Move ${modelText(m)} down`}
-                  title="Move down"
-                  disabled={i() === models().length - 1}
-                  onClick={() => move(i(), 1)}
-                >
-                  ↓
-                </button>
-                <button type="button" class="cp-button" aria-pressed={editing() === i()} onClick={() => (editing() === i() ? reset() : edit(i()))}>
-                  {editing() === i() ? 'Cancel' : 'Edit'}
-                </button>
-                <button type="button" class="cp-danger" onClick={() => remove(i())}>
-                  Remove
-                </button>
-              </span>
-            }
-          />
-        )}
-      </For>
-      <Row
-        label="Provider"
-        for="compare-provider"
-        control={
-          <ProviderSelect
-            id="compare-provider"
-            value={provider()}
-            onChange={(p) => {
-              setPicked(p);
-              setChoice(NO_CHOICE);
-            }}
-          />
-        }
-      />
-      <Show when={provider()}>
-        {(p) => (
-          <>
-            <ModelRow fieldId="compare-model" provider={p()} value={choice()} onChange={(patch) => setChoice({ ...choice(), ...patch })} />
-            <EffortRow fieldId="compare-effort" provider={p()} value={choice()} onChange={(patch) => setChoice({ ...choice(), ...patch })} />
-            <Row
-              label={editing() === null ? 'Add to the comparison' : `Change model ${editing()! + 1}`}
-              control={
-                <span class={styles.buttons}>
-                  <Show when={editing() !== null}>
-                    <button type="button" class="cp-button" onClick={reset}>
-                      Cancel
-                    </button>
-                  </Show>
-                  <button type="button" class="cp-button" onClick={() => save(p())}>
-                    {editing() === null ? 'Add model' : 'Save changes'}
-                  </button>
-                </span>
-              }
-            />
-          </>
-        )}
-      </Show>
-    </Card>
   );
 }
 
@@ -178,7 +45,7 @@ function RunCard() {
   const progressText = (): string => {
     if (!compareRunning()) return '';
     const p = compareProgress();
-    return p?.phase === 'writing' ? `${p.done} of ${countText(p.total, 'model')} done` : 'Reading and preparing the messages';
+    return p?.phase === 'writing' ? `${p.done} of ${countText(p.total, 'model')} done` : 'Preparing messages…';
   };
   return (
     <Card title="Run">
@@ -188,8 +55,8 @@ function RunCard() {
         control={<Select id="compare-range" class={styles.control} value={range()} options={RANGE_OPTIONS} onChange={(v) => setPicked(v as SummaryRange)} />}
       />
       <Row
-        label="Run the comparison"
-        hint="Every model runs at once. Each counts toward its provider's plan or credits."
+        label="Compare"
+        hint="Models run at once; each uses its provider's plan or credits."
         control={
           <button
             type="button"
@@ -197,7 +64,7 @@ function RunCard() {
             disabled={compareRunning() || !summarySettings().compareModels.length}
             onClick={() => void runComparison(range())}
           >
-            {compareRunning() ? 'Running…' : 'Compare'}
+            {compareRunning() ? 'Running…' : 'Run'}
           </button>
         }
       />
@@ -211,12 +78,12 @@ function RunCard() {
   );
 }
 
-/** Stored comparisons, each opened, exported or deleted on its own; the open one below. */
+/** Stored comparisons, each opened or deleted on its own; the open one below. */
 function PastCard() {
   const list = createComparisonList();
   const open = createOpenComparison();
   const remove = (id: number): void => {
-    if (window.confirm('Delete this comparison? Its summaries are removed for good.')) void removeComparison(id);
+    if (window.confirm('Delete this comparison?')) void removeComparison(id);
   };
   return (
     <>
@@ -224,8 +91,8 @@ function PastCard() {
         <For each={list()} fallback={<Note>None yet.</Note>}>
           {(h) => (
             <Row
-              label={`Ran ${weekdayDateTime(h.createdAt)}`}
-              hint={`${weekdayDateTime(h.sinceTs)} → ${weekdayDateTime(h.untilTs)} · ${h.models.map(modelText).join(', ')}${h.failed ? ` · ${h.failed} failed` : ''}`}
+              label={weekdayDateTime(h.createdAt)}
+              hint={`${weekdayDateTime(h.sinceTs)} → ${weekdayDateTime(h.untilTs)} · ${countText(h.models.length, 'model')}${h.failed ? ` · ${h.failed} failed` : ''}`}
               control={
                 <span class={styles.buttons}>
                   <button
@@ -250,21 +117,25 @@ function PastCard() {
   );
 }
 
-/** One comparison: what every model read, then a column per model in the order they were listed. */
+/** One comparison: what every model read and used in total, then a column per model in list order. */
 function ComparisonView(props: { comparison: Comparison }) {
   const c = () => props.comparison;
-  const read = () =>
-    `${weekdayDateTime(c().sinceTs)} → ${weekdayDateTime(c().untilTs)} · ${countText(c().messageCount, 'message')} every model read` +
-    (c().skippedCount ? ` (${c().skippedCount} left out as filler or quiet)` : '') +
-    (c().jevCostUsd !== null ? ` · Jev's shared steps ${usdText(c().jevCostUsd!)}` : '');
+  const head = () =>
+    [
+      `${weekdayDateTime(c().sinceTs)} → ${weekdayDateTime(c().untilTs)}`,
+      `${countText(c().messageCount, 'message')}${c().skippedCount ? ` (${c().skippedCount} skipped)` : ''}`,
+      totalsText(c()),
+    ]
+      .filter(Boolean)
+      .join(' · ');
   return (
     <section class={styles.compare} aria-label="Comparison">
       <div class={styles.compareHead}>
         <p class={`${styles.meta} ${look.text}`} {...META}>
-          {read()}
+          {head()}
         </p>
         <button type="button" class="cp-button" onClick={() => exportComparison(c())}>
-          Export .md
+          Export HTML
         </button>
       </div>
       <div class={styles.columns}>

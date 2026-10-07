@@ -33,6 +33,21 @@ export function flagOf(item: SummaryItem): keyof typeof FLAG_TEXT | null {
   return (c.confidence ?? 0) >= CITATION_FLAG_CONFIDENCE ? c.verdict : null;
 }
 
+/** Tokens and costs: each run that called a model says what it used, or that its provider didn't report it. */
+export function usageParts(s: Summary): string[] {
+  const calledModel = s.messageCount > 0;
+  const u = s.usage;
+  return [
+    ...(u
+      ? [`${formatTokens(u.inputTokens)} in${u.cachedInputTokens ? ` (${formatTokens(u.cachedInputTokens)} cached)` : ''}`, `${formatTokens(u.outputTokens)} out`]
+      : calledModel ? ['tokens not reported'] : []),
+    ...(s.apiCostUsd !== null
+      ? [`≈${usdText(s.apiCostUsd)} at API rates${s.apiCostEstimated ? ' (estimated from tokens)' : ''}`]
+      : calledModel ? ['API cost unknown'] : []),
+    ...(s.jevCostUsd !== null ? [`Jev ${usdText(s.jevCostUsd)}`] : []),
+  ];
+}
+
 /** `withDay`: the run spans days, so sources show their day. */
 export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
   const s = () => props.summary;
@@ -45,11 +60,7 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
         {providerLabel(s().provider)}
         <Show when={s().model}>{(m) => ` (${m()})`}</Show> · {s().messageCount} messages
         <Show when={s().skippedCount > 0}>{` (${s().skippedCount} skipped as filler)`}</Show> · {Math.round(s().durationMs / MS_PER_S)} s
-        <Show when={s().usage}>
-          {(u) => ` · ${formatTokens(u().inputTokens)} in${u().cachedInputTokens ? ` (${formatTokens(u().cachedInputTokens)} cached)` : ''} · ${formatTokens(u().outputTokens)} out`}
-        </Show>
-        <Show when={s().apiCostUsd !== null}>{` · ≈${usdText(s().apiCostUsd!)} at API rates${s().apiCostEstimated ? ' (estimated from tokens)' : ''}`}</Show>
-        <Show when={s().jevCostUsd !== null}>{` · Jev ${usdText(s().jevCostUsd!)}`}</Show>
+        <Show when={usageParts(s()).length}>{` · ${usageParts(s()).join(' · ')}`}</Show>
       </p>
       <Show when={s().actions.length}>
         <section class={`${styles.actions} ${look.wash}`} aria-label="For you">

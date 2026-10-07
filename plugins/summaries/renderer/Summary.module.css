@@ -128,6 +128,32 @@
   gap: var(--cp-space-3);
 }
 
+/* Compare models' list: rows that drag, each with its editor under it when open. */
+.modelList {
+  display: flex;
+  flex-direction: column;
+}
+
+.modelItem {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A model's fields, set in under the row they edit. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  margin: 0 var(--cp-space-5) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-3) 0;
+}
+
 /* The open comparison: its details and export, then a column per model. */
 .compare {
   display: flex;
