@@ -1,6 +1,18 @@
 // Where a summary reads: everything, one server, or one channel. The picker, and how a run names what it read.
-import type { Rule } from '@plugin-sdk/shared';
-import { SearchSelect, channelById, channelLabel, directory, isThread, ruleInputOf, saveRule } from '@plugin-sdk/renderer/kit';
+import { DM_GROUP_NAME, DM_GUILD_ID, type DirectoryGuild, type Rule } from '@plugin-sdk/shared';
+import {
+  GuildIcon,
+  Icon,
+  SearchSelect,
+  channelById,
+  channelLabel,
+  channelSigil,
+  directory,
+  isThread,
+  ruleInputOf,
+  saveRule,
+  type SearchOption,
+} from '@plugin-sdk/renderer/kit';
 import type { SummaryScope } from '../shared/types';
 
 /** The picker's values: everything, a server or a channel by id, or a scope it can't pick (a rule's several). */
@@ -66,17 +78,24 @@ export async function setRuleScope(r: Rule, s: SummaryScope | null): Promise<voi
   await saveRule(r.id, { ...input, spec: { ...input.spec, gates: { ...gates, ...where } } });
 }
 
-/** Everything, each server with archived channels, and each of its channels; a scope it can't pick stays, named. */
+/** A server and its archived channels under it; DMs (one or many) are found by filtering, so the list stays a list of places. */
+function serverOptions(g: DirectoryGuild): SearchOption[] {
+  const channels = g.channels.filter((c) => c.optedIn && !isThread(c));
+  if (!channels.length) return [];
+  const dms = g.id === DM_GUILD_ID;
+  return [
+    { value: SERVER + g.id, label: dms ? DM_GROUP_NAME : g.name, lead: () => (dms ? <Icon name="conversation" /> : <GuildIcon id={g.id} name={g.name} icon={g.icon} />) },
+    ...channels.map((c) => ({ value: CHANNEL + c.id, label: c.name, nested: true, searchOnly: dms, lead: () => channelSigil(c) })),
+  ];
+}
+
+/** Everything, each server with archived channels heading its channels, then direct messages; a scope it can't pick stays, named. */
 export function ScopeSelect(props: { id?: string; class?: string; value: SummaryScope | null; onChange: (s: SummaryScope | null) => void }) {
-  const options = () => [
-    ...(valueOf(props.value) === OTHER ? [{ value: OTHER, label: scopeLabel(props.value) }] : []),
-    { value: EVERYTHING, label: 'Everything' },
-    ...directory().flatMap((g) => {
-      const channels = g.channels.filter((c) => c.optedIn && !isThread(c));
-      return channels.length
-        ? [{ value: SERVER + g.id, label: `All of ${g.name}` }, ...channels.map((c) => ({ value: CHANNEL + c.id, label: channelLabel(c, g.name) }))]
-        : [];
-    }),
+  const options = (): SearchOption[] => [
+    ...(valueOf(props.value) === OTHER ? [{ value: OTHER, label: scopeLabel(props.value), lead: () => <Icon name="filter" /> }] : []),
+    { value: EVERYTHING, label: 'Everything', lead: () => <Icon name="archive" /> },
+    // Servers in the directory's order, direct messages last.
+    ...[...directory()].sort((a, b) => Number(a.id === DM_GUILD_ID) - Number(b.id === DM_GUILD_ID)).flatMap(serverOptions),
   ];
   return (
     <SearchSelect
