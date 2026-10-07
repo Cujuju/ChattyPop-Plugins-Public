@@ -1,6 +1,6 @@
 // A comparison as Markdown, for review outside the app: the shared input, then each model's summary in column order.
 import { MS_PER_S } from '@plugin-sdk/shared';
-import { channelById, channelLabel, formatTokens, shortDateTime, usdText, weekdayDate, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { channelById, channelLabel, countText, formatTokens, shortDateTime, usdText, weekdayDate, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import type { Comparison } from '../shared/compare';
 import { namedText } from '../shared/people';
 import { pointCitations, type Citation, type Summary, type SummaryItem } from '../shared/types';
@@ -43,6 +43,16 @@ function summaryMarkdown(s: Summary): string[] {
   return out;
 }
 
+/** Named channels, then how many the directory doesn't name (DMs among them), rather than their raw ids. */
+function channelsText(ids: string[]): string {
+  const named = ids.flatMap((id) => {
+    const ch = channelById(id);
+    return ch ? [channelLabel(ch)] : [];
+  });
+  const rest = ids.length - named.length;
+  return [...named, ...(rest ? [`${countText(rest, 'other channel')}`] : [])].join(', ');
+}
+
 export function comparisonMarkdown(c: Comparison): string {
   const out = [
     '# Summary comparison',
@@ -50,7 +60,7 @@ export function comparisonMarkdown(c: Comparison): string {
     `- Run: ${weekdayDateTime(c.createdAt)}`,
     `- Range: ${weekdayDateTime(c.sinceTs)} → ${weekdayDateTime(c.untilTs)}`,
     `- Messages every model read: ${c.messageCount}${c.skippedCount ? ` (${c.skippedCount} left out as filler or quiet)` : ''}`,
-    `- Channels: ${c.channelIds.map((id) => { const ch = channelById(id); return ch ? channelLabel(ch) : id; }).join(', ')}`,
+    `- Channels: ${channelsText(c.channelIds)}`,
     ...(c.jevCostUsd !== null ? [`- Jev's shared steps: ${usdText(c.jevCostUsd)}`] : []),
     '',
   ];
