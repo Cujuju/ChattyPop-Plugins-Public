@@ -121,3 +121,41 @@
 .wide {
   width: 100%;
 }
+
+/* Compare models: a row's buttons side by side. */
+.buttons {
+  display: flex;
+  gap: var(--cp-space-3);
+}
+
+/* The open comparison: its details and export, then a column per model. */
+.compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-4);
+  min-width: 0;
+}
+
+.compareHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-4);
+}
+
+/* Columns of equal width; past the room for all, they scroll sideways. */
+.columns {
+  display: grid;
+  grid-auto-columns: minmax(var(--cp-compare-col-min-w), 1fr);
+  grid-auto-flow: column;
+  gap: var(--cp-space-4);
+  overflow-x: auto;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  min-width: 0;
+  padding: var(--cp-space-4) var(--cp-space-5);
+}

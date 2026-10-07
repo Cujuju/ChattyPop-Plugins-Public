@@ -35,6 +35,8 @@ export interface SummaryEvents {
   added: Summary;
   failed: SummaryFailure;
   compareProgress: CompareProgress;
+  /** A comparison was stored or deleted. */
+  comparisonsChanged: null;
 }
 
 /** Stable identities and legacy storage adoption. */
@@ -78,6 +80,7 @@ export const plugin = definePlugin({
       added: ['renderer', 'phone', 'main'],
       failed: ['renderer', 'phone', 'main'],
       compareProgress: ['renderer', 'phone'],
+      comparisonsChanged: ['renderer', 'phone'],
     },
   }),
   panels: [{

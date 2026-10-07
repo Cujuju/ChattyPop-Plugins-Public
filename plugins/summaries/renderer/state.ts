@@ -111,7 +111,7 @@ function midnight(daysBack: number): number {
 }
 
 /** Resolves range spans through now unless bounded. Before the first summary, last-summary ranges use the previous session. */
-async function rangeOf(id: SummaryRange): Promise<{ sinceTs: number; untilTs?: number }> {
+export async function rangeOf(id: SummaryRange): Promise<{ sinceTs: number; untilTs?: number }> {
   const ms = SUMMARY_RANGES[id].ms;
   if (ms !== null) return { sinceTs: Date.now() - ms };
   if (id === 'today') return { sinceTs: midnight(0) };

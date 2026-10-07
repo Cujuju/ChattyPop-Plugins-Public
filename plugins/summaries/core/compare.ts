@@ -14,6 +14,8 @@ export class Comparer {
     private readonly summarizer: Summarizer,
     private readonly providers: SummaryProviders,
     private readonly progress: (p: CompareProgress) => void,
+    /** A comparison was stored or deleted. */
+    private readonly changed: () => void = () => undefined,
   ) {}
 
   /**
@@ -62,6 +64,7 @@ export class Comparer {
       results,
     });
     this.progress({ phase: 'done', done: total, total });
+    this.changed();
     return this.get(id)!;
   }
 
@@ -75,6 +78,8 @@ export class Comparer {
   }
 
   delete(id: number): boolean {
-    return deleteComparison(this.db, id);
+    const gone = deleteComparison(this.db, id);
+    if (gone) this.changed();
+    return gone;
   }
 }

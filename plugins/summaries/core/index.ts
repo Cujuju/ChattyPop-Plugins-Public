@@ -33,7 +33,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     localNames: () => ctx.ai.providers().filter((p) => p.local).map((p) => p.displayName),
   };
   const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, providers, emit, () => ctx.identity.names(), ctx.lifetime.signal);
-  const comparer = new Comparer(ctx.storage.db, summarizer, providers, (p) => ctx.channels.emit('compareProgress', p));
+  const comparer = new Comparer(ctx.storage.db, summarizer, providers, (p) => ctx.channels.emit('compareProgress', p), () => ctx.channels.emit('comparisonsChanged', null));
   registerSummaryKinds(ctx.rules, {
     summarize: (request, prompts, trigger) => summarizer.run(request, ctx.ai.settings(), withOwnPrompts(prefs(), prompts), trigger),
   }, emit, (q) => summarizer.coveredFrom(q, prefs()));

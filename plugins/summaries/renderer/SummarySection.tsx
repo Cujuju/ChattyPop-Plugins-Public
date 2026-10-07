@@ -41,6 +41,7 @@ import { createPromptPreview, createSpending, SPEND_PERIODS } from './state';
 import type { ProviderSpend, SummarySpend } from '../shared/types';
 import { WEEKDAY_LABELS as DAY_NAMES } from '@plugin-sdk/shared';
 import { SummaryPromptEditor } from './SummaryPromptEditor';
+import { CompareBody } from './Compare';
 
 /** Settings → AI: where each provider's model is picked. */
 const AI_SETTINGS = 'ai';
@@ -86,6 +87,7 @@ export function SummarySection() {
         },
         { id: 'auto', label: 'Automatic summaries', meta: autoMeta, body: AutoBody },
         { id: 'spending', label: 'Spending', meta: spendMeta, body: () => <SpendingBody spending={spending} /> },
+        { id: 'compare', label: 'Compare models', meta: () => countText(s().compareModels.length, 'model'), body: CompareBody },
         {
           id: 'prompts',
           label: 'Prompts',
@@ -292,7 +294,7 @@ function SpendingBody(props: { spending: () => SummarySpend[] }) {
         Each provider's figure is what its summary calls cost, or would cost, at the model's API list rates: real
         charges on OpenRouter, and on a Claude or ChatGPT plan an equivalent, not a bill. Jev is charged to your
         OpenRouter key. Runs from before costs were kept are estimated from their tokens at today's rates, on the low
-        side. Runs with a local model or a model without a known price have no cost and are left out.
+        side. Runs with a local model or a model without a known price have no cost and are left out. Each model in a comparison counts as a summary.
       </Note>
       <Card>
         <For each={SPEND_PERIODS}>
