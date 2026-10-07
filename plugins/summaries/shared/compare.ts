@@ -33,12 +33,14 @@ export interface ComparisonHead {
   models: CompareModel[];
   /** Models that failed. */
   failed: number;
+  /** Messages every model read. */
+  messageCount: number;
+  /** What the models' calls cost at API rates together, in USD; null when none reported a cost. */
+  apiCostUsd: number | null;
 }
 
 export interface Comparison extends ComparisonHead {
   channelIds: string[];
-  /** Messages every model read. */
-  messageCount: number;
   /** Messages in range left out as filler or quiet before any model read the log. */
   skippedCount: number;
   grouping: SummaryGrouping;

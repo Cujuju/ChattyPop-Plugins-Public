@@ -1,5 +1,5 @@
 // Comparison rows as stored, and each model's column read back as a summary.
-import type { PluginDb } from '@plugin-sdk/core';
+import { sumCosts, type PluginDb } from '@plugin-sdk/core';
 import type { TokenUsage } from '@plugin-sdk/shared';
 import type { CompareModel, Comparison, ComparisonHead } from '../shared/compare';
 import type { SummaryGrouping } from '../shared/settings';
@@ -56,14 +56,19 @@ export function insertComparison(db: PluginDb, c: NewComparison): number {
   return Number(info.lastInsertRowid);
 }
 
-const headOf = (r: ComparisonRow, results: StoredResult[]): ComparisonHead => ({
-  id: r.id,
-  createdAt: r.created_at,
-  sinceTs: r.since_ts,
-  untilTs: r.until_ts,
-  models: results.map((x) => x.model),
-  failed: results.filter((x) => x.error !== null).length,
-});
+function headOf(r: ComparisonRow, results: StoredResult[]): ComparisonHead {
+  const costs = results.flatMap((x) => (typeof x.apiCostUsd === 'number' ? [x.apiCostUsd] : []));
+  return {
+    id: r.id,
+    createdAt: r.created_at,
+    sinceTs: r.since_ts,
+    untilTs: r.until_ts,
+    models: results.map((x) => x.model),
+    failed: results.filter((x) => x.error !== null).length,
+    messageCount: r.message_count,
+    apiCostUsd: costs.length ? sumCosts(costs) : null,
+  };
+}
 
 /** Stored comparisons as privacy mode lists them, newest first. */
 export function comparisonHeads(db: PluginDb): ComparisonHead[] {
@@ -104,7 +109,6 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
   return {
     ...headOf(r, stored),
     channelIds,
-    messageCount: r.message_count,
     skippedCount: r.skipped_count,
     grouping: r.grouping,
     jevCostUsd: r.jev_cost_usd,

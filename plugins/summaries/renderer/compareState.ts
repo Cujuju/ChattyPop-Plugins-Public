@@ -1,12 +1,13 @@
 // Model comparisons: the stored list, the one open, and a run's progress.
 import { createMemo, createSignal } from 'solid-js';
 import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
-import { createAction, effortLabel, formatTokens, providerName, providerStatus, usdText } from '@plugin-sdk/renderer/kit';
+import { clockTime, createAction, effortLabel, formatTokens, providerName, providerStatus, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
 import { summarySettings } from './settings';
 import { rangeOf } from './state';
+import { spansDays } from './order';
 
 const core = coreClient(plugin);
 const active = createMemo(() => pluginsLoaded() && callable(plugin, 'comparisons'));
@@ -53,6 +54,10 @@ export const createOpenComparison = () =>
     const id = openComparisonId();
     return id === null ? null : [id];
   }, null);
+
+/** A range with its day once when it starts and ends the same day: "Wed, Oct 7, 01:22 PM – 01:52 PM". */
+export const rangeText = (sinceTs: number, untilTs: number): string =>
+  spansDays({ sinceTs, untilTs }) ? `${weekdayDateTime(sinceTs)} – ${weekdayDateTime(untilTs)}` : `${weekdayDateTime(sinceTs)} – ${clockTime(untilTs)}`;
 
 /** What every finished model used together: tokens, and API cost when each one reported it. */
 export function totalsText(c: Comparison): string {

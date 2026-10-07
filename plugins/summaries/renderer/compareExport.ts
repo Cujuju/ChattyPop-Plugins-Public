@@ -7,7 +7,7 @@ import { namedText } from '../shared/people';
 import { pointCitations, type Citation, type Summary, type SummaryItem } from '../shared/types';
 import { pointGroups } from './order';
 import { FLAG_TEXT, flagOf, usageParts } from './SummaryContent';
-import { modelText, totalsText } from './compareState';
+import { modelText, rangeText, totalsText } from './compareState';
 
 const HTML_TYPE = 'text/html';
 
@@ -82,7 +82,7 @@ export function comparisonHtml(c: Comparison): string {
   const vars = TOKENS.map((t) => `${t}: ${root.getPropertyValue(t).trim()};`).join(' ');
   const title = `Summary comparison, ${weekdayDateTime(c.createdAt)}`;
   const meta = [
-    `${weekdayDateTime(c.sinceTs)} → ${weekdayDateTime(c.untilTs)}`,
+    rangeText(c.sinceTs, c.untilTs),
     `${countText(c.messageCount, 'message')} every model read${c.skippedCount ? ` (${c.skippedCount} left out as filler or quiet)` : ''}`,
     totalsText(c),
     channelsText(c.channelIds),

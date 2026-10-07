@@ -154,6 +154,25 @@
   padding: var(--cp-space-3) 0;
 }
 
+/* A past comparison's hint: its models as chips, then when it ran and what it read and cost. */
+.pastHint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  padding-top: var(--cp-space-2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+}
+
+.chip {
+  padding: 0 var(--cp-space-3);
+  white-space: nowrap;
+}
+
 /* The open comparison: its details and export, then a column per model. */
 .compare {
   display: flex;

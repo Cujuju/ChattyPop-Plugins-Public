@@ -1,6 +1,6 @@
 // Settings → Summaries → Compare models: pick models, run them on one range, read their summaries side by side.
 import { createSignal, For, Show } from 'solid-js';
-import { Card, Note, Row, Select, countText, look, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { Card, Note, Row, Select, countText, look, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import type { Comparison } from '../shared/compare';
 import { summarySettings } from './settings';
@@ -12,6 +12,7 @@ import {
   createOpenComparison,
   modelText,
   openComparisonId,
+  rangeText,
   removeComparison,
   runComparison,
   setOpenComparisonId,
@@ -91,8 +92,28 @@ function PastCard() {
         <For each={list()} fallback={<Note>None yet.</Note>}>
           {(h) => (
             <Row
-              label={weekdayDateTime(h.createdAt)}
-              hint={`${weekdayDateTime(h.sinceTs)} → ${weekdayDateTime(h.untilTs)} · ${countText(h.models.length, 'model')}${h.failed ? ` · ${h.failed} failed` : ''}`}
+              label={rangeText(h.sinceTs, h.untilTs)}
+              hint={
+                <span class={styles.pastHint}>
+                  <span class={styles.chips}>
+                    <For each={h.models}>
+                      {(m) => (
+                        <span class={`${styles.chip} ${look.tag} ${look.text}`} data-size="2xs" data-line="chip" data-font="sans">
+                          {modelText(m)}
+                        </span>
+                      )}
+                    </For>
+                  </span>
+                  <span>
+                    {[
+                      `Ran ${weekdayDateTime(h.createdAt)}`,
+                      countText(h.messageCount, 'message'),
+                      ...(h.apiCostUsd !== null ? [`≈${usdText(h.apiCostUsd)}`] : []),
+                      ...(h.failed ? [`${h.failed} failed`] : []),
+                    ].join(' · ')}
+                  </span>
+                </span>
+              }
               control={
                 <span class={styles.buttons}>
                   <button
@@ -122,7 +143,7 @@ function ComparisonView(props: { comparison: Comparison }) {
   const c = () => props.comparison;
   const head = () =>
     [
-      `${weekdayDateTime(c().sinceTs)} → ${weekdayDateTime(c().untilTs)}`,
+      rangeText(c().sinceTs, c().untilTs),
       `${countText(c().messageCount, 'message')}${c().skippedCount ? ` (${c().skippedCount} skipped)` : ''}`,
       totalsText(c()),
     ]
