@@ -5,12 +5,14 @@ import { plugin } from '../shared';
 import { withOwnPrompts } from '../shared/settings';
 import type { SummaryEvent } from '../shared/types';
 import { Summarizer } from './summarize';
+import { Comparer } from './compare';
 import { registerSummaryKinds } from './kinds';
 import { migrateAutoSummaries } from './autoSummaries';
 import { coverageSpans, summarySpend } from './summaryRows';
 import { estimateMissingCosts } from './costBackfill';
 import { linkPerson } from './linkPerson';
 import { SUMMARY_MIGRATIONS } from './schema';
+import type { SummaryProviders } from './providers';
 
 /** Activates the complete summary service through the host context. */
 export function activateSummaries(ctx: CoreContext<typeof plugin>) {
@@ -24,12 +26,14 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
       ctx.channels.emit('failed', failure);
     }
   };
-  const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, {
+  const providers: SummaryProviders = {
     get: (id, settings) => ctx.ai.provider(id, settings),
     decider: (_settings, feature) => ctx.jev.decider(feature),
     permitted: (ids, reader) => ctx.ai.sources.permitted(ids, reader),
     localNames: () => ctx.ai.providers().filter((p) => p.local).map((p) => p.displayName),
-  }, emit, () => ctx.identity.names(), ctx.lifetime.signal);
+  };
+  const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, providers, emit, () => ctx.identity.names(), ctx.lifetime.signal);
+  const comparer = new Comparer(ctx.storage.db, summarizer, providers, (p) => ctx.channels.emit('compareProgress', p));
   registerSummaryKinds(ctx.rules, {
     summarize: (request, prompts, trigger) => summarizer.run(request, ctx.ai.settings(), withOwnPrompts(prefs(), prompts), trigger),
   }, emit, (q) => summarizer.coveredFrom(q, prefs()));
@@ -56,6 +60,17 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     spending: (starts) => starts.map((sinceTs) => summarySpend(ctx.storage.db, sinceTs)),
     linkPerson: (id, written, userId) => linkPerson(ctx.storage.db, id, written, userId),
     notifyAuto: () => prefs().notifyAuto,
+    compare: async (request) => {
+      try {
+        return await comparer.run(request, ctx.ai.settings(), prefs());
+      } catch (err) {
+        ctx.channels.emit('compareProgress', { phase: 'error', done: 0, total: request.models.length });
+        throw err;
+      }
+    },
+    comparisons: () => comparer.list(),
+    comparison: (id) => comparer.get(id),
+    deleteComparison: (id) => comparer.delete(id),
   });
   migrateAutoSummaries(ctx, Date.now(), ctx.session.lastSeenAt());
   void estimateMissingCosts(ctx.storage.db, ctx.ai.apiCost);

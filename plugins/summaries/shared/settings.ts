@@ -3,6 +3,7 @@ import { bool, isObj, normalizeProviderId, oneOf, textOrNull, type ProviderId } 
 import { NO_PROMPT_OVERRIDES, normalizeSummaryPrompts, type SummaryPromptTemplates } from './prompts';
 import { MS_PER_DAY, MS_PER_HOUR, MS_PER_MIN } from '@plugin-sdk/shared';
 import { cutText } from '@plugin-sdk/shared';
+import { normalizeCompareModels, type CompareModel } from './compare';
 
 /** Ordered ranges with persisted keys. Null ms denotes session end, latest summary end, local today, or previous local day. Renamed keys reset defaultRange. */
 export const SUMMARY_RANGES = {
@@ -66,6 +67,8 @@ export interface SummarySettings {
   notifyAuto: boolean;
   /** The owner's prompt templates; null = the built-in default. */
   prompts: SummaryPromptTemplates;
+  /** Settings → Summaries → Compare models: the models a comparison runs, in column order. */
+  compareModels: CompareModel[];
 }
 
 export const DEFAULT_SUMMARY_SETTINGS: SummarySettings = {
@@ -86,6 +89,7 @@ export const DEFAULT_SUMMARY_SETTINGS: SummarySettings = {
   defaultRange: 'since',
   notifyAuto: true,
   prompts: NO_PROMPT_OVERRIDES,
+  compareModels: [],
 };
 
 /** The settings a run uses with a rule's own prompts (#88) over the owner's; a null kind keeps the owner's. */
@@ -112,5 +116,6 @@ export function normalizeSummarySettings(v: unknown): SummarySettings {
     defaultRange: oneOf(Object.keys(SUMMARY_RANGES) as SummaryRange[], src['defaultRange'], d.defaultRange),
     notifyAuto: bool(src['notifyAuto'], d.notifyAuto),
     prompts: normalizeSummaryPrompts(src['prompts']),
+    compareModels: normalizeCompareModels(src['compareModels']),
   };
 }

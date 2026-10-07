@@ -21,7 +21,7 @@ import { costPerMessage, coveredFrom, insertSummary, summaryPage, summaryUsageSi
 import { rateComplexity, summaryShapeFingerprint } from './summaryShape';
 import { chunkLog, prepareLog, writeSummary, type Progress } from './summaryWrite';
 
-const NOTHING_NOTABLE = 'Nothing notable in this range.';
+export const NOTHING_NOTABLE ='Nothing notable in this range.';
 /** No provider chosen for summaries. */
 const NO_PROVIDER = 'No AI provider is chosen for summaries: Settings → Summaries.';
 /** #60 model routing picks between OpenRouter models, so it applies only to runs on the OpenRouter provider. */

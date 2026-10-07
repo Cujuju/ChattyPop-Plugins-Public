@@ -3,7 +3,7 @@ import type { CitationCheck, Citation, Summary, SummaryItem, SummaryPageQuery, S
 import type { AppUsage, TokenUsage } from '@plugin-sdk/shared';
 import type { ProviderId } from '@plugin-sdk/shared';
 import type { SummaryGrouping, SummaryTrigger } from '../shared/settings';
-import { SUMMARIES_TABLE, VISIBLE_SUMMARIES } from './schema';
+import { COMPARISONS_TABLE, SUMMARIES_TABLE, VISIBLE_SUMMARIES } from './schema';
 import type { CoverageSpan, PluginDb } from '@plugin-sdk/core';
 import { sumCosts } from '@plugin-sdk/core';
 import type { LogLine } from './summaryJev';
@@ -199,17 +199,29 @@ export function costPerMessage(db: PluginDb, provider: ProviderId, model: string
   return r.usd === null || !r.messages ? null : r.usd / r.messages;
 }
 
-/** What runs since `sinceTs` cost, per provider. A run that read no messages called no model. */
+/**
+ * What runs since `sinceTs` cost, per provider: summaries, and each finished column of a comparison (failed columns
+ * reported nothing). A run that read no messages called no model. Comparisons' shared Jev steps count toward Jev.
+ */
 export function summarySpend(db: PluginDb, sinceTs: number): SummarySpend {
+  const col = (path: string): string => `json_extract(r.value, '$.${path}')`;
   const rows = db
     .prepare(
-      `SELECT provider, COUNT(*) AS runs, COALESCE(SUM(input_tokens), 0) AS inputTokens, COALESCE(SUM(cached_input_tokens), 0) AS cachedInputTokens,
+      `WITH runs AS (
+         SELECT provider, input_tokens, cached_input_tokens, output_tokens, api_cost_usd, message_count, jev_cost_usd
+         FROM ${SUMMARIES_TABLE} WHERE created_at >= ?
+         UNION ALL
+         SELECT ${col('model.provider')}, ${col('usage.inputTokens')}, ${col('usage.cachedInputTokens')}, ${col('usage.outputTokens')},
+                ${col('apiCostUsd')}, c.message_count, ${col('jevCostUsd')}
+         FROM ${COMPARISONS_TABLE} c, json_each(c.results_json) r WHERE c.created_at >= ? AND ${col('error')} IS NULL)
+       SELECT provider, COUNT(*) AS runs, COALESCE(SUM(input_tokens), 0) AS inputTokens, COALESCE(SUM(cached_input_tokens), 0) AS cachedInputTokens,
               COALESCE(SUM(output_tokens), 0) AS outputTokens, COALESCE(SUM(api_cost_usd), 0) AS apiCostUsd,
               SUM(api_cost_usd IS NULL AND message_count > 0) AS unpricedRuns, COALESCE(SUM(jev_cost_usd), 0) AS jev
-       FROM ${SUMMARIES_TABLE} WHERE created_at >= ? GROUP BY provider ORDER BY apiCostUsd DESC, provider`,
+       FROM runs GROUP BY provider ORDER BY apiCostUsd DESC, provider`,
     )
-    .all(sinceTs) as (ProviderSpend & { jev: number })[];
-  return { providers: rows.map(({ jev: _, ...p }) => p), jevCostUsd: rows.reduce((n, r) => n + r.jev, 0) };
+    .all(sinceTs, sinceTs) as (ProviderSpend & { jev: number })[];
+  const sharedJev = db.prepare(`SELECT COALESCE(SUM(jev_cost_usd), 0) FROM ${COMPARISONS_TABLE} WHERE created_at >= ?`).pluck().get(sinceTs) as number;
+  return { providers: rows.map(({ jev: _, ...p }) => p), jevCostUsd: rows.reduce((n, r) => n + r.jev, sharedJev) };
 }
 
 export function summaryUsageSince(db: PluginDb, provider: ProviderId, sinceTs: number): AppUsage {

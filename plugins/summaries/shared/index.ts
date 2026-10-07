@@ -1,6 +1,7 @@
 // Summaries: archived recaps, scheduled rules, citations and notifications.
 import { defineChannels, definePlugin, definePreference, finiteOr, type AppUsage, type ProviderId } from '@plugin-sdk/shared';
 import { decodePrompts, decodeSpending } from './calls';
+import { decodeComparisonId, decodeCompareRequest, type Comparison, type ComparisonHead, type CompareProgress, type CompareRequest } from './compare';
 import { summarize } from './rules';
 import { SUMMARY_FEATURES, SUMMARY_QUERIES } from './queries';
 import { decodeSummaryRequest } from './request';
@@ -20,6 +21,12 @@ export interface SummaryCalls {
   /** The owner names a person: summary `id`'s `written` (a whole word or phrase) becomes `userId`; how many it linked. */
   linkPerson(id: number, written: string, userId: string): number;
   notifyAuto(): boolean;
+  /** Runs a comparison and stores it. */
+  compare(request: CompareRequest): Promise<Comparison>;
+  /** Stored comparisons, newest first. */
+  comparisons(): ComparisonHead[];
+  comparison(id: number): Comparison | null;
+  deleteComparison(id: number): boolean;
 }
 
 /** Run progress and results; main only receives events that may notify. */
@@ -27,6 +34,7 @@ export interface SummaryEvents {
   progress: SummaryProgress;
   added: Summary;
   failed: SummaryFailure;
+  compareProgress: CompareProgress;
 }
 
 /** Stable identities and legacy storage adoption. */
@@ -59,11 +67,17 @@ export const plugin = definePlugin({
       spending: { audiences: ['renderer', 'phone'], writes: false, decode: decodeSpending },
       linkPerson: ['renderer'],
       notifyAuto: ['main'],
+      // A comparison stores its columns and spends each model's plan.
+      compare: { audiences: ['renderer', 'phone'], writes: true, decode: decodeCompareRequest },
+      comparisons: { audiences: ['renderer', 'phone'], writes: false },
+      comparison: { audiences: ['renderer', 'phone'], writes: false, decode: decodeComparisonId },
+      deleteComparison: { audiences: ['renderer', 'phone'], writes: true, decode: decodeComparisonId },
     },
     events: {
       progress: ['renderer', 'phone'],
       added: ['renderer', 'phone', 'main'],
       failed: ['renderer', 'phone', 'main'],
+      compareProgress: ['renderer', 'phone'],
     },
   }),
   panels: [{
@@ -115,7 +129,7 @@ export const plugin = definePlugin({
   },
   // Core redacts summaries under privacy mode, so one made before it changed is not sent.
   notices: [{ kind: 'summary', privacyScoped: true, after: 'plugin' }],
-  archiveRefs: { summaries: { channels: 'channel_ids' } },
+  archiveRefs: { summaries: { channels: 'channel_ids' }, comparisons: { channels: 'channel_ids' } },
   slots: {
     statusBar: [{ id: 'status', after: 'disk' }],
     phoneSections: [{ id: 'summary', before: 'archive' }],
