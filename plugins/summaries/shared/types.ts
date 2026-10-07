@@ -51,6 +51,8 @@ export interface Summary {
   sinceTs: number;
   untilTs: number;
   channelIds: string[];
+  /** What the run was asked to read; null when it read everything. */
+  scope: SummaryScope | null;
   /** Messages the LLM read. */
   messageCount: number;
   /** Messages in range that Jev judged filler and left out. */
@@ -101,11 +103,19 @@ export interface SummaryPageQuery {
   before?: { createdAt: number; id: number };
 }
 
+/** Where a run reads: whole servers, and channels with their threads. A run with none reads every archived channel. */
+export interface SummaryScope {
+  guildIds: string[];
+  channelIds: string[];
+}
+
 export interface SummaryRequest {
   sinceTs: number;
   untilTs?: number;
-  /** Defaults to every opted-in channel. */
+  /** Exactly these channels (a rule's, already resolved); unset, the run reads `scope`. */
   channelIds?: string[];
+  /** The servers and channels to read; unset, every opted-in channel. */
+  scope?: SummaryScope;
   /** Defaults to the default provider in AI settings. */
   provider?: ProviderId;
 }

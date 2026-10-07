@@ -25,4 +25,6 @@ export const SUMMARY_MIGRATIONS = [
   `CREATE TABLE ${COMPARISONS_TABLE} (id INTEGER PRIMARY KEY, created_at INTEGER NOT NULL, since_ts INTEGER NOT NULL, until_ts INTEGER NOT NULL,
      channel_ids TEXT NOT NULL, message_count INTEGER NOT NULL, skipped_count INTEGER NOT NULL, grouping TEXT NOT NULL, jev_cost_usd REAL,
      results_json TEXT NOT NULL)`,
+  // What a run was asked to read (SummaryScope JSON); null: everything.
+  `ALTER TABLE ${SUMMARIES_TABLE} ADD COLUMN scope_json TEXT`,
 ] as const;

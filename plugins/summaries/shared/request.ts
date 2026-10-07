@@ -1,6 +1,6 @@
 // A summary request as a caller sent it (the phone makes the call), checked before a run starts.
 import { isObj, normalizeProviderId, snowflakeArg } from '@plugin-sdk/shared';
-import type { SummaryRequest } from './types';
+import type { SummaryRequest, SummaryScope } from './types';
 
 /** A time in ms, or it throws. */
 function time(v: unknown, what: string): number {
@@ -8,17 +8,29 @@ function time(v: unknown, what: string): number {
   return v;
 }
 
-/** summarize's arguments checked: a range, and optionally its channels and provider; throws the reason it isn't one. */
+/** A list of ids, or it throws naming what they should be. */
+function ids(v: unknown, what: 'channel' | 'server'): string[] {
+  if (!Array.isArray(v)) throw new Error(`Not a list of ${what}s.`);
+  return v.map((id) => snowflakeArg(id, what));
+}
+
+/** A scope's servers and channels, or it throws. */
+function scope(v: unknown): SummaryScope {
+  if (!isObj(v)) throw new Error('Not a summary scope.');
+  return { guildIds: ids(v['guildIds'], 'server'), channelIds: ids(v['channelIds'], 'channel') };
+}
+
+/** summarize's arguments checked: a range, and optionally its channels or scope and provider; throws the reason it isn't one. */
 export function decodeSummaryRequest([request]: readonly unknown[]): [SummaryRequest] {
   if (!isObj(request)) throw new Error('Not a summary request.');
   const { sinceTs, untilTs, channelIds, provider } = request;
-  if (channelIds !== undefined && !Array.isArray(channelIds)) throw new Error('Not a list of channels.');
   const providerId = provider === undefined ? undefined : normalizeProviderId(provider);
   if (providerId === null) throw new Error('Not a provider id.');
   return [{
     sinceTs: time(sinceTs, 'start'),
     ...(untilTs === undefined ? {} : { untilTs: time(untilTs, 'end') }),
-    ...(channelIds === undefined ? {} : { channelIds: channelIds.map((id) => snowflakeArg(id, 'channel')) }),
+    ...(channelIds === undefined ? {} : { channelIds: ids(channelIds, 'channel') }),
+    ...(request['scope'] === undefined ? {} : { scope: scope(request['scope']) }),
     ...(providerId === undefined ? {} : { provider: providerId }),
   }];
 }

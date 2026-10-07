@@ -90,6 +90,7 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
     sinceTs: r.since_ts,
     untilTs: r.until_ts,
     channelIds,
+    scope: null,
     messageCount: r.message_count,
     skippedCount: r.skipped_count,
     durationMs: x.durationMs,

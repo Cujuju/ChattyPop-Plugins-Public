@@ -1,6 +1,6 @@
 // Queued summary generation, caching and progress.
 import { createHash } from 'node:crypto';
-import type { Summary, SummaryEstimate, SummaryPageQuery, SummaryPrompts, SummaryRequest } from '../shared/types';
+import type { Summary, SummaryEstimate, SummaryPageQuery, SummaryPrompts, SummaryRequest, SummaryScope } from '../shared/types';
 import type { AppUsage } from '@plugin-sdk/shared';
 import type { SummaryEvent as AppEvent } from '../shared/types';
 import { orList, type AiSettings, type ProviderId } from '@plugin-sdk/shared';
@@ -37,6 +37,17 @@ export class EmptyRangeError extends Error {
   }
 }
 
+/** Opted-in channels in a scope: each server's, and each channel with its threads. */
+function scopeChannels(db: PluginDb, s: SummaryScope): string[] {
+  return db
+    .prepare(
+      `SELECT id FROM archive_all_channels WHERE opted_in = 1 AND (id IN (SELECT value FROM json_each(@channels))
+         OR parent_id IN (SELECT value FROM json_each(@channels)) OR guild_id IN (SELECT value FROM json_each(@guilds)))`,
+    )
+    .pluck()
+    .all({ channels: JSON.stringify(s.channelIds), guilds: JSON.stringify(s.guildIds) }) as string[];
+}
+
 /** `settings` with provider `id` set to `model` and `effort`; the rest of its settings (on or off, name) stay. */
 export const withModel = (settings: AiSettings, id: ProviderId, model: string | null, effort: string | null): AiSettings => ({
   ...settings,
@@ -68,13 +79,19 @@ export class Summarizer {
   /** Returns continuous summary coverage for every currently readable requested channel; null if any channel lacks coverage. */
   coveredFrom(q: CoverageQuery, prefs: SummarySettings): number | null {
     const providerId = prefs.defaultProvider;
-    const { readable } = this.channels(q.channelIds, providerId);
+    const { readable } = this.channels(q, providerId);
     return readable.length ? coveredFrom(this.db, readable, q.sinceTs) : null;
   }
 
-  /** The requested channels (null: every archived one) and those a run with `providerId` reads: local-AI-only ones need a local provider (#38). */
-  private channels(channelIds: string[] | null | undefined, providerId: ProviderId | null): { requested: string[]; readable: string[] } {
-    const requested = channelIds ?? (this.db.prepare('SELECT id FROM archive_all_channels WHERE opted_in = 1').pluck().all() as string[]);
+  /**
+   * The requested channels and those a run with `providerId` reads: local-AI-only ones need a local provider (#38).
+   * Requested: `channelIds` as given, else the opted-in channels in `scope` (a server's, a channel and its threads), else every one.
+   */
+  private channels(
+    q: { channelIds?: string[] | null; scope?: SummaryScope },
+    providerId: ProviderId | null,
+  ): { requested: string[]; readable: string[] } {
+    const requested = q.channelIds ?? (q.scope ? scopeChannels(this.db, q.scope) : (this.db.prepare('SELECT id FROM archive_all_channels WHERE opted_in = 1').pluck().all() as string[]));
     return { requested, readable: this.providers.permitted(requested, providerId === null ? 'hosted' : { provider: providerId }) };
   }
 
@@ -110,7 +127,7 @@ export class Summarizer {
   input(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, providerIds: readonly ProviderId[]): RunInput {
     const untilTs = req.untilTs ?? Date.now();
     // Local-AI-only channels: only a local provider may see them; with any other they're left out.
-    const [first, ...rest] = providerIds.map((id) => this.channels(req.channelIds, id));
+    const [first, ...rest] = providerIds.map((id) => this.channels(req, id));
     const { requested, readable: channelIds } = first!;
     if (rest.some((r) => r.readable.length !== channelIds.length || r.readable.some((id) => !channelIds.includes(id)))) throw new Error(MIXED_READERS);
     if (requested.length && !channelIds.length) {

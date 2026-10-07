@@ -24,6 +24,7 @@ import {
   SectionsPage,
   choiceOptions,
   countText,
+  createAction,
   formatTokens,
   LinkButton,
   look,
@@ -42,6 +43,7 @@ import type { ProviderSpend, SummarySpend } from '../shared/types';
 import { WEEKDAY_LABELS as DAY_NAMES } from '@plugin-sdk/shared';
 import { SummaryPromptEditor } from './SummaryPromptEditor';
 import { CompareBody } from './Compare';
+import { ScopeSelect, ruleScope, setRuleScope } from './scope';
 
 /** Settings → AI: where each provider's model is picked. */
 const AI_SETTINGS = 'ai';
@@ -82,12 +84,13 @@ export function SummarySection() {
         {
           id: 'style',
           label: 'Summary style',
+          divider: true,
           meta: () => `${LENGTH_LABEL[s().length]} · ${GROUPINGS[s().grouping].meta}`,
           body: StyleBody,
         },
         { id: 'auto', label: 'Automatic summaries', meta: autoMeta, body: AutoBody },
         { id: 'spending', label: 'Spending', meta: spendMeta, body: () => <SpendingBody spending={spending} /> },
-        { id: 'compare', label: 'Compare models', meta: () => countText(s().compareModels.length, 'model'), body: CompareBody },
+        { id: 'compare', label: 'Compare models', divider: true, meta: () => countText(s().compareModels.length, 'model'), body: CompareBody },
         {
           id: 'prompts',
           label: 'Prompts',
@@ -220,12 +223,13 @@ function StyleBody() {
 /** Summaries on a schedule are rules (#96): listed here, edited in Settings → Rules. */
 function AutoBody() {
   const s = summarySettings;
+  const scopeSave = createAction();
   return (
     <>
       <Note>
         Rules that summarize on a schedule: at a time of day, every few hours, or when ChattyPop opens after time away.
-        They use the default AI provider and count toward its plan usage, start once sync has caught up, and appear in
-        the Summary panel.
+        Each reads everything, one server or one channel. They use the default AI provider and count toward its plan
+        usage, start once sync has caught up, and appear in the Summary panel.
       </Note>
       <Card>
         <For each={scheduledSummaries()}>
@@ -234,13 +238,19 @@ function AutoBody() {
               label={r.name}
               hint={`${r.spec.trigger.type === 'timed' ? timedTriggerText(r.spec.trigger.config as import('@plugin-sdk/shared').TimedTrigger, DAY_NAMES) : ''} · ${r.enabled ? 'on' : 'off'}`}
               control={
-                <button type="button" class="cp-button" onClick={() => openRule(r.id)}>
-                  Edit…
-                </button>
+                <span class={styles.buttons}>
+                  <ScopeSelect class={styles.control} value={ruleScope(r)} onChange={(scope) => void scopeSave.run(() => setRuleScope(r, scope))} />
+                  <button type="button" class="cp-button" onClick={() => openRule(r.id)}>
+                    Edit…
+                  </button>
+                </span>
               }
             />
           )}
         </For>
+        <Show when={scopeSave.error()}>
+          <Note kind="error">{scopeSave.error()}</Note>
+        </Show>
         <Row
           label="Add a scheduled summary"
           hint="A new rule: pick “Daily digest” or “Catch me up”, or start it on a time and add Summarize."

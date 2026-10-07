@@ -1,5 +1,5 @@
 // Summary rows as stored, and the pure helpers the Summarizer builds on.
-import type { CitationCheck, Citation, Summary, SummaryItem, SummaryPageQuery, SummaryRequest, SummarySpend, SummaryTheme, ProviderSpend } from '../shared/types';
+import type { CitationCheck, Citation, Summary, SummaryItem, SummaryPageQuery, SummaryRequest, SummaryScope, SummarySpend, SummaryTheme, ProviderSpend } from '../shared/types';
 import type { AppUsage, TokenUsage } from '@plugin-sdk/shared';
 import type { ProviderId } from '@plugin-sdk/shared';
 import type { SummaryGrouping, SummaryTrigger } from '../shared/settings';
@@ -31,6 +31,7 @@ export interface SummaryRow {
   run_trigger: SummaryTrigger;
   grouping: SummaryGrouping;
   actions_json: string;
+  scope_json: string | null;
 }
 
 /** A point as stored before points had parts: one text and every citation. */
@@ -54,6 +55,7 @@ export const toSummary = (r: SummaryRow): Summary => ({
   sinceTs: r.since_ts,
   untilTs: r.until_ts,
   channelIds: JSON.parse(r.channel_ids),
+  scope: r.scope_json ? (JSON.parse(r.scope_json) as SummaryScope) : null,
   messageCount: r.message_count,
   skippedCount: r.skipped_count,
   durationMs: r.duration_ms,
@@ -151,20 +153,23 @@ export interface NewSummary {
   grouping: SummaryGrouping;
 }
 
+/** What a run was asked to read: its scope, or a rule's channels; null for everything. */
+const scopeOf = (req: SummaryRequest): SummaryScope | null => req.scope ?? (req.channelIds ? { guildIds: [], channelIds: req.channelIds } : null);
+
 /** Stores a run and returns it as read back. */
 export function insertSummary(db: PluginDb, r: NewSummary): Summary {
   const info = db
     .prepare(
       `INSERT INTO ${SUMMARIES_TABLE} (cache_key, created_at, provider, model, since_ts, until_ts, channel_ids, message_count, duration_ms, headline, items_json,
                               input_tokens, cached_input_tokens, output_tokens, skipped_count, jev_cost_usd, themes_json, run_trigger, grouping, actions_json,
-                              api_cost_usd)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              api_cost_usd, scope_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       r.cacheKey, Date.now(), r.providerId, r.model, r.req.sinceTs, r.untilTs, JSON.stringify(r.channelIds), r.sent, Date.now() - r.started, r.headline,
       JSON.stringify(r.items), r.usage?.inputTokens ?? null, r.usage?.cachedInputTokens ?? null, r.usage?.outputTokens ?? null, r.skipped,
       sumCosts(r.jevCosts), r.themes ? JSON.stringify(r.themes) : null,
-      r.trigger, r.grouping, JSON.stringify(r.actions), r.apiCostUsd,
+      r.trigger, r.grouping, JSON.stringify(r.actions), r.apiCostUsd, scopeOf(r.req) && JSON.stringify(scopeOf(r.req)),
     );
   return toSummary(db.prepare(`SELECT * FROM ${SUMMARIES_TABLE} WHERE id = ?`).get(info.lastInsertRowid) as SummaryRow);
 }

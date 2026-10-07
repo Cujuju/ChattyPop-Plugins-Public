@@ -40,6 +40,7 @@ describe('summaries in privacy mode', () => {
     createdAt: 0,
     provider: 'claude',
     model: null,
+    scope: null,
     sinceTs: 0,
     untilTs: 1,
     channelIds: [GENERAL, MODS],

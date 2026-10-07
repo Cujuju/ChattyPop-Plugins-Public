@@ -1,6 +1,7 @@
 // Summary history, progress and range state over scoped plugin channels.
 import { createEffect, createMemo, createResource, createSignal } from 'solid-js';
-import type { Summary, SummaryProgress } from '../shared/types';
+import type { Summary, SummaryProgress, SummaryScope } from '../shared/types';
+import { scopeKey } from './scope';
 import { plugin } from '../shared';
 import { callable, pluginsLoaded, coreClient, pluginData, pluginResource, onEvent, lastSeenAt, pluginPreference, onAppEvent } from '@plugin-sdk/renderer';
 import { refetchPlanUsage, createAction, createPagedList, aiSettings } from '@plugin-sdk/renderer/kit';
@@ -15,6 +16,9 @@ import { dayOf } from './order';
 const [pickedRange, setSummaryRange] = createSignal<SummaryRange | null>(null);
 export { setSummaryRange };
 export const summaryRange = (): SummaryRange => pickedRange() ?? summarySettings().defaultRange;
+
+/** What the panel summarizes this session: everything until a server or channel is picked. */
+export const [summaryScope, setSummaryScope] = createSignal<SummaryScope | null>(null);
 
 /** Summary runs fetched per page of the history. */
 const SUMMARY_PAGE_SIZE = 20;
@@ -110,15 +114,15 @@ function midnight(daysBack: number): number {
   return d.getTime();
 }
 
-/** Resolves range spans through now unless bounded. Before the first summary, last-summary ranges use the previous session. */
-export async function rangeOf(id: SummaryRange): Promise<{ sinceTs: number; untilTs?: number }> {
+/** Resolves range spans through now unless bounded. "Last run" is the last run over scope; before one, the previous session. */
+export async function rangeOf(id: SummaryRange, scope: SummaryScope | null = null): Promise<{ sinceTs: number; untilTs?: number }> {
   const ms = SUMMARY_RANGES[id].ms;
   if (ms !== null) return { sinceTs: Date.now() - ms };
   if (id === 'today') return { sinceTs: midnight(0) };
   if (id === 'yesterday') return { sinceTs: midnight(1), untilTs: midnight(0) };
   if (id === 'last') {
     await firstPage;
-    const until = latestSummary()?.untilTs;
+    const until = history.items.findLast((s) => scopeKey(s.scope) === scopeKey(scope))?.untilTs;
     if (until !== undefined) return { sinceTs: until };
   }
   return { sinceTs: await lastSeenAt() };
@@ -127,7 +131,8 @@ export async function rangeOf(id: SummaryRange): Promise<{ sinceTs: number; unti
 /** Runs a summary for the selected range with the default provider. */
 export async function runSummary(): Promise<void> {
   setSummaryProgress(null);
-  const run = await summaryAction.run(async () => core.summarize(await rangeOf(summaryRange())));
+  const scope = summaryScope();
+  const run = await summaryAction.run(async () => core.summarize({ ...(await rangeOf(summaryRange(), scope)), ...(scope ? { scope } : {}) }));
   setSummaryProgress(null);
   // A cache hit returns a stored run (no summary-added event).
   if (run && active()) addRun(run);
@@ -161,11 +166,12 @@ export function createSpending() {
   }, []);
 }
 
-/** Returns the endpoint covered by earlier loaded runs, or null without overlap. Earlier pages can change the oldest displayed run's label. */
+/** Returns the endpoint covered by earlier loaded runs over the same scope, or null without overlap. Earlier pages can change the oldest displayed run's label. */
 export function overlapUntil(s: Summary): number | null {
   let covered = -Infinity;
   for (const earlier of history.items) {
     if (earlier.id === s.id) break;
+    if (scopeKey(earlier.scope) !== scopeKey(s.scope)) continue;
     covered = Math.max(covered, earlier.untilTs);
   }
   return covered > s.sinceTs ? Math.min(covered, s.untilTs) : null;

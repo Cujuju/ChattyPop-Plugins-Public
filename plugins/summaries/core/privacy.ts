@@ -32,6 +32,7 @@ export function shownSummary(s: Summary, p: Privacy): Summary {
   return {
     ...s,
     channelIds: s.channelIds.filter((id) => !p.hiddenChannels.has(id)),
+    scope: s.scope && { ...s.scope, channelIds: s.scope.channelIds.filter((id) => !p.hiddenChannels.has(id)) },
     headline: p.redact(s.headline),
     items: shownPoints(s.items, p),
     actions: shownPoints(s.actions, p),

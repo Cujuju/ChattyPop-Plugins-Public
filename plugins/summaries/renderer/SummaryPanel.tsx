@@ -24,12 +24,15 @@ import {
   overlapUntil,
   runSummary,
   setSummaryRange,
+  setSummaryScope,
   summaryError,
   summaryHistory,
   summaryProgress,
   summaryRange,
   summaryRunning,
+  summaryScope,
 } from './state';
+import { ScopeSelect, scopeLabel } from './scope';
 import { spansDays } from './order';
 import styles from './Summary.module.css';
 import { META, SummaryContent } from './SummaryContent';
@@ -69,7 +72,7 @@ export function SummaryPanel() {
   return (
     <section class="cp-panel" aria-label="Summary">
       <PanelHeader section="summary" collapsible title="Summary">
-        {/* Phone provider, range and Summarize controls sit between the title and app bar controls. */}
+        {/* Phone provider, scope, range and Summarize controls sit between the title and app bar controls. */}
         <HeaderActions align={inCompanion ? 'center' : 'end'}>
           {/* The same choice as Settings → Summaries → Provider: automatic summaries use it too. */}
           <ProviderSelect
@@ -79,6 +82,7 @@ export function SummaryPanel() {
             value={summarySettings().defaultProvider}
             onChange={(defaultProvider) => patchSummarySettings({ defaultProvider })}
           />
+          <ScopeSelect class={styles.select} value={summaryScope()} onChange={setSummaryScope} />
           <Select
             class={styles.select}
             label="Range"
@@ -140,6 +144,7 @@ function SummaryRun(props: { summary: Summary }) {
         {' → '}
         <time dateTime={isoTime(s().untilTs)}>{withDay() ? weekdayDateTime(s().untilTs) : clockTime(s().untilTs)}</time>
         <Show when={TRIGGER_TEXT[s().trigger]}>{(t) => ` · ${t()}`}</Show>
+        <Show when={s().scope}>{(sc) => ` · ${scopeLabel(sc())}`}</Show>
         <Show when={overlapUntil(s())}>{(t) => ` · Overlaps earlier summaries until ${shortDateTime(t())}`}</Show>
       </p>
       <SummaryContent summary={s()} withDay={withDay()} />
