@@ -1,30 +1,34 @@
 // Queued summary generation, caching and progress.
 import { createHash } from 'node:crypto';
-import type { Citation, Summary, SummaryItem, SummaryEstimate, SummaryPageQuery, SummaryPart, SummaryPrompts, SummaryRequest, SummaryTheme } from '../shared/types';
-import type { AppUsage, TokenUsage } from '@plugin-sdk/shared';
+import type { Summary, SummaryEstimate, SummaryPageQuery, SummaryPrompts, SummaryRequest } from '../shared/types';
+import type { AppUsage } from '@plugin-sdk/shared';
 import type { SummaryEvent as AppEvent } from '../shared/types';
 import { orList, type AiSettings, type ProviderId } from '@plugin-sdk/shared';
 import type { SummarySettings, SummaryTrigger } from '../shared/settings';
 import type { PluginDb, ArchiveReplyReader, CoverageQuery } from '@plugin-sdk/core';
 import { privacy } from '@plugin-sdk/core';
 import { shownSummary } from './privacy';
-import { linkMarked, peopleByName, peopleByTag, unmarked, withPeople } from './people';
+import { withPeople } from './people';
 import { FILLER_RULES_VERSION } from './filler';
 import type { SummaryProviders as ProviderRegistry } from './providers';
 import { SUMMARIES_TABLE } from './schema';
-import { boundDecider, chosenModel, sumCosts } from '@plugin-sdk/core';
-import { checkCitations, skipFiller, summaryJevFingerprint } from './summaryJev';
+import { boundDecider } from '@plugin-sdk/core';
+import { summaryJevFingerprint } from './summaryJev';
 import { logDigest, readLog } from './summaryLog';
-import { PROMPT_VERSION, THEMES_VERSION, mergePrompt, partialText, schemaFor, systemPrompt, wholePoint, type Draft, type DraftPart, type PromptOptions } from './summaryPrompt';
-import { maxJevQuestions, type RunPlan } from './summaryEstimate';
-import { chunk, costPerMessage, coveredFrom, insertSummary, sumUsage, summaryPage, summaryUsageSince, toSummary, type NewSummary, type SummaryRow } from './summaryRows';
-import { assignThemes, chunkByConversation, rateComplexity, skipQuiet, summaryShapeFingerprint } from './summaryShape';
+import { PROMPT_VERSION, THEMES_VERSION, mergePrompt, systemPrompt, type PromptOptions } from './summaryPrompt';
+import { maxJevQuestions, type RunInput, type RunPlan } from './summaryEstimate';
+import { costPerMessage, coveredFrom, insertSummary, summaryPage, summaryUsageSince, toSummary, type NewSummary, type SummaryRow } from './summaryRows';
+import { rateComplexity, summaryShapeFingerprint } from './summaryShape';
+import { chunkLog, prepareLog, writeSummary, type Progress } from './summaryWrite';
 
 const NOTHING_NOTABLE = 'Nothing notable in this range.';
 /** No provider chosen for summaries. */
 const NO_PROVIDER = 'No AI provider is chosen for summaries: Settings → Summaries.';
 /** #60 model routing picks between OpenRouter models, so it applies only to runs on the OpenRouter provider. */
 const ROUTED_PROVIDER = 'openrouter';
+/** Providers that may read different channels would be sent different logs. */
+const MIXED_READERS =
+  'Some of these channels are set to local AI only, so local and hosted models would read different messages. Compare local models only, or hosted ones only.';
 
 /** The range holds no archived messages: nothing to summarize (automatic runs skip quietly). */
 export class EmptyRangeError extends Error {
@@ -32,6 +36,12 @@ export class EmptyRangeError extends Error {
     super('No archived messages in this range.');
   }
 }
+
+/** `settings` with provider `id` set to `model` and `effort`; the rest of its settings (on or off, name) stay. */
+export const withModel = (settings: AiSettings, id: ProviderId, model: string | null, effort: string | null): AiSettings => ({
+  ...settings,
+  providers: { ...settings.providers, [id]: { enabled: true, displayName: null, ...settings.providers[id], model, effort } },
+});
 
 export class Summarizer {
   /** Runs go one at a time, so a manual run and an automatic one never interleave their progress. */
@@ -45,7 +55,7 @@ export class Summarizer {
     /** The signed-in user's names, for action items; null until known. */
     private readonly reader: () => string[] | null = () => null,
     /** The plugin activation's lifetime: a run stops between stages once it ends, settling as inactive. */
-    private readonly lifetime: AbortSignal = new AbortController().signal,
+    readonly lifetime: AbortSignal = new AbortController().signal,
   ) {}
 
   /** Runs after any run in progress; resolves with the summary as privacy mode shows it. */
@@ -93,16 +103,16 @@ export class Summarizer {
     return { length: prefs.length, grouping: prefs.grouping, actionItems: prefs.actionItems, focus: prefs.focus, reader: this.reader(), themes, templates: prefs.prompts };
   }
 
-  /** Everything a run is decided by before any model is called: provider, log, Jev steps, prompt options and cache key. */
-  private plan(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): RunPlan {
-    const providerId: ProviderId | null = req.provider ?? prefs.defaultProvider;
-    if (!providerId) throw new Error(NO_PROVIDER);
-    // Throws, naming why, while it can't run or is turned off in Settings → AI; so its choice is stored.
-    const provider = this.providers.get(providerId, settings);
-    const { model, effort } = settings.providers[providerId]!;
+  /**
+   * What every one of `providerIds` reads for `req`: the channels, the log and Jev's steps. Throws when they would read
+   * different channels, so a comparison always sends each model the same log.
+   */
+  input(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, providerIds: readonly ProviderId[]): RunInput {
     const untilTs = req.untilTs ?? Date.now();
     // Local-AI-only channels: only a local provider may see them; with any other they're left out.
-    const { requested, readable: channelIds } = this.channels(req.channelIds, providerId);
+    const [first, ...rest] = providerIds.map((id) => this.channels(req.channelIds, id));
+    const { requested, readable: channelIds } = first!;
+    if (rest.some((r) => r.readable.length !== channelIds.length || r.readable.some((id) => !channelIds.includes(id)))) throw new Error(MIXED_READERS);
     if (requested.length && !channelIds.length) {
       throw new Error(`These channels are set to local AI only. Summarize them with ${orList(this.providers.localNames()) || 'a local AI provider'}.`);
     }
@@ -113,20 +123,34 @@ export class Summarizer {
     // Applies rule-based filler filtering before Jev. If all messages are filler, restores the full input.
     const afterRules = prefs.skipObviousFiller && lines.some((l) => !l.filler) ? lines.filter((l) => !l.filler) : lines;
 
-    // Enabled, keyed Jev features affect the cache key. Local-only text excludes OpenRouter Jev; every request identifies the run's channels.
+    // Local-only text excludes OpenRouter Jev; every request identifies the run's channels.
     const jevFor = (f: Parameters<ProviderRegistry['decider']>[1]) => {
       const d = includesLocalOnly ? null : this.providers.decider(settings, f);
       return d && boundDecider(d, channelIds);
     };
-    const { cheapModel, premiumModel, cheapEffort, premiumEffort } = prefs.jevRouting;
-    const jev: RunPlan['jev'] = {
+    const jev: RunInput['jev'] = {
       filter: jevFor('summaryFilter'),
       check: jevFor('citationCheck'),
       quiet: jevFor('skipQuietStretches'),
       chunk: jevFor('conversationChunks'),
       theme: jevFor('keyThemes'),
-      route: providerId === ROUTED_PROVIDER && cheapModel && premiumModel ? jevFor('modelRouting') : null,
     };
+    return { untilTs, channelIds, lines, afterRules, jev, includesLocalOnly, opts: this.promptOptions(prefs, jev.theme !== null) };
+  }
+
+  /** Everything a run is decided by before any model is called: provider, log, Jev steps, prompt options and cache key. */
+  private plan(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): RunPlan {
+    const providerId: ProviderId | null = req.provider ?? prefs.defaultProvider;
+    if (!providerId) throw new Error(NO_PROVIDER);
+    // Throws, naming why, while it can't run or is turned off in Settings → AI; so its choice is stored.
+    const provider = this.providers.get(providerId, settings);
+    const { model, effort } = settings.providers[providerId]!;
+    const input = this.input(req, settings, prefs, [providerId]);
+    const { cheapModel, premiumModel, cheapEffort, premiumEffort } = prefs.jevRouting;
+    const route = providerId === ROUTED_PROVIDER && cheapModel && premiumModel && !input.includesLocalOnly ? this.providers.decider(settings, 'modelRouting') : null;
+    const jev: RunPlan['jev'] = { ...input.jev, route: route && boundDecider(route, input.channelIds) };
+
+    // Enabled, keyed Jev features affect the cache key.
     const jevKey = [
       [jev.filter, jev.check, jev.quiet, jev.chunk, jev.theme].map((j) => j?.model ?? null),
       jev.route ? [jev.route.model, cheapModel, premiumModel, cheapEffort, premiumEffort] : null,
@@ -135,125 +159,45 @@ export class Summarizer {
       jev.theme ? THEMES_VERSION : null,
     ];
     const fillerKey = prefs.skipObviousFiller ? FILLER_RULES_VERSION : null;
-    const opts = this.promptOptions(prefs, jev.theme !== null);
     const cacheKey = createHash('sha256')
-      .update(JSON.stringify([PROMPT_VERSION, providerId, model, effort, req.sinceTs, logDigest(lines), [...channelIds].sort(), jevKey, fillerKey, opts]))
+      .update(JSON.stringify([PROMPT_VERSION, providerId, model, effort, req.sinceTs, logDigest(input.lines), [...input.channelIds].sort(), jevKey, fillerKey, input.opts]))
       .digest('hex');
-    return { providerId, provider, model, effort, untilTs, channelIds, lines, afterRules, jev, opts, cacheKey };
+    return { ...input, providerId, provider, model, effort, jev, cacheKey };
   }
 
   private async runNow(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger): Promise<Summary> {
     this.lifetime.throwIfAborted();
-    this.emit({ type: 'summary-progress', phase: 'reading', done: 0, total: 0 });
+    const progress: Progress = (phase, done, total) => this.emit({ type: 'summary-progress', phase, done, total });
+    progress('reading', 0, 0);
     const p = this.plan(req, settings, prefs);
     const cached = this.db.prepare(`SELECT * FROM ${SUMMARIES_TABLE} WHERE cache_key = ?`).get(p.cacheKey);
     if (cached) return toSummary(cached as SummaryRow);
-    const { providerId, untilTs, channelIds, lines, opts, cacheKey } = p;
-    const { filter: filterJev, check: checkJev, quiet: quietJev, chunk: chunkJev, theme: themeJev, route: routeJev } = p.jev;
+    const { providerId, untilTs, channelIds, lines, opts, cacheKey, jev } = p;
     const { cheapModel, premiumModel, cheapEffort, premiumEffort } = prefs.jevRouting;
     let { provider, model, effort } = p;
 
     const started = Date.now();
-    const jevCosts: number[] = [];
-    const cost = (c: number | null): void => void (c !== null && jevCosts.push(c));
-    let sent = p.afterRules;
-    if (filterJev) {
-      const f = await skipFiller(filterJev, sent, (done, total) => this.emit({ type: 'summary-progress', phase: 'filtering', done, total }));
-      this.lifetime.throwIfAborted();
-      sent = f.kept;
-      cost(f.costUsd);
-    }
-    if (quietJev) {
-      this.emit({ type: 'summary-progress', phase: 'quiet', done: 0, total: 0 });
-      const q = await skipQuiet(quietJev, sent);
-      this.lifetime.throwIfAborted();
-      cost(q.costUsd);
-      sent = q.kept;
-    }
-    const callUsage: TokenUsage[] = [];
-    const callCosts: (number | undefined)[] = [];
-    const knownCosts = (): number[] => callCosts.filter((c): c is number => c !== undefined);
-    const store = (headline: string, items: SummaryItem[], actions: SummaryItem[], themes: SummaryTheme[] | null, chunkCount: number): Summary =>
-      this.store({
-        cacheKey, providerId, model, req, untilTs, channelIds, sent: sent.length, skipped: lines.length - sent.length, started,
-        headline, items, actions, jevCosts, themes, chunkCount, trigger, grouping: opts.grouping,
-        // Summed over every call; null when no call reported usage, or any call's cost is unknown (a partial sum would understate it).
-        usage: callUsage.length ? sumUsage(callUsage) : null,
-        apiCostUsd: knownCosts().length === callCosts.length ? sumCosts(knownCosts()) : null,
-      });
+    const { sent, jevCosts } = await prepareLog(p.afterRules, jev, progress, this.lifetime);
+    const base = { cacheKey, providerId, req, untilTs, channelIds, sent: sent.length, skipped: lines.length - sent.length, started, trigger, grouping: opts.grouping };
     // #56: a range with nothing notable needs no summary call.
-    if (!sent.length) return store(NOTHING_NOTABLE, [], [], null, 0);
-    if (routeJev) {
-      this.emit({ type: 'summary-progress', phase: 'routing', done: 0, total: 0 });
-      const r = await rateComplexity(routeJev, sent);
+    if (!sent.length) {
+      return this.store({ ...base, model, headline: NOTHING_NOTABLE, items: [], actions: [], themes: null, jevCosts, usage: null, apiCostUsd: null, chunkCount: 0 });
+    }
+    if (jev.route) {
+      progress('routing', 0, 0);
+      const r = await rateComplexity(jev.route, sent);
       this.lifetime.throwIfAborted();
-      cost(r.costUsd);
+      if (r.costUsd !== null) jevCosts.push(r.costUsd);
       if (r.complex !== null) {
         model = r.complex ? premiumModel : cheapModel;
         effort = r.complex ? premiumEffort : cheapEffort;
         // The provider picks its key by model, so it is made again for the routed one.
-        const routed = { enabled: true, displayName: null, model, effort };
-        provider = this.providers.get(providerId, { ...settings, providers: { ...settings.providers, [providerId]: routed } });
+        provider = this.providers.get(providerId, withModel(settings, providerId, model, effort));
       }
     }
-    let chunks = chunk(sent, provider.maxInputChars);
-    if (chunkJev && chunks.length > 1) {
-      const c = await chunkByConversation(chunkJev, sent, provider.maxInputChars);
-      this.lifetime.throwIfAborted();
-      cost(c.costUsd);
-      chunks = c.chunks;
-    }
-    const schema = schemaFor(opts);
-    const complete = async (system: string, prompt: string): Promise<Draft> => {
-      const r = await provider.complete({ system, prompt, schema, ...chosenModel({ model, effort }), reads: channelIds });
-      this.lifetime.throwIfAborted();
-      if (r.usage) callUsage.push(r.usage);
-      callCosts.push(r.apiCostUsd);
-      return r.json as Draft;
-    };
-
-    const drafts: Draft[] = [];
-    for (const [i, c] of chunks.entries()) {
-      this.emit({ type: 'summary-progress', phase: 'summarizing', done: i, total: chunks.length });
-      drafts.push(await complete(systemPrompt(opts, untilTs), c.map((l) => l.text).join('\n')));
-    }
-    const byRef = new Map(lines.map((l) => [l.ref, l.citation]));
-    let final = drafts[0]!;
-    if (drafts.length > 1) {
-      this.emit({ type: 'summary-progress', phase: 'merging', done: chunks.length, total: chunks.length });
-      const partials = drafts.map((d, i) => partialText(d, i + 1, (ref) => byRef.get(ref)?.channelName, opts.grouping));
-      final = await complete(mergePrompt(opts, untilTs), partials.join('\n\n'));
-    }
-
-    // The people the model read, by the tags it writes (or a name, from an owner's template written before tags).
-    const people = lines.flatMap((l) => l.people);
-    const byTag = peopleByTag(people);
-    const byName = peopleByName(people.map((p) => [p.name, p.userId] as const));
-    const link = (text: string): string => linkMarked(text, byTag, byName);
-    const cited = (p: DraftPart): SummaryPart => ({
-      text: link(p.text),
-      citations: p.refs.map((r) => byRef.get(r.trim())).filter((c): c is Citation => c !== undefined),
-    });
-    const items = final.items.map((p): SummaryItem => ({ parts: p.parts.map(cited) }));
-    const actions = opts.actionItems ? (final.actions ?? []).map((a): SummaryItem => ({ parts: [cited(a)] })) : [];
-    if (checkJev) {
-      this.emit({ type: 'summary-progress', phase: 'checking', done: chunks.length, total: chunks.length });
-      const c = await checkCitations(checkJev, final.items.map((p) => { const w = wholePoint(p); return { ...w, text: unmarked(w.text, byTag) }; }), lines);
-      this.lifetime.throwIfAborted();
-      c.checks.forEach((check, i) => {
-        if (check) items[i]!.check = check;
-      });
-      cost(c.costUsd);
-    }
-    let themes: SummaryTheme[] | null = null;
-    if (themeJev && final.themes?.length) {
-      this.emit({ type: 'summary-progress', phase: 'themes', done: chunks.length, total: chunks.length });
-      const t = await assignThemes(themeJev, sent, final.themes);
-      this.lifetime.throwIfAborted();
-      cost(t.costUsd);
-      themes = t.themes.map((x) => ({ ...x, title: link(x.title) }));
-    }
-    return store(link(final.headline), items, actions, themes, chunks.length);
+    const { chunks, jevCosts: chunkCosts } = await chunkLog(sent, provider.maxInputChars, jev.chunk, this.lifetime);
+    const w = await writeSummary({ provider, model, effort, channelIds, lines, sent, chunks, opts, untilTs, jev }, progress, this.lifetime);
+    return this.store({ ...base, ...w, model, jevCosts: [...jevCosts, ...chunkCosts, ...w.jevCosts], chunkCount: chunks.length });
   }
 
   private store(r: NewSummary & { chunkCount: number }): Summary {
@@ -277,7 +221,7 @@ export class Summarizer {
   }
 
   /** `s` as privacy mode shows it, with its people named as they are now: how every summary leaves core. */
-  private shown(s: Summary): Summary {
+  shown(s: Summary): Summary {
     return withPeople(this.db, shownSummary(s, privacy(this.db)));
   }
 }
