@@ -385,6 +385,13 @@
       "description": "Jev re-orders the top search results by how well they answer your query.",
       "releases": [
         {
+          "version": "1.0.3",
+          "tag": "rerank-v1.0.3",
+          "asset": "rerank-1.0.3.tar.gz",
+          "sha256": "1d695b587054681fe2d6a9452c4e8dc82c5958a94799e49cf3d5d76ea68b7fa2",
+          "sdk": "2.20.0"
+        },
+        {
           "version": "1.0.2",
           "tag": "rerank-v1.0.2",
           "asset": "rerank-1.0.2.tar.gz",
