@@ -55,17 +55,48 @@ export function CompareBody() {
   );
 }
 
-/** The saved models, and a provider, model and thinking level to add. */
+/** The saved models, each edited, moved or removed in place; and a provider, model and thinking level to add or save. */
 function ModelsCard() {
   const models = () => summarySettings().compareModels;
   const [picked, setPicked] = createSignal<ProviderId | null>(null);
   const provider = () => picked() ?? summarySettings().defaultProvider;
   const [choice, setChoice] = createSignal<{ model: string | null; effort: string | null }>(NO_CHOICE);
+  /** The listed model the fields below edit; null while they add a new one. */
+  const [editing, setEditing] = createSignal<number | null>(null);
+  const reset = (): void => {
+    setEditing(null);
+    setPicked(null);
+    setChoice(NO_CHOICE);
+  };
+  const edit = (i: number): void => {
+    const m = models()[i]!;
+    setEditing(i);
+    setPicked(m.provider);
+    setChoice({ model: m.model, effort: m.effort });
+  };
+  const remove = (i: number): void => {
+    update({ compareModels: models().filter((_, j) => j !== i) });
+    const e = editing();
+    if (e === i) reset();
+    else if (e !== null && e > i) setEditing(e - 1);
+  };
+  /** Swaps model `i` with its neighbour `by` places away; the one being edited stays the one being edited. */
+  const move = (i: number, by: -1 | 1): void => {
+    const list = [...models()];
+    [list[i], list[i + by]] = [list[i + by]!, list[i]!];
+    update({ compareModels: list });
+    const e = editing();
+    if (e === i) setEditing(i + by);
+    else if (e === i + by) setEditing(i);
+  };
   // A model left on "from Settings → AI providers" is saved as the one that is now, so the comparison names it.
-  const add = (p: ProviderId): void => {
+  const save = (p: ProviderId): void => {
     const { model, effort } = choice();
     const resolved = model ?? providerSettingsOf(p).model ?? providerStatus().find((s) => s.id === p)?.models?.find((m) => m.isDefault)?.id ?? null;
-    update({ compareModels: [...models(), { provider: p, model: resolved, effort }] });
+    const entry = { provider: p, model: resolved, effort };
+    const e = editing();
+    update({ compareModels: e === null ? [...models(), entry] : models().map((m, j) => (j === e ? entry : m)) });
+    reset();
   };
   return (
     <Card title="Models" meta={countText(models().length, 'model')}>
@@ -73,10 +104,29 @@ function ModelsCard() {
         {(m, i) => (
           <Row
             label={`${i() + 1}. ${modelText(m)}`}
+            hint={editing() === i() ? 'Editing below.' : undefined}
             control={
-              <button type="button" class="cp-button" onClick={() => update({ compareModels: models().filter((_, j) => j !== i()) })}>
-                Remove
-              </button>
+              <span class={styles.buttons}>
+                <button type="button" class="cp-button" aria-label={`Move ${modelText(m)} up`} title="Move up" disabled={i() === 0} onClick={() => move(i(), -1)}>
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  class="cp-button"
+                  aria-label={`Move ${modelText(m)} down`}
+                  title="Move down"
+                  disabled={i() === models().length - 1}
+                  onClick={() => move(i(), 1)}
+                >
+                  ↓
+                </button>
+                <button type="button" class="cp-button" aria-pressed={editing() === i()} onClick={() => (editing() === i() ? reset() : edit(i()))}>
+                  {editing() === i() ? 'Cancel' : 'Edit'}
+                </button>
+                <button type="button" class="cp-danger" onClick={() => remove(i())}>
+                  Remove
+                </button>
+              </span>
             }
           />
         )}
@@ -101,11 +151,18 @@ function ModelsCard() {
             <ModelRow fieldId="compare-model" provider={p()} value={choice()} onChange={(patch) => setChoice({ ...choice(), ...patch })} />
             <EffortRow fieldId="compare-effort" provider={p()} value={choice()} onChange={(patch) => setChoice({ ...choice(), ...patch })} />
             <Row
-              label="Add to the comparison"
+              label={editing() === null ? 'Add to the comparison' : `Change model ${editing()! + 1}`}
               control={
-                <button type="button" class="cp-button" onClick={() => add(p())}>
-                  Add model
-                </button>
+                <span class={styles.buttons}>
+                  <Show when={editing() !== null}>
+                    <button type="button" class="cp-button" onClick={reset}>
+                      Cancel
+                    </button>
+                  </Show>
+                  <button type="button" class="cp-button" onClick={() => save(p())}>
+                    {editing() === null ? 'Add model' : 'Save changes'}
+                  </button>
+                </span>
               }
             />
           </>
