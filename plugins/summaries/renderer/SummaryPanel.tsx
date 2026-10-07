@@ -20,8 +20,10 @@ import {
   HeaderButton,
   inCompanion,
   scrolledFromTop,
+  ProviderSelect,
   Select,
 } from '@plugin-sdk/renderer/kit';
+import { patchSummarySettings, summarySettings } from './settings';
 import {
   loadOlderSummaries,
   overlapUntil,
@@ -98,8 +100,15 @@ export function SummaryPanel() {
   return (
     <section class="cp-panel" aria-label="Summary">
       <PanelHeader section="summary" collapsible title="Summary">
-        {/* Phone range and Summarize controls sit between the title and app bar controls. */}
+        {/* Phone provider, range and Summarize controls sit between the title and app bar controls. */}
         <HeaderActions align={inCompanion ? 'center' : 'end'}>
+          {/* The same choice as Settings → Summaries → Provider: automatic summaries use it too. */}
+          <ProviderSelect
+            class={styles.select}
+            label="Provider"
+            value={summarySettings().defaultProvider}
+            onChange={(defaultProvider) => patchSummarySettings({ defaultProvider })}
+          />
           <Select
             class={styles.select}
             label="Range"
