@@ -1,7 +1,8 @@
 // Model comparisons (Settings → Summaries → Compare models): one prepared log, summarized by each chosen model.
 import { isObj, normalizeProviderId, textOrNull, type ProviderId, type TokenUsage } from '@plugin-sdk/shared';
 import type { SummaryGrouping } from './settings';
-import type { Summary } from './types';
+import { decodeScope } from './request';
+import type { Summary, SummaryScope } from './types';
 
 /** A model to compare: its provider, model (null = the provider's default) and thinking level (null = the model's default). */
 export interface CompareModel {
@@ -13,6 +14,8 @@ export interface CompareModel {
 export interface CompareRequest {
   sinceTs: number;
   untilTs?: number;
+  /** What every model reads; absent: everything. */
+  scope?: SummaryScope;
   models: CompareModel[];
 }
 
@@ -42,6 +45,8 @@ export interface ComparisonHead {
   createdAt: number;
   sinceTs: number;
   untilTs: number;
+  /** What it was asked to read; null: everything. */
+  scope: SummaryScope | null;
   /** Each model, in column order, with what its calls used and cost. */
   columns: ColumnHead[];
   /** Messages every model read. */
@@ -89,13 +94,14 @@ function time(v: unknown, what: string): number {
 /** compare's argument checked: a range and at least one model; throws the reason it isn't one. */
 export function decodeCompareRequest([request]: readonly unknown[]): [CompareRequest] {
   if (!isObj(request)) throw new Error('Not a comparison request.');
-  const { sinceTs, untilTs, models } = request;
+  const { sinceTs, untilTs, scope, models } = request;
   if (!Array.isArray(models) || !models.length) throw new Error('No models to compare.');
   const decoded = models.map(normalizeCompareModel);
   if (decoded.includes(null)) throw new Error('Not a model to compare.');
   return [{
     sinceTs: time(sinceTs, 'start'),
     ...(untilTs === undefined ? {} : { untilTs: time(untilTs, 'end') }),
+    ...(scope === undefined ? {} : { scope: decodeScope(scope) }),
     models: decoded as CompareModel[],
   }];
 }

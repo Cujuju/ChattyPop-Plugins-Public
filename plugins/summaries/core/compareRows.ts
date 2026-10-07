@@ -3,7 +3,7 @@ import { sumCosts, type PluginDb } from '@plugin-sdk/core';
 import type { TokenUsage } from '@plugin-sdk/shared';
 import type { CompareModel, Comparison, ComparisonHead } from '../shared/compare';
 import type { SummaryGrouping } from '../shared/settings';
-import type { Summary, SummaryItem, SummaryTheme } from '../shared/types';
+import type { Summary, SummaryItem, SummaryScope, SummaryTheme } from '../shared/types';
 import { COMPARISONS_TABLE, VISIBLE_COMPARISONS } from './schema';
 
 /** One model's column as results_json holds it; the written fields are absent when it failed. */
@@ -27,6 +27,7 @@ export interface StoredResult {
 export interface NewComparison {
   sinceTs: number;
   untilTs: number;
+  scope: SummaryScope | null;
   channelIds: string[];
   messageCount: number;
   skippedCount: number;
@@ -49,15 +50,16 @@ interface ComparisonRow {
   jev_cost_usd: number | null;
   results_json: string;
   input_digest: string | null;
+  scope_json: string | null;
 }
 
 export function insertComparison(db: PluginDb, c: NewComparison): number {
   const info = db
     .prepare(
-      `INSERT INTO ${COMPARISONS_TABLE} (created_at, since_ts, until_ts, channel_ids, message_count, skipped_count, grouping, jev_cost_usd, results_json, input_digest)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO ${COMPARISONS_TABLE} (created_at, since_ts, until_ts, channel_ids, message_count, skipped_count, grouping, jev_cost_usd, results_json, input_digest, scope_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(Date.now(), c.sinceTs, c.untilTs, JSON.stringify(c.channelIds), c.messageCount, c.skippedCount, c.grouping, c.jevCostUsd, JSON.stringify(c.results), c.inputDigest);
+    .run(Date.now(), c.sinceTs, c.untilTs, JSON.stringify(c.channelIds), c.messageCount, c.skippedCount, c.grouping, c.jevCostUsd, JSON.stringify(c.results), c.inputDigest, c.scope && JSON.stringify(c.scope));
   return Number(info.lastInsertRowid);
 }
 
@@ -68,6 +70,7 @@ function headOf(r: ComparisonRow, results: StoredResult[]): ComparisonHead {
     createdAt: r.created_at,
     sinceTs: r.since_ts,
     untilTs: r.until_ts,
+    scope: r.scope_json === null ? null : (JSON.parse(r.scope_json) as SummaryScope),
     columns: results.map((x) => ({ model: x.model, usage: x.usage ?? null, apiCostUsd: x.apiCostUsd ?? null, failed: x.error !== null })),
     messageCount: r.message_count,
     apiCostUsd: costs.length ? sumCosts(costs) : null,
@@ -86,6 +89,7 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
   if (!r) return null;
   const stored = JSON.parse(r.results_json) as StoredResult[];
   const channelIds = JSON.parse(r.channel_ids) as string[];
+  const head = headOf(r, stored);
   const summaryOf = (x: StoredResult): Summary => ({
     id: r.id,
     createdAt: r.created_at,
@@ -94,7 +98,7 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
     sinceTs: r.since_ts,
     untilTs: r.until_ts,
     channelIds,
-    scope: null,
+    scope: head.scope,
     messageCount: r.message_count,
     skippedCount: r.skipped_count,
     durationMs: x.durationMs,
@@ -112,7 +116,7 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
     authors: {},
   });
   return {
-    ...headOf(r, stored),
+    ...head,
     channelIds,
     skippedCount: r.skipped_count,
     grouping: r.grouping,

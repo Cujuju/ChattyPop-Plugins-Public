@@ -94,6 +94,17 @@ describe('model comparison', () => {
     expect(calls).toEqual({});
   });
 
+  it('reads only the chosen scope and keeps it with the comparison', async () => {
+    const { comparer } = setup({});
+    const scope = { guildIds: [], channelIds: [HOSTED] };
+    // Scoped away from LOCAL_ONLY, local and hosted models read the same channels.
+    const c = await comparer.run({ sinceTs: 0, scope, models: [model('claude'), model('ollama')] }, DEFAULT_AI_SETTINGS, PREFS);
+    expect(c.channelIds).toEqual([HOSTED]);
+    expect(c.scope).toEqual(scope);
+    expect(comparer.list()[0]!.scope).toEqual(scope);
+    expect(c.results.every((r) => r.summary?.scope?.channelIds[0] === HOSTED)).toBe(true);
+  });
+
   it('is listed, counts toward spending per finished column, and deletes on its own', async () => {
     const before = Date.now();
     const { comparer } = setup({}, ['codex']);

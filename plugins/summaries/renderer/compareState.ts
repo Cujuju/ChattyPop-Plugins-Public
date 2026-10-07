@@ -5,6 +5,7 @@ import { clockTime, createAction, effortLabel, formatTokens, providerName, provi
 import { plugin } from '../shared';
 import type { ColumnHead, CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
+import type { SummaryScope } from '../shared/types';
 import { summarySettings } from './settings';
 import { rangeOf } from './state';
 import { spansDays } from './order';
@@ -27,10 +28,10 @@ const action = createAction();
 export const compareRunning = action.busy;
 export const compareError = action.error;
 
-/** Runs the saved models over `range` and opens the result. */
-export async function runComparison(range: SummaryRange): Promise<void> {
+/** Runs the saved models over `range` in `scope` and opens the result. */
+export async function runComparison(range: SummaryRange, scope: SummaryScope | null): Promise<void> {
   setCompareProgress(null);
-  const c = await action.run(async () => core.compare({ ...(await rangeOf(range)), models: summarySettings().compareModels }));
+  const c = await action.run(async () => core.compare({ ...(await rangeOf(range, scope)), ...(scope ? { scope } : {}), models: summarySettings().compareModels }));
   setCompareProgress(null);
   if (c) setOpenComparisonId(c.id);
 }

@@ -15,7 +15,7 @@ function ids(v: unknown, what: 'channel' | 'server'): string[] {
 }
 
 /** A scope's servers and channels, or it throws. */
-function scope(v: unknown): SummaryScope {
+export function decodeScope(v: unknown): SummaryScope {
   if (!isObj(v)) throw new Error('Not a summary scope.');
   return { guildIds: ids(v['guildIds'], 'server'), channelIds: ids(v['channelIds'], 'channel') };
 }
@@ -30,7 +30,7 @@ export function decodeSummaryRequest([request]: readonly unknown[]): [SummaryReq
     sinceTs: time(sinceTs, 'start'),
     ...(untilTs === undefined ? {} : { untilTs: time(untilTs, 'end') }),
     ...(channelIds === undefined ? {} : { channelIds: ids(channelIds, 'channel') }),
-    ...(request['scope'] === undefined ? {} : { scope: scope(request['scope']) }),
+    ...(request['scope'] === undefined ? {} : { scope: decodeScope(request['scope']) }),
     ...(providerId === undefined ? {} : { provider: providerId }),
   }];
 }

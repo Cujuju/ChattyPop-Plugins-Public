@@ -8,6 +8,7 @@ import { pointCitations, type Citation, type Summary, type SummaryItem } from '.
 import { pointGroups } from './order';
 import { FLAG_TEXT, flagOf, usageParts } from './SummaryContent';
 import { inputCheck, modelText, rangeText, totalsText } from './compareState';
+import { scopeLabel } from './scope';
 
 const HTML_TYPE = 'text/html';
 
@@ -82,6 +83,7 @@ export function comparisonHtml(c: Comparison): string {
   const vars = TOKENS.map((t) => `${t}: ${root.getPropertyValue(t).trim()};`).join(' ');
   const title = `Summary comparison, ${weekdayDateTime(c.createdAt)}`;
   const meta = [
+    scopeLabel(c.scope),
     rangeText(c.sinceTs, c.untilTs),
     `${countText(c.messageCount, 'message')} every model read${c.skippedCount ? ` (${c.skippedCount} left out as filler or quiet)` : ''}`,
     totalsText(c),

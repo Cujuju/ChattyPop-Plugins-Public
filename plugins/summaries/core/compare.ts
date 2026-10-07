@@ -65,6 +65,7 @@ export class Comparer {
     const id = insertComparison(this.db, {
       sinceTs: req.sinceTs,
       untilTs: input.untilTs,
+      scope: req.scope ?? null,
       channelIds: input.channelIds,
       messageCount: log.length,
       skippedCount: input.lines.length - log.length,

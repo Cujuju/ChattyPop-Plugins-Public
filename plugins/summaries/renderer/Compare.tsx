@@ -3,6 +3,8 @@ import { createSignal, For, Show } from 'solid-js';
 import { Card, Note, Row, Select, countText, look, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import type { Comparison } from '../shared/compare';
+import type { SummaryScope } from '../shared/types';
+import { ScopeSelect, scopeLabel } from './scope';
 import { summarySettings } from './settings';
 import {
   compareError,
@@ -45,6 +47,7 @@ export function CompareBody() {
 
 function RunCard() {
   const [picked, setPicked] = createSignal<SummaryRange | null>(null);
+  const [scope, setScope] = createSignal<SummaryScope | null>(null);
   const range = () => picked() ?? summarySettings().defaultRange;
   const progressText = (): string => {
     if (!compareRunning()) return '';
@@ -59,6 +62,12 @@ function RunCard() {
         control={<Select id="compare-range" class={styles.control} value={range()} options={RANGE_OPTIONS} onChange={(v) => setPicked(v as SummaryRange)} />}
       />
       <Row
+        label="Channels"
+        for="compare-scope"
+        hint="Everything, one server, or one channel."
+        control={<ScopeSelect id="compare-scope" class={styles.control} value={scope()} onChange={setScope} />}
+      />
+      <Row
         label="Compare"
         hint="Models run at once; each uses its provider's plan or credits."
         control={
@@ -66,7 +75,7 @@ function RunCard() {
             type="button"
             class="cp-primary"
             disabled={compareRunning() || !summarySettings().compareModels.length}
-            onClick={() => void runComparison(range())}
+            onClick={() => void runComparison(range(), scope())}
           >
             {compareRunning() ? 'Running…' : 'Run'}
           </button>
@@ -95,7 +104,7 @@ function PastCard() {
         <For each={list()} fallback={<Note>None yet.</Note>}>
           {(h) => (
             <Row
-              label={rangeText(h.sinceTs, h.untilTs)}
+              label={`${scopeLabel(h.scope)} · ${rangeText(h.sinceTs, h.untilTs)}`}
               hint={
                 <span class={styles.pastHint}>
                   <For each={h.columns}>
@@ -148,6 +157,7 @@ function ComparisonView(props: { comparison: Comparison }) {
   const c = () => props.comparison;
   const head = () =>
     [
+      scopeLabel(c().scope),
       rangeText(c().sinceTs, c().untilTs),
       `${countText(c().messageCount, 'message')}${c().skippedCount ? ` (${c().skippedCount} skipped)` : ''}`,
       totalsText(c()),
