@@ -4,7 +4,7 @@ import { definePlugin, type JevQueryDecl } from '@plugin-sdk/shared';
 export const manifest = {
   id: 'rerank',
   name: 'Search re-rank',
-  version: '1.0.2',
+  version: '1.0.3',
   description: 'Jev re-orders the top search results by how well they answer your query.',
 };
 

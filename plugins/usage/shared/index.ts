@@ -8,7 +8,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'usage',
     name: 'Plan usage',
-    version: '1.1.1',
+    version: '1.1.2',
     description: "Every enabled AI provider's plan limits side by side, and what ChattyPop used of them.",
   },
   panels: [{
