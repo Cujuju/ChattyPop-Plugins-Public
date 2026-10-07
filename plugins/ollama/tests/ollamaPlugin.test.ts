@@ -7,6 +7,7 @@ import { adoptBundledData } from '@core/plugins/adoption';
 import { tempDb } from '@chattypop/host-testing';
 import { startProviders } from '@chattypop/host-testing/providerHost';
 import ollamaCore from '../core';
+import { listOllamaModels } from '../core/ollama';
 import { plugin as ollama } from '../shared';
 
 const LAN_ADDRESS = 'http://10.0.0.5:11434';
@@ -51,5 +52,21 @@ describe('Ollama address on upgrade', () => {
     expect(down).toMatchObject({ id: 'ollama', available: false, models: null });
     expect(down?.detail).toMatch(/^Ollama not reachable at http:\/\/127\.0\.0\.1:1/);
     expect(host.list().find((p) => p.id === 'ollama')?.status).not.toBe('error');
+  });
+});
+
+describe('Ollama model list', () => {
+  it('lists a tag once across its runner variants and hides their digest-named manifests', async () => {
+    const ggml = 'a'.repeat(64);
+    const llamacpp = 'b'.repeat(64);
+    // Ollama 0.40's /api/tags for one pulled multi-runner tag beside an ordinary one.
+    const tags = [
+      { name: 'qwen3-vl:8b-instruct', size: 1, digest: ggml },
+      { name: 'qwen3-vl:8b-instruct', size: 2, digest: llamacpp },
+      { name: `llamacpp:${llamacpp}`, size: 2, digest: llamacpp },
+      { name: 'qwen3-vl:8b', size: 3, digest: 'c'.repeat(64) },
+    ];
+    const net = vi.fn(async () => Response.json({ models: tags }));
+    expect((await listOllamaModels(net, LAN_ADDRESS)).map((m) => m.name)).toEqual(['qwen3-vl:8b-instruct', 'qwen3-vl:8b']);
   });
 });

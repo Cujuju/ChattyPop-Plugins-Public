@@ -11,7 +11,19 @@ const OLLAMA_MAX_INPUT_CHARS = 32_000;
 
 interface OllamaTags {
   /** size: bytes on disk. */
-  models: { name: string; size: number }[];
+  models: { name: string; size: number; digest: string }[];
+}
+
+/**
+ * One entry per name a request can use. Ollama 0.40+ lists a tag once per runner variant, and each variant's
+ * internal manifest under `<runner>:<digest>`; those are the same model, so only its tag name is kept.
+ */
+function distinctModels(models: OllamaTags['models']): OllamaTags['models'] {
+  const isDigestAlias = (m: OllamaTags['models'][number]): boolean => m.name.endsWith(`:${m.digest}`);
+  const named = new Set(models.filter((m) => !isDigestAlias(m)).map((m) => m.digest));
+  const byName = new Map<string, OllamaTags['models'][number]>();
+  for (const m of models) if (!byName.has(m.name) && !(isDigestAlias(m) && named.has(m.digest))) byName.set(m.name, m);
+  return [...byName.values()];
 }
 
 /** An installed model: its name and size on disk. */
@@ -63,7 +75,7 @@ export async function listOllamaModels(net: PluginFetch, baseUrl: string): Promi
   try {
     const res = await net(new URL('/api/tags', baseUrl).href, { signal: AbortSignal.timeout(LIST_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return ((await res.json()) as OllamaTags).models.map((m) => ({ name: m.name, bytes: m.size }));
+    return distinctModels(((await res.json()) as OllamaTags).models).map((m) => ({ name: m.name, bytes: m.size }));
   } catch (err) {
     throw new ProviderUnavailableError(`Ollama not reachable at ${baseUrl} (${errorMessage(err)}).`);
   }
