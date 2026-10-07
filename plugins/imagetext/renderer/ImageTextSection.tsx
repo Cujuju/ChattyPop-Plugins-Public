@@ -29,7 +29,15 @@ export function ImageTextSection() {
   // Fetching (main downloading the image) is still waiting to be read.
   const queueText = () => {
     const c = counts();
-    return c ? `${c.queued + c.fetching} queued · ${c.running} reading · ${c.done} done · ${c.failed} failed` : 'Status unknown';
+    return c ? (
+      <>
+        {c.queued + c.fetching} queued · {c.running} reading ·{' '}
+        <span class={look.text} data-tone="success">{c.done} done</span> ·{' '}
+        <span class={look.text} data-tone="danger">{c.failed} failed</span>
+      </>
+    ) : (
+      'Status unknown'
+    );
   };
   return (
     <Page
@@ -43,7 +51,7 @@ export function ImageTextSection() {
           hint={queueText()}
           control={
             <Show when={(counts()?.failed ?? 0) > 0}>
-              <SettingsButton onClick={() => void action.run(retryFailedImageText)}>Retry failed</SettingsButton>
+              <SettingsButton tone="danger" onClick={() => void action.run(retryFailedImageText)}>Retry failed</SettingsButton>
             </Show>
           }
         />
@@ -106,17 +114,6 @@ export function ImageTextSection() {
           for="imagetext-ask-jev"
           hint="Off: only rules and settled labels (a $TICKER’s Trading label) use the text. On: Jev judges the message again, which costs a Jev request."
           control={<Switch id="imagetext-ask-jev" checked={s().askJev} onChange={(askJev) => patchImageTextSettings({ askJev })} />}
-        />
-      </Card>
-      <Card title="Queue">
-        <Row
-          label="Images"
-          hint={queueText()}
-          control={
-            <Show when={(counts()?.failed ?? 0) > 0}>
-              <SettingsButton onClick={() => void action.run(retryFailedImageText)}>Retry failed</SettingsButton>
-            </Show>
-          }
         />
       </Card>
       <ErrorNote error={action.error()} />
