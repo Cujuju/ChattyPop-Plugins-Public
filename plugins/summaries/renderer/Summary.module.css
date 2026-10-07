@@ -162,10 +162,11 @@
   padding-top: var(--cp-space-2);
 }
 
-.chips {
+.columnLine {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--cp-space-2);
+  align-items: center;
+  gap: var(--cp-space-3);
 }
 
 .chip {

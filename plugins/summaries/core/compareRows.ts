@@ -68,8 +68,7 @@ function headOf(r: ComparisonRow, results: StoredResult[]): ComparisonHead {
     createdAt: r.created_at,
     sinceTs: r.since_ts,
     untilTs: r.until_ts,
-    models: results.map((x) => x.model),
-    failed: results.filter((x) => x.error !== null).length,
+    columns: results.map((x) => ({ model: x.model, usage: x.usage ?? null, apiCostUsd: x.apiCostUsd ?? null, failed: x.error !== null })),
     messageCount: r.message_count,
     apiCostUsd: costs.length ? sumCosts(costs) : null,
   };

@@ -83,7 +83,8 @@ describe('model comparison', () => {
     const { comparer } = setup({}, ['codex']);
     const c = await comparer.run({ sinceTs: 0, models: [model('claude'), model('codex')] }, DEFAULT_AI_SETTINGS, PREFS);
     expect(c.results.map((r) => [r.summary !== null, r.error])).toEqual([[true, null], [false, 'codex is down']]);
-    expect(c.failed).toBe(1);
+    expect(c.columns.map((col) => col.failed)).toEqual([false, true]);
+    expect(c.columns[0]).toMatchObject({ usage: USAGE, apiCostUsd: CALL_USD });
   });
 
   it('refuses to mix local and hosted models over channels set to local AI only', async () => {

@@ -1,5 +1,5 @@
 // Model comparisons (Settings → Summaries → Compare models): one prepared log, summarized by each chosen model.
-import { isObj, normalizeProviderId, textOrNull, type ProviderId } from '@plugin-sdk/shared';
+import { isObj, normalizeProviderId, textOrNull, type ProviderId, type TokenUsage } from '@plugin-sdk/shared';
 import type { SummaryGrouping } from './settings';
 import type { Summary } from './types';
 
@@ -26,15 +26,24 @@ export interface CompareResult {
   inputDigest: string | null;
 }
 
+/** One model in the list of comparisons: its tokens and API cost, or that it failed. */
+export interface ColumnHead {
+  model: CompareModel;
+  /** Null when its provider reported none, or it failed. */
+  usage: TokenUsage | null;
+  /** At API rates, in USD; null when unknown. */
+  apiCostUsd: number | null;
+  failed: boolean;
+}
+
 /** A stored comparison as the list shows it. */
 export interface ComparisonHead {
   id: number;
   createdAt: number;
   sinceTs: number;
   untilTs: number;
-  models: CompareModel[];
-  /** Models that failed. */
-  failed: number;
+  /** Each model, in column order, with what its calls used and cost. */
+  columns: ColumnHead[];
   /** Messages every model read. */
   messageCount: number;
   /** What the models' calls cost at API rates together, in USD; null when none reported a cost. */

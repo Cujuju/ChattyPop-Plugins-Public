@@ -7,6 +7,7 @@ import { summarySettings } from './settings';
 import {
   compareError,
   compareProgress,
+  columnUsageText,
   compareRunning,
   createComparisonList,
   createOpenComparison,
@@ -97,21 +98,23 @@ function PastCard() {
               label={rangeText(h.sinceTs, h.untilTs)}
               hint={
                 <span class={styles.pastHint}>
-                  <span class={styles.chips}>
-                    <For each={h.models}>
-                      {(m) => (
+                  <For each={h.columns}>
+                    {(col) => (
+                      <span class={styles.columnLine}>
                         <span class={`${styles.chip} ${look.tag} ${look.text}`} data-size="2xs" data-line="chip" data-font="sans">
-                          {modelText(m)}
+                          {modelText(col.model)}
                         </span>
-                      )}
-                    </For>
-                  </span>
+                        <span class={look.text} data-tone={col.failed ? 'danger' : undefined}>
+                          {columnUsageText(col)}
+                        </span>
+                      </span>
+                    )}
+                  </For>
                   <span>
                     {[
                       `Ran ${weekdayDateTime(h.createdAt)}`,
                       countText(h.messageCount, 'message'),
-                      ...(h.apiCostUsd !== null ? [`≈${usdText(h.apiCostUsd)}`] : []),
-                      ...(h.failed ? [`${h.failed} failed`] : []),
+                      ...(h.apiCostUsd !== null ? [`≈${usdText(h.apiCostUsd)} in all`] : []),
                     ].join(' · ')}
                   </span>
                 </span>
