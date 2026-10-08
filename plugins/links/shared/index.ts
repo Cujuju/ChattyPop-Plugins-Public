@@ -1,6 +1,6 @@
 // #106: Links feed, Jev judgments (#61–63), and FxTwitter previews for unpreviewed X posts. The host owns the link index.
 import { defineChannels, definePlugin, definePreference, finiteOr, type JevFeatureDecl, type JevQueryDecl, type Platform } from '@plugin-sdk/shared';
-import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } from './types';
+import { normalizeLinkPlace, type LinkCard, type LinkFilter, type LinkItem, type LinkPageQuery, type LinkPlace, type LinkWindow, type LinkWindowQuery, type PersonLinksQuery } from './types';
 
 export const manifest = {
   id: 'links',
@@ -18,6 +18,8 @@ export const UPDATED_EVENT = 'updated';
 export interface LinksCoreCalls {
   /** Links newest first (by first share), or most worth reading first; keyset-paged. Privacy mode applies. */
   page(q: LinkPageQuery): LinkItem[];
+  /** Links around a cursor, as page sorts them: a restored place, or the loaded ones read again. Privacy mode applies. */
+  window(q: LinkWindowQuery): LinkWindow;
   /** Link counts per platform for a filter (its platform filter ignored). */
   counts(f: LinkFilter): Partial<Record<Platform, number>>;
   /** The links a person shared, each at their latest share of it, newest first. Privacy mode applies. */
@@ -125,6 +127,7 @@ export const plugin = definePlugin({
   channels: defineChannels<{ core: LinksCoreCalls; events: LinksEvents }>()({
     core: {
       page: { audiences: ['renderer', 'phone'], writes: false },
+      window: { audiences: ['renderer', 'phone'], writes: false },
       counts: { audiences: ['renderer', 'phone'], writes: false },
       // The Person window is the desktop's.
       sharedBy: { audiences: ['renderer'], writes: false },
@@ -149,8 +152,12 @@ export const plugin = definePlugin({
   network: { hosts: ['api.fxtwitter.com'] },
   // Beside Summaries in the phone's drawer; a person's links, as previews, in the Person window.
   slots: { phoneSections: [{ id: 'feed', after: 'summaries.summary' }], personLinks: [{ id: 'previews' }] },
-  /** Links first shared after this count as new. The phone reads it, and moves it through markSeen. */
-  preferences: { seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }) },
+  preferences: {
+    /** Links first shared after this count as new. The phone reads it, and moves it through markSeen. */
+    seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }),
+    /** Where the desktop's panel was, so a restart reopens there; the phone opens at the newest. */
+    place: definePreference<LinkPlace | null>({ default: null, normalize: normalizeLinkPlace }),
+  },
   // Its tables and watermark from when it was built in.
   adopts: { tables: { link_judgments: 'judgments', x_posts: 'x_posts' }, settings: { 'links.seenUpTo': 'seenUpTo' }, jevFeatures: { linkCategories: 'linkCategories', linkSafety: 'linkSafety', linkWorth: 'linkWorth' } },
 });

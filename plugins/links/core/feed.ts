@@ -1,7 +1,7 @@
 // The Links feed: shared links from the host's link index, with Jev's judgments and each link's best preview card.
 import type { ArchiveEmbed, ArchiveMessage, Platform } from '@plugin-sdk/shared';
 import { embedsFrom, normalizeUrl, partKey, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
-import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } from '../shared/types';
+import type { LinkCard, LinkCursor, LinkFilter, LinkItem, LinkPageQuery, LinkSort, LinkWindow, LinkWindowQuery, PersonLinksQuery } from '../shared/types';
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
 
@@ -78,13 +78,18 @@ function embedFor(r: LinkRow, shares: Share[]): { embed: ArchiveEmbed | null; so
   } };
 }
 
-/** Keyset-paged links sorted newest or most worthwhile (#63), with privacy-filtered sharing messages. */
-export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkPageQuery): LinkItem[] {
-  const w = where(q);
-  const byWorth = q.sort === 'worth';
-  // Row values compare key by key, matching the ORDER BY (every key descending, none NULL).
-  const cursor = !q.after ? '' : byWorth ? ` AND (${WORTH_KEY}, l.first_ts, l.id) < (?, ?, ?)` : ' AND (l.first_ts, l.id) < (?, ?)';
-  const cursorParams = !q.after ? [] : byWorth ? [q.after.worth ?? UNJUDGED_WORTH, q.after.ts, q.after.id] : [q.after.ts, q.after.id];
+/** Rows past a cursor in sort order: after it (`<`, older), from it (`<=`, it included), or before it (`>`, newer). */
+type Past = { cursor: LinkCursor; op: '<' | '<=' | '>' };
+
+/** Up to `limit` rows in sort order (every key descending); past a cursor, the nearest ones to it. */
+function linkRows(db: PluginDb, f: LinkFilter, sort: LinkSort | undefined, past: Past | null, limit: number): LinkRow[] {
+  const w = where(f);
+  const byWorth = sort === 'worth';
+  // Row values compare key by key, matching the ORDER BY (none NULL).
+  const cursor = !past ? '' : byWorth ? ` AND (${WORTH_KEY}, l.first_ts, l.id) ${past.op} (?, ?, ?)` : ` AND (l.first_ts, l.id) ${past.op} (?, ?)`;
+  const cursorParams = !past ? [] : byWorth ? [past.cursor.worth ?? UNJUDGED_WORTH, past.cursor.ts, past.cursor.id] : [past.cursor.ts, past.cursor.id];
+  // Newer rows nearest the cursor come first ascending, then turn back into sort order.
+  const dir = past?.op === '>' ? 'ASC' : 'DESC';
   const rows = db
     .prepare(
       `SELECT ${LINK_COLUMNS}, l.first_ts AS ts, l.first_message_id AS messageId,
@@ -95,9 +100,35 @@ export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesB
        LEFT JOIN archive_all_channels c ON c.id = l.first_channel_id
        LEFT JOIN archive_all_guilds g ON g.id = c.guild_id
        WHERE ${w.sql}${cursor}
-       ORDER BY ${byWorth ? `${WORTH_KEY} DESC, ` : ''}l.first_ts DESC, l.id DESC LIMIT ?`,
+       ORDER BY ${byWorth ? `${WORTH_KEY} ${dir}, ` : ''}l.first_ts ${dir}, l.id ${dir} LIMIT ?`,
     )
-    .all(...w.params, ...cursorParams, q.limit) as LinkRow[];
+    .all(...w.params, ...cursorParams, limit) as LinkRow[];
+  return dir === 'ASC' ? rows.reverse() : rows;
+}
+
+/** Keyset-paged links sorted newest or most worthwhile (#63), with privacy-filtered sharing messages. */
+export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkPageQuery): LinkItem[] {
+  const past: Past | null = q.before ? { cursor: q.before, op: '>' } : q.after ? { cursor: q.after, op: '<' } : null;
+  return itemsOf(db, payloads, messagesByIds, linkRows(db, q, q.sort, past, q.limit));
+}
+
+/** Links around a cursor in sort order: up to `newer` before it, then up to `older` from it (it included). */
+export function linkWindow(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkWindowQuery): LinkWindow {
+  // One beyond each side tells whether that side reaches its end.
+  const newer = linkRows(db, q, q.sort, { cursor: q.around, op: '>' }, q.newer + 1);
+  const older = linkRows(db, q, q.sort, { cursor: q.around, op: '<=' }, q.older + 1);
+  const newerKept = newer.slice(Math.max(0, newer.length - q.newer));
+  const olderKept = older.slice(0, q.older);
+  return {
+    items: itemsOf(db, payloads, messagesByIds, [...newerKept, ...olderKept]),
+    reachesNewest: newer.length <= q.newer,
+    reachedStart: older.length <= q.older,
+    anchorId: (olderKept[0] ?? newerKept.at(-1))?.id ?? null,
+  };
+}
+
+/** Rows as feed items: each with its preview card and the first sharing message carrying it. */
+function itemsOf(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], rows: LinkRow[]): LinkItem[] {
   const cards = cardsOf(db, payloads, rows);
   const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
   return cards.map(({ card, source }) => {

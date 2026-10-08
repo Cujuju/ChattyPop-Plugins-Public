@@ -5,9 +5,9 @@ import { storeLinkText } from '@core/derivedText';
 import { storeLinkImages, type LinkImage } from '@core/messageImages';
 import { adoptBundledData } from '@core/plugins/adoption';
 import { messagesByIds } from '@core/queries/messages';
-import { linkPage, personLinkPage } from '../core/feed';
+import { linkPage, linkWindow, personLinkPage } from '../core/feed';
 import { plugin } from '../shared';
-import type { LinkCard, LinkItem, LinkPageQuery, PersonLinksQuery } from '../shared/types';
+import type { LinkCard, LinkItem, LinkPageQuery, LinkWindow, LinkWindowQuery, PersonLinksQuery } from '../shared/types';
 
 /** Renames the host's link tables into the plugin's, as core init does before plugins start. */
 export function adoptLinks(db: Db): Db {
@@ -17,6 +17,9 @@ export function adoptLinks(db: Db): Db {
 
 /** A page of the Links feed, with the sharing messages as the Archive shows them. */
 export const linkFeed = (db: Db, q: LinkPageQuery): LinkItem[] => linkPage(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q);
+
+/** The Links feed around a cursor. */
+export const linkFeedWindow = (db: Db, q: LinkWindowQuery): LinkWindow => linkWindow(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q);
 
 /** A person's links, each at their latest share of it. */
 export const personLinks = (db: Db, q: PersonLinksQuery): LinkCard[] => personLinkPage(db, (ids) => archivePayloads(db, ids), q);

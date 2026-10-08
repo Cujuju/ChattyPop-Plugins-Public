@@ -1,7 +1,7 @@
 // Links' core side: the feed the panel pages through, Jev's reading of new links, and FxTwitter posts for X links.
 import { defineCorePlugin } from '@plugin-sdk/core';
 import { UPDATED_EVENT, plugin } from '../shared';
-import { linkCounts, linkPage, personLinkPage } from './feed';
+import { linkCounts, linkPage, linkWindow, personLinkPage } from './feed';
 import { LinkJudge } from './judge';
 import { XPosts } from './xPosts';
 
@@ -22,6 +22,10 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.archive.onText((m, _arrived, source) => void (source === 'message' && xPosts.fetchFor(m)));
   ctx.channels.serve({
     page: (q) => xPosts.fill(linkPage(db, ctx.archive.payloads, ctx.archive.messages, q)),
+    window: (q) => {
+      const w = linkWindow(db, ctx.archive.payloads, ctx.archive.messages, q);
+      return { ...w, items: xPosts.fill(w.items) };
+    },
     counts: (f) => linkCounts(db, f),
     sharedBy: (q) => xPosts.fill(personLinkPage(db, ctx.archive.payloads, q)),
     // Core's clock, not the caller's: a phone's may differ from the PC's.

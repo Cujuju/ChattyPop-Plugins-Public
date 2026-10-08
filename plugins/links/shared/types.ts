@@ -72,4 +72,40 @@ export interface LinkPageQuery extends LinkFilter {
   limit: number;
   sort?: LinkSort;
   after?: LinkCursor;
+  /** Instead of `after`: the `limit` links nearest before this cursor (newer), still in sort order. */
+  before?: LinkCursor;
+}
+
+/** Links around a cursor (a restored place): up to `newer` before it, up to `older` from it, it included. */
+export interface LinkWindowQuery extends LinkFilter {
+  sort?: LinkSort;
+  around: LinkCursor;
+  newer: number;
+  older: number;
+}
+
+export interface LinkWindow {
+  /** In sort order, as a page. */
+  items: LinkItem[];
+  /** Nothing comes before the first item: it is the top of the sort. */
+  reachesNewest: boolean;
+  /** Nothing comes after the last item. */
+  reachedStart: boolean;
+  /** The cursor's link, or its nearest loaded neighbour (older first) when it no longer matches; null when nothing does. */
+  anchorId: number | null;
+}
+
+/** Where the owner was in the feed: a link's cursor and its bottom edge above the view's bottom (the virtual log's `bottomOf`). */
+export interface LinkPlace extends LinkCursor {
+  bottom: number;
+}
+
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** `v` as a place, or null when it is anything else (nothing kept, damaged). */
+export function normalizeLinkPlace(v: unknown): LinkPlace | null {
+  if (typeof v !== 'object' || v === null) return null;
+  const { ts, id, worth, bottom } = v as Record<string, unknown>;
+  if (!finite(ts) || !finite(id) || !finite(bottom)) return null;
+  return { ts, id, bottom, ...(finite(worth) ? { worth } : {}) };
 }

@@ -1,5 +1,5 @@
 // The Links panel (F2): the feed, oldest at the top, with its filter bar.
-import { Match, Show, Switch, createEffect, createMemo, createSignal, on, onMount } from 'solid-js';
+import { Match, Show, Switch, createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
 import {
   DayDivider,
   JumpToNewest,
@@ -23,14 +23,21 @@ import {
   linkCounts,
   linkDivider,
   linkFilterCount,
+  linkAtNewest,
   linkHideFlagged,
   linkLoads,
+  linkOpening,
   linkPlatforms,
   linkRange,
   links,
   linkSort,
+  keepLinkPlace,
+  loadNewerLinks,
   loadOlderLinks,
   newLinkCount,
+  placeAt,
+  readLinkPlaceWith,
+  reloadAtStoredPlace,
   reloadLinks,
 } from './state';
 import { LinkFilters } from './LinkFilters';
@@ -42,12 +49,14 @@ import styles from './Links.module.css';
 const ESTIMATED_ROW_PX = 120;
 /** Load older links when the top is within this many rows. */
 const LOAD_OLDER_THRESHOLD_ROWS = 20;
+/** At the newest within this: an engine keeping whole-pixel offsets leaves a sub-pixel remainder. */
+const AT_NEWEST_SLOP_PX = 1;
 
-type Row = { kind: 'divider'; key: string } | { kind: 'day'; key: string; label: string } | { kind: 'link'; key: string; item: LinkItem };
+/** A day heading names the link it heads. */
+type Row = { kind: 'divider'; key: string } | { kind: 'day'; key: string; label: string; item: LinkItem } | { kind: 'link'; key: string; item: LinkItem };
 
 /** F2 Links pages older entries upward. New counts follow the watermark; a caught-up line marks the previous read position. */
 export function LinksPanel() {
-  const log = createFollowBottom();
   const rows = createMemo<Row[]>(() => {
     // The caught-up line and day headings mark points in time: only meaningful in newest order.
     const chronological = linkSort() === 'newest';
@@ -58,7 +67,7 @@ export function LinksPanel() {
       const prev = links.items[i - 1];
       if (divider !== null && prev && prev.ts <= divider && item.ts > divider) out.push({ kind: 'divider', key: 'caught-up' });
       const day = dayLabel(item.ts);
-      if (chronological && day !== lastDay) out.push({ kind: 'day', key: `day-${item.id}`, label: day });
+      if (chronological && day !== lastDay) out.push({ kind: 'day', key: `day-${item.id}`, label: day, item });
       lastDay = day;
       out.push({ kind: 'link', key: String(item.id), item });
     });
@@ -69,15 +78,58 @@ export function LinksPanel() {
     estimatePx: ESTIMATED_ROW_PX,
     olderThresholdRows: LOAD_OLDER_THRESHOLD_ROWS,
     loadOlder: loadOlderLinks,
-    following: log.following,
+    // `log` is declared below (it reads vlog.holding).
+    following: () => log.following(),
     // A runway above the oldest link while older ones remain, so a fling runs on as they load.
     hasOlder: () => !links.reachedStart,
+    // Opened at a place: newer links page in toward the newest.
+    hasNewer: () => !linkAtNewest(),
+    loadNewer: loadNewerLinks,
   });
+  // Opened at an older place, or holding it: following waits until the owner is back at the newest.
+  const log = createFollowBottom(() => !linkAtNewest() || vlog.holding());
 
-  // Any filter change reloads; every reload lands on the newest link.
-  onMount(() => void reloadLinks());
+  // The desktop opens where the owner last was (the phone at the newest); a filter change opens at the newest.
+  onMount(() => void (inCompanion ? reloadLinks() : reloadAtStoredPlace()));
   createEffect(on([linkPlatforms, linkChannelId, linkRange, linkSort, linkHideFlagged], () => void reloadLinks(), { defer: true }));
-  createEffect(on(linkLoads, () => queueMicrotask(log.scrollToNewest)));
+
+  // The reload last placed: until then the rows may be the last one's.
+  const [placed, setPlaced] = createSignal(linkLoads());
+  createEffect(
+    on(linkLoads, (n) =>
+      queueMicrotask(() => {
+        const opening = linkOpening();
+        // Nothing newer than the place's link: the owner was at the newest, so follow it again.
+        const caughtUp = opening !== null && linkAtNewest() && links.items.at(-1)?.id === opening.place.id;
+        if (opening && opening.anchorId !== null && !caughtUp && vlog.holdRow(String(opening.anchorId), { bottom: opening.place.bottom })) log.detach();
+        else log.scrollToNewest();
+        setPlaced(n);
+      }),
+    ),
+  );
+  let scroller: HTMLDivElement | undefined;
+  // Where the owner is: the newest link in view and its bottom edge, the newest link at the newest. Unknown until a
+  // reload is placed, and while folded (nothing laid out).
+  onCleanup(
+    readLinkPlaceWith(() => {
+      if (placed() !== linkLoads() || isPanelCollapsed(LINKS_PANEL) || !scroller?.clientHeight) return undefined;
+      const atBottom = linkAtNewest() && !vlog.holding() && vlog.log.distanceFromBottom() <= AT_NEWEST_SLOP_PX;
+      const key = vlog.log.inViewKey();
+      const row = atBottom || key === null ? undefined : vlog.rowByKey(key);
+      // A day heading stands for the link it heads; the caught-up line for none.
+      const item = atBottom ? links.items.at(-1) : row && row.kind !== 'divider' ? row.item : undefined;
+      const bottom = item && vlog.log.bottomOf(String(item.id));
+      return item && bottom != null ? placeAt(item, bottom) : undefined;
+    }),
+  );
+  if (!inCompanion) keepLinkPlace();
+
+  const jumpToNewest = (): void => {
+    // Opened at an older place: load the newest page, which lands there.
+    if (!linkAtNewest()) return void reloadLinks();
+    vlog.holdRow(null);
+    log.scrollToNewest();
+  };
 
   const [sheetOpen, setSheetOpen] = createSignal(false);
   const filterLabel = (): string => (linkFilterCount() ? `Filters, ${linkFilterCount()} set` : 'Filters');
@@ -121,6 +173,7 @@ export function LinksPanel() {
         <div
           class={styles.list}
           ref={(el) => {
+            scroller = el;
             vlog.ref(el);
             log.ref(el);
           }}
@@ -155,7 +208,7 @@ export function LinksPanel() {
           </VirtualRows>
         </div>
         <Show when={!log.following()}>
-          <JumpToNewest label="Jump to newest link" onClick={log.scrollToNewest} />
+          <JumpToNewest label="Jump to newest link" onClick={jumpToNewest} />
         </Show>
       </div>
     </section>
