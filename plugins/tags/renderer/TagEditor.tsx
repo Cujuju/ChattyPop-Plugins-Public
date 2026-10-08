@@ -6,6 +6,7 @@ import {
   look,
   openArchive,
   createAction,
+  confirmDialog,
   percentText,
   shortDateTime as when,
   usdText,
@@ -36,7 +37,9 @@ export function TagEditor(props: { tag: Tag | null }) {
     await action.run(() => (t ? saveTag(t.id, input) : createTag(input)));
   };
   const remove = async (): Promise<void> => {
-    if (!t || !window.confirm(`Delete the tag “${t.name}”? It comes off every message.`)) return;
+    if (!t) return;
+    const ok = await confirmDialog({ title: 'Delete tag', message: `Delete the tag “${t.name}”? It comes off every message.`, confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     await action.run(() => deleteTag(t.id));
   };
   return (

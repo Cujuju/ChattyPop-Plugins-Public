@@ -1,6 +1,6 @@
 // Settings → Summaries → Compare models: pick models, run them on one range, read their summaries side by side.
 import { createSignal, For, Show } from 'solid-js';
-import { Card, Note, Row, Select, countText, errorText, look, usdText } from '@plugin-sdk/renderer/kit';
+import { Card, Note, Row, Select, confirmDialog, countText, errorText, look, usdText } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import type { Comparison } from '../shared/compare';
 import type { SummaryScope } from '../shared/types';
@@ -140,7 +140,7 @@ function ComparisonView(props: { comparison: Comparison }) {
   const [pdfBusy, setPdfBusy] = createSignal(false);
   const [pdfError, setPdfError] = createSignal<string | null>(null);
   const remove = (): void => {
-    if (window.confirm('Delete this comparison?')) void removeComparison(c().id);
+    void confirmDialog({ title: 'Delete comparison', message: 'Delete this comparison?', confirmLabel: 'Delete', danger: true }).then((ok) => (ok ? removeComparison(c().id) : undefined));
   };
   // Called straight from the tap: on the phone, the browser opens its window only within it.
   const exportPdf = (): void => {
