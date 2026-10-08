@@ -228,6 +228,17 @@
   flex-direction: column;
 }
 
+/* The drag handle (the theme draws it), then the row across the rest. */
+.modelLine {
+  display: flex;
+  align-items: center;
+}
+
+.modelLine > :last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* A model's fields, set in under the row they edit. */
 .editor {
   display: flex;

@@ -61,19 +61,23 @@ export function ModelsCard() {
           <For each={models()}>
             {(m, i) => (
               <div class={styles.modelItem} {...reorder.itemProps(dragId(m))}>
-                <Row
-                  label={`${i() + 1}. ${modelText(m)}`}
-                  control={
-                    <span class={styles.buttons}>
-                      <button type="button" class="cp-button" aria-pressed={editing() === i()} onClick={() => setEditing(editing() === i() ? null : i())}>
-                        {editing() === i() ? 'Close' : 'Edit'}
-                      </button>
-                      <button type="button" class="cp-danger" onClick={() => remove(i())}>
-                        Remove
-                      </button>
-                    </span>
-                  }
-                />
+                <div class={styles.modelLine}>
+                  {/* A touch drags from here; elsewhere on the row it scrolls the page. */}
+                  <span data-reorder-handle aria-hidden="true" />
+                  <Row
+                    label={`${i() + 1}. ${modelText(m)}`}
+                    control={
+                      <span class={styles.buttons}>
+                        <button type="button" class="cp-button" aria-pressed={editing() === i()} onClick={() => setEditing(editing() === i() ? null : i())}>
+                          {editing() === i() ? 'Close' : 'Edit'}
+                        </button>
+                        <button type="button" class="cp-danger" onClick={() => remove(i())}>
+                          Remove
+                        </button>
+                      </span>
+                    }
+                  />
+                </div>
                 <Show when={editing() === i()}>
                   <ModelEditor
                     start={m}
