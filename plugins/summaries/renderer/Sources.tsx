@@ -9,18 +9,21 @@ const META = { 'data-size': 'xs', 'data-line': 'normal', 'data-font': 'sans', 'd
 /** A chip's text. */
 const CHIP = { 'data-size': '2xs', 'data-line': 'chip', 'data-font': 'sans' } as const;
 
-/** A part's cited messages behind one toggle ("3 sources"); expanded, the chips, at most `limit` of them. */
-export function Sources(props: { citations: Citation[]; summary: Summary; withDay: boolean; limit?: number }) {
-  const [open, setOpen] = createSignal(false);
-  const shown = () => (props.limit === undefined ? props.citations : props.citations.slice(0, props.limit));
+/** A part's cited messages behind one toggle ("3 sources"); expanded, the chips, at most `limit` of them. `shown`: the chips alone, no toggle, as an export needs. */
+export function Sources(props: { citations: Citation[]; summary: Summary; withDay: boolean; limit?: number; shown?: boolean }) {
+  const [toggled, setToggled] = createSignal(false);
+  const open = () => props.shown || toggled();
+  const listed = () => (props.limit === undefined ? props.citations : props.citations.slice(0, props.limit));
   return (
     <Show when={props.citations.length}>
-      <button type="button" class={`${styles.cite} ${look.citation} ${look.text}`} {...CHIP} aria-expanded={open()} onClick={() => setOpen(!open())}>
-        {open() ? 'Hide sources' : countText(props.citations.length, 'source')}
-      </button>
+      <Show when={!props.shown}>
+        <button type="button" class={`${styles.cite} ${look.citation} ${look.text}`} {...CHIP} aria-expanded={open()} onClick={() => setToggled(!toggled())}>
+          {open() ? 'Hide sources' : countText(props.citations.length, 'source')}
+        </button>
+      </Show>
       <Show when={open()}>
-        <For each={shown()}>{(c) => <CitationChip citation={c} summary={props.summary} withDay={props.withDay} />}</For>
-        <Show when={props.citations.length - shown().length}>{(more) => <span class={`${styles.meta} ${look.text}`} {...META}> +{more()} more</span>}</Show>
+        <For each={listed()}>{(c) => <CitationChip citation={c} summary={props.summary} withDay={props.withDay} />}</For>
+        <Show when={props.citations.length - listed().length}>{(more) => <span class={`${styles.meta} ${look.text}`} {...META}> +{more()} more</span>}</Show>
       </Show>
     </Show>
   );

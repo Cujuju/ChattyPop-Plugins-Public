@@ -13,20 +13,16 @@ import {
   compareRunning,
   createComparisonList,
   createOpenComparison,
-  inputCheck,
   modelText,
   openComparisonId,
   rangeText,
   removeComparison,
   runComparison,
-  sameInput,
   setOpenComparisonId,
-  totalsText,
 } from './compareState';
 import { exportComparison, exportComparisonPdf } from './compareExport';
+import { ComparisonColumns, ComparisonMeta } from './ComparisonParts';
 import { ModelsCard } from './CompareModels';
-import { spansDays } from './order';
-import { META, SummaryContent } from './SummaryContent';
 import styles from './Summary.module.css';
 
 const RANGE_OPTIONS = Object.entries(SUMMARY_RANGES).map(([id, r]) => ({ value: id, label: r.label }));
@@ -165,33 +161,12 @@ function ComparisonView(props: { comparison: Comparison }) {
       .catch((err: unknown) => setPdfError(errorText(err)))
       .finally(() => setPdfBusy(false));
   };
-  const head = () =>
-    [
-      scopeLabel(c().scope),
-      rangeText(c().sinceTs, c().untilTs),
-      `${countText(c().messageCount, 'message')}${c().skippedCount ? ` (${c().skippedCount} skipped)` : ''}`,
-      totalsText(c()),
-    ]
-      .filter(Boolean)
-      .join(' · ');
   return (
     <section class={styles.compare} aria-label="Comparison">
       <div class={styles.compareHead}>
-        <p class={`${styles.meta} ${look.text}`} {...META}>
-          {head()}
-          <Show when={inputCheck(c())}>
-            {(check) => (
-              <>
-                <br />
-                <span class={look.text} data-tone={check().ok ? 'success' : 'danger'} role={check().ok ? undefined : 'alert'}>
-                  {check().text}
-                </span>
-              </>
-            )}
-          </Show>
-        </p>
+        <ComparisonMeta comparison={c()} />
         <span class={styles.buttons}>
-          <button type="button" class="cp-button" onClick={() => exportComparison(c())}>
+          <button type="button" class="cp-button" onClick={() => void exportComparison(c())}>
             Export HTML
           </button>
           <button type="button" class="cp-button" disabled={pdfBusy()} onClick={exportPdf}>
@@ -202,32 +177,7 @@ function ComparisonView(props: { comparison: Comparison }) {
       <Show when={pdfError()}>
         <Note kind="error">{pdfError()}</Note>
       </Show>
-      <div class={styles.columns}>
-        <For each={c().results}>
-          {(r) => (
-            <article class={`${styles.column} ${look.card}`} aria-label={modelText(r.model)}>
-              <p class={look.text} data-size="sm" data-weight="semibold" data-font="sans" data-tone="primary">
-                {modelText(r.model)}
-              </p>
-              <Show when={sameInput(c(), r) === false}>
-                <p class={look.text} data-size="xs" data-tone="danger" role="alert">
-                  This model was sent different input from the others.
-                </p>
-              </Show>
-              <Show
-                when={r.summary}
-                fallback={
-                  <p class={`${styles.error} ${look.text}`} data-size="md" data-tone="danger" role="alert">
-                    {r.error}
-                  </p>
-                }
-              >
-                {(s) => <SummaryContent summary={s()} withDay={spansDays(s())} />}
-              </Show>
-            </article>
-          )}
-        </For>
-      </div>
+      <ComparisonColumns comparison={c()} />
     </section>
   );
 }

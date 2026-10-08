@@ -48,8 +48,8 @@ export function usageParts(s: Summary): string[] {
   ];
 }
 
-/** `withDay`: the run spans days, so sources show their day. */
-export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
+/** `withDay`: the run spans days, so sources show their day. `sourcesOpen`: every point's sources start shown, as an export needs. */
+export function SummaryContent(props: { summary: Summary; withDay: boolean; sourcesOpen?: boolean }) {
   const s = () => props.summary;
   return (
     <>
@@ -71,7 +71,7 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
             <For each={s().actions}>
               {(action) => (
                 <li class={`${styles.action} ${look.text}`} {...POINT} data-tone="primary">
-                  <PointParts item={action} summary={s()} withDay={props.withDay} />
+                  <PointParts item={action} summary={s()} withDay={props.withDay} sourcesOpen={props.sourcesOpen} />
                 </li>
               )}
             </For>
@@ -99,7 +99,7 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
               <For each={group.items}>
                 {(item) => (
                   <li class={`${styles.item} ${look.numbered} ${look.text}`} {...POINT} data-tone="secondary">
-                    <PointParts item={item} summary={s()} withDay={props.withDay} />
+                    <PointParts item={item} summary={s()} withDay={props.withDay} sourcesOpen={props.sourcesOpen} />
                     <Show when={flagOf(item)}>
                       {(f) => (
                         <span
@@ -131,7 +131,7 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
                 <span class={styles.itemText}>
                   <PeopleText text={t.title} people={s().people} channelId={t.citations[0]?.channelId ?? s().channelIds[0]} />
                 </span>
-                <Sources citations={t.citations} summary={s()} withDay={props.withDay} limit={THEME_CHIPS} />
+                <Sources citations={t.citations} summary={s()} withDay={props.withDay} limit={THEME_CHIPS} shown={props.sourcesOpen} />
               </li>
             )}
           </For>
@@ -142,7 +142,7 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean }) {
 }
 
 /** A point's parts, each followed by its own sources, so a source sits next to the thread it backs. */
-function PointParts(props: { item: SummaryItem; summary: Summary; withDay: boolean }) {
+function PointParts(props: { item: SummaryItem; summary: Summary; withDay: boolean; sourcesOpen?: boolean }) {
   return (
     <For each={props.item.parts}>
       {(part, i) => (
@@ -151,7 +151,7 @@ function PointParts(props: { item: SummaryItem; summary: Summary; withDay: boole
           <span class={styles.itemText}>
             <PeopleText text={part.text} people={props.summary.people} channelId={part.citations[0]?.channelId ?? props.summary.channelIds[0]} />
           </span>
-          <Sources citations={part.citations} summary={props.summary} withDay={props.withDay} />
+          <Sources citations={part.citations} summary={props.summary} withDay={props.withDay} shown={props.sourcesOpen} />
         </>
       )}
     </For>
