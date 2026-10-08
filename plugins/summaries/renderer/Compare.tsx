@@ -1,6 +1,6 @@
 // Settings → Summaries → Compare models: pick models, run them on one range, read their summaries side by side.
 import { createSignal, For, Show } from 'solid-js';
-import { Card, Note, Row, Select, countText, look, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { Card, Note, Row, Select, countText, errorText, look, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import type { Comparison } from '../shared/compare';
 import type { SummaryScope } from '../shared/types';
@@ -23,7 +23,7 @@ import {
   setOpenComparisonId,
   totalsText,
 } from './compareState';
-import { exportComparison } from './compareExport';
+import { exportComparison, exportComparisonPdf } from './compareExport';
 import { ModelsCard } from './CompareModels';
 import { spansDays } from './order';
 import { META, SummaryContent } from './SummaryContent';
@@ -155,6 +155,16 @@ function PastCard() {
 /** One comparison: what every model read and used in total, then a column per model in list order. */
 function ComparisonView(props: { comparison: Comparison }) {
   const c = () => props.comparison;
+  const [pdfBusy, setPdfBusy] = createSignal(false);
+  const [pdfError, setPdfError] = createSignal<string | null>(null);
+  // Called straight from the tap: on the phone, the browser opens its window only within it.
+  const exportPdf = (): void => {
+    setPdfError(null);
+    setPdfBusy(true);
+    exportComparisonPdf(c())
+      .catch((err: unknown) => setPdfError(errorText(err)))
+      .finally(() => setPdfBusy(false));
+  };
   const head = () =>
     [
       scopeLabel(c().scope),
@@ -180,10 +190,18 @@ function ComparisonView(props: { comparison: Comparison }) {
             )}
           </Show>
         </p>
-        <button type="button" class="cp-button" onClick={() => exportComparison(c())}>
-          Export HTML
-        </button>
+        <span class={styles.buttons}>
+          <button type="button" class="cp-button" onClick={() => exportComparison(c())}>
+            Export HTML
+          </button>
+          <button type="button" class="cp-button" disabled={pdfBusy()} onClick={exportPdf}>
+            {pdfBusy() ? 'Exporting…' : 'Export PDF'}
+          </button>
+        </span>
       </div>
+      <Show when={pdfError()}>
+        <Note kind="error">{pdfError()}</Note>
+      </Show>
       <div class={styles.columns}>
         <For each={c().results}>
           {(r) => (

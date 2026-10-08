@@ -1,7 +1,7 @@
 // A comparison as one HTML page for review outside the app: what every model read, then a column per model.
 // Its styles use the theme's tokens, copied with their values as they are now, so the page looks like the app.
 import { MS_PER_S } from '@plugin-sdk/shared';
-import { channelById, channelLabel, countText, exportHtmlPage, shortDateTime, weekdayDate, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { channelById, channelLabel, countText, exportHtmlPage, exportPdfPage, shortDateTime, weekdayDate, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import type { Comparison } from '../shared/compare';
 import { namedText } from '../shared/people';
 import { pointCitations, type Citation, type Summary, type SummaryItem } from '../shared/types';
@@ -32,7 +32,7 @@ li { margin-bottom: var(--cp-space-3); color: var(--cp-text-2); }
 .meta { margin: 0 0 var(--cp-space-6); }
 .cols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(var(--cp-compare-col-min-w), 1fr);
   gap: var(--cp-space-5); align-items: start; overflow-x: auto; }
-.col { padding: var(--cp-space-4) var(--cp-space-5); border: var(--cp-border-w) solid var(--cp-border-subtle);
+.col { min-width: 0; overflow-wrap: anywhere; padding: var(--cp-space-4) var(--cp-space-5); border: var(--cp-border-w) solid var(--cp-border-subtle);
   border-radius: var(--cp-radius-md); background: var(--cp-surface-2); }
 .headline { margin: var(--cp-space-4) 0; font-size: var(--cp-text-lg); font-weight: var(--cp-weight-semibold); }
 .flag, .error { color: var(--cp-danger); }
@@ -102,12 +102,25 @@ export function comparisonHtml(c: Comparison): string {
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 /** The file name: when the comparison ran, local time, sortable. */
-function fileName(c: Comparison): string {
+function fileName(c: Comparison, ext: 'html' | 'pdf'): string {
   const d = new Date(c.createdAt);
-  return `summary-comparison-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.html`;
+  return `summary-comparison-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.${ext}`;
 }
 
 /** Saves the comparison as an .html file on the desktop; the phone opens it in its browser. */
 export function exportComparison(c: Comparison): void {
-  exportHtmlPage({ html: comparisonHtml(c), fileName: fileName(c) });
+  exportHtmlPage({ html: comparisonHtml(c), fileName: fileName(c, 'html') });
+}
+
+const px = (root: CSSStyleDeclaration, token: string): number => parseFloat(root.getPropertyValue(token));
+
+/** The PDF's width: every column at the theme's reading measure, side by side, inside the page's padding. */
+function pdfWidth(columns: number): number {
+  const root = getComputedStyle(document.documentElement);
+  return columns * px(root, '--cp-compare-export-col-w') + (columns - 1) * px(root, '--cp-space-5') + 2 * px(root, '--cp-space-6');
+}
+
+/** Saves the comparison as a one-page PDF the desktop draws; the phone opens it in its browser. */
+export function exportComparisonPdf(c: Comparison): Promise<void> {
+  return exportPdfPage({ html: comparisonHtml(c), width: pdfWidth(Math.max(1, c.results.length)), fileName: fileName(c, 'pdf') });
 }
