@@ -27,6 +27,8 @@ export function RoutingModels() {
               control={
                 <SearchSelect
                   id={`jev-${t.tier}`}
+                  label={t.label}
+                  searchLabel={`Filter ${t.label.toLowerCase()}s`}
                   class={styles.control}
                   value={routing()[t.model] ?? ''}
                   options={options()}

@@ -12,15 +12,16 @@
   overflow-y: auto;
 }
 
-/* Mobile: full-screen modal sheet, with safe areas inside its scrollable body. */
+/* Mobile: full-screen modal sheet, with safe areas inside its scrollable body. It holds no text field, so it ignores the
+   keyboard inset: Run stays put while the keyboard closes on return from the search page, which owns that inset. */
 .runSheet {
   position: fixed;
   inset: 0;
   margin: 0;
   width: 100%;
   max-width: 100%;
-  height: calc(var(--cp-screen-visible-h) - var(--cp-keyboard-inset));
-  max-height: calc(var(--cp-screen-visible-h) - var(--cp-keyboard-inset));
+  height: var(--cp-screen-visible-h);
+  max-height: var(--cp-screen-visible-h);
   padding: 0;
   overflow: hidden;
 }
@@ -37,12 +38,21 @@
   min-height: 0;
 }
 
+/* Close, then the title in what's left, as the phone's other full-screen pages. */
 .runSheetHead {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   flex: none;
-  gap: var(--cp-space-5);
-  padding: max(var(--cp-space-5), var(--cp-safe-top)) var(--cp-space-5) 0;
+  grid-template-columns: var(--cp-touch-h) 1fr;
+  align-items: center;
+  gap: var(--cp-space-4);
+  padding: calc(var(--cp-safe-top) + var(--cp-space-4)) var(--cp-space-5) var(--cp-space-4);
+}
+
+.runTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .runBody {
@@ -56,18 +66,12 @@
 .runSheet .runBody {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: max(var(--cp-space-5), var(--cp-safe-bottom));
+  /* The raw home-bar inset, not --cp-safe-bottom: that one eases with the keyboard and would nudge Run as it closes. */
+  padding-bottom: max(var(--cp-space-5), env(safe-area-inset-bottom));
 }
 
 .runSheet .runButton {
   margin-top: auto;
-}
-
-.runGrabber {
-  flex: none;
-  align-self: center;
-  width: var(--cp-sheet-grip-w);
-  height: var(--cp-sheet-grip-h);
 }
 
 .runButton {

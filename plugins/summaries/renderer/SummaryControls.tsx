@@ -9,7 +9,6 @@ import {
   inCompanion,
   listen,
   look,
-  pullToClose,
 } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import { patchSummarySettings, summarySettings } from './settings';
@@ -105,18 +104,10 @@ export function SummaryControls() {
   );
 }
 
-/** A native modal sheet owns focus, backdrop dismissal and the lifetime of its nested channel picker. */
+/** Full-screen modal with a fixed close header and independently scrolling run controls. */
 function SummarySheet(props: { id: string; onClose: () => void }) {
   let dialog!: HTMLDialogElement;
-  let body!: HTMLDivElement;
-  onMount(() => {
-    dialog.showModal();
-    // A nested picker scrolls independently; its touches must not start a sheet pull.
-    listen(body, 'touchstart', (e) => {
-      if (e.target instanceof Element && e.target.closest('[popover]')) e.stopPropagation();
-    }, { passive: true });
-    pullToClose(dialog, props.onClose, body);
-  });
+  onMount(() => dialog.showModal());
   return (
     <dialog
       ref={dialog}
@@ -124,14 +115,13 @@ function SummarySheet(props: { id: string; onClose: () => void }) {
       class={`${styles.runSheet} ${look.page}`}
       aria-labelledby={`${props.id}-title`}
       onClose={props.onClose}
-      onClick={(e) => { if (e.target === dialog) props.onClose(); }}
     >
       <div class={`${styles.runSheetFrame} ${look.silentFocus}`} tabIndex={-1} autofocus>
-        <div class={styles.runSheetHead}>
-          <div class={`${styles.runGrabber} ${look.sheetGrabber}`} aria-hidden="true" />
-          <SummaryHeading id={props.id} onClose={props.onClose} />
-        </div>
-        <div ref={body} class={styles.runBody}>
+        <header class={`${styles.runSheetHead} ${look.chrome} ${look.ruleBelow}`}>
+          <HeaderButton variant="icon" aria-label="Close summary options" onClick={props.onClose}><Icon name="close" /></HeaderButton>
+          <h3 id={`${props.id}-title`} class={`${styles.runTitle} ${look.text}`} data-size="lg" data-weight="semibold">Summary options</h3>
+        </header>
+        <div class={styles.runBody}>
           <SummaryFields id={props.id} onClose={props.onClose} />
         </div>
       </div>
@@ -142,7 +132,7 @@ function SummarySheet(props: { id: string; onClose: () => void }) {
 function SummaryHeading(props: { id: string; onClose: () => void }) {
   return (
     <div class={styles.runHead}>
-      <h3 id={`${props.id}-title`} class={look.text} data-size={inCompanion ? 'xl' : 'md'} data-weight="semibold">Summary options</h3>
+      <h3 id={`${props.id}-title`} class={look.text} data-size="md" data-weight="semibold">Summary options</h3>
       <HeaderButton variant="icon" aria-label="Close summary options" onClick={props.onClose}><Icon name="close" /></HeaderButton>
     </div>
   );

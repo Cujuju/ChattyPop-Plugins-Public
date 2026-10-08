@@ -100,6 +100,8 @@ export function ScopeSelect(props: { id?: string; class?: string; value: Summary
   return (
     <SearchSelect
       id={props.id}
+      label="Channels"
+      searchLabel="Filter channels"
       class={props.class}
       value={valueOf(props.value)}
       options={options()}
