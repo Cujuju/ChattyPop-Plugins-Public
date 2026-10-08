@@ -1,0 +1,50 @@
+/* Settings → Summaries → Compare models. Structure only; the look is the theme's vocabulary (look.*). */
+
+/* The models' list: rows that drag, each with its editor under it when open. */
+.modelList {
+  display: flex;
+  flex-direction: column;
+}
+
+.modelItem {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The drag handle (the theme draws it), then the row across the rest. */
+.modelLine {
+  display: flex;
+  align-items: center;
+}
+
+.modelLine > :last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* A model's column number before its name. */
+.order {
+  display: inline-block;
+  min-width: var(--cp-space-6);
+  margin-inline-end: var(--cp-space-3);
+}
+
+/* A model's fields, set in under the row they edit. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  margin: 0 var(--cp-space-5) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-3) 0;
+}
+
+/* Remove stands apart from Cancel and Save, at the far side. */
+.removeButton {
+  margin-inline-end: auto;
+}
