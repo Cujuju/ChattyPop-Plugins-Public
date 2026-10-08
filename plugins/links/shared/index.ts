@@ -5,7 +5,7 @@ import { normalizeLinkPlace, type LinkCard, type LinkFilter, type LinkItem, type
 export const manifest = {
   id: 'links',
   name: 'Links',
-  version: '1.14.5',
+  version: '1.14.6',
   description: 'The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.',
 };
 
