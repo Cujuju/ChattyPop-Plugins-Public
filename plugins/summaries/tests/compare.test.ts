@@ -10,7 +10,7 @@ import type { ProviderId } from '@shared/settings';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import type { CompareModel } from '../shared/compare';
 import { Summarizer } from '../core/summarize';
-import { Comparer } from '../core/compare';
+import { COMPARE_CANCELED, Comparer } from '../core/compare';
 import { summarySpend } from '../core/summaryRows';
 import type { SummaryProviders } from '../core/providers';
 import { adoptSummaries } from './summariesHarness';
@@ -35,8 +35,8 @@ beforeEach(() => {
   );
 });
 
-/** Providers by id, each recording its calls; `failing` ones throw; ollama alone may read LOCAL_ONLY. */
-function setup(budgets: Partial<Record<ProviderId, number>>, failing: ProviderId[] = []) {
+/** Providers by id, each recording its calls; `failing` ones throw, `hanging` ones never answer; ollama alone may read LOCAL_ONLY. */
+function setup(budgets: Partial<Record<ProviderId, number>>, failing: ProviderId[] = [], hanging: ProviderId[] = []) {
   const calls: Record<string, CompletionRequest[]> = {};
   const get = (id: ProviderId): LlmProvider => ({
     id,
@@ -44,6 +44,8 @@ function setup(budgets: Partial<Record<ProviderId, number>>, failing: ProviderId
     complete: async (req): Promise<CompletionResult> => {
       (calls[id] ??= []).push(req);
       if (failing.includes(id)) throw new Error(`${id} is down`);
+      // Ignores its signal too, so the cancel's own settling is what the test sees.
+      if (hanging.includes(id)) return new Promise<never>(() => undefined);
       // Each model writes its own draft, so a merge's input is that model's own.
       return { text: '', json: { ...DRAFT, headline: id }, usage: USAGE, apiCostUsd: CALL_USD };
     },
@@ -103,6 +105,17 @@ describe('model comparison', () => {
     expect(c.scope).toEqual(scope);
     expect(comparer.list()[0]!.scope).toEqual(scope);
     expect(c.results.every((r) => r.summary?.scope?.channelIds[0] === HOSTED)).toBe(true);
+  });
+
+  it('stops at once on cancel, aborting calls in flight and storing nothing', async () => {
+    const { calls, comparer } = setup({}, [], ['codex']);
+    const run = comparer.run({ sinceTs: 0, models: [model('claude'), model('codex')] }, DEFAULT_AI_SETTINGS, PREFS);
+    await expect.poll(() => calls['codex']?.length).toBe(1);
+    expect(comparer.cancel()).toBe(true);
+    await expect(run).rejects.toThrow(COMPARE_CANCELED);
+    expect(calls['codex']![0]!.signal?.aborted).toBe(true);
+    expect(comparer.list()).toEqual([]);
+    expect(comparer.cancel()).toBe(false);
   });
 
   it('is listed, counts toward spending per finished column, and deletes on its own', async () => {

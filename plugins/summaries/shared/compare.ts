@@ -106,6 +106,12 @@ export function decodeCompareRequest([request]: readonly unknown[]): [CompareReq
   }];
 }
 
+/** cancelCompare takes nothing; it throws when sent anything. */
+export function decodeNoArgs(args: readonly unknown[]): [] {
+  if (args.length) throw new Error('Expected no arguments.');
+  return [];
+}
+
 /** A stored comparison's id, or it throws. */
 export function decodeComparisonId([id]: readonly unknown[]): [number] {
   if (typeof id !== 'number' || !Number.isSafeInteger(id)) throw new Error('Not a comparison id.');

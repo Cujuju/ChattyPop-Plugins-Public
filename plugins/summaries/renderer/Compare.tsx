@@ -10,6 +10,7 @@ import {
   compareError,
   compareProgress,
   compareRunning,
+  cancelComparison,
   createComparisonList,
   createOpenComparison,
   deleteError,
@@ -67,9 +68,18 @@ function RunCard() {
           </span>
         }
         control={
-          <button type="button" class="cp-primary" disabled={compareRunning() || !models()} onClick={() => void runComparison(range(), scope())}>
-            {compareRunning() ? 'Running…' : models() > 1 ? `Run ${models()} models` : 'Run'}
-          </button>
+          <Show
+            when={compareRunning()}
+            fallback={
+              <button type="button" class="cp-primary" disabled={!models()} onClick={() => void runComparison(range(), scope())}>
+                {models() > 1 ? `Run ${models()} models` : 'Run'}
+              </button>
+            }
+          >
+            <button type="button" class="cp-button" onClick={() => void cancelComparison()}>
+              Cancel
+            </button>
+          </Show>
         }
       />
       <Show when={compareError()}>

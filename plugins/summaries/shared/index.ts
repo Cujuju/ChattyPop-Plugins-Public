@@ -1,7 +1,7 @@
 // Summaries: archived recaps, scheduled rules, citations and notifications.
 import { defineChannels, definePlugin, definePreference, finiteOr, type AppUsage, type ProviderId } from '@plugin-sdk/shared';
 import { decodePrompts, decodeSpending } from './calls';
-import { decodeComparisonId, decodeCompareRequest, type Comparison, type ComparisonHead, type CompareProgress, type CompareRequest } from './compare';
+import { decodeComparisonId, decodeCompareRequest, decodeNoArgs, type Comparison, type ComparisonHead, type CompareProgress, type CompareRequest } from './compare';
 import { summarize } from './rules';
 import { SUMMARY_FEATURES, SUMMARY_QUERIES } from './queries';
 import { decodeSummaryRequest } from './request';
@@ -23,6 +23,8 @@ export interface SummaryCalls {
   notifyAuto(): boolean;
   /** Runs a comparison and stores it. */
   compare(request: CompareRequest): Promise<Comparison>;
+  /** Stops every comparison running, storing none of them; whether one was running. */
+  cancelCompare(): boolean;
   /** Stored comparisons, newest first. */
   comparisons(): ComparisonHead[];
   comparison(id: number): Comparison | null;
@@ -71,6 +73,7 @@ export const plugin = definePlugin({
       notifyAuto: ['main'],
       // A comparison stores its columns and spends each model's plan.
       compare: { audiences: ['renderer', 'phone'], writes: true, decode: decodeCompareRequest },
+      cancelCompare: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
       comparisons: { audiences: ['renderer', 'phone'], writes: false },
       comparison: { audiences: ['renderer', 'phone'], writes: false, decode: decodeComparisonId },
       deleteComparison: { audiences: ['renderer', 'phone'], writes: true, decode: decodeComparisonId },

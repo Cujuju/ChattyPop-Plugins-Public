@@ -1,7 +1,7 @@
 // Model comparisons: the stored list, the one open, and a run's progress.
 import { createMemo, createSignal } from 'solid-js';
 import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
-import { clockTime, createAction, effortLabel, formatTokens, providerName, providerStatus, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { clockTime, createAction, effortLabel, errorText, formatTokens, providerName, providerStatus, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
@@ -37,6 +37,17 @@ export async function runComparison(range: SummaryRange, scope: SummaryScope | n
   const c = await action.run(async () => core.compare({ ...(await rangeOf(range, scope)), ...(scope ? { scope } : {}), models: summarySettings().compareModels }));
   setCompareProgress(null);
   if (c) setOpenComparisonId(c.id);
+}
+
+/** Stops the run in flight: this window stops waiting at once, so the run's end reads as neither a result nor an error. */
+export async function cancelComparison(): Promise<void> {
+  action.cancel();
+  setCompareProgress(null);
+  try {
+    await core.cancelCompare();
+  } catch (err) {
+    action.setError(errorText(err));
+  }
 }
 
 export async function removeComparison(id: number): Promise<void> {

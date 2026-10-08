@@ -97,7 +97,7 @@ export async function writeSummary(
   const callCosts: (number | undefined)[] = [];
   const complete = async (stage: 'part' | 'merge', req: SentRequest): Promise<Draft> => {
     onSend(stage, req);
-    const r = await provider.complete({ ...req, ...chosenModel({ model: w.model, effort: w.effort }) });
+    const r = await provider.complete({ ...req, ...chosenModel({ model: w.model, effort: w.effort }), signal });
     signal.throwIfAborted();
     if (r.usage) callUsage.push(r.usage);
     callCosts.push(r.apiCostUsd);

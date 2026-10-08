@@ -68,6 +68,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
         throw err;
       }
     },
+    cancelCompare: () => comparer.cancel(),
     comparisons: () => comparer.list(),
     comparison: (id) => comparer.get(id),
     deleteComparison: (id) => comparer.delete(id),
