@@ -10,17 +10,18 @@ import {
   compareProgress,
   compareRunning,
   cancelComparison,
+  closeComparison,
+  createComparison,
   createComparisonList,
-  createOpenComparison,
   deleteError,
+  isComparisonOpen,
   openComparison,
-  openComparisonId,
+  phoneOpenComparisonId,
   rangeText,
   removeComparison,
   runComparison,
-  setOpenComparisonId,
 } from './compareState';
-import { ComparisonView } from './ComparisonPanel';
+import { ComparisonView } from './ComparisonWindow';
 import { ModelsCard } from './CompareModels';
 import styles from './Summary.module.css';
 import compare from './Compare.module.css';
@@ -88,10 +89,9 @@ function RunCard() {
   );
 }
 
-/** Stored comparisons, newest first. Open shows one in the Comparison panel; the phone has no panels, so it shows below the list. */
+/** Stored comparisons, newest first. Open shows one in its own window, beside others open; the phone has none, so it shows below the list. */
 function PastCard() {
   const list = createComparisonList();
-  const isOpen = (id: number): boolean => openComparisonId() === id;
   const remove = (id: number): void => {
     void confirmDialog({ title: 'Delete comparison', message: 'Delete this comparison?', confirmLabel: 'Delete', danger: true }).then((ok) => (ok ? removeComparison(id) : undefined));
   };
@@ -120,8 +120,8 @@ function PastCard() {
               }
               control={
                 <>
-                  <button type="button" class="cp-button" aria-expanded={isOpen(h.id)} onClick={() => (isOpen(h.id) ? setOpenComparisonId(null) : openComparison(h.id))}>
-                    {isOpen(h.id) ? 'Close' : 'Open'}
+                  <button type="button" class="cp-button" aria-expanded={isComparisonOpen(h.id)} onClick={() => (isComparisonOpen(h.id) ? closeComparison(h.id) : openComparison(h.id))}>
+                    {isComparisonOpen(h.id) ? 'Close' : 'Open'}
                   </button>
                   <button type="button" class={`cp-danger ${compare.iconButton}`} aria-label="Delete comparison" title="Delete comparison" onClick={() => remove(h.id)}>
                     <Icon name="trash" />
@@ -144,6 +144,6 @@ function PastCard() {
 
 /** The phone's open comparison, under the list. */
 function OpenComparison() {
-  const open = createOpenComparison();
+  const open = createComparison(phoneOpenComparisonId);
   return <Show when={open()}>{(c) => <ComparisonView comparison={c()} />}</Show>;
 }

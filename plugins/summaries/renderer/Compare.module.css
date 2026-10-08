@@ -55,11 +55,3 @@
   width: var(--cp-btn-h-sm);
   padding: 0;
 }
-
-/* The open comparison's details, then its actions under them: the settings column is too narrow for both side by side. */
-.head {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--cp-space-3);
-}

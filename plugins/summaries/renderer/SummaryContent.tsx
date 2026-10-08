@@ -33,35 +33,45 @@ export function flagOf(item: SummaryItem): keyof typeof FLAG_TEXT | null {
   return (c.confidence ?? 0) >= CITATION_FLAG_CONFIDENCE ? c.verdict : null;
 }
 
-/** Tokens and costs: each run that called a model says what it used, or that its provider didn't report it. */
-export function usageParts(s: Summary): string[] {
-  const calledModel = s.messageCount > 0;
+/** Tokens: each run that called a model says what it used, or that its provider didn't report it. */
+export function tokenParts(s: Summary): string[] {
   const u = s.usage;
+  if (!u) return s.messageCount > 0 ? ['tokens not reported'] : [];
+  return [`${formatTokens(u.inputTokens)} in${u.cachedInputTokens ? ` (${formatTokens(u.cachedInputTokens)} cached)` : ''}`, `${formatTokens(u.outputTokens)} out`];
+}
+
+/** Costs: the model's at API rates, or that it is unknown, then Jev's. */
+export function costParts(s: Summary): string[] {
   return [
-    ...(u
-      ? [`${formatTokens(u.inputTokens)} in${u.cachedInputTokens ? ` (${formatTokens(u.cachedInputTokens)} cached)` : ''}`, `${formatTokens(u.outputTokens)} out`]
-      : calledModel ? ['tokens not reported'] : []),
     ...(s.apiCostUsd !== null
       ? [`≈${usdText(s.apiCostUsd)} at API rates${s.apiCostEstimated ? ' (estimated from tokens)' : ''}`]
-      : calledModel ? ['API cost unknown'] : []),
+      : s.messageCount > 0 ? ['API cost unknown'] : []),
     ...(s.jevCostUsd !== null ? [`Jev ${usdText(s.jevCostUsd)}`] : []),
   ];
 }
 
-/** `withDay`: the run spans days, so sources show their day. `sourcesOpen`: every point's sources start shown, as an export needs. */
-export function SummaryContent(props: { summary: Summary; withDay: boolean; sourcesOpen?: boolean }) {
+/** Tokens, then costs. */
+export const usageParts = (s: Summary): string[] => [...tokenParts(s), ...costParts(s)];
+
+/**
+ * `withDay`: the run spans days, so sources show their day. `sourcesOpen`: every point's sources start shown, as an export needs.
+ * `runDetails: false` leaves out the provider, size and cost line, for a view that shows them itself (a comparison's column).
+ */
+export function SummaryContent(props: { summary: Summary; withDay: boolean; sourcesOpen?: boolean; runDetails?: boolean }) {
   const s = () => props.summary;
   return (
     <>
       <p class={`${styles.headline} ${look.text}`} data-size="lg" data-weight="semibold" data-line="normal" data-tone="primary">
         <PeopleText text={s().headline} people={s().people} channelId={s().channelIds[0]} />
       </p>
-      <p class={`${styles.meta} ${look.text}`} {...META}>
-        {providerLabel(s().provider)}
-        <Show when={s().model}>{(m) => ` (${m()})`}</Show> · {s().messageCount} messages
-        <Show when={s().skippedCount > 0}>{` (${s().skippedCount} skipped as filler)`}</Show> · {Math.round(s().durationMs / MS_PER_S)} s
-        <Show when={usageParts(s()).length}>{` · ${usageParts(s()).join(' · ')}`}</Show>
-      </p>
+      <Show when={props.runDetails !== false}>
+        <p class={`${styles.meta} ${look.text}`} {...META}>
+          {providerLabel(s().provider)}
+          <Show when={s().model}>{(m) => ` (${m()})`}</Show> · {s().messageCount} messages
+          <Show when={s().skippedCount > 0}>{` (${s().skippedCount} skipped as filler)`}</Show> · {Math.round(s().durationMs / MS_PER_S)} s
+          <Show when={usageParts(s()).length}>{` · ${usageParts(s()).join(' · ')}`}</Show>
+        </p>
+      </Show>
       <Show when={s().actions.length}>
         <section class={`${styles.actions} ${look.wash}`} aria-label="For you">
           <p class={look.text} data-size="xs" data-weight="semibold" data-case="upper" data-tracking="label" data-font="sans" data-tone="section">

@@ -1,8 +1,22 @@
-// Model comparisons: the stored list, the one open, and a run's progress.
+// Model comparisons: the stored list, which are open, and a run's progress.
 import { createMemo, createSignal } from 'solid-js';
-import { callable, coreClient, onAppEvent, onEvent, pluginPreference, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
-import { clockTime, createAction, effortLabel, errorText, formatTokens, inCompanion, providerName, providerStatus, revealPanel, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
-import { COMPARISON_PANEL, plugin } from '../shared';
+import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
+import {
+  clockTime,
+  closePluginWindow,
+  createAction,
+  effortLabel,
+  errorText,
+  formatTokens,
+  inCompanion,
+  openPluginWindow,
+  pluginWindowOpen,
+  providerName,
+  providerStatus,
+  usdText,
+  weekdayDateTime,
+} from '@plugin-sdk/renderer/kit';
+import { plugin } from '../shared';
 import type { CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
 import type { SummaryScope } from '../shared/types';
@@ -20,11 +34,22 @@ onEvent(plugin, 'comparisonsChanged', changed);
 // Privacy mode changed: listed and open comparisons may be filtered or redacted differently.
 onAppEvent('privacy-changed', changed);
 
-export const [openComparisonId, setOpenComparisonId] = pluginPreference(plugin, 'openComparison');
-/** Shows comparison `id` in its panel; the phone has no panels, so Settings shows it there. */
+/** The window kind showing one comparison, keyed by its id. */
+export const COMPARISON_WINDOW = 'comparison';
+/** The comparison the phone shows under the list in Settings: it has no windows. */
+const [phoneOpenId, setPhoneOpenId] = createSignal<number | null>(null);
+export const phoneOpenComparisonId = phoneOpenId;
+
+/** Whether comparison `id` is open: its window, or on the phone, under the list. Reactive. */
+export const isComparisonOpen = (id: number): boolean => (inCompanion ? phoneOpenId() === id : pluginWindowOpen(plugin, COMPARISON_WINDOW, String(id)));
+/** Opens comparison `id` in its own window, beside any others open, or brings it to the front. */
 export function openComparison(id: number): void {
-  setOpenComparisonId(id);
-  if (!inCompanion) revealPanel(COMPARISON_PANEL);
+  if (inCompanion) setPhoneOpenId(id);
+  else openPluginWindow(plugin, COMPARISON_WINDOW, String(id));
+}
+export function closeComparison(id: number): void {
+  if (!inCompanion) closePluginWindow(plugin, COMPARISON_WINDOW, String(id));
+  else if (phoneOpenId() === id) setPhoneOpenId(null);
 }
 export const [compareProgress, setCompareProgress] = createSignal<CompareProgress | null>(null);
 onEvent(plugin, 'compareProgress', (p) => { if (active()) setCompareProgress(p); });
@@ -57,7 +82,7 @@ export async function cancelComparison(): Promise<void> {
 
 export async function removeComparison(id: number): Promise<void> {
   await deleting.run(() => core.deleteComparison(id));
-  if (openComparisonId() === id) setOpenComparisonId(null);
+  closeComparison(id);
 }
 
 /** Stored comparisons, newest first. Call inside a component. */
@@ -67,12 +92,12 @@ export const createComparisonList = () =>
     return [];
   }, []);
 
-/** The open comparison; null while none is open or it is gone. Call inside a component. */
-export const createOpenComparison = () =>
+/** Comparison `id()`; null while `id()` is null or it is gone. Call inside a component. */
+export const createComparison = (id: () => number | null) =>
   pluginResource(plugin, 'comparison', () => {
     version();
-    const id = openComparisonId();
-    return id === null ? null : [id];
+    const shown = id();
+    return shown === null ? null : [shown];
   }, null);
 
 /** A range with its day once when it starts and ends the same day: "Wed, Oct 7, 01:22 PM – 01:52 PM". */
@@ -108,8 +133,14 @@ export function totalsText(c: Comparison): string {
   ].join(' · ');
 }
 
-/** A model as its column and the export name it: provider, model and thinking level. */
-export function modelText(m: CompareModel): string {
+/** A model's provider and name, as its provider lists it. */
+export function modelName(m: CompareModel): string {
   const listed = providerStatus().find((p) => p.id === m.provider)?.models?.find((x) => x.id === m.model);
-  return [providerName(m.provider), listed?.label ?? m.model ?? 'default model', ...(m.effort ? [`${effortLabel(m.effort)} thinking`] : [])].join(' · ');
+  return `${providerName(m.provider)} · ${listed?.label ?? m.model ?? 'default model'}`;
 }
+
+/** Its thinking level, as its column's tag shows it; null at the model's default. */
+export const effortText = (m: CompareModel): string | null => (m.effort ? `${effortLabel(m.effort)} thinking` : null);
+
+/** A model as a list and the export name it: provider, model and thinking level. */
+export const modelText = (m: CompareModel): string => [modelName(m), ...(effortText(m) ? [effortText(m)] : [])].join(' · ');

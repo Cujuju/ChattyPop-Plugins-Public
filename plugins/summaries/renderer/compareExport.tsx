@@ -20,7 +20,7 @@ const titleOf = (c: Comparison): string => `Summary comparison, ${weekdayDateTim
 /** The exported page's content: its title, what every model read, then the columns with their sources. */
 function ComparisonExport(props: { comparison: Comparison }) {
   return (
-    <section class={styles.compare}>
+    <section class={styles.compare} data-section="summary">
       <p class={look.text} data-size="xl" data-weight="semibold" data-tone="primary">
         {titleOf(props.comparison)}
       </p>

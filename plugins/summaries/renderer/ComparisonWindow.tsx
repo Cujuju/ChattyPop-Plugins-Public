@@ -1,33 +1,33 @@
-// The Comparison panel: the comparison opened in Settings → Summaries → Compare models, a column per model.
+// A comparison's own window, opened from Settings → Summaries → Compare models: one per comparison, several at once.
 import { createSignal, Show } from 'solid-js';
-import { errorText, isPanelCollapsed, Note, PanelHeader } from '@plugin-sdk/renderer/kit';
-import { COMPARISON_PANEL } from '../shared';
+import { errorText, look, Note } from '@plugin-sdk/renderer/kit';
 import type { Comparison } from '../shared/compare';
-import { createOpenComparison } from './compareState';
+import { createComparison, createComparisonList, rangeText } from './compareState';
 import { exportComparison, exportComparisonPdf } from './compareExport';
 import { ComparisonColumns, ComparisonMeta } from './ComparisonParts';
+import { scopeLabel } from './scope';
 import styles from './Summary.module.css';
-import compare from './Compare.module.css';
 
-export function ComparisonPanel() {
-  const open = createOpenComparison();
+/** The window's title: what the comparison read, so open windows tell apart. */
+export function ComparisonWindowTitle(props: { key: string }) {
+  const list = createComparisonList();
+  const head = () => list().find((h) => String(h.id) === props.key);
+  return <>{head() ? `${scopeLabel(head()!.scope)} · ${rangeText(head()!.sinceTs, head()!.untilTs)}` : 'Comparison'}</>;
+}
+
+/** Comparison `key` filling its window: its bar stays put while the columns scroll both ways. */
+export function ComparisonWindow(props: { key: string }) {
+  const c = createComparison(() => Number(props.key));
   return (
-    <section class="cp-panel" aria-label="Comparison" data-section={COMPARISON_PANEL}>
-      <PanelHeader section={COMPARISON_PANEL} collapsible title="Comparison" />
-      <Show when={!isPanelCollapsed(COMPARISON_PANEL)}>
-        <Show when={open()} fallback={<p class="cp-panel-empty">Open a comparison in Settings → Summaries → Compare models.</p>}>
-          {(c) => (
-            <div class="cp-panel-body">
-              <ComparisonView comparison={c()} />
-            </div>
-          )}
-        </Show>
+    <div class={styles.compareWindow} data-section="summary">
+      <Show when={c()} fallback={<Show when={!c.loading}><p class="cp-panel-empty">This comparison is gone.</p></Show>}>
+        {(shown) => <ComparisonView comparison={shown()} />}
       </Show>
-    </section>
+    </div>
   );
 }
 
-/** One comparison: what every model read and used in total, its exports, then a column per model in list order. */
+/** One comparison: what every model read and used in total with its exports at the right, then a column per model in list order. */
 export function ComparisonView(props: { comparison: Comparison }) {
   const c = () => props.comparison;
   const [pdfBusy, setPdfBusy] = createSignal(false);
@@ -42,7 +42,7 @@ export function ComparisonView(props: { comparison: Comparison }) {
   };
   return (
     <div class={styles.compare}>
-      <div class={compare.head}>
+      <div class={`${styles.compareBar} ${look.band}`}>
         <ComparisonMeta comparison={c()} />
         <span class={styles.buttons}>
           <button type="button" class="cp-button" onClick={() => void exportComparison(c())}>
@@ -56,7 +56,9 @@ export function ComparisonView(props: { comparison: Comparison }) {
       <Show when={pdfError()}>
         <Note kind="error">{pdfError()}</Note>
       </Show>
-      <ComparisonColumns comparison={c()} />
+      <div class={styles.compareScroll}>
+        <ComparisonColumns comparison={c()} />
+      </div>
     </div>
   );
 }

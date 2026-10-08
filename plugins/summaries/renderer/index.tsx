@@ -2,9 +2,10 @@
 import { For, Show } from 'solid-js';
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { planPercentText, planUsageOf, providerLabel, StatusBarItem } from '@plugin-sdk/renderer/kit';
-import { COMPARISON_PANEL, plugin } from '../shared';
+import { plugin } from '../shared';
 import { SummaryPanel } from './SummaryPanel';
-import { ComparisonPanel } from './ComparisonPanel';
+import { ComparisonWindow, ComparisonWindowTitle } from './ComparisonWindow';
+import { COMPARISON_WINDOW } from './compareState';
 import { SummarySection } from './SummarySection';
 import { summarySettings } from './settings';
 import { summaryView } from './rules';
@@ -35,8 +36,8 @@ export default defineRendererPlugin(plugin, {
         markSeen: markSummariesSeen,
       },
     },
-    [COMPARISON_PANEL]: { view: ComparisonPanel },
   },
+  windows: { [COMPARISON_WINDOW]: { title: ComparisonWindowTitle, view: ComparisonWindow } },
   settings: { summaries: { body: SummarySection } },
   rules: {
     actions: { 'summaries.summarize': summaryView },

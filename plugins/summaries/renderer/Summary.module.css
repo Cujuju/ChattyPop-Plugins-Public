@@ -221,12 +221,75 @@
   gap: var(--cp-space-3);
 }
 
-/* The open comparison: its details and export, then a column per model. */
+/* An open comparison: its bar, then a column per model. */
 .compare {
   display: flex;
   flex-direction: column;
   gap: var(--cp-space-4);
   min-width: 0;
+}
+
+/* Its details, the exports at the far right; with less than a column's width for the details, the exports drop under them. */
+.compareBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--cp-space-3) var(--cp-space-6);
+  padding: var(--cp-space-4) var(--cp-space-5);
+}
+
+.compareBar > :first-child {
+  flex: 1 1 var(--cp-compare-col-min-w);
+  min-width: 0;
+}
+
+.compareBar > :last-child {
+  margin-inline-start: auto;
+}
+
+/* In its own window the comparison fills it: the bar stays put, and the columns scroll both ways together, so the
+   sideways scrollbar sits at the window's foot rather than under the longest column. */
+.compareWindow {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.compareWindow .compare {
+  flex: 1 1 0;
+  gap: 0;
+  min-height: 0;
+}
+
+.compareWindow .compareScroll {
+  display: grid;
+  flex: 1 1 0;
+  min-height: 0;
+  padding: var(--cp-space-5);
+  overflow: auto;
+}
+
+.compareWindow .columns {
+  min-width: min-content;
+  overflow-x: visible;
+}
+
+/* A model's band across its column's top: the model, then its thinking level. */
+.modelBand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+/* What its run read, took and cost: a strip under the band, ruled off from the summary. */
+.runStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-1) var(--cp-space-5);
+  padding-bottom: var(--cp-space-3);
 }
 
 /* Columns of equal width; past the room for all, they scroll sideways. */
