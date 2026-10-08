@@ -8,14 +8,72 @@
   width: var(--cp-search-popover-max-w);
   max-width: calc(var(--cp-sheet-w) - 2 * var(--cp-space-3));
   max-height: calc(var(--cp-screen-visible-h) - 2 * var(--cp-space-3));
-  padding: var(--cp-space-5);
+  padding: 0;
   overflow-y: auto;
 }
 
-.runPanel:popover-open {
+/* Mobile: full-screen modal sheet, with safe areas inside its scrollable body. */
+.runSheet {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  height: calc(var(--cp-screen-visible-h) - var(--cp-keyboard-inset));
+  max-height: calc(var(--cp-screen-visible-h) - var(--cp-keyboard-inset));
+  padding: 0;
+  overflow: hidden;
+}
+
+.runSheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.runSheetFrame {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.runSheetHead {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: var(--cp-space-5);
+  padding: max(var(--cp-space-5), var(--cp-safe-top)) var(--cp-space-5) 0;
+}
+
+.runBody {
   display: flex;
   flex-direction: column;
   gap: var(--cp-space-5);
+  min-height: 0;
+  padding: var(--cp-space-5);
+}
+
+.runSheet .runBody {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: max(var(--cp-space-5), var(--cp-safe-bottom));
+}
+
+.runSheet .runButton {
+  margin-top: auto;
+}
+
+.runGrabber {
+  flex: none;
+  align-self: center;
+  width: var(--cp-sheet-grip-w);
+  height: var(--cp-sheet-grip-h);
+}
+
+.runButton {
+  flex: none;
+  min-height: var(--cp-btn-h-sm);
+  text-align: center;
 }
 
 .runHead {

@@ -1,38 +1,28 @@
 // Summary history, controls and cited results.
-import { For, Show, createSignal, createUniqueId } from 'solid-js';
+import { For, Show } from 'solid-js';
 import type { Summary } from '../shared/types';
-import { SUMMARY_RANGES, type SummaryRange, type SummaryTrigger } from '../shared/settings';
+import type { SummaryTrigger } from '../shared/settings';
 import {
   look,
   createFollowBottom,
-  Icon,
   clockTime,
   shortDateTime,
   weekdayDateTime,
   isPanelCollapsed,
   PanelHeader,
   HeaderActions,
-  HeaderButton,
-  listen,
   scrolledFromTop,
-  ProviderSelect,
-  Select,
 } from '@plugin-sdk/renderer/kit';
-import { patchSummarySettings, summarySettings } from './settings';
 import {
   loadOlderSummaries,
   overlapUntil,
-  runSummary,
-  setSummaryRange,
-  setSummaryScope,
   summaryError,
   summaryHistory,
   summaryProgress,
-  summaryRange,
   summaryRunning,
-  summaryScope,
 } from './state';
-import { ScopeSelect, scopeLabel } from './scope';
+import { scopeLabel } from './scope';
+import { SummaryControls } from './SummaryControls';
 import { spansDays } from './order';
 import styles from './Summary.module.css';
 import { META, SummaryContent } from './SummaryContent';
@@ -103,108 +93,6 @@ export function SummaryPanel() {
         </div>
       </Show>
     </section>
-  );
-}
-
-/** One header action opens the same summary controls on desktop and phone. */
-function SummaryControls() {
-  const id = createUniqueId();
-  const [open, setOpen] = createSignal(false);
-  let trigger!: HTMLButtonElement;
-  let panel!: HTMLDivElement;
-  const place = (): void => {
-    if (!panel.matches(':popover-open')) return;
-    const css = getComputedStyle(panel);
-    const inset = parseFloat(css.getPropertyValue('--cp-space-3'));
-    const gap = parseFloat(css.getPropertyValue('--cp-popover-gap'));
-    const anchor = trigger.getBoundingClientRect();
-    const bounds = panel.getBoundingClientRect();
-    const below = anchor.bottom + gap;
-    const top = below + bounds.height > innerHeight - inset ? anchor.top - gap - bounds.height : below;
-    panel.style.left = `${Math.max(inset, Math.min(anchor.right - bounds.width, innerWidth - bounds.width - inset))}px`;
-    panel.style.top = `${Math.max(inset, Math.min(top, innerHeight - bounds.height - inset))}px`;
-  };
-  const close = (): void => {
-    panel.hidePopover();
-    trigger.focus();
-  };
-  listen(window, 'resize', place);
-  listen(window, 'scroll', place, { capture: true, passive: true });
-  listen(window, 'keydown', (e) => {
-    if (e.key !== 'Escape' || e.defaultPrevented || !panel.matches(':popover-open')) return;
-    e.preventDefault();
-    close();
-  });
-  return (
-    <>
-      <HeaderButton
-        ref={trigger}
-        variant="primaryIcon"
-        aria-label="Summary options"
-        title="Summary options"
-        aria-haspopup="dialog"
-        aria-expanded={open()}
-        aria-controls={id}
-        popovertarget={id}
-      >
-        <Icon name="summary" />
-      </HeaderButton>
-      <div
-        ref={panel}
-        id={id}
-        popover="auto"
-        role="dialog"
-        aria-labelledby={`${id}-title`}
-        class={`cp-popover ${styles.runPanel}`}
-        onToggle={(e) => {
-          const shown = (e as ToggleEvent).newState === 'open';
-          setOpen(shown);
-          if (shown) {
-            place();
-            panel.querySelector<HTMLSelectElement>('select')?.focus();
-          }
-        }}
-      >
-        <div class={styles.runHead}>
-          <h3 id={`${id}-title`} class={look.text} data-size="md" data-weight="semibold">Summary options</h3>
-          <HeaderButton variant="icon" aria-label="Close summary options" onClick={close}><Icon name="close" /></HeaderButton>
-        </div>
-        <div class={styles.runField}>
-          <label for={`${id}-provider`} class={look.text} data-size="sm">Provider</label>
-          <ProviderSelect
-            id={`${id}-provider`}
-            class={styles.runSelect}
-            value={summarySettings().defaultProvider}
-            onChange={(defaultProvider) => patchSummarySettings({ defaultProvider })}
-          />
-        </div>
-        <div class={styles.runField}>
-          <label for={`${id}-channels`} class={look.text} data-size="sm">Channels</label>
-          <ScopeSelect id={`${id}-channels`} class={styles.runSelect} value={summaryScope()} onChange={setSummaryScope} />
-        </div>
-        <div class={styles.runField}>
-          <label for={`${id}-range`} class={look.text} data-size="sm">Time frame</label>
-          <Select
-            id={`${id}-range`}
-            class={styles.runSelect}
-            value={summaryRange()}
-            options={Object.entries(SUMMARY_RANGES).map(([value, r]) => ({ value, label: r.label }))}
-            onChange={(v) => setSummaryRange(v as SummaryRange)}
-          />
-        </div>
-        <button
-          type="button"
-          class="cp-primary cp-primary-lg"
-          disabled={summaryRunning()}
-          onClick={() => {
-            close();
-            void runSummary();
-          }}
-        >
-          {summaryRunning() ? 'Working…' : 'Run summary'}
-        </button>
-      </div>
-    </>
   );
 }
 
