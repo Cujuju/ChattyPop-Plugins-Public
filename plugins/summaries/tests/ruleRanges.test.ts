@@ -52,7 +52,7 @@ describe('rule summarize and plugin actions', () => {
     );
     h.say('big news');
     await vi.waitFor(() => expect(h.rules.runs(id, 1)[0]?.actions).toHaveLength(2));
-    expect(h.ranges.summaryPrompts).toEqual([own, undefined]);
+    expect(h.ranges.summaryOptions.map((o) => o.prompts)).toEqual([own, undefined]);
   });
 
   it("doesn't run on a missed message by default; an empty range is skipped", async () => {

@@ -6,15 +6,15 @@ import { summarize } from './rules';
 import { SUMMARY_FEATURES, SUMMARY_QUERIES } from './queries';
 import { decodeSummaryRequest } from './request';
 import type { Summary, SummaryEstimate, SummaryFailure, SummaryPageQuery, SummaryProgress, SummaryPrompts, SummaryRequest, SummarySpend } from './types';
-import type { SummaryPromptTemplates } from './prompts';
-import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, type SummaryTrigger } from './settings';
+import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, type SummaryRuleOptions, type SummaryTrigger } from './settings';
 
 /** Typed calls for desktop, phone and notification delivery. */
 export interface SummaryCalls {
   summarize(request: SummaryRequest): Promise<Summary>;
   page(query: SummaryPageQuery): Summary[];
   estimate(request: SummaryRequest): SummaryEstimate | null;
-  prompts(own?: SummaryPromptTemplates): SummaryPrompts;
+  /** The system prompts a run would send; a rule's own options over Settings. */
+  prompts(own?: SummaryRuleOptions): SummaryPrompts;
   usageSince(provider: ProviderId, sinceTs: number): AppUsage;
   /** What runs since each time cost, in order. */
   spending(sinceTs: number[]): SummarySpend[];

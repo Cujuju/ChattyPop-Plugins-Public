@@ -17,12 +17,14 @@ describe('Summaries phone settings', () => {
     await expect(t.client('phone').spending(['yesterday'] as never)).rejects.toThrow('start time');
   });
 
-  it('checks optional templates and all spending times', () => {
+  it('checks optional rule options and all spending times', () => {
     expect(decodePrompts([])).toEqual([]);
     expect(decodePrompts([undefined])).toEqual([]);
-    const own = { summarize: 'draft', merge: null };
+    const own = { prompts: { summarize: 'draft', merge: null }, length: 'brief', focus: '' };
     expect(decodePrompts([own])).toEqual([own]);
-    for (const args of [[null], [5], [{}], [{ summarize: 5, merge: null }], [{ ...own, extra: 1 }], [own, null]]) expect(() => decodePrompts(args)).toThrow();
+    expect(decodePrompts([{}])).toEqual([{}]);
+    const bad = [[null], [5], [{ prompts: { summarize: 5, merge: null } }], [{ prompts: { summarize: 'x', merge: null, extra: 1 } }], [{ ...own, extra: 1 }], [{ length: 'huge' }], [{ actionItems: 'yes' }], [own, null]];
+    for (const args of bad) expect(() => decodePrompts(args)).toThrow();
     expect(decodeSpending([[1, 2]])).toEqual([[1, 2]]);
     for (const args of [[], [null], [[1, '2']], [[NaN]], [[Infinity]], [Array(1)], [[1], 2]]) expect(() => decodeSpending(args)).toThrow();
   });

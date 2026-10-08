@@ -2,7 +2,7 @@
 import { defineCorePlugin, type CoreContext } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { plugin } from '../shared';
-import { withOwnPrompts } from '../shared/settings';
+import { withRuleOptions } from '../shared/settings';
 import type { SummaryEvent } from '../shared/types';
 import { Summarizer } from './summarize';
 import { Comparer } from './compare';
@@ -35,7 +35,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
   const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, providers, emit, () => ctx.identity.names(), ctx.lifetime.signal);
   const comparer = new Comparer(ctx.storage.db, summarizer, providers, (p) => ctx.channels.emit('compareProgress', p), () => ctx.channels.emit('comparisonsChanged', null));
   registerSummaryKinds(ctx.rules, {
-    summarize: (request, prompts, trigger) => summarizer.run(request, ctx.ai.settings(), withOwnPrompts(prefs(), prompts), trigger),
+    summarize: (request, own, trigger) => summarizer.run(request, ctx.ai.settings(), withRuleOptions(prefs(), own), trigger),
   }, emit, (q) => summarizer.coveredFrom(q, prefs()));
   ctx.ai.usage.provide((provider, sinceTs) => summarizer.usageSince(provider, sinceTs));
   ctx.archive.textCoverage.provide(() => coverageSpans(ctx.storage.db));
@@ -55,7 +55,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     },
     page: (query) => summarizer.page(query),
     estimate: (request) => summarizer.estimate(request, ctx.ai.settings(), prefs()),
-    prompts: (own) => summarizer.prompts(ctx.ai.settings(), withOwnPrompts(prefs(), own)),
+    prompts: (own) => summarizer.prompts(ctx.ai.settings(), withRuleOptions(prefs(), own)),
     usageSince: (provider, sinceTs) => summarizer.usageSince(provider, sinceTs),
     spending: (starts) => starts.map((sinceTs) => summarySpend(ctx.storage.db, sinceTs)),
     linkPerson: (id, written, userId) => linkPerson(ctx.storage.db, id, written, userId),

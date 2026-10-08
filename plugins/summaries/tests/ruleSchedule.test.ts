@@ -7,7 +7,8 @@ import { getSetting, setSetting, type Db } from '@core/db';
 import { RuleSchedule } from '@core/rules/schedule';
 import { ruleInput } from '@chattypop/host-testing';
 import { CATCH_UP_RULE_NAME, DIGEST_RULE_NAME, migrateAutoSummaries as migrate } from '../core/autoSummaries';
-import { normalizeSummarySettings } from '../shared/settings';
+import { normalizeSummarySettings, SUMMARY_FOCUS_MAX_CHARS } from '../shared/settings';
+import { ruleRangeSpan } from '../shared/rules';
 import { timedSummaryInput } from '../shared/timedRules';
 import { startSummaries } from './summariesHarness';
 import { summaryRuleHarness } from './summaryRuleHarness';
@@ -53,6 +54,42 @@ describe('timed rules', () => {
     now = at(9, 1, 26);
     await schedule.tick();
     expect(h.summaryEvents).toContainEqual({ type: 'summary-auto-failed', trigger: 'digest', message: 'provider down', channelIds: ['c1'] });
+  });
+
+  it("read a picked time frame ending at the run, over their Where, with the rule's own options", async () => {
+    let now = at(8, 30);
+    const h = summaryRuleHarness(() => now);
+    h.rules.create(
+      ruleInput([{ ...newRuleAction('summaries.summarize'), config: { lookbackMs: MS_PER_HOUR, range: 'yesterday', length: 'brief' } }], {
+        trigger: { kind: 'daily', at: '09:00', days: [0, 1, 2, 3, 4, 5, 6] },
+        gates: { channelIds: ['c1'] },
+      }),
+    );
+    const schedule = new RuleSchedule(h.db, h.engine, h.actions, now - MS_PER_HOUR, (e) => h.events.push(e), () => now);
+    now = at(9, 1);
+    await schedule.tick();
+    await schedule.tick();
+    expect(h.ranges.summaries).toEqual([{ sinceTs: at(0, 0, 24), untilTs: at(0, 0), channelIds: ['c1'] }]);
+    expect(h.ranges.summaryOptions).toEqual([{ length: 'brief' }]);
+  });
+
+  it('turn each time frame into its span', () => {
+    const until = at(9, 1);
+    expect(ruleRangeSpan('today', until)).toEqual({ sinceTs: at(0, 0), untilTs: until });
+    expect(ruleRangeSpan('yesterday', until)).toEqual({ sinceTs: at(0, 0, 24), untilTs: at(0, 0) });
+    expect(ruleRangeSpan('3h', until)).toEqual({ sinceTs: until - 3 * MS_PER_HOUR, untilTs: until });
+  });
+
+  it("refuse options a run can't use", () => {
+    const daily: TimedTrigger = { kind: 'daily', at: '08:00', days: [0, 1, 2, 3, 4, 5, 6] };
+    const withConfig = (config: object) => {
+      const input = timedSummaryInput('D', daily);
+      input.spec.actions[0]!.config = { lookbackMs: MS_PER_HOUR, ...config };
+      return input;
+    };
+    expect(() => validateRuleInput(withConfig({ range: '7d', grouping: 'channel', actionItems: false, focus: 'billing' }))).not.toThrow();
+    for (const bad of [{ range: 'since' }, { length: 'huge' }, { provider: '' }, { skipObviousFiller: 1 }, { focus: 'x'.repeat(SUMMARY_FOCUS_MAX_CHARS + 1) }])
+      expect(() => validateRuleInput(withConfig(bad))).toThrow();
   });
 });
 

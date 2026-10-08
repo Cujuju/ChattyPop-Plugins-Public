@@ -3,7 +3,7 @@ import { archivePayloads } from '@core/plugins/archivePayloads';
 import { adoptSummaries } from './summariesHarness';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SummaryEvent } from '../shared/types';
-import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, withOwnPrompts, type SummarySettings } from '../shared/settings';
+import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, withRuleOptions, type SummarySettings } from '../shared/settings';
 import { DEFAULT_SUMMARY_PROMPTS, NO_PROMPT_OVERRIDES, SUMMARY_PROMPT_MAX_CHARS, fillSummaryPrompt, summaryPromptError } from '../shared/prompts';
 import { MS_PER_DAY } from '@shared/units';
 import { Summarizer } from '../core/summarize';
@@ -124,8 +124,15 @@ describe('summary options reach the prompt and the stored run', () => {
 
   it("layers a rule's own prompts over the owner's, a null part following the owner's", () => {
     const owner = { ...TEST_PREFS, prompts: { summarize: 'Owner. {refs}', merge: 'Owner merge. {refs}' } };
-    expect(withOwnPrompts(owner, undefined)).toBe(owner);
-    expect(withOwnPrompts(owner, { summarize: 'Rule. {refs}', merge: null }).prompts).toEqual({ summarize: 'Rule. {refs}', merge: 'Owner merge. {refs}' });
+    expect(withRuleOptions(owner, undefined)).toBe(owner);
+    expect(withRuleOptions(owner, { prompts: { summarize: 'Rule. {refs}', merge: null } }).prompts).toEqual({ summarize: 'Rule. {refs}', merge: 'Owner merge. {refs}' });
+  });
+
+  it("layers a rule's own options over the owner's, an absent one following the owner's", () => {
+    const owner: SummarySettings = { ...TEST_PREFS, defaultProvider: 'claude', length: 'detailed', focus: 'billing', actionItems: true };
+    const run = withRuleOptions(owner, { provider: 'codex', length: 'brief', focus: '', skipObviousFiller: true });
+    expect(run).toMatchObject({ defaultProvider: 'codex', length: 'brief', grouping: owner.grouping, focus: '', actionItems: true, skipObviousFiller: true, prompts: owner.prompts });
+    expect(withRuleOptions(owner, {})).toEqual(owner);
   });
 
   it('shows the same instructions a run sends', async () => {

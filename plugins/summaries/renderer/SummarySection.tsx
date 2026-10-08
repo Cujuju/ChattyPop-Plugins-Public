@@ -3,7 +3,6 @@ import { For, Show } from 'solid-js';
 import type { Rule } from '@plugin-sdk/shared';
 import { timedTriggerText } from '@plugin-sdk/shared';
 import {
-  SUMMARY_BULLETS,
   SUMMARY_FOCUS_MAX_CHARS,
   SUMMARY_RANGES,
   type SummaryGrouping,
@@ -35,7 +34,6 @@ import {
   ProviderSelect,
   providerStatus,
   usdText,
-  type ChoiceText,
 } from '@plugin-sdk/renderer/kit';
 import styles from './Summary.module.css';
 import { createPromptPreview, createSpending, SPEND_PERIODS } from './state';
@@ -43,17 +41,11 @@ import type { ProviderSpend, SummarySpend } from '../shared/types';
 import { WEEKDAY_LABELS as DAY_NAMES } from '@plugin-sdk/shared';
 import { SummaryPromptEditor } from './SummaryPromptEditor';
 import { CompareBody } from './Compare';
+import { ACTION_ITEMS_HINT, FILLER_HINT, FOCUS_HINT, FOCUS_PLACEHOLDER, GROUPINGS, LAYOUT_HINT, LENGTH_LABEL, LENGTH_OPTIONS, lengthHint } from './styleText';
 import { ScopeSelect, ruleScope, setRuleScope } from './scope';
 
 /** Settings → AI: where each provider's model is picked. */
 const AI_SETTINGS = 'ai';
-const span = (b: readonly [number, number]): string => `${b[0]}–${b[1]}`;
-const LENGTH_LABEL: Record<SummaryLength, string> = { brief: 'Brief', standard: 'Standard', detailed: 'Detailed' };
-/** Each layout's text in its select and in the section's one-line state, in select order. */
-const GROUPINGS: Record<SummaryGrouping, ChoiceText> = {
-  overall: { option: 'One list, in the order it happened', meta: 'one list' },
-  channel: { option: 'Grouped by channel', meta: 'grouped by channel' },
-};
 
 /** #96 rules that summarize on a schedule: the automatic summaries. */
 const scheduledSummaries = (): Rule[] =>
@@ -119,7 +111,7 @@ function ProviderBody() {
         for="summary-provider"
         hint={
           <>
-            Every summary uses it, automatic ones included{model() ? `, with ${model()}` : ''}. Its model is picked in Settings → AI providers.{' '}
+            Every summary uses it{model() ? `, with ${model()}` : ''}, including automatic ones unless their rule picks another. Its model is picked in Settings → AI providers.{' '}
             <LinkButton onClick={() => openSettingsAt(AI_SETTINGS)}>Open Settings → AI providers</LinkButton>
           </>
         }
@@ -137,16 +129,13 @@ function StyleBody() {
         <Row
           label="Length"
           for="summary-length"
-          hint={`${span(SUMMARY_BULLETS[s().length].overall)} points (${span(SUMMARY_BULLETS[s().length].perChannel)} per channel).`}
+          hint={lengthHint(s().length)}
           control={
             <Select
               id="summary-length"
               class={styles.control}
               value={s().length}
-              options={(Object.keys(LENGTH_LABEL) as SummaryLength[]).map((l) => ({
-                value: l,
-                label: `${LENGTH_LABEL[l]}: ${span(SUMMARY_BULLETS[l].overall)} points`,
-              }))}
+              options={LENGTH_OPTIONS}
               onChange={(v) => update({ length: v as SummaryLength })}
             />
           }
@@ -154,7 +143,7 @@ function StyleBody() {
         <Row
           label="Layout"
           for="summary-grouping"
-          hint="Grouped suits many channels you skim one by one; one list suits a few related channels."
+          hint={LAYOUT_HINT}
           control={
             <Select
               id="summary-grouping"
@@ -183,7 +172,7 @@ function StyleBody() {
         <Row
           label="“For you” list"
           for="summary-actions"
-          hint="Above the points: questions and requests put to you, deadlines and events, and decisions waiting on your input, each linked to its message. Leaves out anything already answered."
+          hint={ACTION_ITEMS_HINT}
           control={
             <Switch id="summary-actions" checked={s().actionItems} onChange={(on) => update({ actionItems: on })} />
           }
@@ -191,14 +180,14 @@ function StyleBody() {
         <Row
           label="What matters to you"
           for="summary-focus"
-          hint="Points about these are kept even when minor. Leave empty for a neutral summary."
+          hint={FOCUS_HINT}
         >
           <textarea
             id="summary-focus"
             class={styles.wide}
             rows={3}
             maxLength={SUMMARY_FOCUS_MAX_CHARS}
-            placeholder="e.g. release dates, anything about billing, what Sam decides"
+            placeholder={FOCUS_PLACEHOLDER}
             value={s().focus}
             onChange={(e) => update({ focus: e.currentTarget.value })}
           />
@@ -206,7 +195,7 @@ function StyleBody() {
         <Row
           label="Skip obvious filler"
           for="summary-skip-filler"
-          hint="Leaves out messages that are only emoji or links, and short throwaways like “lol”, unless they are replies or contain a number or question. Rules, not AI: free and instant. Only summaries skip them; the archive, search and alerts see every message."
+          hint={FILLER_HINT}
           control={
             <Switch
               id="summary-skip-filler"
@@ -228,8 +217,9 @@ function AutoBody() {
     <>
       <Note>
         Rules that summarize on a schedule: at a time of day, every few hours, or when ChattyPop opens after time away.
-        Each reads everything, one server or one channel. They use the default AI provider and count toward its plan
-        usage, start once sync has caught up, and appear in the Summary panel.
+        Each reads everything, one server or one channel. They use the default AI provider and the style above unless
+        the rule sets its own, count toward the provider's plan usage, start once sync has caught up, and appear in the
+        Summary panel.
       </Note>
       <Card>
         <For each={scheduledSummaries()}>

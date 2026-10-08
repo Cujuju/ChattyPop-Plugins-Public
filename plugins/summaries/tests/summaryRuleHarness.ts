@@ -9,16 +9,15 @@ import type { Db } from '@core/db';
 import { FakeJev, from, hostRuleStack, nextTs, rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { registerSummaryKinds, type SummaryRangeDeps } from '../core/kinds';
 import { coveredFrom } from '../core/summaryRows';
-import type { SummaryPromptTemplates } from '../shared/prompts';
-import type { SummaryTrigger } from '../shared/settings';
+import type { SummaryRuleOptions, SummaryTrigger } from '../shared/settings';
 import type { Summary, SummaryEvent, SummaryRequest } from '../shared/types';
 import { startSummaries } from './summariesHarness';
 
 /** Recorded summary requests with a configurable answer. */
 export interface FakeSummaries extends SummaryRangeDeps {
   summaries: SummaryRequest[];
-  /** Each summary's rule prompts, in the same order. */
-  summaryPrompts: (SummaryPromptTemplates | undefined)[];
+  /** Each summary's rule options, in the same order. */
+  summaryOptions: SummaryRuleOptions[];
   /** How each summary is labelled, in the same order. */
   summaryTriggers: SummaryTrigger[];
   /** The headline each summary answers with; a rejection fails the summary. */
@@ -28,12 +27,12 @@ export interface FakeSummaries extends SummaryRangeDeps {
 function fakeSummaries(): FakeSummaries {
   const f: FakeSummaries = {
     summaries: [],
-    summaryPrompts: [],
+    summaryOptions: [],
     summaryTriggers: [],
     answer: async () => 'answered',
-    summarize: async (req, prompts, trigger) => {
+    summarize: async (req, own, trigger) => {
       f.summaries.push(req);
-      f.summaryPrompts.push(prompts);
+      f.summaryOptions.push(own);
       f.summaryTriggers.push(trigger);
       return { headline: (await f.answer()) ?? '' } as Summary;
     },

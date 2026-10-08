@@ -6,8 +6,7 @@ import { plugin } from '../shared';
 import { callable, pluginsLoaded, coreClient, pluginData, pluginResource, onEvent, lastSeenAt, pluginPreference, onAppEvent } from '@plugin-sdk/renderer';
 import { refetchPlanUsage, createAction, createPagedList, aiSettings } from '@plugin-sdk/renderer/kit';
 import { MS_PER_DAY, type ProviderId } from '@plugin-sdk/shared';
-import type { SummaryPromptTemplates } from '../shared/prompts';
-import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
+import { SUMMARY_RANGES, type SummaryRange, type SummaryRuleOptions } from '../shared/settings';
 import { summarySettings } from './settings';
 import { mergeHistoryPage } from './historyPage';
 import { dayOf } from './order';
@@ -138,8 +137,8 @@ export async function runSummary(): Promise<void> {
   if (run && active()) addRun(run);
 }
 
-/** Builds system-prompt previews from rule overrides, owner templates, and AI/summary settings. Null when unavailable; call inside a component. */
-export function createPromptPreview(own: () => SummaryPromptTemplates | undefined = () => undefined) {
+/** Builds system-prompt previews from a rule's own options over the owner's, and AI settings. Null when unavailable; call inside a component. */
+export function createPromptPreview(own: () => SummaryRuleOptions | undefined = () => undefined) {
   return pluginResource(plugin, 'prompts', () => {
     // Core builds them from the AI and summary settings as well: re-read when either changes.
     aiSettings();

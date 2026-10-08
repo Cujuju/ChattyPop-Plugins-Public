@@ -92,9 +92,46 @@ export const DEFAULT_SUMMARY_SETTINGS: SummarySettings = {
   compareModels: [],
 };
 
-/** The settings a run uses with a rule's own prompts (#88) over the owner's; a null kind keeps the owner's. */
-export const withOwnPrompts = (prefs: SummarySettings, own: SummaryPromptTemplates | undefined): SummarySettings =>
-  own ? { ...prefs, prompts: { summarize: own.summarize ?? prefs.prompts.summarize, merge: own.merge ?? prefs.prompts.merge } } : prefs;
+/** What a summarize rule sets for its own runs; each absent option follows Settings → Summaries. */
+export interface SummaryRuleOptions {
+  provider?: ProviderId;
+  length?: SummaryLength;
+  grouping?: SummaryGrouping;
+  actionItems?: boolean;
+  /** '' = a neutral summary, whatever Settings' focus is. */
+  focus?: string;
+  skipObviousFiller?: boolean;
+  /** Own prompt templates (#88); a null kind follows the owner's. */
+  prompts?: SummaryPromptTemplates;
+}
+
+/** The settings a rule's run uses: its own options over the owner's. */
+export const withRuleOptions = (prefs: SummarySettings, own: SummaryRuleOptions | undefined): SummarySettings =>
+  own
+    ? {
+        ...prefs,
+        defaultProvider: own.provider ?? prefs.defaultProvider,
+        length: own.length ?? prefs.length,
+        grouping: own.grouping ?? prefs.grouping,
+        actionItems: own.actionItems ?? prefs.actionItems,
+        focus: own.focus ?? prefs.focus,
+        skipObviousFiller: own.skipObviousFiller ?? prefs.skipObviousFiller,
+        prompts: own.prompts ? { summarize: own.prompts.summarize ?? prefs.prompts.summarize, merge: own.prompts.merge ?? prefs.prompts.merge } : prefs.prompts,
+      }
+    : prefs;
+
+const isBool = (v: unknown): boolean => v === undefined || typeof v === 'boolean';
+
+/** Why a rule's options can't run, or null; prompts are checked by the action. */
+export function summaryRuleOptionsError(o: SummaryRuleOptions): string | null {
+  if (o.provider !== undefined && normalizeProviderId(o.provider) === null) return 'Pick a provider.';
+  if (o.length !== undefined && !SUMMARY_LENGTHS.includes(o.length)) return 'Pick a length.';
+  if (o.grouping !== undefined && !SUMMARY_GROUPINGS.includes(o.grouping)) return 'Pick a layout.';
+  if (!isBool(o.actionItems) || !isBool(o.skipObviousFiller)) return 'Pick on or off.';
+  if (o.focus !== undefined && (typeof o.focus !== 'string' || o.focus.length > SUMMARY_FOCUS_MAX_CHARS))
+    return `Keep what matters to you under ${SUMMARY_FOCUS_MAX_CHARS} characters.`;
+  return null;
+}
 
 export function normalizeSummarySettings(v: unknown): SummarySettings {
   const src = isObj(v) ? v : {};
