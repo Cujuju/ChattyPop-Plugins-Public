@@ -1,8 +1,7 @@
 // Settings → Summaries → Compare models: pick models, run them on one range, read their summaries side by side.
 import { createSignal, For, Show } from 'solid-js';
-import { Card, Note, Row, Select, confirmDialog, countText, errorText, look, usdText } from '@plugin-sdk/renderer/kit';
+import { Card, Icon, Note, Row, Select, confirmDialog, countText, inCompanion, look, usdText } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
-import type { Comparison } from '../shared/compare';
 import type { SummaryScope } from '../shared/types';
 import { ScopeSelect, scopeLabel } from './scope';
 import { summarySettings } from './settings';
@@ -14,14 +13,14 @@ import {
   createComparisonList,
   createOpenComparison,
   deleteError,
+  openComparison,
   openComparisonId,
   rangeText,
   removeComparison,
   runComparison,
   setOpenComparisonId,
 } from './compareState';
-import { exportComparison, exportComparisonPdf } from './compareExport';
-import { ComparisonColumns, ComparisonMeta } from './ComparisonParts';
+import { ComparisonView } from './ComparisonPanel';
 import { ModelsCard } from './CompareModels';
 import styles from './Summary.module.css';
 import compare from './Compare.module.css';
@@ -89,11 +88,13 @@ function RunCard() {
   );
 }
 
-/** Stored comparisons, newest first; the open one below the list. */
+/** Stored comparisons, newest first. Open shows one in the Comparison panel; the phone has no panels, so it shows below the list. */
 function PastCard() {
   const list = createComparisonList();
-  const open = createOpenComparison();
   const isOpen = (id: number): boolean => openComparisonId() === id;
+  const remove = (id: number): void => {
+    void confirmDialog({ title: 'Delete comparison', message: 'Delete this comparison?', confirmLabel: 'Delete', danger: true }).then((ok) => (ok ? removeComparison(id) : undefined));
+  };
   return (
     <>
       <Card title="Past comparisons" meta={countText(list().length, 'comparison')}>
@@ -118,9 +119,14 @@ function PastCard() {
                 </>
               }
               control={
-                <button type="button" class="cp-button" aria-expanded={isOpen(h.id)} onClick={() => setOpenComparisonId(isOpen(h.id) ? null : h.id)}>
-                  {isOpen(h.id) ? 'Close' : 'Open'}
-                </button>
+                <>
+                  <button type="button" class="cp-button" aria-expanded={isOpen(h.id)} onClick={() => (isOpen(h.id) ? setOpenComparisonId(null) : openComparison(h.id))}>
+                    {isOpen(h.id) ? 'Close' : 'Open'}
+                  </button>
+                  <button type="button" class={`cp-danger ${compare.iconButton}`} aria-label="Delete comparison" title="Delete comparison" onClick={() => remove(h.id)}>
+                    <Icon name="trash" />
+                  </button>
+                </>
               }
             />
           )}
@@ -129,47 +135,15 @@ function PastCard() {
           <Note kind="error">{deleteError()}</Note>
         </Show>
       </Card>
-      <Show when={open()}>{(c) => <ComparisonView comparison={c()} />}</Show>
+      <Show when={inCompanion}>
+        <OpenComparison />
+      </Show>
     </>
   );
 }
 
-/** One comparison: what every model read and used in total, then a column per model in list order. */
-function ComparisonView(props: { comparison: Comparison }) {
-  const c = () => props.comparison;
-  const [pdfBusy, setPdfBusy] = createSignal(false);
-  const [pdfError, setPdfError] = createSignal<string | null>(null);
-  const remove = (): void => {
-    void confirmDialog({ title: 'Delete comparison', message: 'Delete this comparison?', confirmLabel: 'Delete', danger: true }).then((ok) => (ok ? removeComparison(c().id) : undefined));
-  };
-  // Called straight from the tap: on the phone, the browser opens its window only within it.
-  const exportPdf = (): void => {
-    setPdfError(null);
-    setPdfBusy(true);
-    exportComparisonPdf(c())
-      .catch((err: unknown) => setPdfError(errorText(err)))
-      .finally(() => setPdfBusy(false));
-  };
-  return (
-    <section class={styles.compare} aria-label="Comparison">
-      <div class={compare.head}>
-        <ComparisonMeta comparison={c()} />
-        <span class={styles.buttons}>
-          <button type="button" class="cp-button" onClick={() => void exportComparison(c())}>
-            Export HTML
-          </button>
-          <button type="button" class="cp-button" disabled={pdfBusy()} onClick={exportPdf}>
-            {pdfBusy() ? 'Exporting…' : 'Export PDF'}
-          </button>
-          <button type="button" class={`cp-danger ${compare.deleteButton}`} onClick={remove}>
-            Delete
-          </button>
-        </span>
-      </div>
-      <Show when={pdfError()}>
-        <Note kind="error">{pdfError()}</Note>
-      </Show>
-      <ComparisonColumns comparison={c()} />
-    </section>
-  );
+/** The phone's open comparison, under the list. */
+function OpenComparison() {
+  const open = createOpenComparison();
+  return <Show when={open()}>{(c) => <ComparisonView comparison={c()} />}</Show>;
 }

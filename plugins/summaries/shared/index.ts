@@ -8,6 +8,9 @@ import { decodeSummaryRequest } from './request';
 import type { Summary, SummaryEstimate, SummaryFailure, SummaryPageQuery, SummaryProgress, SummaryPrompts, SummaryRequest, SummarySpend } from './types';
 import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, type SummaryRuleOptions, type SummaryTrigger } from './settings';
 
+/** The panel showing one comparison. */
+export const COMPARISON_PANEL = 'comparison' as const;
+
 /** Typed calls for desktop, phone and notification delivery. */
 export interface SummaryCalls {
   summarize(request: SummaryRequest): Promise<Summary>;
@@ -105,6 +108,15 @@ export const plugin = definePlugin({
       id: 'tabbed',
       before: 'chat',
     }],
+  }, {
+    // Opens over the app like Settings, from Settings → Summaries → Compare models; no default layout places it.
+    id: COMPARISON_PANEL,
+    title: 'Comparison',
+    importance: 'reference',
+    dialog: true,
+    // Two columns side by side.
+    iconPath: 'M4 5h6v14H4z M14 5h6v14h-6z',
+    after: 'summary',
   }],
   settings: [{
     id: 'summaries',
@@ -153,6 +165,8 @@ export const plugin = definePlugin({
     lastDigestAt: definePreference<number | null>({ default: null, normalize: finiteOr(null) }),
     /** Set once the #96 rules exist, so a deleted one is never made again. */
     autoMigrated: definePreference({ default: false, normalize: (v: unknown) => v === true }),
+    /** The comparison the Comparison panel shows; a preference so a panel in its own window shows it too. */
+    openComparison: definePreference<number | null>({ default: null, normalize: finiteOr(null) }),
   },
   adopts: {
     settingFields: [

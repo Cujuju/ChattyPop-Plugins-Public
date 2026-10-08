@@ -1,8 +1,8 @@
 // Model comparisons: the stored list, the one open, and a run's progress.
 import { createMemo, createSignal } from 'solid-js';
-import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
-import { clockTime, createAction, effortLabel, errorText, formatTokens, providerName, providerStatus, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
-import { plugin } from '../shared';
+import { callable, coreClient, onAppEvent, onEvent, pluginPreference, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
+import { clockTime, createAction, effortLabel, errorText, formatTokens, inCompanion, providerName, providerStatus, revealPanel, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { COMPARISON_PANEL, plugin } from '../shared';
 import type { CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
 import type { SummaryScope } from '../shared/types';
@@ -20,7 +20,12 @@ onEvent(plugin, 'comparisonsChanged', changed);
 // Privacy mode changed: listed and open comparisons may be filtered or redacted differently.
 onAppEvent('privacy-changed', changed);
 
-export const [openComparisonId, setOpenComparisonId] = createSignal<number | null>(null);
+export const [openComparisonId, setOpenComparisonId] = pluginPreference(plugin, 'openComparison');
+/** Shows comparison `id` in its panel; the phone has no panels, so Settings shows it there. */
+export function openComparison(id: number): void {
+  setOpenComparisonId(id);
+  if (!inCompanion) revealPanel(COMPARISON_PANEL);
+}
 export const [compareProgress, setCompareProgress] = createSignal<CompareProgress | null>(null);
 onEvent(plugin, 'compareProgress', (p) => { if (active()) setCompareProgress(p); });
 
@@ -36,7 +41,7 @@ export async function runComparison(range: SummaryRange, scope: SummaryScope | n
   setCompareProgress(null);
   const c = await action.run(async () => core.compare({ ...(await rangeOf(range, scope)), ...(scope ? { scope } : {}), models: summarySettings().compareModels }));
   setCompareProgress(null);
-  if (c) setOpenComparisonId(c.id);
+  if (c) openComparison(c.id);
 }
 
 /** Stops the run in flight: this window stops waiting at once, so the run's end reads as neither a result nor an error. */

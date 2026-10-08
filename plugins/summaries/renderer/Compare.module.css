@@ -49,9 +49,11 @@
   margin-inline-end: auto;
 }
 
-/* Delete stands apart from the exports beside it. */
-.deleteButton {
-  margin-inline-start: var(--cp-space-4);
+/* A square holding only its icon (Delete beside Open). */
+.iconButton {
+  justify-content: center;
+  width: var(--cp-btn-h-sm);
+  padding: 0;
 }
 
 /* The open comparison's details, then its actions under them: the settings column is too narrow for both side by side. */
