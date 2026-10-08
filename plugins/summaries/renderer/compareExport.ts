@@ -1,7 +1,7 @@
 // A comparison as one HTML page for review outside the app: what every model read, then a column per model.
 // Its styles use the theme's tokens, copied with their values as they are now, so the page looks like the app.
 import { MS_PER_S } from '@plugin-sdk/shared';
-import { channelById, channelLabel, countText, shortDateTime, weekdayDate, weekdayDateTime } from '@plugin-sdk/renderer/kit';
+import { channelById, channelLabel, countText, exportHtmlPage, shortDateTime, weekdayDate, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import type { Comparison } from '../shared/compare';
 import { namedText } from '../shared/people';
 import { pointCitations, type Citation, type Summary, type SummaryItem } from '../shared/types';
@@ -10,7 +10,6 @@ import { FLAG_TEXT, flagOf, usageParts } from './SummaryContent';
 import { inputCheck, modelText, rangeText, totalsText } from './compareState';
 import { scopeLabel } from './scope';
 
-const HTML_TYPE = 'text/html';
 
 /** The tokens the page's styles read. */
 const TOKENS = [
@@ -108,13 +107,7 @@ function fileName(c: Comparison): string {
   return `summary-comparison-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.html`;
 }
 
-/** Saves the comparison as an .html file: the desktop asks where; a phone's browser saves or shares it. */
+/** Saves the comparison as an .html file on the desktop; the phone opens it in its browser. */
 export function exportComparison(c: Comparison): void {
-  const url = URL.createObjectURL(new Blob([comparisonHtml(c)], { type: HTML_TYPE }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName(c);
-  a.click();
-  // After the click's task, once the download has the file.
-  setTimeout(() => URL.revokeObjectURL(url));
+  exportHtmlPage({ html: comparisonHtml(c), fileName: fileName(c) });
 }
