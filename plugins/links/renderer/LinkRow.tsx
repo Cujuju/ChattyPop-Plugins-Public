@@ -55,11 +55,6 @@ function Judgment(props: { item: LinkCard }) {
 /** Draws shared links with Archive message rows, a platform badge, and an origin link. dated adds dates when day headings are absent. */
 export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
   const it = () => props.item;
-  /** The message draws its own embeds; the link's card is added only when it came from elsewhere (a later share, FxTwitter). */
-  const extraCard = () => {
-    const e = it().embed;
-    return e && !it().message?.embeds.some((m) => m.url === e.url) ? e : null;
-  };
   return (
     <div class={styles.share} data-platform={it().platform}>
       {/* The sharing message is no longer in the archive: the link's card stands alone. */}
@@ -86,7 +81,7 @@ export function LinkRow(props: { item: LinkItem; dated?: boolean }) {
               </button>
             }
           >
-            <Show when={extraCard()}>{(e) => <Embeds embeds={[e()]} mentions={NO_MENTIONS} />}</Show>
+            {/* The link's card is among the message's embeds (core/feed.ts withLinkCard). */}
             <Judgment item={it()} />
           </MessageRow>
         )}

@@ -1,6 +1,6 @@
 // The Links feed: shared links from the host's link index, with Jev's judgments and each link's best preview card.
 import type { ArchiveEmbed, ArchiveMessage, Platform } from '@plugin-sdk/shared';
-import { embedsFrom, normalizeUrl, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
+import { embedsFrom, normalizeUrl, partKey, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
 import type { LinkCard, LinkFilter, LinkItem, LinkPageQuery, PersonLinksQuery } from '../shared/types';
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
@@ -101,11 +101,23 @@ export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesB
   const cards = cardsOf(db, payloads, rows);
   const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
   return cards.map(({ card, source }) => {
-    const m = messages.get(card.messageId) ?? null;
-    // A card from another share (an embed fixer's) replaces the first message's own card for this link.
-    const message = m && source && source !== m.id ? { ...m, embeds: m.embeds.filter((e) => e.url === null || normalizeUrl(e.url) !== card.url) } : m;
-    return { ...card, message };
+    const m = messages.get(card.messageId);
+    return { ...card, message: m ? withLinkCard(m, card, source) : null };
   });
+}
+
+/**
+ * The first message carrying the link's card as its own: a card from elsewhere (another share's, an embed fixer's, the
+ * stored unfurl) replaces its card for this link and takes its notes on the link's text, so they draw in the card.
+ */
+export function withLinkCard(m: ArchiveMessage, card: LinkCard, source: string | null): ArchiveMessage {
+  if (!card.embed || source === m.id) return m;
+  const linkText = partKey.linkText(card.url);
+  return {
+    ...m,
+    embeds: [...m.embeds.filter((e) => e.url === null || normalizeUrl(e.url) !== card.url), { ...card.embed, notes: [...(card.embed.notes ?? []), ...m.notes.filter((n) => n.part === linkText)] }],
+    notes: m.notes.filter((n) => n.part !== linkText),
+  };
 }
 
 /** Each row with its preview card, and the share the card came from (null: the link's stored unfurl, or no card). */
