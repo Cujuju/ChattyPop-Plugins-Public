@@ -48,3 +48,16 @@
 .removeButton {
   margin-inline-end: auto;
 }
+
+/* Delete stands apart from the exports beside it. */
+.deleteButton {
+  margin-inline-start: var(--cp-space-4);
+}
+
+/* The open comparison's details, then its actions under them: the settings column is too narrow for both side by side. */
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cp-space-3);
+}

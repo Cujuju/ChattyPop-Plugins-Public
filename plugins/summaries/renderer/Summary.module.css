@@ -217,76 +217,12 @@
   gap: var(--cp-space-3);
 }
 
-/* Compare models' list: rows that drag, each with its editor under it when open. */
-.modelList {
-  display: flex;
-  flex-direction: column;
-}
-
-.modelItem {
-  display: flex;
-  flex-direction: column;
-}
-
-/* The drag handle (the theme draws it), then the row across the rest. */
-.modelLine {
-  display: flex;
-  align-items: center;
-}
-
-.modelLine > :last-child {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* A model's fields, set in under the row they edit. */
-.editor {
-  display: flex;
-  flex-direction: column;
-  margin: 0 var(--cp-space-5) var(--cp-space-4);
-  padding: var(--cp-space-3) var(--cp-space-4);
-}
-
-.editorActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--cp-space-3);
-  padding: var(--cp-space-3) 0;
-}
-
-/* A past comparison's hint: its models as chips, then when it ran and what it read and cost. */
-.pastHint {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cp-space-3);
-  padding-top: var(--cp-space-2);
-}
-
-.columnLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cp-space-3);
-}
-
-.chip {
-  padding: 0 var(--cp-space-3);
-  white-space: nowrap;
-}
-
 /* The open comparison: its details and export, then a column per model. */
 .compare {
   display: flex;
   flex-direction: column;
   gap: var(--cp-space-4);
   min-width: 0;
-}
-
-.compareHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-4);
 }
 
 /* Columns of equal width; past the room for all, they scroll sideways. */

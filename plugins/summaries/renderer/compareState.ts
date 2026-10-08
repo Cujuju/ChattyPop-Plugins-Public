@@ -3,7 +3,7 @@ import { createMemo, createSignal } from 'solid-js';
 import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
 import { clockTime, createAction, effortLabel, formatTokens, providerName, providerStatus, usdText, weekdayDateTime } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
-import type { ColumnHead, CompareModel, CompareProgress, Comparison } from '../shared/compare';
+import type { CompareModel, CompareProgress, Comparison } from '../shared/compare';
 import type { SummaryRange } from '../shared/settings';
 import type { SummaryScope } from '../shared/types';
 import { summarySettings } from './settings';
@@ -27,6 +27,9 @@ onEvent(plugin, 'compareProgress', (p) => { if (active()) setCompareProgress(p);
 const action = createAction();
 export const compareRunning = action.busy;
 export const compareError = action.error;
+// Its own action: a delete during a run must not supersede the run, which would drop its result and re-enable Run.
+const deleting = createAction();
+export const deleteError = deleting.error;
 
 /** Runs the saved models over `range` in `scope` and opens the result. */
 export async function runComparison(range: SummaryRange, scope: SummaryScope | null): Promise<void> {
@@ -37,7 +40,7 @@ export async function runComparison(range: SummaryRange, scope: SummaryScope | n
 }
 
 export async function removeComparison(id: number): Promise<void> {
-  await action.run(() => core.deleteComparison(id));
+  await deleting.run(() => core.deleteComparison(id));
   if (openComparisonId() === id) setOpenComparisonId(null);
 }
 
@@ -59,16 +62,6 @@ export const createOpenComparison = () =>
 /** A range with its day once when it starts and ends the same day: "Wed, Oct 7, 01:22 PM – 01:52 PM". */
 export const rangeText = (sinceTs: number, untilTs: number): string =>
   spansDays({ sinceTs, untilTs }) ? `${weekdayDateTime(sinceTs)} – ${weekdayDateTime(untilTs)}` : `${weekdayDateTime(sinceTs)} – ${clockTime(untilTs)}`;
-
-/** One model's tokens and API cost in the list of comparisons, saying which it didn't report; or that it failed. */
-export function columnUsageText(col: ColumnHead): string {
-  if (col.failed) return 'Failed';
-  const u = col.usage;
-  return [
-    ...(u ? [`${formatTokens(u.inputTokens)} in`, `${formatTokens(u.outputTokens)} out`] : ['tokens not reported']),
-    col.apiCostUsd !== null ? `≈${usdText(col.apiCostUsd)}` : 'API cost unknown',
-  ].join(' · ');
-}
 
 /** Hex digits of an input fingerprint shown: enough to tell two apart at a glance. */
 const FINGERPRINT_SHOWN = 8;
