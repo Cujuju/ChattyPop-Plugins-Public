@@ -1,5 +1,5 @@
 // Windows PowerShell 5.1 OCR worker using WinRT. Reads JSON {id,path} lines; emits readiness, then {id,text} or {id,error} per image.
-export const OCR_SCRIPT = String.raw`
+export const WINDOWS_OCR_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = [Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)

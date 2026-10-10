@@ -1,7 +1,7 @@
-// Shared settings, status, and job types for Windows OCR and vision-model image reading.
+// Shared settings, status, and job types for the system's built-in OCR and vision-model image reading.
 import { bool, isObj, oneOf, textOrNull, type ModelOption } from '@plugin-sdk/shared';
 
-/** How images are read: Windows' built-in OCR (text only), or a vision model through an AI provider (text and charts). */
+/** How images are read: the system's built-in OCR (text only; named 'windows' for the first system it ran on), or a vision model through an AI provider (text and charts). */
 export const ENGINES = ['windows', 'vision'] as const;
 export type ImageTextEngine = (typeof ENGINES)[number];
 
@@ -89,6 +89,9 @@ export interface ProviderModels {
 }
 
 export interface ImageTextStatus {
+  /** What the built-in OCR is called on the desktop's system: "Windows OCR", "macOS OCR". */
+  ocrName: string;
+  /** The built-in OCR's state. */
   windows: EngineStatus;
   vision: EngineStatus;
   /** Providers declared to read images, with their models that do: the vision engine's choices. */

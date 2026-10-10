@@ -18,14 +18,14 @@ async function readImages(messageId: string, pick: EnginePick | null): Promise<v
   }
 }
 
-/** Every engine that can read now: Windows OCR, then each provider's vision models. Empty while status is unknown. */
+/** Every engine that can read now: the built-in OCR, then each provider's vision models. Empty while status is unknown. */
 function engineGroups(messageId: string): MenuGroup[] {
   const status = imageTextStatus();
   if (!status) return [];
   const s = imageTextSettings();
   const detail = (mine: boolean): string | undefined => (mine ? SETTINGS_DETAIL : undefined);
   const windows: MenuGroup[] = status.windows.ready
-    ? [{ items: [{ label: 'Windows OCR', icon: 'text', detail: detail(s.engine === 'windows'), run: () => readImages(messageId, { engine: 'windows' }) }] }]
+    ? [{ items: [{ label: status.ocrName, icon: 'text', detail: detail(s.engine === 'windows'), run: () => readImages(messageId, { engine: 'windows' }) }] }]
     : [];
   // A group per provider that can be used now, headed by its name.
   const vision: MenuGroup[] = status.providers

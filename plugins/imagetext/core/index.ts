@@ -1,13 +1,13 @@
 // Registers image-reading queues, engines, derived text, notes, and Settings/menu/main calls.
 import { join } from 'node:path';
-import { defineCorePlugin, IS_WINDOWS, type CoreContext, type MessageImageSource } from '@plugin-sdk/core';
+import { defineCorePlugin, type CoreContext, type MessageImageSource } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
 import { HOSTED_VISION_OFF, normalizePick, type EnginePick, type EngineStatus, type ImageTextSettings, type ImageTextStatus, type ProviderModels } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
 import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes, readingParts } from './store';
 import { readWithVision } from './vision';
-import { WindowsOcr } from './windowsOcr';
+import { NO_SYSTEM_OCR, SystemOcr } from './systemOcr';
 
 /** Coalesces status events while a catch-up queues many images: each makes open Settings read the status again. */
 const STATUS_EVENT_DELAY_MS = 500;
@@ -70,11 +70,12 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.archive.derivedText.tagParts(readingParts(ctx.storage.db));
   const db = ctx.storage.db;
   const settings = () => ctx.preferences.get('settings');
-  const ocr = new WindowsOcr(ctx.storage.dataDir);
+  const ocr = new SystemOcr(ctx.storage.dataDir);
+  // Settings and picks keep calling it 'windows' (the first system it ran on); a reading's record names the system that read it.
   const windowsEngine = (): Engine =>
-    IS_WINDOWS
-      ? { name: 'windows', read: (path, _channelId, signal) => ocr.read(path, signal).then((text) => ({ text, tickers: [] })) }
-      : { unavailable: 'Windows OCR runs only on Windows.' };
+    ocr.host
+      ? { name: ocr.host.id, read: (path, _channelId, signal) => ocr.read(path, signal).then((text) => ({ text, tickers: [] })) }
+      : { unavailable: NO_SYSTEM_OCR };
   const engine = (pick: EnginePick | null): Engine => {
     if (pick) return pick.engine === 'vision' ? visionEngine(ctx, pick.provider, pick.model) : windowsEngine();
     return settings().engine === 'vision' ? settingsVision(ctx) : windowsEngine();
@@ -135,7 +136,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     status: async (): Promise<ImageTextStatus> => {
       const [windows, providers] = await Promise.all([ocr.status(), providerModels(ctx)]);
-      return { windows, vision: vision(), providers, counts: counts(db) };
+      return { ocrName: ocr.name, windows, vision: vision(), providers, counts: counts(db) };
     },
     // Normalized: a pick that isn't one is refused, not read as Settings' engine.
     request: (messageId, pick) => {

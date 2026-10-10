@@ -1,12 +1,13 @@
 // Settings → Image text: the engine that reads images, when it reads them, and its queue.
 import { For, Show } from 'solid-js';
 import { IMAGE_TEXT_TAB } from '../shared';
-import { HOSTED_VISION_OFF, type EngineStatus, type ImageTextEngine, type ImageTextSettings } from '../shared/types';
+import { ENGINES, HOSTED_VISION_OFF, type EngineStatus, type ImageTextEngine, type ImageTextSettings } from '../shared/types';
 import { imageTextSettings, imageTextStatus, patchImageTextSettings, retryFailedImageText } from './state';
 import { Card, createAction, ErrorNote, LinkButton, look, ModelRows, openSettingsAt, Page, Row, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
 import styles from './ImageText.module.css';
 
-const ENGINE_LABEL: Record<ImageTextEngine, string> = { windows: 'Windows OCR (built in)', vision: 'Vision model' };
+/** Each engine's name; the built-in OCR's is the desktop system's own. */
+const engineLabel = (engine: ImageTextEngine): string => (engine === 'vision' ? 'Vision model' : `${imageTextStatus()?.ocrName ?? 'Built-in OCR'} (built in)`);
 /** Settings → AI: where a provider installs models (Ollama's "Install a model"). */
 const AI_SETTINGS = 'ai';
 
@@ -58,10 +59,10 @@ export function ImageTextSection() {
       </Card>
       <Card title="Engine">
         <div role="radiogroup" aria-label="Engine">
-          <For each={Object.keys(ENGINE_LABEL) as ImageTextEngine[]}>
+          <For each={ENGINES}>
             {(engine) => (
               <Row
-                label={ENGINE_LABEL[engine]}
+                label={engineLabel(engine)}
                 hint={engineHint(imageTextStatus()?.[engine])}
                 control={
                   <label class={`${styles.pick} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="muted" data-font="sans">

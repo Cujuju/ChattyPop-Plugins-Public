@@ -11,10 +11,10 @@ import { tempDir } from '@chattypop/host-testing';
 import imageTextCore from '../core';
 import { chartTickers, imageText, tickerOf } from '../core/chartTickers';
 import { counts, JOBS_TABLE } from '../core/store';
-import { WindowsOcr } from '../core/windowsOcr';
+import { ocrHost, SystemOcr } from '../core/systemOcr';
 import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings } from '../shared/types';
 
-/** Windows OCR startup timeout allowance for loaded machines and CI. */
+/** The OCR worker's startup timeout allowance for loaded machines and CI. */
 const OCR_START_TIMEOUT_MS = 60_000;
 /** Allows a setImmediate queue pass to run. */
 const SETTLE_MS = 50;
@@ -197,11 +197,58 @@ describe.runIf(IS_WINDOWS)('Windows OCR', () => {
     const png = join(dir, 'quote.png');
     // A quote drawn by Windows itself, as a screenshot would show it.
     execFileSync('powershell.exe', ['-NoProfile', '-Command', `Add-Type -AssemblyName System.Drawing; $b = New-Object Drawing.Bitmap 640,120; $g = [Drawing.Graphics]::FromImage($b); $g.Clear([Drawing.Color]::White); $g.DrawString('NVDA - O: 181.2 H: 184.9 L: 180.1 C: 184.0', (New-Object Drawing.Font 'Arial',20), [Drawing.Brushes]::Black, 10, 40); $b.Save('${png}', [Drawing.Imaging.ImageFormat]::Png)`]);
-    const ocr = new WindowsOcr(dir);
+    const ocr = new SystemOcr(dir);
     onTestFinished(() => ocr.dispose());
     const text = await ocr.read(png, new AbortController().signal);
     expect(chartTickers(text)).toEqual(['NVDA']);
     await expect(ocr.read(join(dir, 'missing.png'), new AbortController().signal)).rejects.toThrow();
     expect(await ocr.status()).toMatchObject({ ready: true });
   }, OCR_START_TIMEOUT_MS);
+});
+
+/** Draws black text on white into a PNG with AppKit, as a screenshot would show it. */
+const MAC_DRAW_SCRIPT = String.raw`
+ObjC.import('AppKit');
+function run(argv) {
+  const rep = $.NSBitmapImageRep.alloc.initWithBitmapDataPlanesPixelsWidePixelsHighBitsPerSampleSamplesPerPixelHasAlphaIsPlanarColorSpaceNameBytesPerRowBitsPerPixel(null, 900, 160, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
+  $.NSGraphicsContext.saveGraphicsState;
+  $.NSGraphicsContext.setCurrentContext($.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep));
+  $.NSColor.whiteColor.setFill;
+  $.NSRectFill($.NSMakeRect(0, 0, 900, 160));
+  $(argv[1]).drawAtPointWithAttributes($.NSMakePoint(20, 60), $.NSDictionary.dictionaryWithObjectsForKeys($([$.NSFont.systemFontOfSize(30), $.NSColor.blackColor]), $(['NSFont', 'NSColor'])));
+  $.NSGraphicsContext.restoreGraphicsState;
+  rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $({})).writeToFileAtomically(argv[0], true);
+}
+`;
+
+describe.runIf(process.platform === 'darwin')('macOS OCR', () => {
+  it('reads an image’s text through its worker, and says why a missing or unreadable file can’t be read', async () => {
+    const dir = tempDir();
+    const png = join(dir, 'quote.png');
+    const draw = join(dir, 'draw.js');
+    writeFileSync(draw, MAC_DRAW_SCRIPT);
+    execFileSync('/usr/bin/osascript', ['-l', 'JavaScript', draw, png, 'NVDA - O: 181.2 H: 184.9 L: 180.1 C: 184.0']);
+    const ocr = new SystemOcr(dir);
+    onTestFinished(() => ocr.dispose());
+    const text = await ocr.read(png, new AbortController().signal);
+    expect(chartTickers(text)).toEqual(['NVDA']);
+    await expect(ocr.read(join(dir, 'missing.png'), new AbortController().signal)).rejects.toThrow('missing');
+    const notAnImage = join(dir, 'broken.png');
+    writeFileSync(notAnImage, 'not an image');
+    await expect(ocr.read(notAnImage, new AbortController().signal)).rejects.toThrow('could not read');
+    // The worker outlives a failed read.
+    expect(await ocr.read(png, new AbortController().signal)).toBe(text);
+    expect(await ocr.status()).toEqual({ ready: true, detail: expect.stringMatching(/^macOS OCR \(/) });
+  }, OCR_START_TIMEOUT_MS);
+});
+
+describe('built-in OCR by system', () => {
+  it('has a worker on Windows and macOS, and none on Linux', async () => {
+    expect(ocrHost('win32')).toMatchObject({ id: 'windows', name: 'Windows OCR' });
+    expect(ocrHost('darwin')).toMatchObject({ id: 'macos', name: 'macOS OCR', command: '/usr/bin/osascript' });
+    expect(ocrHost('linux')).toBeNull();
+    const none = new SystemOcr(tempDir(), null);
+    expect(await none.status()).toMatchObject({ ready: false });
+    await expect(none.read('x.png', new AbortController().signal)).rejects.toThrow('no built-in OCR');
+  });
 });
