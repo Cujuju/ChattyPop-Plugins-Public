@@ -4,6 +4,7 @@ import { testPlugin } from '@plugin-sdk/core/testing';
 import ollamaCore from '../core';
 import { OllamaProvider } from '../core/ollama';
 import { normalizeOllamaSettings, OLLAMA_DEFAULT_URL } from '../shared/settings';
+import { SUGGESTED_MODELS, SUGGESTED_VISION_MODEL, suggestionsToOffer } from '../shared/types';
 
 const MODEL = 'qwen3-vl:8b-instruct';
 
@@ -142,5 +143,21 @@ describe('unload time', () => {
     expect(normalizeOllamaSettings({ unloadAfterS: 60 }).unloadAfterS).toBe(60);
     expect(normalizeOllamaSettings({ unloadAfterS: 61 }).unloadAfterS).toBeNull();
     expect(normalizeOllamaSettings({}).unloadAfterS).toBeNull();
+  });
+});
+
+describe('suggested models', () => {
+  it('offers each once, the image reader first', () => {
+    const ids = SUGGESTED_MODELS.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids[0]).toBe(SUGGESTED_VISION_MODEL.id);
+    expect(suggestionsToOffer([], [])).toEqual(SUGGESTED_MODELS);
+  });
+
+  it('leaves out what is installed, under the tag Ollama lists it by, and what is downloading or failed', () => {
+    const offered = suggestionsToOffer(['llama3.2:latest', 'gemma3:4b', 'someone-elses:7b'], ['qwen3:8b']).map((m) => m.id);
+    expect(offered).toEqual(['qwen3-vl:8b-instruct', 'gemma3:12b', 'gpt-oss:20b']);
+    // Another tag of a suggested model isn't that model.
+    expect(suggestionsToOffer(['gemma3:27b'], []).map((m) => m.id)).toContain('gemma3:4b');
   });
 });

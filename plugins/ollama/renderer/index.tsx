@@ -1,11 +1,11 @@
 // Ollama's renderer side: its rows in Settings → AI (address, unload time, installing models).
 import { For, createSignal } from 'solid-js';
 import { defineRendererPlugin, coreClient, onEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
-import { createAction, ErrorNote, formatBytes, percentText, Row, Select, SettingsButton, refetchProviderStatus } from '@plugin-sdk/renderer/kit';
+import { createAction, ErrorNote, formatBytes, percentText, providerStatus, Row, Select, SettingsButton, refetchProviderStatus } from '@plugin-sdk/renderer/kit';
 import styles from './Ollama.module.css';
 import { INSTALLED_EVENT, PULLS_EVENT, plugin } from '../shared';
 import { UNLOAD_AFTER_CHOICES } from '../shared/settings';
-import { SUGGESTED_VISION_MODEL, type OllamaPull } from '../shared/types';
+import { suggestionsToOffer, type OllamaPull, type SuggestedModel } from '../shared/types';
 
 const [settings, setSettings, { patch }] = pluginPreference(plugin, 'settings');
 const core = coreClient(plugin);
@@ -30,7 +30,13 @@ const pullText = (p: OllamaPull): string =>
 function OllamaRows() {
   const action = createAction();
   const [name, setName] = createSignal('');
-  const install = (): void => void action.run(() => core.pull(name()).then(() => setName('')));
+  const typed = (): string => name().trim();
+  const install = (): void => void action.run(() => core.pull(typed()).then(() => setName('')));
+  /** Suggested models not here yet; none while the server can't be reached (nothing could be installed). */
+  const offered = (): SuggestedModel[] => {
+    const installed = providerStatus().find((s) => s.id === 'ollama')?.models;
+    return installed ? suggestionsToOffer(installed.map((m) => m.id), pulls().map((p) => p.model)) : [];
+  };
   return (
     <>
       <Row
@@ -67,22 +73,31 @@ function OllamaRows() {
       <Row
         label="Install a model"
         for="ollama-pull"
-        hint={`A name from ollama.com/library. To read images: ${SUGGESTED_VISION_MODEL.id} (${SUGGESTED_VISION_MODEL.note}).`}
+        hint={`Any name from ollama.com/library.${offered().length ? ' Common ones are listed below.' : ''}`}
         control={
           <div class={styles.install}>
             <input
               id="ollama-pull"
               type="text"
               class={styles.control}
-              placeholder={SUGGESTED_VISION_MODEL.id}
+              placeholder="Model name"
               value={name()}
               onInput={(e) => setName(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === 'Enter' && install()}
+              onKeyDown={(e) => e.key === 'Enter' && typed() && install()}
             />
-            <SettingsButton onClick={install}>Install</SettingsButton>
+            <SettingsButton disabled={!typed()} onClick={install}>Install</SettingsButton>
           </div>
         }
       />
+      <For each={offered()}>
+        {(m) => (
+          <Row
+            label={m.id}
+            hint={`${m.note} · ${m.size}`}
+            control={<SettingsButton onClick={() => void action.run(() => core.pull(m.id))}>Install</SettingsButton>}
+          />
+        )}
+      </For>
       <For each={pulls()}>
         {(p) => (
           <Row
@@ -101,7 +116,7 @@ function OllamaRows() {
 /** Setup steps after the status line, by its model list: none listed (unreachable) or none installed. */
 const setupNote = (models: readonly unknown[] | null): string | undefined => {
   if (models === null) return ' Not installed yet? Download it from ollama.com and start it, then Refresh model lists.';
-  if (models.length === 0) return ' Install one below: Install a model.';
+  if (models.length === 0) return ': install one below.';
   return undefined;
 };
 
