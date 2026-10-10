@@ -13,7 +13,8 @@ export default defineCorePlugin(plugin, (ctx) => {
     status: async (choice): Promise<ProviderReport> => {
       try {
         const models = await provider(choice.model).listModels(); // Local provider; retain no result cache.
-        return { available: models.length > 0, detail: models.length ? `${models.length} model(s) installed` : 'No models installed', models };
+        // Available once the server answers, so it can be turned on before its first model is installed (Install a model, in its card).
+        return { available: true, detail: models.length ? `${models.length} model(s) installed` : 'Running · no models installed', models };
       } catch (err) {
         // Not running or unreachable: a state Settings → AI shows, not a plugin failure.
         return { available: false, detail: errorMessage(err), models: null };

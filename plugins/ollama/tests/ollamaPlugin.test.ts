@@ -47,6 +47,11 @@ describe('Ollama address on upgrade', () => {
     expect(status?.models?.map((m) => m.id)).toEqual(['llama3']);
     expect(registry.isLocal('ollama')).toBe(true);
 
+    // A server just installed has no model yet: it can still be turned on, and says what it lacks.
+    sent.mockImplementation(async (u: URL) => (u.href === `${LAN_ADDRESS}/api/tags` ? Response.json({ models: [] }) : new Response(null, { status: 404 })));
+    const [empty] = await registry.status(ai());
+    expect(empty).toMatchObject({ id: 'ollama', available: true, detail: 'Running · no models installed', models: [] });
+
     setSetting(db, 'plugin.ollama.settings', { ollamaUrl: 'http://127.0.0.1:1' });
     const [down] = await registry.status(ai());
     expect(down).toMatchObject({ id: 'ollama', available: false, models: null });
