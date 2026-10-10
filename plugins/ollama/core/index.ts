@@ -27,6 +27,7 @@ export default defineCorePlugin(plugin, (ctx) => {
     (list) => ctx.channels.emit(PULLS_EVENT, list),
     (model) => ctx.channels.emit(INSTALLED_EVENT, model),
     ctx.lifetime.signal,
+    { get: () => ctx.preferences.get('downloading'), set: (models) => ctx.preferences.set('downloading', models) },
   );
   ctx.channels.serve({
     pulls: () => pulls.list(),
@@ -44,6 +45,10 @@ export default defineCorePlugin(plugin, (ctx) => {
     unloadAfterS = s.unloadAfterS;
     // Unreachable: nothing it holds is loaded here, and the next request carries the new time.
     applyUnloadAfter(ctx.net.fetch, s.ollamaUrl, s.unloadAfterS).catch((err: unknown) => console.warn(`[ollama] Unload time not applied to loaded models: ${errorMessage(err)}`));
+  });
+  // After activation returns: a download a quit or restart interrupted carries on, and Settings → AI lists it again.
+  setImmediate(() => {
+    if (!ctx.lifetime.signal.aborted) pulls.resume();
   });
   return () => pulls.dispose();
 });

@@ -1,7 +1,7 @@
 // Ollama: local models on this PC or the LAN, at the address the owner sets (docs/research.md §2).
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { decodeModel, decodeNoArgs } from './calls';
-import { DEFAULT_OLLAMA_SETTINGS, OLLAMA_DEFAULT_URL, normalizeOllamaSettings } from './settings';
+import { DEFAULT_OLLAMA_SETTINGS, OLLAMA_DEFAULT_URL, normalizeModelNames, normalizeOllamaSettings } from './settings';
 import type { OllamaPull } from './types';
 
 /** Plugin event: a download started, progressed, failed or ended; payload every download still listed. */
@@ -55,8 +55,12 @@ export const plugin = definePlugin({
     },
     events: { [PULLS_EVENT]: ['renderer', 'phone'], [INSTALLED_EVENT]: ['renderer', 'phone'] },
   }),
-  /** Where its server listens, and how long it keeps a model loaded. */
-  preferences: { settings: definePreference({ default: DEFAULT_OLLAMA_SETTINGS, normalize: normalizeOllamaSettings }) },
+  preferences: {
+    /** Where its server listens, and how long it keeps a model loaded. */
+    settings: definePreference({ default: DEFAULT_OLLAMA_SETTINGS, normalize: normalizeOllamaSettings }),
+    /** Models being downloaded, kept across a quit or restart: the next start carries each on (Ollama keeps what it has). */
+    downloading: definePreference({ default: [] as string[], normalize: normalizeModelNames }),
+  },
   network: { ownerUrls: [{ setting: 'settings', field: 'ollamaUrl', fallback: OLLAMA_DEFAULT_URL }] },
   adopts: {
     // Settings → AI held the address before Ollama was a plugin; builds without it park it (parkOllamaSettings).

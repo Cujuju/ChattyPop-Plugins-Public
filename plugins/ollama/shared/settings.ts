@@ -22,6 +22,12 @@ export interface OllamaSettings {
   unloadAfterS: number | null;
 }
 
+/** Model names as stored: trimmed, each once; anything else is dropped. */
+export function normalizeModelNames(v: unknown): string[] {
+  const names = Array.isArray(v) ? v.filter((n): n is string => typeof n === 'string').map((n) => n.trim()) : [];
+  return [...new Set(names.filter(Boolean))];
+}
+
 export const DEFAULT_OLLAMA_SETTINGS: OllamaSettings = { ollamaUrl: OLLAMA_DEFAULT_URL, unloadAfterS: null };
 
 /** A blank or missing address is Ollama's default; an unlisted unload time is Ollama's own. */

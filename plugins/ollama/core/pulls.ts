@@ -39,7 +39,16 @@ async function* jsonLines(body: ReadableStream<Uint8Array>): AsyncGenerator<Pull
   }
 }
 
-/** Downloads in progress and failed, for Settings → AI; a download stops when the plugin turns off. */
+/** Where the names of models being downloaded are kept across runs. */
+export interface DownloadList {
+  get(): string[];
+  set(models: string[]): void;
+}
+
+/**
+ * Downloads in progress and failed, for Settings → AI. A download stops when the plugin turns off or the app quits,
+ * stays on the kept list, and is carried on by `resume` at the next start.
+ */
 export class ModelPulls {
   private readonly jobs = new Map<string, Job>();
   private readonly failed = new Map<string, OllamaPull>();
@@ -54,7 +63,19 @@ export class ModelPulls {
     private readonly onChange: (pulls: OllamaPull[]) => void,
     private readonly onInstalled: (model: string) => void,
     private readonly lifetime: AbortSignal,
+    /** Downloads to carry on after a restart; a finished, failed or cancelled one leaves it. */
+    private readonly kept: DownloadList = { get: () => [], set: () => undefined },
   ) {}
+
+  /** Carries on the downloads a quit or restart interrupted. Call once, at activation. */
+  resume(): void {
+    for (const model of this.kept.get()) this.pull(model);
+  }
+
+  private keep(model: string, on: boolean): void {
+    const rest = this.kept.get().filter((m) => m !== model);
+    this.kept.set(on ? [...rest, model] : rest);
+  }
 
   list(): OllamaPull[] {
     return [...[...this.jobs.values()].map((j) => ({ ...j.pull })), ...this.failed.values()];
@@ -67,11 +88,17 @@ export class ModelPulls {
     this.failed.delete(model);
     const job: Job = { pull: { model, state: 'downloading', step: 'starting', completed: 0, total: 0, error: null }, layers: new Map(), abort: new AbortController() };
     this.jobs.set(model, job);
+    this.keep(model, true);
     this.changed(true);
     void this.run(job)
-      .then(() => this.onInstalled(model))
+      .then(() => {
+        this.keep(model, false);
+        this.onInstalled(model);
+      })
       .catch((err: unknown) => {
+        // Cancelled (cancel() took it off the kept list), or stopped by a turn-off or quit (it stays, to be carried on).
         if (job.abort.signal.aborted || this.lifetime.aborted) return;
+        this.keep(model, false);
         this.failed.set(model, { ...job.pull, state: 'failed', error: errorMessage(err) });
       })
       .finally(() => {
@@ -82,10 +109,13 @@ export class ModelPulls {
 
   /** Stops a download, or clears a failed one. */
   cancel(model: string): void {
-    this.jobs.get(model)?.abort.abort();
+    const job = this.jobs.get(model);
+    if (job) this.keep(model, false);
+    job?.abort.abort();
     if (this.failed.delete(model)) this.changed(true);
   }
 
+  /** The plugin turned off or the app is quitting: downloads stop and stay on the kept list. */
   dispose(): void {
     clearTimeout(this.timer);
     for (const job of this.jobs.values()) job.abort.abort();

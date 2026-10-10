@@ -95,6 +95,58 @@ describe('installing a model', () => {
     expect(sent[1]!.signal?.aborted).toBe(true);
   });
 
+  it('keeps a download’s name only while it runs: a finished, failed or cancelled one is forgotten', async () => {
+    let stream!: ReturnType<typeof pullStream>;
+    const { t, renderer } = start((_url, init) => (stream = pullStream(init.signal)).response);
+    await renderer.pull(MODEL);
+    await vi.waitFor(() => expect(stream).toBeDefined());
+    expect(t.preferences.get('downloading')).toEqual([MODEL]);
+    stream.push({ status: 'success' });
+    stream.end();
+    await vi.waitFor(() => expect(t.events('installed')).toEqual([MODEL]));
+    expect(t.preferences.get('downloading')).toEqual([]);
+
+    await renderer.pull('other:1b');
+    expect(t.preferences.get('downloading')).toEqual(['other:1b']);
+    await renderer.cancelPull('other:1b');
+    expect(t.preferences.get('downloading')).toEqual([]);
+
+    await renderer.pull('broken:1b');
+    await vi.waitFor(() => expect(stream.push).toBeDefined());
+    stream.push({ error: 'max retries exceeded' });
+    stream.end();
+    await vi.waitFor(async () => expect(await renderer.pulls()).toMatchObject([{ model: 'broken:1b', state: 'failed' }]));
+    expect(t.preferences.get('downloading')).toEqual([]);
+  });
+
+  it('carries on after a restart the download it interrupted, listing it again and reporting it installed', async () => {
+    const streams: ReturnType<typeof pullStream>[] = [];
+    const sent: { body: unknown; signal: AbortSignal | null }[] = [];
+    // Not start(): the restart ends this host, and only the one it returns is disposed.
+    const t = testPlugin(ollamaCore, {
+      network: async (_url, init) => {
+        sent.push({ body: init.body ? JSON.parse(String(init.body)) : null, signal: init.signal ?? null });
+        return (streams[streams.length] = pullStream(init.signal)).response;
+      },
+    });
+    await t.client('renderer').pull(MODEL);
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+
+    const again = t.restart();
+    onTestFinished(() => again.dispose());
+    expect(sent[0]!.signal?.aborted).toBe(true);
+    // The restart stopped it without forgetting it; the new start asks Ollama for it again, which resumes.
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]!.body).toEqual({ model: MODEL, stream: true });
+    const renderer = again.client('renderer');
+    await vi.waitFor(async () => expect(await renderer.pulls()).toMatchObject([{ model: MODEL, state: 'downloading' }]));
+    streams[1]!.push({ status: 'success' });
+    streams[1]!.end();
+    await vi.waitFor(() => expect(again.events('installed')).toEqual([MODEL]));
+    expect(again.preferences.get('downloading')).toEqual([]);
+    expect(await renderer.pulls()).toEqual([]);
+  });
+
   it('refuses a blank name', async () => {
     const { renderer, sent } = start(() => new Response(null, { status: 500 }));
     await expect(renderer.pull('  ')).rejects.toThrow(/model name/);
