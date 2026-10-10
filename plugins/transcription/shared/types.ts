@@ -74,11 +74,18 @@ export interface InstallItem {
   score: ModelScore | null;
 }
 
+/** What runs whisper.cpp on a GPU here: CUDA on an NVIDIA GPU, Metal on Apple silicon. */
+export type Acceleration = 'cuda' | 'metal';
+
 export interface TranscriptionStatus {
   /** ChattyPop installs the programs itself only on Windows; elsewhere they come from PATH. */
   canInstallTools: boolean;
-  /** An NVIDIA GPU was found, so the GPU build of whisper.cpp is recommended. */
+  /** Where it can't: the command that installs both programs (Homebrew's, on macOS); null when there is none to name. */
+  installCommand: string | null;
+  /** whisper.cpp can use a GPU here, so its GPU speeds apply. */
   gpu: boolean;
+  /** Which GPU support that is; null without one. */
+  acceleration: Acceleration | null;
   tools: InstallItem[];
   models: InstallItem[];
   /** Both programs and the chosen model are in place. */

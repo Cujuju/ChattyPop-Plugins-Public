@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { InstallItem, InstallState, ToolBuild, TranscriptionStatus } from '../shared/types';
+import type { Acceleration, InstallItem, InstallState, ToolBuild, TranscriptionStatus } from '../shared/types';
 import { errorMessage } from '@plugin-sdk/shared';
 import { exeName, findExecutable, IS_WINDOWS, type PluginFetch } from '@plugin-sdk/core';
 import { MODELS, TOOLS, modelEntry, type Download, type ModelEntry, type ToolEntry, type ToolId } from './catalog';
@@ -21,6 +21,15 @@ interface Job {
 }
 
 export type ToolPaths = Record<ToolId, string>;
+
+/** Homebrew's formulas for both programs; its whisper.cpp is built with Metal on Apple silicon. */
+export const MAC_INSTALL_COMMAND = 'brew install whisper-cpp ffmpeg';
+
+/** GPU support whisper.cpp has on this system. `nvidia`: an NVIDIA driver is installed (nvidia-smi ships with it). */
+export function accelerationOf(platform: NodeJS.Platform, arch: string, nvidia: boolean): Acceleration | null {
+  if (nvidia) return 'cuda';
+  return platform === 'darwin' && arch === 'arm64' ? 'metal' : null;
+}
 
 /** First file named `name` (case-insensitive) under `dir`, depth first; archive layouts differ between builds. */
 function findFile(dir: string, name: string): string | null {
@@ -42,6 +51,7 @@ export class Toolchain {
   private timer: NodeJS.Timeout | undefined;
   /** nvidia-smi ships with the NVIDIA driver, so its presence means CUDA can run. */
   readonly gpu = findExecutable('nvidia-smi') !== undefined;
+  readonly acceleration = accelerationOf(process.platform, process.arch, this.gpu);
 
   constructor(
     private readonly dir: string,
@@ -107,7 +117,15 @@ export class Toolchain {
       return item(base, found !== null);
     });
     const models = MODELS.map((m) => item({ id: m.id, label: m.label, description: m.description, bytes: m.bytes, builds: [], build: null, source: null, score: m.score }, this.modelPath(m.id) !== null));
-    return { canInstallTools: IS_WINDOWS, gpu: this.gpu, tools, models, ready: this.ready(model) !== null };
+    return {
+      canInstallTools: IS_WINDOWS,
+      installCommand: process.platform === 'darwin' ? MAC_INSTALL_COMMAND : null,
+      gpu: this.acceleration !== null,
+      acceleration: this.acceleration,
+      tools,
+      models,
+      ready: this.ready(model) !== null,
+    };
   }
 
   /** Starts a download in the background (a program's `build`, null = recommended); progress and outcome arrive through `onChange`. */
@@ -119,7 +137,7 @@ export class Toolchain {
     let variant: { build: ToolBuild; download: Download } | undefined;
     if (tool) {
       const builds = this.builds(tool);
-      if (!builds.length) throw new Error(`Install ${tool.label} with your package manager; ChattyPop finds it on PATH.`);
+      if (!builds.length) throw new Error(`Install ${tool.label} with your package manager${process.platform === 'darwin' ? ` (${MAC_INSTALL_COMMAND})` : ''}; ChattyPop finds it on PATH.`);
       variant = build ? builds.find((b) => b.build === build) : builds[0];
       if (!variant) throw new Error(`${tool.label} has no ${build} build.`);
     }

@@ -1,5 +1,5 @@
 import { For, Show, type JSX } from 'solid-js';
-import { AUTO_KINDS, type AutoKind, type InstallItem, type ModelScore, type ToolBuild } from '../shared/types';
+import { AUTO_KINDS, type Acceleration, type AutoKind, type InstallItem, type ModelScore, type ToolBuild } from '../shared/types';
 import {
   cancelTranscriptionItem,
   deleteTranscriptionModel,
@@ -110,21 +110,28 @@ function OverviewBody() {
   );
 }
 
+/** What the GPU found means for which whisper.cpp to install. */
+function accelerationNote(acceleration: Acceleration | null): string {
+  if (acceleration === 'cuda') return 'NVIDIA GPU found: the GPU build of whisper.cpp is much faster. If transcripts fail with a CUDA error, switch to the CPU build.';
+  if (acceleration === 'metal') return 'Apple GPU found: Homebrew’s whisper.cpp uses it (Metal).';
+  return 'No NVIDIA GPU found: the CPU build of whisper.cpp is recommended.';
+}
+
+/** How to get a program ChattyPop doesn't install itself. */
+const installHint = (command: string | null): string =>
+  command ? `Install both programs from a terminal: ${command}. Then press Check again.` : 'Install it with your package manager so it is on PATH.';
+
 function ProgramsBody() {
   const status = transcriptionStatus;
   return (
     <>
-      <Note>
-        {status()?.gpu
-          ? 'NVIDIA GPU found: the GPU build of whisper.cpp is much faster. If transcripts fail with a CUDA error, switch to the CPU build.'
-          : 'No NVIDIA GPU found: the CPU build of whisper.cpp is recommended.'}
-      </Note>
+      <Note>{accelerationNote(status()?.acceleration ?? null)}</Note>
       <Card title="Programs" meta={<SettingsButton onClick={() => recheckTranscription()}>Check again</SettingsButton>}>
         <For each={status()?.tools ?? []}>
           {(t) => (
             <Item item={t}>
               <Show when={t.state === 'missing' || t.state === 'failed'}>
-                <Show when={status()?.canInstallTools} fallback={<span class={look.text} data-size="xs" data-tone="muted">Install it with your package manager so it is on PATH.</span>}>
+                <Show when={status()?.canInstallTools} fallback={<span class={look.text} data-size="xs" data-tone="muted">{installHint(status()?.installCommand ?? null)}</span>}>
                   <For each={t.builds}>
                     {(b) => (
                       <SettingsButton onClick={() => act(installTranscriptionItem(t.id, b.build))}>

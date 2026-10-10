@@ -7,7 +7,7 @@ import { IS_WINDOWS, exeName, findExecutable } from '@core/ai/resolveCli';
 import type { PluginFetch } from '@core/plugins/net';
 import { MODELS } from '../core/catalog';
 import { downloadVerified } from '../core/download';
-import { Toolchain } from '../core/toolchain';
+import { accelerationOf, MAC_INSTALL_COMMAND, Toolchain } from '../core/toolchain';
 import { NO_SOUND, ffmpegArgs, parseWhisperJson, transcribe, whisperArgs } from '../core/whisper';
 import { fakeModel, fakeTool, tempDir } from '@chattypop/host-testing';
 
@@ -93,6 +93,18 @@ describe('toolchain', () => {
     expect(s.models.map((m) => m.score)).toEqual(MODELS.map((m) => m.score));
     expect(s.tools.map((x) => x.score)).toEqual([null, null]);
     expect(t.status(MODELS[1]!.id).ready).toBe(false);
+  });
+
+  it('names the GPU support each system has, and how to install the programs where it can’t', () => {
+    expect(accelerationOf('win32', 'x64', true)).toBe('cuda');
+    expect(accelerationOf('linux', 'x64', true)).toBe('cuda');
+    expect(accelerationOf('darwin', 'arm64', false)).toBe('metal');
+    expect(accelerationOf('darwin', 'x64', false)).toBeNull();
+    expect(accelerationOf('win32', 'x64', false)).toBeNull();
+    const s = new Toolchain(dir, () => undefined, offline).status(null);
+    expect(s.gpu).toBe(s.acceleration !== null);
+    expect(s.canInstallTools).toBe(IS_WINDOWS);
+    expect(s.installCommand).toBe(process.platform === 'darwin' ? MAC_INSTALL_COMMAND : null);
   });
 
   it.runIf(IS_WINDOWS)('offers whisper.cpp as GPU and CPU builds, and reports which is installed', () => {
