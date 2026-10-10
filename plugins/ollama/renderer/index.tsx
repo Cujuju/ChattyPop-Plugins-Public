@@ -93,7 +93,7 @@ function OllamaRows() {
         {(m) => (
           <Row
             label={m.id}
-            hint={`${m.note} · ${m.size}`}
+            hint={`${m.note} · ${formatBytes(m.bytes)}`}
             control={<SettingsButton onClick={() => void action.run(() => core.pull(m.id))}>Install</SettingsButton>}
           />
         )}

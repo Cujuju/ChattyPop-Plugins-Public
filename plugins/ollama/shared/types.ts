@@ -21,18 +21,18 @@ export interface SuggestedModel {
   id: string;
   /** What it is for, in a few words. */
   note: string;
-  /** Its download size, as ollama.com lists it. */
-  size: string;
+  /** Its download size in bytes (the sum of its layers in Ollama's registry). */
+  bytes: number;
 }
 
 /** Models commonly installed, the image reader first, then smallest to largest. Names and sizes from Ollama's registry, 2026-10-10. */
 export const SUGGESTED_MODELS: readonly SuggestedModel[] = [
-  { id: SUGGESTED_VISION_MODEL.id, note: 'Reads images in seconds', size: '6.1 GB' },
-  { id: 'llama3.2', note: 'Smallest; quick text', size: '2.0 GB' },
-  { id: 'gemma3:4b', note: 'Small and fast; text and images', size: '3.4 GB' },
-  { id: 'qwen3:8b', note: 'General text, with thinking', size: '5.2 GB' },
-  { id: 'gemma3:12b', note: 'More capable; text and images', size: '8.2 GB' },
-  { id: 'gpt-oss:20b', note: 'Strongest of these; wants 16 GB of memory or more', size: '13.8 GB' },
+  { id: SUGGESTED_VISION_MODEL.id, note: 'Reads images in seconds', bytes: 6_140_415_424 },
+  { id: 'llama3.2', note: 'Smallest; quick text', bytes: 2_019_392_628 },
+  { id: 'gemma3:4b', note: 'Small and fast; text and images', bytes: 3_350_272_259 },
+  { id: 'qwen3:8b', note: 'General text, with thinking', bytes: 5_225_387_677 },
+  { id: 'gemma3:12b', note: 'More capable; text and images', bytes: 8_164_039_587 },
+  { id: 'gpt-oss:20b', note: 'Strongest of these; wants 16 GB of memory or more', bytes: 13_793_441_427 },
 ];
 
 /** Ollama lists a model pulled without a tag as `<name>:latest`. */
