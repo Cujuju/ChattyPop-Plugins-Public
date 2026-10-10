@@ -32,7 +32,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'ollama',
     name: 'Ollama',
-    version: '1.4.0',
+    version: '1.4.2',
     description: 'Local models through Ollama, for channels set to local AI only and anything else you point at it.',
   },
   providers: [{
