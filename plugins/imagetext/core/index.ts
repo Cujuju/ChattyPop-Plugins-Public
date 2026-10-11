@@ -5,7 +5,7 @@ import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
 import { HOSTED_VISION_OFF, normalizePick, type EnginePick, type EngineStatus, type ImageTextSettings, type ImageTextStatus, type ProviderModels } from '../shared/types';
 import { ImageReader, newImageTextSession, type Engine } from './reader';
-import { counts, IMAGE_TEXT_MIGRATIONS, imageNotes, readingParts } from './store';
+import { counts, failedImages, IMAGE_TEXT_MIGRATIONS, imageNotes, readingParts } from './store';
 import { readWithVision } from './vision';
 import { NO_SYSTEM_OCR, SystemOcr } from './systemOcr';
 
@@ -134,6 +134,7 @@ export default defineCorePlugin(plugin, (ctx) => {
     return 'unavailable' in e ? statusOf(e) : statusOf({ name: e.name.split(':').slice(1).join(':') });
   };
   ctx.channels.serve({
+    failedImages: () => failedImages(db),
     status: async (): Promise<ImageTextStatus> => {
       const [windows, providers] = await Promise.all([ocr.status(), providerModels(ctx)]);
       return { ocrName: ocr.name, windows, vision: vision(), providers, counts: counts(db) };

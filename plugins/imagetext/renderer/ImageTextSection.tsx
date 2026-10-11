@@ -2,9 +2,10 @@
 import { For, Show } from 'solid-js';
 import { IMAGE_TEXT_TAB } from '../shared';
 import { ENGINES, HOSTED_VISION_OFF, type EngineStatus, type ImageTextEngine, type ImageTextSettings } from '../shared/types';
-import { imageTextSettings, imageTextStatus, patchImageTextSettings, retryFailedImageText } from './state';
+import { imageTextSettings, imageTextStatus, patchImageTextSettings, retryFailedImageText, showFailedImages } from './state';
 import { Card, createAction, ErrorNote, LinkButton, look, ModelRows, openSettingsAt, Page, Row, SettingsButton, Switch } from '@plugin-sdk/renderer/kit';
 import styles from './ImageText.module.css';
+import failures from './FailedImages.module.css';
 
 /** Each engine's name; the built-in OCR's is the desktop system's own. */
 const engineLabel = (engine: ImageTextEngine): string => (engine === 'vision' ? 'Vision model' : `${imageTextStatus()?.ocrName ?? 'Built-in OCR'} (built in)`);
@@ -51,9 +52,14 @@ export function ImageTextSection() {
           label="Images"
           hint={queueText()}
           control={
-            <Show when={(counts()?.failed ?? 0) > 0}>
-              <SettingsButton tone="danger" onClick={() => void action.run(retryFailedImageText)}>Retry failed</SettingsButton>
-            </Show>
+            <div class={failures.actions}>
+              <SettingsButton onClick={showFailedImages}>View failed</SettingsButton>
+              <Show when={(counts()?.failed ?? 0) > 0}>
+                <SettingsButton tone="danger" disabled={action.busy()} onClick={() => void action.run(retryFailedImageText)}>
+                  {action.busy() ? 'Retrying…' : 'Retry failed'}
+                </SettingsButton>
+              </Show>
+            </div>
           }
         />
       </Card>

@@ -1,8 +1,9 @@
 // Image text's renderer side: Settings → Image text, and Read image text in a message's right-click menu.
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { X_STATUS_PATH, embedShowsPictures, mediaKind, type ArchiveEmbed, type ArchiveMessage } from '@plugin-sdk/shared';
-import { IMAGE_TEXT_TAB, plugin } from '../shared';
+import { FAILED_IMAGES_WINDOW, IMAGE_TEXT_TAB, plugin } from '../shared';
 import { ImageTextSection } from './ImageTextSection';
+import { FailedImagesWindow } from './FailedImagesWindow';
 import { imageTextItem } from './menu';
 
 // The same tests as core's image list (archive.images).
@@ -15,6 +16,7 @@ const hasImages = (m: ArchiveMessage): boolean => m.attachments.some(mayBeImage)
 
 export default defineRendererPlugin(plugin, {
   settings: { [IMAGE_TEXT_TAB]: { body: ImageTextSection } },
+  windows: { [FAILED_IMAGES_WINDOW]: { title: () => 'Failed images', view: FailedImagesWindow } },
   messageMenu: {
     readImages: {
       // Desktop windows only: the phone can't request image text or open Settings.

@@ -1,0 +1,151 @@
+/* Failed images window: structure only; the look is the theme's (docs/plugin-architecture.md §14). */
+
+/* Fills the host's window frame below its title bar; the list owns the scroll. */
+.window {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Count and subtitle left, actions right; the actions wrap under the intro in a narrow window. */
+.toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-4) var(--cp-space-6);
+  padding: var(--cp-space-6) var(--cp-panel-pad-x);
+}
+
+.intro {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+  min-width: 0;
+}
+
+.intro > * {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A run of buttons: here, and beside the queue's row in Settings → Image text. */
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-3);
+}
+
+/* Top padding keeps the first card's focus ring inside the scroll box. */
+.list {
+  display: grid;
+  flex: 1 1 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--cp-space-4);
+  min-height: 0;
+  margin: 0;
+  padding: var(--cp-space-2) var(--cp-panel-pad-x) var(--cp-space-7);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+/* Preview left, details right; the details drop under the preview once narrower than two previews. */
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--cp-space-5) var(--cp-space-6);
+  min-width: 0;
+  padding: var(--cp-space-5);
+}
+
+/* A square holding the image, or the icon and note that stand in for it. */
+.preview {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  box-sizing: border-box;
+  width: var(--cp-component-thumb);
+  aspect-ratio: 1;
+  padding: var(--cp-space-2);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* The image fills the square edge to edge, uncropped. */
+.preview img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.details {
+  display: flex;
+  flex: 1 1 calc(var(--cp-component-thumb) * 2);
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  gap: var(--cp-space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The trailing action sits at the card's foot when the text is shorter than the preview. */
+.details > :last-child:not(.filename, .metadata, .error) {
+  margin-top: auto;
+}
+
+/* One line; a long name ends in an ellipsis. */
+.filename {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Channel and time; the time wraps under a long channel name. */
+.metadata {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--cp-space-3);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.error {
+  max-width: 100%;
+  margin: 0;
+}
+
+/* Loading, none, or a failed read: centred in the space the list would fill. */
+.empty {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-4);
+  min-height: 0;
+  margin: 0;
+  padding: var(--cp-space-8) var(--cp-panel-pad-x);
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-wrap: balance;
+}

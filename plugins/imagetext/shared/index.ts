@@ -1,7 +1,7 @@
 // Reads message images locally into part-specific derived text consumed by rules, Jev, Trading labels, search, and Translation.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { decodeNoArgs, decodeRequest } from './calls';
-import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type ImageFetchRequest, type ImageTextStatus } from './types';
+import { DEFAULT_IMAGE_TEXT_SETTINGS, normalizeImageTextSettings, type EnginePick, type FailedImage, type ImageFetchRequest, type ImageTextStatus } from './types';
 
 export const manifest = {
   id: 'imagetext',
@@ -12,6 +12,8 @@ export const manifest = {
 
 /** Settings tab id. */
 export const IMAGE_TEXT_TAB = 'imagetext' as const;
+/** In-app window listing the current failed image readings. */
+export const FAILED_IMAGES_WINDOW = 'failedImages' as const;
 /** Plugin event: queue counts or an engine's state changed; payload ImageTextStatus. */
 export const STATUS_EVENT = 'status' as const;
 /** Core → main: download an image the store doesn't hold (ImageFetchRequest); main answers with imageFetched. */
@@ -25,6 +27,8 @@ export const IMAGE_FETCHES_MAX = 4;
 export interface ImageTextCoreCalls {
   /** Engines, vision models and the queue. */
   status(): Promise<ImageTextStatus>;
+  /** Failed readings whose source messages are visible in the archive. */
+  failedImages(): FailedImage[];
   /** Prioritizes rereading all message images with pick or Settings' engine. Throws if the engine is unavailable. */
   request(messageId: string, pick: EnginePick | null): void;
   /** Queues again every image that failed. */
@@ -43,6 +47,7 @@ export const plugin = definePlugin({
   channels: defineChannels<{ core: ImageTextCoreCalls; events: ImageTextEvents }>()({
     core: {
       status: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
+      failedImages: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
       request: { audiences: ['renderer', 'phone'], writes: true, decode: decodeRequest },
       retryFailed: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
       imageFetched: { audiences: ['main'], completion: { max: IMAGE_FETCHES_MAX } },

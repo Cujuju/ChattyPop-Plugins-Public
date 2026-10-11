@@ -69,6 +69,19 @@ export const HOSTED_VISION_OFF = 'Sending images to hosted AI is off: Settings �
 /** queued → fetching (main downloads an image the store doesn't hold) → running → done | failed. */
 export type ImageJobState = 'queued' | 'fetching' | 'running' | 'done' | 'failed';
 
+/** A failed image still visible in the archive, with its source and reading error. */
+export interface FailedImage {
+  seq: number;
+  messageId: string;
+  channelId: string;
+  imageKey: string;
+  url: string;
+  filename: string | null;
+  sha256: string | null;
+  error: string | null;
+  requestedAt: number;
+}
+
 /** Whether an engine can run now, and why not. */
 export interface EngineStatus {
   ready: boolean;

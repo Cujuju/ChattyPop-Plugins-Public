@@ -2,7 +2,7 @@
 import { pluginTable } from '@plugin-sdk/shared';
 import type { MessageImage, PluginDb, PluginNote } from '@plugin-sdk/core';
 import { IMAGE_TEXT_NOTE, plugin } from '../shared';
-import { normalizePick, type EnginePick, type ImageJobState } from '../shared/types';
+import { normalizePick, type EnginePick, type FailedImage, type ImageJobState } from '../shared/types';
 
 export const JOBS_TABLE = pluginTable(plugin, 'jobs');
 
@@ -146,6 +146,17 @@ export function counts(db: PluginDb): Record<ImageJobState, number> {
   const out: Record<ImageJobState, number> = { queued: 0, fetching: 0, running: 0, done: 0, failed: 0 };
   for (const r of db.prepare(`SELECT state, COUNT(*) AS n FROM ${JOBS_TABLE} GROUP BY state`).all() as { state: ImageJobState; n: number }[]) out[r.state] = r.n;
   return out;
+}
+
+/** Display reads follow archive privacy and omit jobs whose source message is gone. Newest requests first. */
+export function failedImages(db: PluginDb): FailedImage[] {
+  return db.prepare(
+    `SELECT j.seq, j.message_id AS messageId, j.channel_id AS channelId, j.image_key AS imageKey,
+            j.url, a.filename, a.sha256, j.error, j.requested_at AS requestedAt
+     FROM ${JOBS_TABLE} j JOIN archive_messages m ON m.id = j.message_id
+     LEFT JOIN archive_attachments a ON a.id = j.attachment_id AND a.message_id = j.message_id
+     WHERE j.state = 'failed' ORDER BY j.requested_at DESC, j.seq DESC`,
+  ).all() as FailedImage[];
 }
 
 const STATE_TEXT = { queued: 'Waiting to read…', fetching: 'Downloading the image…', running: 'Reading…' } as const;
