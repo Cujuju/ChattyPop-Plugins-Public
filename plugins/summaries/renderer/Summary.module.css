@@ -116,6 +116,24 @@
   min-width: 0;
 }
 
+/* A run's heading across the panel: the chevron, then the time it covers; folded, its headline on one line under that. */
+.runToggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  width: 100%;
+  min-height: var(--cp-hit-min);
+  text-align: start;
+}
+
+.runTeaser {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The one-sentence take. */
 .headline {
   overflow-wrap: anywhere;

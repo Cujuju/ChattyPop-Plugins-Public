@@ -8,7 +8,7 @@ import { refetchPlanUsage, createAction, createPagedList, aiSettings } from '@pl
 import { MS_PER_DAY, type ProviderId } from '@plugin-sdk/shared';
 import { SUMMARY_RANGES, type SummaryRange, type SummaryRuleOptions } from '../shared/settings';
 import { summarySettings } from './settings';
-import { mergeHistoryPage } from './historyPage';
+import { mergeHistoryPage, runOpen } from './historyPage';
 import { dayOf } from './order';
 
 /** The range picked in the panel this session; until one is picked, Settings → Summaries' default. */
@@ -41,6 +41,12 @@ export const loadOlderSummaries = async (): Promise<number> => {
 
 /** The newest run, or null before the first. */
 export const latestSummary = (): Summary | null => history.items.at(-1) ?? null;
+
+/** Runs opened or closed by hand this session, by id. */
+const [runToggles, setRunToggles] = createSignal<ReadonlyMap<number, boolean>>(new Map());
+/** Whether a run shows its body, or only its heading. */
+export const isSummaryOpen = (id: number): boolean => runOpen(runToggles(), id, latestSummary()?.id ?? null);
+export const toggleSummary = (id: number): void => void setRunToggles(new Map(runToggles()).set(id, !isSummaryOpen(id)));
 
 /** Adds a finished run at the bottom; a cache hit returns a run already listed, which stays where it is. */
 function addRun(s: Summary): void {

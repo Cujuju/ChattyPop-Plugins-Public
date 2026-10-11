@@ -1,5 +1,5 @@
 // Summary history, controls and cited results.
-import { For, Show } from 'solid-js';
+import { For, Show, createEffect } from 'solid-js';
 import type { Summary } from '../shared/types';
 import type { SummaryTrigger } from '../shared/settings';
 import {
@@ -13,13 +13,16 @@ import {
   HeaderActions,
   scrolledFromTop,
 } from '@plugin-sdk/renderer/kit';
+import { namedText } from '../shared/people';
 import {
+  isSummaryOpen,
   loadOlderSummaries,
   overlapUntil,
   summaryError,
   summaryHistory,
   summaryProgress,
   summaryRunning,
+  toggleSummary,
 } from './state';
 import { scopeLabel } from './scope';
 import { SummaryControls } from './SummaryControls';
@@ -43,7 +46,7 @@ const PHASE_TEXT = {
 
 const TRIGGER_TEXT: Record<SummaryTrigger, string> = { manual: '', 'catch-up': 'Catch-up', digest: 'Daily digest', rule: 'Rule' };
 
-/** F2 Summary: range and run; every run kept, oldest at the top and newest at the bottom, each headed by when it ran. */
+/** F2 Summary: range and run; every run kept, oldest at the top and newest at the bottom, each folding under the time it covers. */
 export function SummaryPanel() {
   const log = createFollowBottom();
   let body!: HTMLDivElement;
@@ -53,6 +56,15 @@ export function SummaryPanel() {
     const before = body.scrollHeight;
     if (await loadOlderSummaries()) body.scrollTop += body.scrollHeight - before;
   };
+  // Folded runs may not fill the panel, and then nothing scrolls: older runs load until they do, or none are left.
+  createEffect(() => {
+    void summaryHistory.items.length;
+    for (const s of summaryHistory.items) isSummaryOpen(s.id);
+    if (isPanelCollapsed('summary') || summaryHistory.reachedStart) return;
+    queueMicrotask(() => {
+      if (body?.isConnected && body.scrollHeight <= body.clientHeight) void loadOlderSummaries();
+    });
+  });
   const progressText = (): string => {
     const p = summaryProgress();
     if (!summaryRunning()) return '';
@@ -98,21 +110,38 @@ export function SummaryPanel() {
 
 const isoTime = (ms: number): string => new Date(ms).toISOString();
 
-/** One run, headed by the time it covers, then its body. */
+/** One run: a heading with the time it covers, which folds its body; folded, the heading adds the headline. */
 function SummaryRun(props: { summary: Summary }) {
   const s = () => props.summary;
   const withDay = () => spansDays(s());
+  const open = () => isSummaryOpen(s().id);
   return (
     <article class={styles.summary}>
-      <p class={`${styles.meta} ${look.text}`} {...META} title={`Ran ${weekdayDateTime(s().createdAt)}`}>
-        <time dateTime={isoTime(s().sinceTs)}>{weekdayDateTime(s().sinceTs)}</time>
-        {' → '}
-        <time dateTime={isoTime(s().untilTs)}>{withDay() ? weekdayDateTime(s().untilTs) : clockTime(s().untilTs)}</time>
-        <Show when={TRIGGER_TEXT[s().trigger]}>{(t) => ` · ${t()}`}</Show>
-        <Show when={s().scope}>{(sc) => ` · ${scopeLabel(sc())}`}</Show>
-        <Show when={overlapUntil(s())}>{(t) => ` · Overlaps earlier summaries until ${shortDateTime(t())}`}</Show>
-      </p>
-      <SummaryContent summary={s()} withDay={withDay()} />
+      <button
+        type="button"
+        class={`${styles.runToggle} ${look.disclosure}`}
+        aria-expanded={open()}
+        title={`Ran ${weekdayDateTime(s().createdAt)}`}
+        onClick={() => toggleSummary(s().id)}
+      >
+        <span class="cp-chevron" aria-hidden="true" />
+        <span class={`${styles.meta} ${look.text}`} {...META}>
+          <time dateTime={isoTime(s().sinceTs)}>{weekdayDateTime(s().sinceTs)}</time>
+          {' → '}
+          <time dateTime={isoTime(s().untilTs)}>{withDay() ? weekdayDateTime(s().untilTs) : clockTime(s().untilTs)}</time>
+          <Show when={TRIGGER_TEXT[s().trigger]}>{(t) => ` · ${t()}`}</Show>
+          <Show when={s().scope}>{(sc) => ` · ${scopeLabel(sc())}`}</Show>
+          <Show when={overlapUntil(s())}>{(t) => ` · Overlaps earlier summaries until ${shortDateTime(t())}`}</Show>
+        </span>
+        <Show when={!open()}>
+          <span class={`${styles.runTeaser} ${look.text}`} data-size="md" data-line="normal" data-tone="secondary">
+            {namedText(s().headline, s().people)}
+          </span>
+        </Show>
+      </button>
+      <Show when={open()}>
+        <SummaryContent summary={s()} withDay={withDay()} />
+      </Show>
     </article>
   );
 }
