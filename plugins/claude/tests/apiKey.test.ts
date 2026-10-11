@@ -1,0 +1,60 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Options } from '@anthropic-ai/claude-agent-sdk';
+
+const options: Options[] = [];
+let messages: unknown[] = [];
+const close = vi.fn();
+vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'test-claude', args: [] }) }));
+vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
+  query: ({ options: value }: { options: Options }) => {
+    options.push(value);
+    return { close, [Symbol.asyncIterator]: async function* () { yield* messages; } };
+  },
+}));
+const { ClaudeProvider } = await import('../core/claude');
+const KEY = 'test-key';
+const REQUEST = { system: '', prompt: 'hello' };
+const RESULT = { type: 'result', subtype: 'success', result: 'answer', usage: { input_tokens: 1, output_tokens: 1 }, total_cost_usd: 0 };
+
+afterEach(() => { options.length = 0; messages = []; close.mockClear(); vi.unstubAllEnvs(); });
+
+describe('Claude owner key', () => {
+  it('passes a stored key only through the child environment and confirms its source', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'inherited-test-key');
+    messages = [{ type: 'system', subtype: 'init', apiKeySource: 'ANTHROPIC_API_KEY' }, RESULT];
+    await expect(new ClaudeProvider(() => KEY).complete(REQUEST)).resolves.toMatchObject({ text: 'answer' });
+    expect(options[0]?.env?.ANTHROPIC_API_KEY).toBe(KEY);
+    expect(process.env.ANTHROPIC_API_KEY).toBe('inherited-test-key');
+    expect(close).toHaveBeenCalledOnce();
+  });
+  it('no stored key preserves the inherited environment and sign-in', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'inherited-test-key');
+    messages = [RESULT];
+    await new ClaudeProvider(() => null).complete(REQUEST);
+    expect(options[0]?.env).toEqual({ ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: 'chattypop/0.1' });
+  });
+  it.each(['oauth', 'none', 'apiKeyHelper'])('stops when init selects %s', async (apiKeySource) => {
+    messages = [{ type: 'system', subtype: 'init', apiKeySource }, RESULT];
+    await expect(new ClaudeProvider(() => KEY).complete(REQUEST)).rejects.toThrow('did not select your API key');
+    expect(close).toHaveBeenCalledOnce();
+  });
+  it('refuses a result without payment confirmation', async () => {
+    messages = [RESULT];
+    await expect(new ClaudeProvider(() => KEY).complete(REQUEST)).rejects.toThrow('did not confirm your API key');
+  });
+  it('reads the key per request, including removal', async () => {
+    let key: string | null = KEY;
+    const claude = new ClaudeProvider(() => key);
+    messages = [{ type: 'system', subtype: 'init', apiKeySource: 'ANTHROPIC_API_KEY' }, RESULT];
+    await claude.complete(REQUEST);
+    key = null;
+    messages = [RESULT];
+    await claude.complete(REQUEST);
+    expect(options[0]?.env?.ANTHROPIC_API_KEY).toBe(KEY);
+    expect(options[1]?.env?.ANTHROPIC_API_KEY).toBe(process.env.ANTHROPIC_API_KEY);
+  });
+  it('API key payments have no plan usage and start no subprocess', async () => {
+    await expect(new ClaudeProvider(() => KEY).planUsage()).resolves.toBeNull();
+    expect(options).toEqual([]);
+  });
+});

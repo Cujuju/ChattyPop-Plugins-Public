@@ -1,6 +1,6 @@
-// Claude through the Agent SDK, driving the owner's own Claude Code install and sign-in.
+// Claude through the Agent SDK, using the owner's sign-in or API key.
 import { tmpdir } from 'node:os';
-import { query, type EffortLevel, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, type ApiKeySource, type EffortLevel, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { MS_PER_DAY, MS_PER_HOUR } from '@plugin-sdk/shared';
 import {
   HOSTED_MAX_INPUT_CHARS,
@@ -22,6 +22,8 @@ export const CLAUDE_CLI: CliSpec = { bin: 'claude', npm: '@anthropic-ai/claude-c
 const MAX_TURNS_WITH_SCHEMA = 3;
 const MAX_TURNS_TEXT = 1;
 const CLIENT_APP_ID = 'chattypop/0.1';
+const API_KEY_ENV = 'ANTHROPIC_API_KEY';
+const API_KEY_SOURCE: ApiKeySource = API_KEY_ENV;
 /** supportedModels() row that stands for Claude Code's own default model. */
 const DEFAULT_MODEL_VALUE = 'default';
 /** Lengths of the plan windows the SDK names five_hour and seven_day. */
@@ -45,12 +47,14 @@ function withImages(prompt: string, images: readonly CompletionImage[]): AsyncIt
   })();
 }
 
-/** Claude via the user's own Claude Code install and login (Agent SDK). ChattyPop never touches credentials. */
+/** Claude via the user's Claude Code install; an owner API key enters only the child environment. */
 export class ClaudeProvider implements LlmProvider {
   readonly id = 'claude' as const;
   readonly maxInputChars = HOSTED_MAX_INPUT_CHARS;
 
-  private baseOptions(): Options {
+  constructor(private readonly apiKey: () => string | null) {}
+
+  private baseOptions(key = this.apiKey()): Options {
     const { bin, npm, name } = CLAUDE_CLI;
     const launch = resolveCli(bin, npm);
     if (!launch) throw new ProviderUnavailableError(`${name} is not installed or not on PATH.`);
@@ -65,18 +69,20 @@ export class ClaudeProvider implements LlmProvider {
       persistSession: false,
       permissionMode: 'dontAsk',
       cwd: tmpdir(),
-      env: { ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: CLIENT_APP_ID },
+      env: { ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: CLIENT_APP_ID, ...(key ? { [API_KEY_ENV]: key } : {}) },
     };
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
+    const key = this.apiKey();
+    let verifiedKeySource = key === null;
     const prompt = req.images?.length ? withImages(req.prompt, req.images) : req.prompt;
     const abortController = new AbortController();
     req.signal?.addEventListener('abort', () => abortController.abort(), { once: true });
     const q = query({
       prompt,
       options: {
-        ...this.baseOptions(),
+        ...this.baseOptions(key),
         systemPrompt: req.system,
         maxTurns: req.schema ? MAX_TURNS_WITH_SCHEMA : MAX_TURNS_TEXT,
         abortController,
@@ -86,20 +92,32 @@ export class ClaudeProvider implements LlmProvider {
         ...(req.schema ? { outputFormat: { type: 'json_schema', schema: req.schema } } : {}),
       },
     });
-    for await (const msg of q) {
-      if (msg.type !== 'result') continue;
-      if (msg.subtype !== 'success') throw new Error(`Claude run failed: ${msg.subtype}`);
-      // Anthropic reports cache reads/writes apart from input_tokens; all three are prompt tokens.
-      const u = msg.usage;
-      const usage = {
-        inputTokens: u.input_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0),
-        cachedInputTokens: u.cache_read_input_tokens ?? 0,
-        outputTokens: u.output_tokens,
-      };
-      // Priced by Claude Code at API list rates, cache writes and reads included, whatever the plan.
-      return { text: msg.result, usage, apiCostUsd: msg.total_cost_usd, ...(req.schema ? { json: msg.structured_output } : {}) };
+    try {
+      for await (const msg of q) {
+        if (key && msg.type === 'system' && msg.subtype === 'init') {
+          if (msg.apiKeySource !== API_KEY_SOURCE) throw new Error('Claude did not select your API key. The request was stopped.');
+          verifiedKeySource = true;
+        }
+        if (msg.type !== 'result') continue;
+        if (!verifiedKeySource) throw new Error('Claude did not confirm your API key. The request was stopped.');
+        if (msg.subtype !== 'success') throw new Error(`Claude run failed: ${msg.subtype}`);
+        // Anthropic reports cache reads/writes apart from input_tokens; all three are prompt tokens.
+        const u = msg.usage;
+        const usage = {
+          inputTokens: u.input_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0),
+          cachedInputTokens: u.cache_read_input_tokens ?? 0,
+          outputTokens: u.output_tokens,
+        };
+        // Priced by Claude Code at API list rates, cache writes and reads included, whatever the plan.
+        return { text: msg.result, usage, apiCostUsd: msg.total_cost_usd, ...(req.schema ? { json: msg.structured_output } : {}) };
+      }
+      throw new Error('Claude run ended without a result.');
+    } catch (err) {
+      if (key && err instanceof Error) throw new Error(err.message.replaceAll(key, '[API key]'));
+      throw err;
+    } finally {
+      q.close();
     }
-    throw new Error('Claude run ended without a result.');
   }
 
   /** Opens a session that never sends a prompt: the SDK exposes usage and models only on a live query. */
@@ -125,6 +143,7 @@ export class ClaudeProvider implements LlmProvider {
   }
 
   async planUsage(): Promise<PlanUsageWindow[] | null> {
+    if (this.apiKey()) return null;
     const q = this.idleQuery();
     try {
       const u = await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true });
