@@ -5,8 +5,8 @@ ChattyPop's public plugins. ChattyPop lists this repo as a built-in marketplace:
 | Plugin | Folder | What it does |
 |---|---|---|
 | Alerts | `plugins/alerts` | A rule-driven inbox, unread badges and notifications for messages that need your attention. |
-| Claude | `plugins/claude` | Claude as an AI provider, through your own Claude Code install and sign-in. |
-| ChatGPT (Codex) | `plugins/codex` | ChatGPT as an AI provider, through your own Codex CLI install and sign-in. |
+| Claude | `plugins/claude` | Claude as an AI provider, through your own Claude Code install, sign-in or API key. |
+| ChatGPT (Codex) | `plugins/codex` | ChatGPT as an AI provider, through your own Codex CLI install, sign-in or API key. |
 | Import and export | `plugins/exchange` | Imports DiscordChatExporter JSON exports; exports channels as JSON or a standalone HTML page. |
 | Image text | `plugins/imagetext` | Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it. |
 | Links | `plugins/links` | The Links panel: every shared link with its preview, filters, and Jev's category, safety and worth-reading reads. |

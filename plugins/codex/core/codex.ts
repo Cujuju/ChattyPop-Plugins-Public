@@ -1,10 +1,8 @@
-// ChatGPT through the owner's own Codex CLI sign-in, driven over `codex app-server`.
+// ChatGPT sign-in or an owner OpenAI API key, driven over `codex app-server`.
 import { tmpdir } from 'node:os';
 import { MS_PER_MIN, MS_PER_S } from '@plugin-sdk/shared';
 import {
   HOSTED_MAX_INPUT_CHARS,
-  ProviderUnavailableError,
-  resolveCli,
   type CliSpec,
   type CompletionImage,
   type CompletionRequest,
@@ -14,7 +12,7 @@ import {
   type PlanUsageWindow,
   type PriceAtApiRates,
 } from '@plugin-sdk/core';
-import { JsonRpcStdio } from './jsonRpcStdio';
+import { API_KEY_PROVIDER, CodexConnection } from './connection';
 
 /** The CLI it drives. */
 export const CODEX_CLI: CliSpec = { bin: 'codex', npm: '@openai/codex', name: 'Codex CLI' };
@@ -110,47 +108,21 @@ interface TokenUsageBreakdown {
 /** Codex models are OpenAI's, listed on OpenRouter under this prefix. */
 const OPENROUTER_OPENAI_PREFIX = 'openai/';
 
-/** ChatGPT via the user's own Codex CLI login, driven through `codex app-server` (one warm process). */
+/** ChatGPT via Codex sign-in or an owner API key, using one warm app-server per payment key. */
 export class CodexProvider implements LlmProvider {
   readonly id = 'codex' as const;
   readonly maxInputChars = HOSTED_MAX_INPUT_CHARS;
-  private rpc: Promise<JsonRpcStdio> | undefined;
-  /** Set by dispose (the plugin turned off): no app-server starts again. */
-  private disposed = false;
+  private readonly connection: CodexConnection;
 
-  /** `price`: the host's API list-rate pricing (plan-paid calls have no bill of their own). */
-  constructor(private readonly price: PriceAtApiRates) {}
-
-  /** The warm app-server; a failed start or an exited process is dropped, so the next call starts a new one. */
-  private connect(): Promise<JsonRpcStdio> {
-    if (this.disposed) return Promise.reject(new ProviderUnavailableError('Codex was turned off.'));
-    if (this.rpc) return this.rpc;
-    const connecting = (async () => {
-      const { bin, npm, name } = CODEX_CLI;
-      const launch = resolveCli(bin, npm);
-      if (!launch) throw new ProviderUnavailableError(`${name} is not installed or not on PATH.`);
-      const rpc = new JsonRpcStdio(launch, ['app-server']);
-      try {
-        await rpc.request('initialize', { clientInfo: CLIENT_INFO, capabilities: null });
-      } catch (err) {
-        rpc.dispose();
-        throw err;
-      }
-      rpc.notify('initialized');
-      return rpc;
-    })();
-    const forget = (): void => {
-      if (this.rpc === connecting) this.rpc = undefined;
-    };
-    connecting.then((rpc) => void rpc.closed.then(forget), forget);
-    this.rpc = connecting;
-    return connecting;
+  constructor(private readonly price: PriceAtApiRates, private readonly apiKey: () => string | null) {
+    this.connection = new CodexConnection(CODEX_CLI, CLIENT_INFO, apiKey);
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
-    const rpc = await this.connect();
+    const connection = await this.connection.connect();
+    this.connection.assertCurrent(connection);
     // Ephemeral, read-only, never asks for approval; our system prompt replaces the coding-agent one.
-    const { thread, model } = await rpc.request<{ thread: { id: string }; model: string }>('thread/start', {
+    const { thread, model, modelProvider } = await this.connection.request<{ thread: { id: string }; model: string; modelProvider: string }>(connection, 'thread/start', {
       cwd: tmpdir(),
       sandbox: 'read-only',
       approvalPolicy: 'never',
@@ -160,23 +132,26 @@ export class CodexProvider implements LlmProvider {
       ...(req.model ? { model: req.model } : {}),
     });
 
+    this.connection.assertCurrent(connection);
+    if (connection.key && modelProvider !== API_KEY_PROVIDER) throw new Error('Codex did not select your API key provider. The request was stopped.');
+
     let text = '';
     let total: TokenUsageBreakdown | undefined;
     let largestPromptTokens = 0;
     let stopListening = (): void => undefined;
     const done = new Promise<Turn>((resolve) => {
       // Cumulative for this (single-turn, ephemeral) thread, so the last update is the whole call.
-      const offUsage = rpc.on('thread/tokenUsage/updated', (p) => {
+      const offUsage = connection.rpc.on('thread/tokenUsage/updated', (p) => {
         const { threadId, tokenUsage } = p as { threadId: string; tokenUsage: { total: TokenUsageBreakdown; last: TokenUsageBreakdown } };
         if (threadId !== thread.id) return;
         total = tokenUsage.total;
         largestPromptTokens = Math.max(largestPromptTokens, tokenUsage.last.inputTokens);
       });
-      const offItem = rpc.on('item/completed', (p) => {
+      const offItem = connection.rpc.on('item/completed', (p) => {
         const { item, threadId } = p as { item: ThreadItem; threadId: string };
         if (threadId === thread.id && item.type === 'agentMessage' && item.text !== undefined) text = item.text;
       });
-      const offDone = rpc.on('turn/completed', (p) => {
+      const offDone = connection.rpc.on('turn/completed', (p) => {
         const { turn, threadId } = p as { turn: Turn; threadId: string };
         if (threadId !== thread.id) return;
         stopListening();
@@ -191,22 +166,23 @@ export class CodexProvider implements LlmProvider {
 
     let turn: Turn;
     try {
-      await rpc.request('turn/start', {
+      this.connection.assertCurrent(connection);
+      await this.connection.request(connection, 'turn/start', {
         threadId: thread.id,
         input: [...(req.images ?? []).map((i) => ({ type: 'image', url: dataUrl(i) })), { type: 'text', text: req.prompt, text_elements: [] }],
         ...(req.schema ? { outputSchema: req.schema } : {}),
         ...(req.effort ? { effort: req.effort } : {}),
       });
       // An app-server that exits mid-turn never sends turn/completed.
-      turn = await Promise.race([done, rpc.closed.then((err) => Promise.reject(err))]);
+      turn = await Promise.race([done, this.connection.closed(connection).then((err) => Promise.reject(err))]);
     } finally {
       stopListening();
     }
-    if (turn.status !== 'completed') throw new Error(`Codex turn ${turn.status}: ${turn.error?.message ?? 'no detail'}`);
+    if (turn.status !== 'completed') throw this.connection.error(connection, new Error(`Codex turn ${turn.status}: ${turn.error?.message ?? 'no detail'}`));
     const json = req.schema ? { json: JSON.parse(text) } : {};
     if (!total) return { text, ...json };
     const usage = { inputTokens: total.inputTokens, cachedInputTokens: total.cachedInputTokens, outputTokens: total.outputTokens };
-    // Plan-paid, so priced at the model's standard-tier API list rates; a priority or flex service tier bills differently.
+    // Costs use the model's standard-tier API list rates; priority and flex tiers bill differently.
     const apiCostUsd = await this.price(OPENROUTER_OPENAI_PREFIX + model, {
       ...usage,
       cacheWriteInputTokens: total.cacheWriteInputTokens ?? 0,
@@ -217,10 +193,11 @@ export class CodexProvider implements LlmProvider {
 
   /** Visible models from `model/list`, following pagination. */
   async listModels(): Promise<ModelOption[]> {
-    const rpc = await this.connect();
+    const connection = await this.connection.connect();
+    this.connection.assertCurrent(connection);
     const out: ModelOption[] = [];
     for (let cursor: string | null = null; ;) {
-      const page: { data: ListedModel[]; nextCursor: string | null } = await rpc.request('model/list', { cursor });
+      const page: { data: ListedModel[]; nextCursor: string | null } = await this.connection.request(connection, 'model/list', { cursor });
       for (const m of page.data) {
         if (m.hidden) continue;
         const efforts = m.supportedReasoningEfforts.map((e) => e.reasoningEffort).filter((e) => !HIDDEN_EFFORTS.has(e));
@@ -238,8 +215,11 @@ export class CodexProvider implements LlmProvider {
   }
 
   async planUsage(): Promise<PlanUsageWindow[] | null> {
-    const rpc = await this.connect();
-    const r = await rpc.request<{ rateLimits: RateLimitSnapshot }>('account/rateLimits/read', {});
+    if (this.apiKey()) return null;
+    const connection = await this.connection.connect();
+    this.connection.assertCurrent(connection);
+    if (connection.key) return null;
+    const r = await this.connection.request<{ rateLimits: RateLimitSnapshot }>(connection, 'account/rateLimits/read', {});
     const windows: PlanUsageWindow[] = [];
     const push = (id: string, fallbackLabel: string, w: RateLimitWindow | null): void => {
       if (!w) return;
@@ -258,13 +238,7 @@ export class CodexProvider implements LlmProvider {
 
   /** Stops the app-server, including one still starting; a start that fails is its caller's to report. */
   dispose(): void {
-    this.disposed = true;
-    const rpc = this.rpc;
-    this.rpc = undefined;
-    rpc?.then(
-      (r) => r.dispose(),
-      () => undefined,
-    );
+    this.connection.dispose();
   }
 }
 

@@ -36,7 +36,7 @@ describe('Codex provider disposal', () => {
     try {
       let fail!: (err: Error) => void;
       initialize = () => new Promise((_, reject) => (fail = reject));
-      const codex = new CodexProvider(NO_PRICE);
+      const codex = new CodexProvider(NO_PRICE, () => null);
       const listing = codex.listModels();
       await vi.waitFor(() => expect(started).toHaveLength(1));
       codex.dispose();
@@ -50,7 +50,7 @@ describe('Codex provider disposal', () => {
   });
 
   it('never starts another app-server once disposed', async () => {
-    const codex = new CodexProvider(NO_PRICE);
+    const codex = new CodexProvider(NO_PRICE, () => null);
     await codex.listModels();
     codex.dispose();
     await expect(codex.listModels()).rejects.toThrow();

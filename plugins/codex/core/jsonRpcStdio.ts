@@ -17,8 +17,8 @@ export class JsonRpcStdio {
   /** Resolves with why the process ended (exit or spawn error), so a caller waiting on a notification can stop. */
   readonly closed: Promise<Error>;
 
-  constructor(launch: Launch, extraArgs: string[]) {
-    this.proc = spawn(launch.command, [...launch.args, ...extraArgs], { stdio: 'pipe', windowsHide: true });
+  constructor(launch: Launch, extraArgs: string[], env?: NodeJS.ProcessEnv) {
+    this.proc = spawn(launch.command, [...launch.args, ...extraArgs], { stdio: 'pipe', windowsHide: true, env });
     createInterface({ input: this.proc.stdout }).on('line', (line) => this.onLine(line));
     let close!: (err: Error) => void;
     this.closed = new Promise((r) => (close = r));
