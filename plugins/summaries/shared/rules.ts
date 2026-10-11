@@ -5,7 +5,7 @@ import { AFTER_MESSAGE, defineRuleAction } from '@plugin-sdk/shared';
 import { SUMMARY_RANGES, summaryRuleOptionsError, type SummaryRange, type SummaryRuleOptions } from './settings';
 
 /** Time frames a timed rule may read in place of its window; Last visit and Last run are what that window already is. */
-export const RULE_SUMMARY_RANGES = ['today', 'yesterday', '30m', '1h', '3h', '6h', '12h', '24h', '3d', '7d', '30d'] as const satisfies readonly SummaryRange[];
+export const RULE_SUMMARY_RANGES = ['today', 'yesterday', '30m', '1h', '2h', '3h', '4h', '6h', '12h', '24h', '3d', '7d', '30d'] as const satisfies readonly SummaryRange[];
 export type RuleSummaryRange = (typeof RULE_SUMMARY_RANGES)[number];
 
 /** A message rule's lookback, a timed rule's time frame, and the rule's own options. */
