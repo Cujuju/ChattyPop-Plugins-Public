@@ -66,7 +66,7 @@ function harness() {
     duringNotifyAuto: (fn: () => void) => { duringNotifyAuto = fn; },
     quietSummaries: () => { notifyAuto = false; },
     mute: (channelId: string) => { muted.add(channelId); },
-    summaryAdded: (channelIds: string[] = []) => summaryEvents.get('added')!({ trigger: 'digest', actions: [], headline: 'Launch moved to Friday', channelIds }),
+    summaryAdded: (channelIds: string[] = []) => summaryEvents.get('announced')!({ trigger: 'digest', actions: [], headline: 'Launch moved to Friday', channelIds }),
     summaryFailure: () => summaryEvents.get('failed')!({ trigger: 'digest', message: 'provider down' }),
   };
 }

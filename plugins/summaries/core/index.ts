@@ -20,7 +20,10 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
   const prefs = () => ctx.preferences.get('settings');
   const emit = (event: SummaryEvent): void => {
     if (event.type === 'summary-progress') ctx.channels.emit('progress', event);
-    else if (event.type === 'summary-added') ctx.channels.emit('added', event.summary);
+    else if (event.type === 'summary-added') {
+      ctx.channels.emit('added', event.summary);
+      if (!event.quiet) ctx.channels.emit('announced', event.summary);
+    }
     else {
       const { type: _, ...failure } = event;
       ctx.channels.emit('failed', failure);
@@ -35,7 +38,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
   const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, providers, emit, () => ctx.identity.names(), ctx.lifetime.signal);
   const comparer = new Comparer(ctx.storage.db, summarizer, providers, (p) => ctx.channels.emit('compareProgress', p), () => ctx.channels.emit('comparisonsChanged', null));
   registerSummaryKinds(ctx.rules, {
-    summarize: (request, own, trigger) => summarizer.run(request, ctx.ai.settings(), withRuleOptions(prefs(), own), trigger),
+    summarize: (request, own, trigger, quiet) => summarizer.run(request, ctx.ai.settings(), withRuleOptions(prefs(), own), trigger, quiet),
   }, emit, (q) => summarizer.coveredFrom(q, prefs()));
   ctx.ai.usage.provide((provider, sinceTs) => summarizer.usageSince(provider, sinceTs));
   ctx.archive.textCoverage.provide(() => coverageSpans(ctx.storage.db));

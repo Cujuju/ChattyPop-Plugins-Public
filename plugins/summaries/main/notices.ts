@@ -14,7 +14,7 @@ const notice = (title: string, body: string, channelIds: string[] | undefined): 
 
 /** Automatic run notices before the plugin's delivery preference. */
 export function summaryNotices(e: SummaryEvent): NotificationRequest<'summary'>[] {
-  if (e.type === 'summary-added' && e.summary.trigger !== 'manual') {
+  if (e.type === 'summary-added' && !e.quiet && e.summary.trigger !== 'manual') {
     const name = AUTO_RUN_NAME[e.summary.trigger];
     const title = e.summary.actions.length ? `${name} · ${e.summary.actions.length} for you` : name;
     return [notice(title, namedText(e.summary.headline, e.summary.people), e.summary.channelIds)];

@@ -14,6 +14,8 @@ describe('notices', () => {
   it('names the channels a run read or its rule named, so muting them all mutes the notice', () => {
     const summary = { trigger: 'rule', actions: [], headline: 'h', channelIds: ['c1', 'c2'] } as unknown as Summary;
     expect(summaryNotices({ type: 'summary-added', summary })).toEqual([{ ...request, title: 'Rule summary', body: 'h', aboutChannels: ['c1', 'c2'] }]);
+    // An older missed window of a rule still catching up: listed, no notice.
+    expect(summaryNotices({ type: 'summary-added', summary, quiet: true })).toEqual([]);
     expect(summaryNotices({ type: 'summary-auto-failed', trigger: 'rule', message: 'm', channelIds: ['c1'] })).toEqual([{ ...request, title: 'Rule summary failed', body: 'm', aboutChannels: ['c1'] }]);
   });
 });

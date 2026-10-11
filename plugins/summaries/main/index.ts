@@ -14,6 +14,6 @@ export default defineMainPlugin(plugin, (ctx) => {
       });
     }
   };
-  ctx.channels.on('added', (summary) => send(summaryNotices({ type: 'summary-added', summary })));
+  ctx.channels.on('announced', (summary) => send(summaryNotices({ type: 'summary-added', summary })));
   ctx.channels.on('failed', (event) => send(summaryNotices({ type: 'summary-auto-failed', ...event })));
 });

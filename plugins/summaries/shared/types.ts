@@ -152,7 +152,8 @@ export interface SummaryProgress {
 /** Internal run events, routed through the plugin channel. */
 export type SummaryEvent =
   | ({ type: 'summary-progress' } & SummaryProgress)
-  | { type: 'summary-added'; summary: Summary }
+  /** `quiet`: an older missed window of a rule still catching up; listed, but no notice. */
+  | { type: 'summary-added'; summary: Summary; quiet?: true }
   | ({ type: 'summary-auto-failed' } & SummaryFailure);
 
 /** An automatic run that failed; `channelIds` when its rule named the channels. */

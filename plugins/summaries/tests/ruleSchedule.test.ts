@@ -73,6 +73,38 @@ describe('timed rules', () => {
     expect(h.ranges.summaryOptions).toEqual([{ length: 'brief' }]);
   });
 
+  it('summarize each due time missed while closed over its own time frame, only the newest with a notice', async () => {
+    let now = at(22, 0, 24);
+    const h = summaryRuleHarness(() => now);
+    const every3 = (config: object) =>
+      h.rules.create(
+        ruleInput([{ ...newRuleAction('summaries.summarize'), config: { lookbackMs: MS_PER_HOUR, ...config } }], {
+          trigger: { kind: 'every', hours: 3, backfillHours: 24 },
+          gates: { channelIds: ['c1'] },
+        }),
+      );
+    every3({});
+    // Closed from 22:00 until 10:15 the next morning: 01:00, 04:00, 07:00 and 10:00 were missed.
+    now = at(10, 15);
+    const tiles = [[at(22, 0, 24), at(1)], [at(1), at(4)], [at(4), at(7)], [at(7), at(10)]];
+    await new RuleSchedule(h.db, h.engine, h.actions, at(22, 0, 24), (e) => h.events.push(e), () => now).tick();
+    expect(h.ranges.summaries).toEqual(tiles.map(([sinceTs, untilTs]) => ({ sinceTs, untilTs, channelIds: ['c1'] })));
+    expect(h.ranges.summaryQuiet).toEqual([true, true, true, false]);
+    expect(h.ranges.summaryTriggers).toEqual(['rule', 'rule', 'rule', 'rule']);
+
+    // A picked time frame ends at each due time, not when the app opened.
+    const framed = summaryRuleHarness(() => now);
+    now = at(22, 0, 24);
+    framed.rules.create(
+      ruleInput([{ ...newRuleAction('summaries.summarize'), config: { lookbackMs: MS_PER_HOUR, range: '4h' } }], {
+        trigger: { kind: 'every', hours: 3, backfillHours: 24 },
+      }),
+    );
+    now = at(10, 15);
+    await new RuleSchedule(framed.db, framed.engine, framed.actions, at(22, 0, 24), () => undefined, () => now).tick();
+    expect(framed.ranges.summaries).toEqual(tiles.map(([, untilTs]) => ({ sinceTs: untilTs! - 4 * MS_PER_HOUR, untilTs })));
+  });
+
   it('turn each time frame into its span', () => {
     const until = at(9, 1);
     expect(ruleRangeSpan('today', until)).toEqual({ sinceTs: at(0, 0), untilTs: until });

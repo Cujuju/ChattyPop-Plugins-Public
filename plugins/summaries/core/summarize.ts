@@ -69,9 +69,9 @@ export class Summarizer {
     readonly lifetime: AbortSignal = new AbortController().signal,
   ) {}
 
-  /** Runs after any run in progress; resolves with the summary as privacy mode shows it. */
-  run(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger): Promise<Summary> {
-    const next = this.queue.then(() => this.runNow(req, settings, prefs, trigger));
+  /** Runs after any run in progress; resolves with the summary as privacy mode shows it. `quiet`: stored and listed without a notice. */
+  run(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger, quiet = false): Promise<Summary> {
+    const next = this.queue.then(() => this.runNow(req, settings, prefs, trigger, quiet));
     this.queue = next.catch(() => undefined);
     return next.then((s) => this.shown(s));
   }
@@ -182,7 +182,7 @@ export class Summarizer {
     return { ...input, providerId, provider, model, effort, jev, cacheKey };
   }
 
-  private async runNow(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger): Promise<Summary> {
+  private async runNow(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, trigger: SummaryTrigger, quiet: boolean): Promise<Summary> {
     this.lifetime.throwIfAborted();
     const progress: Progress = (phase, done, total) => this.emit({ type: 'summary-progress', phase, done, total });
     progress('reading', 0, 0);
@@ -195,7 +195,7 @@ export class Summarizer {
 
     const started = Date.now();
     const { sent, jevCosts } = await prepareLog(p.afterRules, jev, progress, this.lifetime);
-    const base = { cacheKey, providerId, req, untilTs, channelIds, sent: sent.length, skipped: lines.length - sent.length, started, trigger, grouping: opts.grouping };
+    const base = { cacheKey, providerId, req, untilTs, channelIds, sent: sent.length, skipped: lines.length - sent.length, started, trigger, grouping: opts.grouping, quiet };
     // #56: a range with nothing notable needs no summary call.
     if (!sent.length) {
       return this.store({ ...base, model, headline: NOTHING_NOTABLE, items: [], actions: [], themes: null, jevCosts, usage: null, apiCostUsd: null, chunkCount: 0 });
@@ -217,12 +217,12 @@ export class Summarizer {
     return this.store({ ...base, ...w, model, jevCosts: [...jevCosts, ...chunkCosts, ...w.jevCosts], chunkCount: chunks.length });
   }
 
-  private store(r: NewSummary & { chunkCount: number }): Summary {
+  private store(r: NewSummary & { chunkCount: number; quiet: boolean }): Summary {
     this.lifetime.throwIfAborted();
-    const { chunkCount, ...row } = r;
+    const { chunkCount, quiet, ...row } = r;
     const summary = insertSummary(this.db, row);
     this.emit({ type: 'summary-progress', phase: 'done', done: chunkCount, total: chunkCount });
-    this.emit({ type: 'summary-added', summary: this.shown(summary) });
+    this.emit({ type: 'summary-added', summary: this.shown(summary), ...(quiet && { quiet }) });
     return summary;
   }
 

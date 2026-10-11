@@ -35,6 +35,8 @@ export interface SummaryCalls {
 export interface SummaryEvents {
   progress: SummaryProgress;
   added: Summary;
+  /** A stored run worth a notice: every one but a rule's older missed windows while it catches up. */
+  announced: Summary;
   failed: SummaryFailure;
   compareProgress: CompareProgress;
   /** A comparison was stored or deleted. */
@@ -80,7 +82,8 @@ export const plugin = definePlugin({
     },
     events: {
       progress: ['renderer', 'phone'],
-      added: ['renderer', 'phone', 'main'],
+      added: ['renderer', 'phone'],
+      announced: ['main'],
       failed: ['renderer', 'phone', 'main'],
       compareProgress: ['renderer', 'phone'],
       comparisonsChanged: ['renderer', 'phone'],

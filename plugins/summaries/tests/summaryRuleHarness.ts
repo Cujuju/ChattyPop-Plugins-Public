@@ -20,6 +20,8 @@ export interface FakeSummaries extends SummaryRangeDeps {
   summaryOptions: SummaryRuleOptions[];
   /** How each summary is labelled, in the same order. */
   summaryTriggers: SummaryTrigger[];
+  /** Whether each summary was asked to skip its notice, in the same order. */
+  summaryQuiet: boolean[];
   /** The headline each summary answers with; a rejection fails the summary. */
   answer: () => Promise<string | null>;
 }
@@ -29,11 +31,13 @@ function fakeSummaries(): FakeSummaries {
     summaries: [],
     summaryOptions: [],
     summaryTriggers: [],
+    summaryQuiet: [],
     answer: async () => 'answered',
-    summarize: async (req, own, trigger) => {
+    summarize: async (req, own, trigger, quiet) => {
       f.summaries.push(req);
       f.summaryOptions.push(own);
       f.summaryTriggers.push(trigger);
+      f.summaryQuiet.push(quiet);
       return { headline: (await f.answer()) ?? '' } as Summary;
     },
   };

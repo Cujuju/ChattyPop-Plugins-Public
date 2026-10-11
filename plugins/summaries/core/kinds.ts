@@ -13,7 +13,8 @@ import { namedText } from '../shared/people';
 
 /** Run service shared with the action contract tests. */
 export interface SummaryRangeDeps {
-  summarize(request: SummaryRequest, own: SummaryRuleOptions, trigger: SummaryTrigger): Promise<Summary>;
+  /** `quiet`: stored and listed without a notice. */
+  summarize(request: SummaryRequest, own: SummaryRuleOptions, trigger: SummaryTrigger, quiet: boolean): Promise<Summary>;
 }
 
 /** How each timed trigger labels its summaries; the Summary panel and notifications name them. */
@@ -35,10 +36,12 @@ export function registerSummaryKinds(
     const trigger = r.event.kind === 'window' ? SUMMARY_TRIGGER[r.event.timing] : 'rule';
     const { lookbackMs: _, range, ...own } = c;
     const covered = actionRange(r, c.lookbackMs);
+    // Catching up missed due times, oldest first: only the newest window's summary notifies.
+    const quiet = r.event.kind === 'window' && r.event.owedAfter > 0;
     // A picked time frame replaces a timed window's span, ending where it ends; its channels stay.
     const { channelIds, ...span } = range && r.event.kind === 'window' ? { ...covered, ...ruleRangeSpan(range, covered.untilTs) } : covered;
     try {
-      const summary = await deps.summarize(channelIds ? { ...span, channelIds } : span, own, trigger);
+      const summary = await deps.summarize(channelIds ? { ...span, channelIds } : span, own, trigger, quiet);
       return { outcome: 'done', detail: namedText(summary.headline, summary.people) || null };
     } catch (err) {
       if (err instanceof EmptyRangeError) return { outcome: 'skipped', detail: err.message };
