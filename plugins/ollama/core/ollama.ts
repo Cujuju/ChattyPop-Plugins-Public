@@ -37,6 +37,16 @@ interface OllamaLoaded {
   models: { name: string; context_length: number }[];
 }
 
+/** The non-streamed chat answer, including why generation stopped. */
+interface OllamaChatResponse {
+  message?: { content?: string };
+  error?: string;
+  done?: boolean;
+  done_reason?: string;
+  prompt_eval_count?: number;
+  eval_count?: number;
+}
+
 /** `/api/show` fields that say how a model thinks; `thinking` is absent on older servers. */
 interface OllamaShow {
   capabilities?: string[];
@@ -153,9 +163,32 @@ export class OllamaProvider implements LlmProvider {
       }),
     });
     if (!res.ok) throw new Error(`Ollama ${res.status}: ${await res.text()}`);
-    const body = (await res.json()) as { message: { content: string }; prompt_eval_count?: number; eval_count?: number };
-    const text = body.message.content;
-    const usage = { inputTokens: body.prompt_eval_count ?? 0, cachedInputTokens: 0, outputTokens: body.eval_count ?? 0 };
-    return { text, usage, ...(req.schema ? { json: JSON.parse(text) } : {}) };
+    let body: OllamaChatResponse | null;
+    try {
+      body = (await res.json()) as OllamaChatResponse | null;
+    } catch (err) {
+      if (!(err instanceof SyntaxError)) throw err; // Cancellation and response-body read failures keep their identity.
+      throw new Error(`Ollama (${model}) returned an invalid API response.`);
+    }
+    if (typeof body?.error === 'string') throw new Error(`Ollama (${model}): ${body.error}`);
+    const details = [
+      typeof body?.done_reason === 'string' ? `stop reason: ${body.done_reason}` : 'stop reason not reported',
+      ...(typeof body?.eval_count === 'number' ? [`output tokens: ${body.eval_count}`] : []),
+    ].join('; ');
+    const failure = (message: string): Error => new Error(`Ollama (${model}) ${message} (${details}).`);
+    // A token-limited answer can even parse as JSON while its transcription or summary is incomplete.
+    if (body?.done_reason === 'length') throw failure('reached its output token limit; the response may be incomplete');
+    if (body?.done === false) throw failure('returned an unfinished response');
+    const text = body?.message?.content;
+    if (typeof text !== 'string') throw failure('returned no response text');
+    const usage = { inputTokens: body?.prompt_eval_count ?? 0, cachedInputTokens: 0, outputTokens: body?.eval_count ?? 0 };
+    if (!req.schema) return { text, usage };
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw failure('returned malformed JSON');
+    }
+    return { text, usage, json };
   }
 }
