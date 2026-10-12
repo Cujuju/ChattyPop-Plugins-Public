@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "dependencies": {
+    "@types/d3-cloud": "1.2.9",
+    "d3-cloud": "1.2.9",
+    "stopwords-iso": "1.1.0",
     "tldts": "7.4.18"
   }
 }

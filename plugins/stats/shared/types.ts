@@ -15,7 +15,7 @@ export const STATS_RANGES = {
 export type StatsRange = keyof typeof STATS_RANGES;
 
 /** Sections in the panel's rail, in display order. */
-export const STATS_SECTIONS = { overview: 'Overview', messages: 'Messages', people: 'People', channels: 'Channels', links: 'Links', timeline: 'Timeline', emoji: 'Emoji' } as const;
+export const STATS_SECTIONS = { overview: 'Overview', messages: 'Messages', people: 'People', channels: 'Channels', links: 'Links', timeline: 'Timeline', emoji: 'Emoji', words: 'Words' } as const;
 export type StatsSection = keyof typeof STATS_SECTIONS;
 
 /** Whether `v` is one of `o`'s keys. */
