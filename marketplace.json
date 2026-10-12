@@ -60,8 +60,15 @@
     {
       "id": "claude",
       "name": "Claude",
-      "description": "Claude as an AI provider, through your own Claude Code install and sign-in.",
+      "description": "Claude as an AI provider, through your own Claude Code install, sign-in or API key.",
       "releases": [
+        {
+          "version": "1.2.1",
+          "tag": "claude-v1.2.1",
+          "asset": "claude-1.2.1.tar.gz",
+          "sha256": "a157d5f2f0531d4e9a4b5975b8c48e1d21187839cb67b1e1f1b6189188bc041a",
+          "sdk": "2.40.0"
+        },
         {
           "version": "1.1.2",
           "tag": "claude-v1.1.2",
