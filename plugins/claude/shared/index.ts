@@ -1,4 +1,4 @@
-// Claude: completions through the Agent SDK and the owner's own Claude Code sign-in (docs/research.md §2).
+// Claude: completions through the Agent SDK and the owner's own Claude Code sign-in or API key (docs/research.md §2).
 import { definePlugin } from '@plugin-sdk/shared';
 
 export const plugin = definePlugin({
@@ -6,8 +6,9 @@ export const plugin = definePlugin({
     id: 'claude',
     name: 'Claude',
     version: '1.1.2',
-    description: 'Claude as an AI provider, through your own Claude Code install and sign-in.',
+    description: 'Claude as an AI provider, through your own Claude Code install, sign-in or API key.',
   },
+  network: { hosts: ['api.anthropic.com'] },
   providers: [{
     id: 'claude',
     label: 'Claude · Claude Code',
@@ -15,6 +16,7 @@ export const plugin = definePlugin({
     // The owner's installed, signed-in CLI: on until turned off.
     enabledByDefault: true,
     planUsage: true,
+    apiKey: { placeholder: 'sk-ant-…' },
     // Its models read images sent with a prompt.
     images: true,
     // Claude's mark, from Simple Icons (CC0).

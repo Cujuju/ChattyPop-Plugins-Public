@@ -6,8 +6,9 @@ export const plugin = definePlugin({
     id: 'codex',
     name: 'ChatGPT (Codex)',
     version: '1.1.2',
-    description: 'ChatGPT as an AI provider, through your own Codex CLI install and sign-in.',
+    description: 'ChatGPT as an AI provider, through your own Codex CLI install, sign-in or API key.',
   },
+  network: { hosts: ['api.openai.com'] },
   providers: [{
     id: 'codex',
     label: 'ChatGPT · Codex',
@@ -15,6 +16,7 @@ export const plugin = definePlugin({
     // The owner's installed, signed-in CLI: on until turned off.
     enabledByDefault: true,
     planUsage: true,
+    apiKey: { placeholder: 'sk-…' },
     // Models whose model list says so read images sent with a prompt.
     images: true,
     // OpenAI's mark, from Simple Icons (CC0).

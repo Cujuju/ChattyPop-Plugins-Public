@@ -2,9 +2,11 @@
 import { defineCorePlugin, signedInCli } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { CODEX_CLI, CodexProvider } from './codex';
+import { checkApiKey } from './checkApiKey';
 
 export default defineCorePlugin(plugin, (ctx) => {
-  const codex = new CodexProvider((model, usage) => ctx.ai.apiCost(model, usage));
-  ctx.ai.registerProvider('codex', signedInCli(CODEX_CLI, codex));
+  const key = () => ctx.ai.apiKey('codex');
+  const codex = new CodexProvider((model, usage) => ctx.ai.apiCost(model, usage), key);
+  ctx.ai.registerProvider('codex', signedInCli(CODEX_CLI, codex, { apiKey: key, check: (value) => checkApiKey(ctx.net.fetch, value) }));
   return () => codex.dispose();
 });
