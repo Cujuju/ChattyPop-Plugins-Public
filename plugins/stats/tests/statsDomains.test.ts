@@ -13,13 +13,23 @@ describe('Analytics site tree', () => {
     const s = await t.client('renderer').activityStats({ scope: 'all', channelId: null, sinceTs: null });
     expect(s.domains).toEqual([
       { domain: 'bbc.co.uk', count: 3, hosts: [{ host: 'news.bbc.co.uk', count: 2 }, { host: 'bbc.co.uk', count: 1 }] },
-      { domain: 'youtube.com', count: 2, hosts: [{ host: 'www.youtube.com', count: 2 }] },
+      { domain: 'youtube.com', count: 2, hosts: [{ host: 'youtube.com', count: 2 }] },
     ]);
   });
 
   it('groups distinct YouTube hosts before host URL canonicalization', () => {
     expect(domainTree([{ url: 'https://youtube.com/a', n: 1 }, { url: 'https://music.youtube.com/b', n: 2 }]))
       .toEqual([{ domain: 'youtube.com', count: 3, hosts: [{ host: 'music.youtube.com', count: 2 }, { host: 'youtube.com', count: 1 }] }]);
+  });
+
+  it('folds www and bare links into the single site host used by plain rows', () => {
+    expect(domainTree([{ url: 'https://www.example.com/a', n: 2 }, { url: 'https://example.com/b', n: 3 }]))
+      .toEqual([{ domain: 'example.com', count: 5, hosts: [{ host: 'example.com', count: 5 }] }]);
+  });
+
+  it('keeps the bare site and its music subdomain as two hosts', () => {
+    expect(domainTree([{ url: 'https://example.com/a', n: 1 }, { url: 'https://music.example.com/b', n: 2 }]))
+      .toEqual([{ domain: 'example.com', count: 3, hosts: [{ host: 'music.example.com', count: 2 }, { host: 'example.com', count: 1 }] }]);
   });
 
   it('preserves private sites, IPs and local hosts, and skips invalid URLs', () => {

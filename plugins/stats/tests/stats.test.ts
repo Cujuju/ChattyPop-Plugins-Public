@@ -49,9 +49,9 @@ describe('activity stats', () => {
     ]);
   });
 
-  it('groups link shares by site while preserving hosts', async () => {
+  it('groups link shares by site while folding leading www hosts', async () => {
     expect((await start().stats({ scope: 'all', channelId: null, sinceTs: null })).domains).toEqual([
-      { domain: 'youtube.com', count: 2, hosts: [{ host: 'www.youtube.com', count: 2 }] },
+      { domain: 'youtube.com', count: 2, hosts: [{ host: 'youtube.com', count: 2 }] },
       { domain: 'x.com', count: 1, hosts: [{ host: 'x.com', count: 1 }] },
     ]);
   });

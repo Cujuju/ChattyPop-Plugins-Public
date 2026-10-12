@@ -6,7 +6,7 @@ export function domainTree(urls: { url: string; n: number }[]): ActivityStats['d
   const sites = new Map<string, Map<string, number>>();
   for (const { url, n } of urls) {
     let host: string;
-    try { host = new URL(url).hostname.replace(/\.$/, ''); } catch { continue; }
+    try { host = new URL(url).hostname.replace(/^www\./, '').replace(/\.$/, ''); } catch { continue; }
     if (!host) continue;
     const domain = getDomain(host, { allowPrivateDomains: true }) ?? host;
     const hosts = sites.get(domain) ?? new Map<string, number>();
