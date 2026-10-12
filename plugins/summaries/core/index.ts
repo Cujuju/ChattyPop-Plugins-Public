@@ -6,7 +6,8 @@ import { withRuleOptions } from '../shared/settings';
 import type { SummaryEvent } from '../shared/types';
 import { Summarizer } from './summarize';
 import { Comparer } from './compare';
-import { registerSummaryKinds } from './kinds';
+import { registerSummaryKinds, SUMMARIZE_ACTION } from './kinds';
+import { summaryFailures } from './failures';
 import { migrateAutoSummaries } from './autoSummaries';
 import { coverageSpans, summarySpend } from './summaryRows';
 import { estimateMissingCosts } from './costBackfill';
@@ -57,6 +58,8 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
       }
     },
     page: (query) => summarizer.page(query),
+    failures: () => summaryFailures(ctx.rules),
+    retryFailure: (runId, actionId) => ctx.rules.retryWindow(SUMMARIZE_ACTION, runId, actionId),
     estimate: (request) => summarizer.estimate(request, ctx.ai.settings(), prefs()),
     prompts: (own) => summarizer.prompts(ctx.ai.settings(), withRuleOptions(prefs(), own)),
     usageSince: (provider, sinceTs) => summarizer.usageSince(provider, sinceTs),

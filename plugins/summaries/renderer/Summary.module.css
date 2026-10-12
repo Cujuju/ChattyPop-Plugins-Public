@@ -109,35 +109,129 @@
   overflow-wrap: anywhere;
 }
 
+/* A run, or one that failed: ruled off from the row above it (the rule is the look's; this is its room). */
 .summary {
   display: flex;
   flex-direction: column;
-  gap: var(--cp-space-3);
+  gap: var(--cp-space-4);
   min-width: 0;
 }
 
-/* A run's heading across the panel: the chevron, then the time it covers; folded, its headline on one line under that. */
+.summary[data-rule] {
+  padding-top: var(--cp-space-4);
+}
+
+/* A run's heading, a tile reaching into the panel's side padding so its text lines up with the body: the chevron,
+   then the time it covers and what ran it; folded, its headline under that. */
 .runToggle {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
+  align-items: baseline;
   gap: var(--cp-space-1) var(--cp-space-3);
-  width: 100%;
+  width: calc(100% + 2 * var(--cp-space-3));
   min-height: var(--cp-hit-min);
+  margin-inline: calc(-1 * var(--cp-space-3));
+  padding: var(--cp-space-3);
   text-align: start;
 }
 
+/* The chevron sits on the title's line, not its baseline. */
+.runToggle > :first-child {
+  align-self: center;
+  grid-row: 1;
+}
+
+/* The time covered, then the day, trigger and scope at the far end; the second drops under the first when the row is narrow. */
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cp-space-1) var(--cp-space-4);
+  min-width: 0;
+}
+
+/* Folded: the headline, cut after two lines. */
 .runTeaser {
+  display: -webkit-box;
   grid-column: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* A run that failed: its notice, with why and the retry. */
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4) var(--cp-space-5);
+}
+
+/* The "Failed" mark and the time it stands before, kept together. */
+.markedRange {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--cp-space-1) var(--cp-space-3);
+  min-width: 0;
+}
+
+/* The "Failed" mark before the time. */
+.mark {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--cp-space-3);
   white-space: nowrap;
+}
+
+/* When it is tried again, then Retry at the far end. */
+.failureFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-3);
+}
+
+.retryButton {
+  flex: none;
+  min-height: var(--cp-btn-h-sm);
+  padding: 0 var(--cp-space-5);
 }
 
 /* The one-sentence take. */
 .headline {
   overflow-wrap: anywhere;
   text-wrap: pretty;
+}
+
+/* What the run read, took, used and cost: a label over each value, wrapping as the panel narrows; ruled off below. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-4) var(--cp-space-6);
+  margin: 0;
+  padding-bottom: var(--cp-space-4);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+  min-width: 0;
+}
+
+.fact > dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* An inset divider between a run's sections: it stops short of both edges, by the points' number gutter. */
+.insetRule {
+  margin: var(--cp-space-3) var(--cp-space-8) 0;
 }
 
 /* provider · N messages · span · s · time */
@@ -150,7 +244,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--cp-space-5);
-  padding-top: var(--cp-space-4);
   counter-reset: point;
 }
 
@@ -219,9 +312,10 @@
   text-wrap: pretty;
 }
 
-/* Channel a group of points is about (grouping by channel). */
-.channelHead {
-  padding-top: var(--cp-space-4);
+/* What a group of points is about (a channel, a day), or the key themes. */
+.sectionHead {
+  margin: 0;
+  padding-top: var(--cp-space-2);
 }
 
 /* Settings → Summaries: a control at the settings column's width, and a field across the whole row. */

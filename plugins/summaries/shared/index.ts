@@ -4,14 +4,18 @@ import { decodePrompts, decodeSpending } from './calls';
 import { decodeComparisonId, decodeCompareRequest, decodeNoArgs, type Comparison, type ComparisonHead, type CompareProgress, type CompareRequest } from './compare';
 import { summarize } from './rules';
 import { SUMMARY_FEATURES, SUMMARY_QUERIES } from './queries';
-import { decodeSummaryRequest } from './request';
-import type { Summary, SummaryEstimate, SummaryFailure, SummaryPageQuery, SummaryProgress, SummaryPrompts, SummaryRequest, SummarySpend } from './types';
+import { decodeFailureRef, decodeSummaryRequest } from './request';
+import type { Summary, SummaryEstimate, SummaryFailure, SummaryPageQuery, SummaryProgress, SummaryPrompts, SummaryRequest, SummaryRunFailure, SummarySpend } from './types';
 import { DEFAULT_SUMMARY_SETTINGS, normalizeSummarySettings, type SummaryRuleOptions, type SummaryTrigger } from './settings';
 
 /** Typed calls for desktop, phone and notification delivery. */
 export interface SummaryCalls {
   summarize(request: SummaryRequest): Promise<Summary>;
   page(query: SummaryPageQuery): Summary[];
+  /** Timed summaries that failed and are still owed, oldest first. */
+  failures(): SummaryRunFailure[];
+  /** Runs a failed timed summary again now; false when it is no longer owed. */
+  retryFailure(runId: number, actionId: string): Promise<boolean>;
   estimate(request: SummaryRequest): SummaryEstimate | null;
   /** The system prompts a run would send; a rule's own options over Settings. */
   prompts(own?: SummaryRuleOptions): SummaryPrompts;
@@ -67,6 +71,9 @@ export const plugin = definePlugin({
       // A run stores its summary and spends the owner's AI plan.
       summarize: { audiences: ['renderer', 'phone'], writes: true, decode: decodeSummaryRequest },
       page: { audiences: ['renderer', 'phone'], writes: false },
+      failures: { audiences: ['renderer', 'phone'], writes: false },
+      // A retry runs the summary again and spends the owner's AI plan.
+      retryFailure: { audiences: ['renderer', 'phone'], writes: true, decode: decodeFailureRef },
       estimate: { audiences: ['renderer', 'phone'], writes: false },
       prompts: { audiences: ['renderer', 'phone'], writes: false, decode: decodePrompts },
       usageSince: { audiences: ['renderer', 'phone'], writes: false },

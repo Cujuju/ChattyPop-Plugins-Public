@@ -1,9 +1,9 @@
 // A summary's body: headline, run details, "For you", points and key themes. The Summary panel and comparisons show it.
 import { For, Show } from 'solid-js';
 import { CITATION_FLAG_CONFIDENCE, type Summary, type SummaryItem } from '../shared/types';
-import { MS_PER_S } from '@plugin-sdk/shared';
 import { look, providerLabel, formatTokens, usdText, weekdayDate } from '@plugin-sdk/renderer/kit';
 import { pointGroups } from './order';
+import { runFacts } from './runFacts';
 import styles from './Summary.module.css';
 import { PeopleText } from './People';
 import { Sources } from './Sources';
@@ -21,9 +21,38 @@ export const META = { 'data-size': 'xs', 'data-line': 'normal', 'data-font': 'sa
 /** A point's text. */
 const POINT = { 'data-size': 'base', 'data-line': 'relaxed' } as const;
 /** A chip's text: citations and flags. */
-const CHIP = { 'data-size': '2xs', 'data-line': 'chip', 'data-font': 'sans' } as const;
-/** A group heading: the channel or day a run of points is about. */
-const GROUP_HEAD = { 'data-size': 'xs', 'data-weight': 'semibold', 'data-font': 'sans', 'data-tone': 'muted' } as const;
+export const CHIP = { 'data-size': '2xs', 'data-line': 'chip', 'data-font': 'sans' } as const;
+/** A section heading: the channel or day a run of points is about, or the key themes. */
+const SECTION_HEAD = { 'data-size': 'md', 'data-weight': 'semibold', 'data-font': 'sans', 'data-tone': 'primary' } as const;
+/** A fact's label, over its value. */
+const FACT_LABEL = { 'data-size': '2xs', 'data-case': 'upper', 'data-tracking': 'label-sm', 'data-font': 'sans', 'data-tone': 'muted' } as const;
+/** A fact's value; `strong`: the cost. */
+const factValue = (strong: boolean | undefined) =>
+  ({ 'data-size': 'xs', 'data-font': 'sans', 'data-figures': 'tabular', 'data-tone': strong ? 'primary' : 'secondary', ...(strong && { 'data-weight': 'semibold' }) }) as const;
+
+/** An inset divider: a rule stopping short of both edges, between one section of a run and the next. */
+const InsetRule = () => <div class={`${styles.insetRule} ${look.ruleAbove}`} data-rule="strong" role="separator" />;
+
+/** What a run read, took, used and cost: labelled facts under the headline, ruled off from the points. */
+function RunFacts(props: { summary: Summary }) {
+  const facts = () => runFacts(props.summary, { provider: providerLabel(props.summary.provider), tokens: formatTokens, usd: usdText });
+  return (
+    <dl class={`${styles.facts} ${look.ruleBelow}`} data-rule="subtle">
+      <For each={facts()}>
+        {(f) => (
+          <div class={styles.fact} title={f.title}>
+            <dt class={look.text} {...FACT_LABEL}>
+              {f.label}
+            </dt>
+            <dd class={look.text} {...factValue(f.strong)}>
+              {f.value}
+            </dd>
+          </div>
+        )}
+      </For>
+    </dl>
+  );
+}
 
 /** A bullet worth a second look: the check disagreed with confidence, or there was nothing to check. */
 export function flagOf(item: SummaryItem): keyof typeof FLAG_TEXT | null {
@@ -50,27 +79,19 @@ export function costParts(s: Summary): string[] {
   ];
 }
 
-/** Tokens, then costs. */
-export const usageParts = (s: Summary): string[] => [...tokenParts(s), ...costParts(s)];
-
 /**
  * `withDay`: the run spans days, so sources show their day. `sourcesOpen`: every point's sources start shown, as an export needs.
- * `runDetails: false` leaves out the provider, size and cost line, for a view that shows them itself (a comparison's column).
+ * `runDetails: false` leaves out the run's facts (model, size, cost), for a view that shows them itself (a comparison's column).
  */
 export function SummaryContent(props: { summary: Summary; withDay: boolean; sourcesOpen?: boolean; runDetails?: boolean }) {
   const s = () => props.summary;
   return (
     <>
-      <p class={`${styles.headline} ${look.text}`} data-size="lg" data-weight="semibold" data-line="normal" data-tone="primary">
+      <p class={`${styles.headline} ${look.text}`} data-size="lg" data-line="relaxed" data-tone="primary">
         <PeopleText text={s().headline} people={s().people} channelId={s().channelIds[0]} />
       </p>
       <Show when={props.runDetails !== false}>
-        <p class={`${styles.meta} ${look.text}`} {...META}>
-          {providerLabel(s().provider)}
-          <Show when={s().model}>{(m) => ` (${m()})`}</Show> · {s().messageCount} messages
-          <Show when={s().skippedCount > 0}>{` (${s().skippedCount} skipped as filler)`}</Show> · {Math.round(s().durationMs / MS_PER_S)} s
-          <Show when={usageParts(s()).length}>{` · ${usageParts(s()).join(' · ')}`}</Show>
-        </p>
+        <RunFacts summary={s()} />
       </Show>
       <Show when={s().actions.length}>
         <section class={`${styles.actions} ${look.wash}`} aria-label="For you">
@@ -89,20 +110,23 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean; sour
         </section>
       </Show>
       <For each={pointGroups(s())}>
-        {(group) => (
+        {(group, i) => (
           <>
+            <Show when={i() > 0}>
+              <InsetRule />
+            </Show>
             <Show when={group.channel}>
               {(ch) => (
-                <p class={`${styles.channelHead} ${look.text}`} {...GROUP_HEAD}>
+                <h3 class={`${styles.sectionHead} ${look.text}`} {...SECTION_HEAD}>
                   #{ch()}
-                </p>
+                </h3>
               )}
             </Show>
             <Show when={group.day}>
               {(d) => (
-                <p class={`${styles.channelHead} ${look.text}`} {...GROUP_HEAD}>
+                <h3 class={`${styles.sectionHead} ${look.text}`} {...SECTION_HEAD}>
                   {weekdayDate(d())}
-                </p>
+                </h3>
               )}
             </Show>
             <ol class={styles.items}>
@@ -131,9 +155,12 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean; sour
         )}
       </For>
       <Show when={s().themes?.length}>
-        <p class={`${styles.meta} ${look.text}`} {...META}>
+        <Show when={s().items.length}>
+          <InsetRule />
+        </Show>
+        <h3 class={`${styles.sectionHead} ${look.text}`} {...SECTION_HEAD}>
           Key themes
-        </p>
+        </h3>
         <ul class={styles.items}>
           <For each={s().themes!}>
             {(t) => (

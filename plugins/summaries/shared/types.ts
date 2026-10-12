@@ -156,6 +156,22 @@ export type SummaryEvent =
   | { type: 'summary-added'; summary: Summary; quiet?: true }
   | ({ type: 'summary-auto-failed' } & SummaryFailure);
 
+/** A timed summary that failed and is still owed: the Summary panel lists it where the summary would be. */
+export interface SummaryRunFailure {
+  /** The rule run and action that owe it: what a retry names. */
+  runId: number;
+  actionId: string;
+  ruleName: string;
+  sinceTs: number;
+  untilTs: number;
+  trigger: SummaryTrigger;
+  /** When the run was first tried: its place among the summaries. */
+  claimedAt: number;
+  message: string;
+  /** When it is tried again by itself; null once it won't be. */
+  retryAt: number | null;
+}
+
 /** An automatic run that failed; `channelIds` when its rule named the channels. */
 export interface SummaryFailure {
   trigger: SummaryTrigger;

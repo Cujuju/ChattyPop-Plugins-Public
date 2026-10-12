@@ -1,6 +1,6 @@
 // Summary history, progress and range state over scoped plugin channels.
 import { createEffect, createMemo, createResource, createSignal } from 'solid-js';
-import type { Summary, SummaryProgress, SummaryScope } from '../shared/types';
+import type { Summary, SummaryProgress, SummaryRunFailure, SummaryScope } from '../shared/types';
 import { scopeKey } from './scope';
 import { plugin } from '../shared';
 import { callable, pluginsLoaded, coreClient, pluginData, pluginResource, onEvent, lastSeenAt, pluginPreference, onAppEvent } from '@plugin-sdk/renderer';
@@ -101,6 +101,37 @@ onEvent(plugin, 'added', (summary) => {
   addRun(summary);
   refetchPlanUsage(summary.provider);
 });
+
+/** Timed summaries that failed and are still owed, oldest first: read with the first page and whenever a rule runs. */
+const [failures, setFailures] = createSignal<SummaryRunFailure[]>([]);
+export { failures as summaryFailures };
+const readFailures = async (): Promise<void> => {
+  // A core from before failures were listed serves none.
+  setFailures(callable(plugin, 'failures') ? await pluginData(() => core.failures(), []) : []);
+};
+createEffect(() => {
+  active();
+  void readFailures();
+});
+onAppEvent('rules-changed', () => void readFailures());
+
+/** Failed runs being retried, by rule run and action: one run can owe more than one summary. */
+const [retrying, setRetrying] = createSignal<ReadonlySet<string>>(new Set());
+const failureKey = (f: SummaryRunFailure): string => `${f.runId}:${f.actionId}`;
+export const isRetrying = (f: SummaryRunFailure): boolean => retrying().has(failureKey(f));
+
+/** Runs a failed summary again now; its row goes once it is done, or says why it failed this time. */
+export async function retryFailure(f: SummaryRunFailure): Promise<void> {
+  if (isRetrying(f)) return;
+  const key = failureKey(f);
+  setRetrying(new Set(retrying()).add(key));
+  try {
+    await pluginData(() => core.retryFailure(f.runId, f.actionId), false);
+  } finally {
+    setRetrying(new Set([...retrying()].filter((k) => k !== key)));
+    await readFailures();
+  }
+}
 
 type Progress = SummaryProgress;
 export const [summaryProgress, setSummaryProgress] = createSignal<Progress | null>(null);

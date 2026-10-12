@@ -7,6 +7,7 @@ import { getSetting, setSetting, type Db } from '@core/db';
 import { RuleSchedule } from '@core/rules/schedule';
 import { ruleInput } from '@chattypop/host-testing';
 import { CATCH_UP_RULE_NAME, DIGEST_RULE_NAME, migrateAutoSummaries as migrate } from '../core/autoSummaries';
+import { summaryFailures } from '../core/failures';
 import { normalizeSummarySettings, SUMMARY_FOCUS_MAX_CHARS } from '../shared/settings';
 import { ruleRangeSpan } from '../shared/rules';
 import { timedSummaryInput } from '../shared/timedRules';
@@ -80,6 +81,26 @@ describe('timed rules', () => {
     expect(h.summaryEvents).toEqual([]);
     expect(h.rules.runs(id, 10)).toHaveLength(1);
     expect(h.rules.runs(id, 1)[0]!.actions[0]).toMatchObject({ outcome: 'done', retryAt: null });
+  });
+
+  it('list a failed summary with the span it was to read, its rule and when it is tried again', async () => {
+    let now = at(0);
+    const h = summaryRuleHarness(() => now);
+    const input = timedSummaryInput('Every day', { kind: 'every', hours: 24 });
+    const id = h.rules.create({ ...input, spec: { ...input.spec, actions: input.spec.actions.map((a) => ({ ...a, config: { ...(a.config as object), range: '4h' } })) } });
+    h.ranges.answer = () => Promise.reject(new Error('provider down'));
+    now = at(24);
+    await new RuleSchedule(h.db, h.engine, h.actions, at(0), () => {}, () => now).tick();
+    const run = h.rules.runs(id, 1)[0]!;
+    const failures = () => summaryFailures(startSummaries(h.db, { kinds: h.actions.kinds, activate: false }).ctx.rules);
+    expect(failures()).toEqual([{
+      runId: run.id, actionId: run.actions[0]!.actionId, ruleName: 'Every day', sinceTs: at(20), untilTs: at(24), trigger: 'rule',
+      claimedAt: at(24), message: 'provider down', retryAt: at(24) + TIMED_RETRY_DELAYS_MS[0]!,
+    }]);
+    h.ranges.answer = async () => 'answered';
+    now += TIMED_RETRY_DELAYS_MS[0]!;
+    await new RuleSchedule(h.db, h.engine, h.actions, at(0), () => {}, () => now).tick();
+    expect(failures()).toEqual([]);
   });
 
   it("read a picked time frame ending at the run, over their Where, with the rule's own options", async () => {

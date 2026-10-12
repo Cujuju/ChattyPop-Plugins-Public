@@ -17,8 +17,11 @@ export interface SummaryRangeDeps {
   summarize(request: SummaryRequest, own: SummaryRuleOptions, trigger: SummaryTrigger, quiet: boolean): Promise<Summary>;
 }
 
+/** The rule action that summarizes, as rules store it. */
+export const SUMMARIZE_ACTION = 'summaries.summarize';
+
 /** How each timed trigger labels its summaries; the Summary panel and notifications name them. */
-const SUMMARY_TRIGGER: Record<TimedTriggerKind, SummaryTrigger> = {
+export const SUMMARY_TRIGGER: Record<TimedTriggerKind, SummaryTrigger> = {
   daily: 'digest',
   every: 'rule',
   appStart: 'catch-up',
@@ -32,7 +35,7 @@ export function registerSummaryKinds(
   coveredUntil: (q: CoverageQuery) => number | null,
 ): void {
   k.windows.coveredUntil(coveredUntil);
-  k.action('summaries.summarize', async (c, r) => {
+  k.action(SUMMARIZE_ACTION, async (c, r) => {
     const trigger = r.event.kind === 'window' ? SUMMARY_TRIGGER[r.event.timing] : 'rule';
     const { lookbackMs: _, range, ...own } = c;
     const covered = actionRange(r, c.lookbackMs);

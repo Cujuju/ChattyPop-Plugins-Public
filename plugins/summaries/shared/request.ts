@@ -34,3 +34,9 @@ export function decodeSummaryRequest([request]: readonly unknown[]): [SummaryReq
     ...(providerId === undefined ? {} : { provider: providerId }),
   }];
 }
+
+/** retryFailure's arguments checked: the rule run and action that owe a summary; throws when they aren't. */
+export function decodeFailureRef([runId, actionId]: readonly unknown[]): [number, string] {
+  if (typeof runId !== 'number' || !Number.isSafeInteger(runId) || typeof actionId !== 'string' || !actionId) throw new Error('Not a failed summary.');
+  return [runId, actionId];
+}
