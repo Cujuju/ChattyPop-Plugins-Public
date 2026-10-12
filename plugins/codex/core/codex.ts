@@ -11,6 +11,7 @@ import {
   type ModelOption,
   type PlanUsageWindow,
   type PriceAtApiRates,
+  type ProviderAccount,
 } from '@plugin-sdk/core';
 import { API_KEY_PROVIDER, CodexConnection } from './connection';
 
@@ -110,12 +111,12 @@ const OPENROUTER_OPENAI_PREFIX = 'openai/';
 
 /** ChatGPT via Codex sign-in or an owner API key, using one warm app-server per payment key. */
 export class CodexProvider implements LlmProvider {
-  readonly id = 'codex' as const;
+  get id(): string { return this.account.id; }
   readonly maxInputChars = HOSTED_MAX_INPUT_CHARS;
-  private readonly connection: CodexConnection;
+  readonly connection: CodexConnection;
 
-  constructor(private readonly price: PriceAtApiRates, private readonly apiKey: () => string | null) {
-    this.connection = new CodexConnection(CODEX_CLI, CLIENT_INFO, apiKey);
+  constructor(private readonly price: PriceAtApiRates, private readonly account: ProviderAccount) {
+    this.connection = new CodexConnection(CODEX_CLI, CLIENT_INFO, account);
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
@@ -215,7 +216,7 @@ export class CodexProvider implements LlmProvider {
   }
 
   async planUsage(): Promise<PlanUsageWindow[] | null> {
-    if (this.apiKey()) return null;
+    if (this.account.auth === 'apiKey') return null;
     const connection = await this.connection.connect();
     this.connection.assertCurrent(connection);
     if (connection.key) return null;

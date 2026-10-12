@@ -50,7 +50,7 @@ const NO_PRICE = async () => undefined;
 const REQUEST = { system: '', prompt: 'hello' };
 const providers: InstanceType<typeof CodexProvider>[] = [];
 const provider = (key: () => string | null) => {
-  const codex = new CodexProvider(NO_PRICE, key);
+  const codex = new CodexProvider(NO_PRICE, { id: key() ? 'codex@api' : 'codex', auth: key() ? 'apiKey' : 'cli', apiKey: key, dir: null });
   providers.push(codex);
   return codex;
 };
@@ -78,11 +78,11 @@ describe('Codex owner key payment', () => {
     expect(started[0]?.args.join(' ')).not.toContain('test-key');
   });
   it('shares one launch and replaces it on key set, change and removal', async () => {
-    let key: string | null = null;
+    let key: string | null = 'test-key';
     const codex = provider(() => key);
     await Promise.all([codex.listModels(), codex.listModels()]);
     expect(started).toHaveLength(1);
-    for (const next of ['test-key', 'test-replacement', null]) {
+    for (const next of ['test-next', 'test-replacement', 'test-last']) {
       const previous = started.at(-1)!;
       key = next;
       await Promise.all([codex.listModels(), codex.listModels()]);
@@ -92,14 +92,14 @@ describe('Codex owner key payment', () => {
     expect(started).toHaveLength(4);
   });
   it('rotating during initialization prevents callers from using the stale process', async () => {
-    let key: string | null = null;
+    let key: string | null = 'test-key';
     let finish!: (value: unknown) => void;
     initialize = () => new Promise((resolve) => { finish = resolve; });
     const codex = provider(() => key);
     const first = codex.listModels();
     expect(started).toHaveLength(1);
     const oldFinish = finish;
-    key = 'test-key';
+    key = 'test-next';
     initialize = async () => ({});
     await Promise.all([codex.listModels(), codex.listModels()]);
     oldFinish({});
@@ -134,11 +134,14 @@ describe('Codex owner key payment', () => {
     startThread = async () => { throw new Error('failure test-key'); };
     await expect(provider(() => 'test-key').complete(REQUEST)).rejects.toThrow('failure [API key]');
   });
-  it('a key stored during startup prevents a later plan-usage RPC', async () => {
-    let key: string | null = null;
-    initialize = async () => { key = 'test-key'; return {}; };
-    await expect(provider(() => key).planUsage()).resolves.toBeNull();
-    expect(started).toHaveLength(2);
+  it('removing an API-account key refuses later requests without falling back to sign-in', async () => {
+    let key: string | null = 'test-key';
+    const codex = provider(() => key);
+    await codex.listModels();
+    key = null;
+    await expect(codex.listModels()).rejects.toThrow('Add an API key');
+    expect(started).toHaveLength(1);
+    await expect(codex.planUsage()).resolves.toBeNull();
     expect(started.flatMap((state) => state.methods)).not.toContain('account/rateLimits/read');
   });
 });

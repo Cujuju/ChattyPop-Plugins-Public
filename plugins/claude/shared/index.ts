@@ -16,6 +16,7 @@ export const plugin = definePlugin({
     // The owner's installed, signed-in CLI: on until turned off.
     enabledByDefault: true,
     planUsage: true,
+    accounts: { signIn: true },
     apiKey: { placeholder: 'sk-ant-…' },
     // Its models read images sent with a prompt.
     images: true,

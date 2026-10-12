@@ -19,7 +19,7 @@ function start(o: Options = {}) {
   const t = testPlugin(plansCore, {
     ...o,
     archive: { channels: [{ id: 'c1' }] },
-    ai: { providers: [{ id: 'claude', provider: { id: 'claude', maxInputChars: 100_000, complete, listModels: async () => [] } }] },
+    ai: { providers: [{ id: 'claude', accounts: { signIn: true }, linkAccount: async () => undefined, provider: { id: 'claude', maxInputChars: 100_000, complete, listModels: async () => [] } }] },
   });
   onTestFinished(() => t.dispose());
   /** Settings → AI as the owner saved them. */
@@ -64,4 +64,15 @@ describe("Plans' provider", () => {
     expect(h.asked).toEqual([]);
     expect(h.extracted()).toEqual([]);
   });
+  it('keeps a removed account pick and drops extraction with the account removal reason', async () => {
+    const h = start({ preferences: { settings: { defaultProvider: 'claude@work' } } });
+    h.saveAi({ accounts: [{ id: 'claude@work', auth: 'signIn' }], providers: { 'claude@work': { enabled: true, model: 'account-model' } } });
+    const id = h.hit(); await vi.waitFor(() => expect(h.extracted()).toEqual([id]));
+    expect(h.asked[0]?.model).toBe('account-model');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined); onTestFinished(() => warn.mockRestore());
+    h.saveAi({ accounts: [] }); h.hit();
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledWith('[plans] not extracted: claude@work: That account was removed in Settings → AI.'));
+    expect(h.asked).toHaveLength(1); expect(h.t.preferences.get('settings').defaultProvider).toBe('claude@work');
+  });
+
 });
