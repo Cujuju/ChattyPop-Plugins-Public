@@ -1,4 +1,5 @@
 import { CLOUD_WORDS, type WordCount } from '../shared/text';
+import { fitViewBox } from './viewBox';
 
 /** A multiple of 32 matches d3-cloud's bitmap rows; the drawing stays twice as wide as tall. */
 export const CLOUD_WIDTH = 1024;
@@ -22,10 +23,7 @@ export interface CloudWord {
 
 /** d3-cloud bounds use layout coordinates, matching the renderer's centre-translated group. */
 export function cloudViewBox(bounds: readonly { x: number; y: number }[] | null): string {
-  const [min, max] = bounds ?? [];
-  if (!min || !max) return `0 0 ${CLOUD_WIDTH} ${CLOUD_HEIGHT}`;
-  const padding = CLOUD_VIEWBOX_PADDING;
-  return `${min.x - padding} ${min.y - padding} ${max.x - min.x + padding * 2} ${max.y - min.y + padding * 2}`;
+  return fitViewBox(bounds, CLOUD_VIEWBOX_PADDING, { width: CLOUD_WIDTH, height: CLOUD_HEIGHT });
 }
 
 /** Square-root scaling leaves less frequent words readable beside the leading word. */
