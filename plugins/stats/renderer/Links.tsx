@@ -18,7 +18,7 @@ export function Links(props: StatsSectionProps) {
           <For each={props.stats().linksByPerson}>{(poster, index) => <PosterRow poster={poster} rank={index() + 1} channelId={personChannel()} max={props.stats().linksByPerson[0]?.count ?? 0} />}</For>
         </ol>
         <Subheading>Links by channel</Subheading>
-        <ChannelRows channels={props.stats().linksByChannel} />
+        <ChannelRows channels={props.stats().linksByChannel} scope={props.stats().query.scope} />
       </Show>
     </section>
   );

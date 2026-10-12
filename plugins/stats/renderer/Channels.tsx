@@ -6,7 +6,7 @@ export function Channels(props: StatsSectionProps) {
   return (
     <section class={styles.section} aria-label="Channels">
       <SectionHeading>Channels</SectionHeading>
-      <ChannelRows channels={props.stats().channels} />
+      <ChannelRows channels={props.stats().channels} scope={props.stats().query.scope} />
     </section>
   );
 }
