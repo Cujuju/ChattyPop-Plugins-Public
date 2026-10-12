@@ -2,8 +2,9 @@
 import type { PluginDb } from '@plugin-sdk/core';
 import { POSTERS_PAGE_MAX, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster } from '../shared/types';
 import { type StatsSqlScope } from './query';
-import { mostActive, totals } from './overview';
-import { attachmentTypes, editDelay, messageCharts } from './messages';
+import { totals } from './overview';
+import { hourlyHistogram, timeStats } from './histogram';
+import { attachmentTypes, editDelay } from './messages';
 import { timeline } from './timeline';
 
 /** SQL over messages `m`, with the same scope for every summary and poster page. */
@@ -98,8 +99,7 @@ export function activityStats(db: PluginDb, q: ActivityQuery): ActivityStats {
   return {
     query: q,
     ...overview,
-    mostActive: mostActive(db, scope),
-    ...messageCharts(db, scope, start, lastTs),
+    ...timeStats(hourlyHistogram(db, scope), start, lastTs),
     posters: posters(db, scope, 0, STATS_TOP),
     channels: channels(db, scope),
     editDelay: editDelay(db, scope),

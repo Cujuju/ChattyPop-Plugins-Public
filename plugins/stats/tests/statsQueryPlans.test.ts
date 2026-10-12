@@ -1,11 +1,12 @@
 // Analytics stats over a realistically shaped archive: indexed plans, and the same counts as reading outside SQL.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Db } from '@core/db';
 import { privacyScope } from '@core/queries/privacy';
 import { tempDb } from '@chattypop/host-testing';
 import { statementPlans } from '@chattypop/host-testing/queryPlan';
 import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
 import { activityStats, postersPage } from '../core/stats';
+import { hourlyHistogram } from '../core/histogram';
 import type { ActivityQuery } from '../shared/types';
 import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, STATS_TOP } from '../shared/types';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
@@ -104,6 +105,31 @@ function expectCounts(db: Db): void {
 }
 
 describe('activity stats under privacy mode', () => {
+  it('runs 12 archive-message statements with one local hourly histogram for Everything', () => {
+    const db = tempDb();
+    seedPerfArchive(db, TEST_ARCHIVE);
+    const prepare = vi.spyOn(db, 'prepare');
+    try {
+      activityStats(db, ALL_TIME);
+      const statements = prepare.mock.calls.map(([sql]) => sql).filter((sql) => /\barchive_messages\b/.test(sql));
+      expect(statements).toHaveLength(12);
+      expect(statements.filter((sql) => /GROUP BY date, hour/.test(sql))).toHaveLength(1);
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
+  it.each([false, true])('groups the hourly histogram in one privacy-aware message scan (hiding: %s)', (hiding) => {
+    const db = tempDb();
+    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    if (hiding) hideSome(db, fixture);
+    const details = statementPlans(db, () => hourlyHistogram(db, { sql: '1', params: [] })).join('\n');
+    expect(details.match(/SCAN m\b/g)).toHaveLength(1);
+    expect(details).toMatch(/USE TEMP B-TREE FOR GROUP BY/);
+    expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
+    expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
+  });
+
   it.each([false, true])('checks the scope once per statement and each message against the hidden ids alone (hiding: %s)', (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
