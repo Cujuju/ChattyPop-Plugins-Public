@@ -121,17 +121,18 @@
   flex: none;
 }
 
-/* A drawn chart fills the width at a fixed shape: the word cloud wide, the talk graph square. */
+/* A drawn chart fills the width. The word cloud keeps a wide shape whatever its words occupy. */
 .cloud {
   display: block;
   width: 100%;
   aspect-ratio: 2;
 }
 
+/* The talk graph takes its shape from its drawing (the viewBox). */
 .graph {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
+  height: auto;
 }
 
 /* A site that opens to its hosts. Its native marker gives way to a mark after the name, so names and counts line up with plain rows. */
