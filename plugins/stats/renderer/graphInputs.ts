@@ -1,15 +1,14 @@
-import type { ConversationStats } from '../shared/conversations';
-import type { StatsPoster } from '../shared/types';
+import type { ConversationPerson, ConversationStats } from '../shared/conversations';
 
 /** Twenty people keep names and ties legible within a square panel. */
 export const GRAPH_PEOPLE_MAX = 20;
 /** The theme's edge and node line widths assume a viewBox about a thousand units across. */
 export const GRAPH_SIZE = 1000;
-/** Dot areas follow tie counts; these bounds leave both weak and strong participants visible. */
+/** Dot areas follow exchange totals; these bounds leave both weak and strong participants visible. */
 export const GRAPH_RADIUS_MIN = GRAPH_SIZE / 100;
 export const GRAPH_RADIUS_MAX = GRAPH_SIZE / 40;
 
-export interface GraphNode extends StatsPoster {
+export interface GraphNode extends ConversationPerson {
   r: number;
   x?: number;
   y?: number;
@@ -17,26 +16,26 @@ export interface GraphNode extends StatsPoster {
 export interface GraphEdge {
   source: string;
   target: string;
-  count: number;
+  exchanges: number;
   share: number;
 }
 
 /** Add endpoints together in pair rank order so the node cap never creates isolated participants. */
 export function graphInputs(stats: Pick<ConversationStats, 'people' | 'pairs'>): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const people = new Map(stats.people.map((person) => [person.userId, person]));
-  const pairs = stats.pairs.slice().sort((a, b) => b.count - a.count || a.first.userId.localeCompare(b.first.userId) || a.second.userId.localeCompare(b.second.userId));
+  const pairs = stats.pairs.slice().sort((a, b) => b.exchanges - a.exchanges || a.first.userId.localeCompare(b.first.userId) || a.second.userId.localeCompare(b.second.userId));
   const selected = new Set<string>();
   for (const pair of pairs) {
     const ids = [pair.first.userId, pair.second.userId];
-    if (pair.count <= 0 || ids[0] === ids[1] || ids.some((id) => !people.has(id))) continue;
+    if (pair.exchanges <= 0 || ids[0] === ids[1] || ids.some((id) => !people.has(id))) continue;
     const added = ids.filter((id) => !selected.has(id));
     if (selected.size + added.length <= GRAPH_PEOPLE_MAX) ids.forEach((id) => selected.add(id));
   }
-  const ranked = [...selected].map((id) => people.get(id)!).sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId));
-  const max = Math.max(0, ...ranked.map((person) => person.count));
-  const nodes = ranked.map((person) => ({ ...person, r: GRAPH_RADIUS_MIN + (GRAPH_RADIUS_MAX - GRAPH_RADIUS_MIN) * Math.sqrt(max ? person.count / max : 0) }));
-  const visible = pairs.filter((pair) => pair.count > 0 && selected.has(pair.first.userId) && selected.has(pair.second.userId));
-  const strongest = visible[0]?.count ?? 0;
-  const edges = visible.map((pair) => ({ source: pair.first.userId, target: pair.second.userId, count: pair.count, share: pair.count / strongest }));
+  const ranked = [...selected].map((id) => people.get(id)!).sort((a, b) => b.exchanges - a.exchanges || a.userId.localeCompare(b.userId));
+  const max = Math.max(0, ...ranked.map((person) => person.exchanges));
+  const nodes = ranked.map((person) => ({ ...person, r: GRAPH_RADIUS_MIN + (GRAPH_RADIUS_MAX - GRAPH_RADIUS_MIN) * Math.sqrt(max ? person.exchanges / max : 0) }));
+  const visible = pairs.filter((pair) => pair.exchanges > 0 && selected.has(pair.first.userId) && selected.has(pair.second.userId));
+  const strongest = visible[0]?.exchanges ?? 0;
+  const edges = visible.map((pair) => ({ source: pair.first.userId, target: pair.second.userId, exchanges: pair.exchanges, share: pair.exchanges / strongest }));
   return { nodes, edges };
 }

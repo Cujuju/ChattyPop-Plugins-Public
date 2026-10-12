@@ -11,7 +11,7 @@ export const GRAPH_COLLISION_PADDING = GRAPH_SIZE / 40;
 export const GRAPH_CHARGE = -(GRAPH_SIZE * GRAPH_SIZE) / 250;
 export const GRAPH_LINK_DISTANCE = GRAPH_SIZE / 6;
 
-interface LayoutEdge extends SimulationLinkDatum<GraphNode> { count: number; share: number }
+interface LayoutEdge extends SimulationLinkDatum<GraphNode> { exchanges: number; share: number }
 export interface PlacedNode extends GraphNode { x: number; y: number }
 
 export function graphLayout(stats: Pick<ConversationStats, 'people' | 'pairs'>) {

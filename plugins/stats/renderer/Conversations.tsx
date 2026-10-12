@@ -16,18 +16,18 @@ export function Conversations() {
       <p class={look.text} data-size="xs" data-tone="muted">Read {countLabel(stats().messages, 'archived message')}. A conversation run ends after a {CONVERSATION_GAP_MINUTES}-minute lull within a channel.</p>
       <CountRows rows={[{ name: 'Conversation runs', count: stats().conversations }, { name: 'Runs with two or more people', count: stats().pairedConversations }]} />
       <Subheading>Talk graph</Subheading>
-      <p class={look.text} data-size="xs" data-tone="muted">Up to {GRAPH_PEOPLE_MAX} people from the strongest pairs. Sharing a run does not establish a direct reply.</p>
+      <p class={look.text} data-size="xs" data-tone="muted">Up to {GRAPH_PEOPLE_MAX} people from the strongest pairs. A tie counts one person posting right after another in the same channel within {CONVERSATION_GAP_MINUTES} minutes.</p>
       <TalkGraph stats={stats()} channelId={personChannel()} />
       <Subheading>Who talks with whom</Subheading>
       <ol class={styles.list}>
-        <For each={stats().pairs}>{(pair, index) => <li class={`${styles.row} ${look.shareBar} ${look.text}`} {...SHARE_ROW} style={share(pair.count, stats().pairs[0]?.count ?? 0)}>
+        <For each={stats().pairs}>{(pair, index) => <li class={`${styles.row} ${look.shareBar} ${look.text}`} {...SHARE_ROW} style={share(pair.exchanges, stats().pairs[0]?.exchanges ?? 0)}>
           <span class={styles.rowLead}>
             <span class={styles.rowCount}>{formatCount(index() + 1)}.</span>
             <PersonName userId={pair.first.userId} channelId={personChannel()} fallback={pair.first.name} />
             <span>and</span>
             <PersonName userId={pair.second.userId} channelId={personChannel()} fallback={pair.second.name} />
           </span>
-          <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{formatCount(pair.count)}</span>
+          <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{countLabel(pair.exchanges, 'exchange')}</span>
         </li>}</For>
       </ol>
     </>}</Show>

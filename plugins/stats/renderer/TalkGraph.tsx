@@ -18,9 +18,9 @@ export function TalkGraph(props: { stats: ConversationStats; channelId: string |
     const letters = Array.from(name);
     return letters.length > GRAPH_LABEL_CHARACTERS ? `${letters.slice(0, GRAPH_LABEL_CHARACTERS).join('')}…` : name;
   };
-  return <svg class={styles.graph} viewBox={`0 0 ${GRAPH_SIZE} ${GRAPH_SIZE}`} role="img" aria-label="People who share conversation runs; ranked pairs follow">
+  return <svg class={styles.graph} viewBox={`0 0 ${GRAPH_SIZE} ${GRAPH_SIZE}`} role="img" aria-label="People who exchange consecutive messages; ranked pairs follow">
     <For each={graph().edges}>{(edge) => <line class={look.graphEdge} x1={edge.first.x} y1={edge.first.y} x2={edge.second.x} y2={edge.second.y} style={share(edge.share, 1)}>
-      <title>{edge.first.name} and {edge.second.name}: {countLabel(edge.count, 'conversation')}</title>
+      <title>{edge.first.name} and {edge.second.name}: {countLabel(edge.exchanges, 'exchange')}</title>
     </line>}</For>
     <For each={graph().nodes}>{(node) => <>
       <circle class={look.graphNode} cx={node.x} cy={node.y} r={node.r} role="button" tabindex="0" aria-label={`Open ${node.name}'s Person window`}
@@ -28,7 +28,7 @@ export function TalkGraph(props: { stats: ConversationStats; channelId: string |
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
           openPerson(node.userId, props.channelId);
-        }}><title>{node.name}: {countLabel(node.count, 'total tie')}</title></circle>
+        }}><title>{node.name}: {countLabel(node.exchanges, 'total exchange')}</title></circle>
       <text class={look.graphLabel} x={node.x + (node.x < GRAPH_SIZE / 2 ? 1 : -1) * (node.r + GRAPH_LABEL_GAP)}
         y={node.y + GRAPH_LABEL_BASELINE} text-anchor={node.x < GRAPH_SIZE / 2 ? 'start' : 'end'} font-size={String(GRAPH_LABEL_SIZE)}>
         {label(node.name)}<title>{node.name}</title>

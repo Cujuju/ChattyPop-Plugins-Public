@@ -7,10 +7,14 @@ export const CONVERSATION_GAP_MS = CONVERSATION_GAP_MINUTES * MS_PER_MIN;
 /** Fifty strongest pairs give the bounded graph enough ties and keep the ranked list finite. */
 export const CONVERSATION_PAIRS = 50;
 
+export interface ConversationPerson extends Omit<StatsPoster, 'count'> {
+  exchanges: number;
+}
+
 export interface ConversationPair {
-  first: StatsPoster;
-  second: StatsPoster;
-  count: number;
+  first: ConversationPerson;
+  second: ConversationPerson;
+  exchanges: number;
 }
 
 export interface ConversationStats {
@@ -19,6 +23,6 @@ export interface ConversationStats {
   conversations: number;
   pairedConversations: number;
   pairs: ConversationPair[];
-  /** Total pair participations across all runs, before the pair ranking is truncated. */
-  people: StatsPoster[];
+  /** Total exchanges with all partners, before the pair ranking is truncated. */
+  people: ConversationPerson[];
 }
