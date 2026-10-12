@@ -1,5 +1,5 @@
 import { Show, onCleanup } from 'solid-js';
-import { HeaderActions, HeaderButton, isPanelCollapsed, look, PanelHeader, Select, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, Select, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { refreshStats, setStatsRange, setStatsScope, stats, statsPanelMounted, statsRange, statsScope } from './state';
 import { STATS_RANGES, STATS_SCOPES, type StatsRange, type StatsScope } from '../shared/types';
 import { STATS_PANEL } from '../shared';
@@ -24,7 +24,9 @@ export function StatsPanel() {
         meta={stats() ? `${countLabel(stats()!.messages, 'message')} · ${countLabel(stats()!.authors, 'person', 'people')}` : undefined}
       >
         <HeaderActions>
-          <HeaderButton disabled={stats.loading} onClick={() => void refreshStats()}>Refresh</HeaderButton>
+          <HeaderButton variant="icon" aria-label="Refresh analytics" title="Refresh" disabled={stats.loading} onClick={() => void refreshStats()}>
+            <Icon name="refresh" />
+          </HeaderButton>
         </HeaderActions>
       </PanelHeader>
       <Show when={!isPanelCollapsed(STATS_PANEL)}>
