@@ -37,9 +37,18 @@ export interface WordStats extends TextCoverage {
 
 export const SENTIMENT_CLASSES = ['positive', 'negative', 'neutral'] as const;
 export type SentimentClass = typeof SENTIMENT_CLASSES[number];
+/** Fifty text messages limit each message's influence to two percentage points, suppressing near-empty bucket noise. */
+export const SENTIMENT_MIN_SAMPLE = 50;
 
 export interface SentimentStats extends TextCoverage {
   classes: Record<SentimentClass, number>;
   bucket: 'day' | 'week';
   buckets: { start: string; positive: number; negative: number; messages: number }[];
+}
+
+/** Unrated buckets never set the scale; rated zero shares stay zero even when the entire strip is zero. */
+export function sentimentFractions(buckets: readonly SentimentStats['buckets'][number][], key: 'positive' | 'negative'): (number | 'unrated')[] {
+  const shares = buckets.map((bucket) => bucket.messages < SENTIMENT_MIN_SAMPLE ? 'unrated' as const : bucket[key] / bucket.messages);
+  const max = shares.reduce<number>((highest, value) => value === 'unrated' ? highest : Math.max(highest, value), 0);
+  return shares.map((value) => value === 'unrated' ? value : max ? value / max : 0);
 }
