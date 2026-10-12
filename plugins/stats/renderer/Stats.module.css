@@ -134,16 +134,16 @@
   aspect-ratio: 1;
 }
 
-/* A site that opens to its hosts. Its native marker gives way to a mark after the count, so names line up with plain rows. */
+/* A site that opens to its hosts. Its native marker gives way to a mark after the name, so names and counts line up with plain rows. */
 .siteSummary {
   list-style: none;
 }
 
-.siteSummary .rowCount::after {
+.siteSummary .rowName::after {
   content: ' ▸';
 }
 
-details[open] > .siteSummary .rowCount::after {
+details[open] > .siteSummary .rowName::after {
   content: ' ▾';
 }
 
