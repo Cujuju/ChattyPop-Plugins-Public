@@ -98,7 +98,7 @@ export function SummaryPanel() {
             <p class={look.text} data-size="md" data-tone="muted">No summary yet. Open summary options, pick a time frame, and press Run summary.</p>
           </Show>
           <For each={entries()}>
-            {(e, i) => (isFailure(e) ? <FailedRun failure={e} first={i() === 0} /> : <SummaryRun summary={e} first={i() === 0} />)}
+            {(e) => (isFailure(e) ? <FailedRun failure={e} /> : <SummaryRun summary={e} />)}
           </For>
           {/* After the runs: the next run lands here. */}
           <Show when={progressText()}>
@@ -137,22 +137,18 @@ function RunRange(props: { span: Span }) {
 const runAside = (span: Span, parts: (string | false | null | undefined)[]): string =>
   [...new Set([spansDays(span) ? null : weekdayDate(span.sinceTs), ...parts].filter(Boolean))].join(' · ');
 
-/** A rule between one row and the next; the first row has none. */
-const ruled = (first: boolean) => (first ? {} : { 'data-rule': 'subtle' });
-
-/** One run: a heading with the time it covers, which folds its body; folded, the heading adds the headline. */
-function SummaryRun(props: { summary: Summary; first: boolean }) {
+/** One run: a heading card with the time it covers, which folds its body; folded, the card adds the headline. */
+function SummaryRun(props: { summary: Summary }) {
   const s = () => props.summary;
   const open = () => isSummaryOpen(s().id);
   const overlap = () => overlapUntil(s());
   const title = () =>
     [`Ran ${weekdayDateTime(s().createdAt)}`, overlap() !== null && `Covers time earlier summaries cover, until ${shortDateTime(overlap()!)}`].filter(Boolean).join('. ');
   return (
-    <article class={`${styles.summary} ${props.first ? '' : look.ruleAbove}`} {...ruled(props.first)}>
+    <article class={styles.summary}>
       <button
         type="button"
-        class={`${styles.runToggle} ${look.disclosure} ${look.row}`}
-        data-hover="raise"
+        class={`${styles.runToggle} ${look.disclosure} ${look.card} ${look.row}`}
         aria-expanded={open()}
         title={title()}
         onClick={() => toggleSummary(s().id)}
@@ -178,7 +174,7 @@ function SummaryRun(props: { summary: Summary; first: boolean }) {
 }
 
 /** A timed run that failed, where its summary would be: when it covers, why it failed, when it is tried again, and Retry. */
-function FailedRun(props: { failure: SummaryRunFailure; first: boolean }) {
+function FailedRun(props: { failure: SummaryRunFailure }) {
   const f = () => props.failure;
   const next = (): string => {
     const at = f().retryAt;
@@ -186,7 +182,7 @@ function FailedRun(props: { failure: SummaryRunFailure; first: boolean }) {
     return at > now() ? `Tries again at ${clockTime(at)}.` : 'Tries again within a minute.';
   };
   return (
-    <article class={`${styles.summary} ${props.first ? '' : look.ruleAbove}`} {...ruled(props.first)} aria-label="Failed summary">
+    <article class={styles.summary} aria-label="Failed summary">
       <div class={`${styles.failure} ${look.banner}`}>
         <span class={styles.rowHead}>
           <span class={styles.markedRange}>

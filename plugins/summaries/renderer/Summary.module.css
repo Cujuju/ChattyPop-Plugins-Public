@@ -109,7 +109,7 @@
   overflow-wrap: anywhere;
 }
 
-/* A run, or one that failed: ruled off from the row above it (the rule is the look's; this is its room). */
+/* A run, or one that failed: its heading card (or notice), then its body when open. */
 .summary {
   display: flex;
   flex-direction: column;
@@ -117,21 +117,16 @@
   min-width: 0;
 }
 
-.summary[data-rule] {
-  padding-top: var(--cp-space-4);
-}
-
-/* A run's heading, a tile reaching into the panel's side padding so its text lines up with the body: the chevron,
-   then the time it covers and what ran it; folded, its headline under that. */
+/* A run's heading, a card of its own: the chevron, then the time it covers and what ran it; folded, its headline
+   under that. */
 .runToggle {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
   gap: var(--cp-space-1) var(--cp-space-3);
-  width: calc(100% + 2 * var(--cp-space-3));
+  width: 100%;
   min-height: var(--cp-hit-min);
-  margin-inline: calc(-1 * var(--cp-space-3));
-  padding: var(--cp-space-3);
+  padding: var(--cp-space-3) var(--cp-space-4);
   text-align: start;
 }
 
