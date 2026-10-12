@@ -92,7 +92,7 @@ describe('requests are billed to the routed key, and a capped key stops without 
     expect(status).toMatchObject({ id: 'openrouter', available: true, detail: 'Paid by key sonnet' });
     expect(status?.models?.map((m) => m.id)).toEqual(['openrouter/auto', 'anthropic/claude-sonnet-5']);
     vi.stubGlobal('fetch', async () => new Response(null, { status: 503 }));
-    expect((await registry.status(settings, true))[0]).toEqual({ id: 'openrouter', available: false, detail: 'OpenRouter models: HTTP 503', models: null });
+    expect((await registry.status(settings, true))[0]).toEqual({ id: 'openrouter', apiKeyHint: null, available: false, detail: 'OpenRouter models: HTTP 503', models: null });
     expect(host.list().find((p) => p.id === 'openrouter')?.status).not.toBe('error');
   });
 });
