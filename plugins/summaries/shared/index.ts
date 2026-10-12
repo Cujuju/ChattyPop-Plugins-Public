@@ -59,7 +59,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'summaries',
     name: 'Summaries',
-    version: '1.32.1',
+    version: '1.35.0',
     description: 'Cited recaps of archived conversations, on demand or on a schedule.',
   },
   channels: defineChannels<{ core: SummaryCalls; events: SummaryEvents }>()({
