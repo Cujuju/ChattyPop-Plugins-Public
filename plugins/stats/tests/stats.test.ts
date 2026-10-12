@@ -88,6 +88,16 @@ const CHANNEL: ActivityQuery = { scope: 'channel', channelId: 'c1', sinceTs: nul
 const EVERYTHING: ActivityQuery = { scope: 'all', channelId: null, sinceTs: null };
 
 describe('Analytics additions', () => {
+  it('reports the archive start across ranges and respects visible scope', async () => {
+    const { t, core } = analytics();
+    expect((await core.activityStats(CHANNEL)).archivedSince).toBe(BEFORE_YEAR);
+    expect((await core.activityStats({ ...CHANNEL, sinceTs: MARCH_START })).archivedSince).toBe(BEFORE_YEAR);
+    expect((await core.activityStats({ ...CHANNEL, sinceTs: Date.now() + MS_PER_DAY })).archivedSince).toBe(BEFORE_YEAR);
+    expect((await core.activityStats({ ...CHANNEL, channelId: null })).archivedSince).toBeNull();
+    expect((await core.activityStats(EVERYTHING)).archivedSince).toBe(BEFORE_YEAR - MS_PER_DAY);
+    t.archive.setPrivacyMode(true);
+    expect((await core.activityStats(EVERYTHING)).archivedSince).toBe(BEFORE_YEAR);
+  });
   it('counts local active dates, edits, text, linked messages and attachment messages without multiplying messages', async () => {
     const s = await analytics().core.activityStats(CHANNEL);
     expect(s.query).toEqual(CHANNEL);

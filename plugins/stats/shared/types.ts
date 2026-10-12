@@ -4,13 +4,13 @@ import { MS_PER_MIN, MS_PER_HOUR, MS_PER_DAY } from '@plugin-sdk/shared';
 export const STATS_SCOPES = { channel: 'This channel', server: 'This server', all: 'Everything' } as const;
 export type StatsScope = keyof typeof STATS_SCOPES;
 
-/** The panel's range choices: label and span in days (null: all time). */
+/** The panel's range choices: label and span in days (null: all archived). */
 export const STATS_RANGES = {
   '7d': { label: 'Last 7 days', days: 7 },
   '30d': { label: 'Last 30 days', days: 30 },
   '90d': { label: 'Last 90 days', days: 90 },
   '365d': { label: 'Last year', days: 365 },
-  all: { label: 'All time', days: null },
+  all: { label: 'All archived', days: null },
 } as const;
 export type StatsRange = keyof typeof STATS_RANGES;
 
@@ -80,6 +80,8 @@ export const ATTACHMENT_KINDS = ['image', 'video', 'audio', 'other'] as const;
 export interface ActivityStats {
   /** The exact range anchor used for this read and subsequent poster pages. */
   query: ActivityQuery;
+  /** First visible archived message in the whole scope, independent of the selected range. */
+  archivedSince: number | null;
   messages: number;
   authors: number;
   activeDays: number;

@@ -113,6 +113,7 @@ describe('activity stats under privacy mode', () => {
       activityStats(db, ALL_TIME);
       const statements = prepare.mock.calls.map(([sql]) => sql).filter((sql) => /\barchive_messages\b/.test(sql));
       expect(statements).toHaveLength(12);
+      expect(prepare.mock.calls).toHaveLength(13);
       expect(statements.filter((sql) => /GROUP BY date, hour/.test(sql))).toHaveLength(1);
     } finally {
       prepare.mockRestore();

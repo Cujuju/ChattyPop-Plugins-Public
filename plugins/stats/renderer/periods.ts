@@ -10,6 +10,8 @@ const DAY = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short',
 const MONTH = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
 const YEAR = new Intl.DateTimeFormat(undefined, { year: 'numeric' });
 
+export const formatTimestamp = (ts: number): string => DAY.format(new Date(ts));
+
 /** SQL's local periods are numeric calendar parts, never UTC date-only strings. */
 export function parsePeriod(start: string): Date {
   const [year, month, day = FIRST_MONTH_DAY, hour = MIDNIGHT, minute = MIDNIGHT, second = MIDNIGHT] = start.split(/[T:-]/).map(Number);

@@ -1,4 +1,4 @@
-import { For } from 'solid-js';
+import { For, Show } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
 import { CHART_LABEL, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
@@ -10,7 +10,6 @@ export function Timeline(props: StatsSectionProps) {
   const max = (key: typeof CHARTS[number][0]) => Math.max(0, ...props.stats().timeline.map((m) => m[key]));
   return (
     <section class={styles.section} aria-label="Timeline">
-      <p class={look.text} data-size="xs" data-tone="muted">New people posted their first message in this scope during that month.</p>
       <For each={CHARTS}>{([key, label]) => (
         <>
           <Subheading>{label}</Subheading>
@@ -24,6 +23,9 @@ export function Timeline(props: StatsSectionProps) {
             <span>{props.stats().timeline[0] && formatPeriod(props.stats().timeline[0]!.start, 'month')}</span>
             <span>{props.stats().timeline.at(-1) && formatPeriod(props.stats().timeline.at(-1)!.start, 'month')}</span>
           </div>
+          <Show when={key === 'newPosters'}>
+            <p class={look.text} data-size="xs" data-tone="muted">Counts each person's first archived message here, so the archive's first month counts everyone it sees.</p>
+          </Show>
         </>
       )}</For>
     </section>

@@ -105,6 +105,6 @@ export function activityStats(db: PluginDb, q: ActivityQuery): ActivityStats {
     editDelay: editDelay(db, scope),
     attachmentTypes: attachmentTypes(db, scope),
     ...links(db, scope),
-    timeline: timeline(db, scope, scopeSql(db, { ...q, sinceTs: null }), start, lastTs),
+    ...timeline(db, scope, scopeSql(db, { ...q, sinceTs: null }), start, lastTs),
   };
 }
