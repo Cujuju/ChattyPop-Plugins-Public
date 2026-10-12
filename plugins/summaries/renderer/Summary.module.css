@@ -165,7 +165,7 @@
   padding: var(--cp-space-4) var(--cp-space-5);
 }
 
-/* The "Failed" mark and the time it stands before, kept together. */
+/* A run's time and its mark ("Failed" before it, "Latest" after it), kept together. */
 .markedRange {
   display: inline-flex;
   flex-wrap: wrap;
@@ -174,7 +174,7 @@
   min-width: 0;
 }
 
-/* The "Failed" mark before the time. */
+/* A mark beside the time. */
 .mark {
   display: inline-flex;
   align-items: center;
@@ -203,13 +203,12 @@
   text-wrap: pretty;
 }
 
-/* What the run read, took, used and cost: a label over each value, wrapping as the panel narrows; ruled off below. */
+/* What the run read, took, used and cost: a label over each value, wrapping as the panel narrows. */
 .facts {
   display: flex;
   flex-wrap: wrap;
   gap: var(--cp-space-4) var(--cp-space-6);
   margin: 0;
-  padding-bottom: var(--cp-space-4);
 }
 
 .fact {

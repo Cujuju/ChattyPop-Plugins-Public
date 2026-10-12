@@ -19,6 +19,7 @@ import { namedText } from '../shared/people';
 import {
   isRetrying,
   isSummaryOpen,
+  latestSummary,
   loadOlderSummaries,
   overlapUntil,
   retryFailure,
@@ -142,6 +143,7 @@ function SummaryRun(props: { summary: Summary }) {
   const s = () => props.summary;
   const open = () => isSummaryOpen(s().id);
   const overlap = () => overlapUntil(s());
+  const latest = () => latestSummary()?.id === s().id;
   const title = () =>
     [`Ran ${weekdayDateTime(s().createdAt)}`, overlap() !== null && `Covers time earlier summaries cover, until ${shortDateTime(overlap()!)}`].filter(Boolean).join('. ');
   return (
@@ -155,7 +157,14 @@ function SummaryRun(props: { summary: Summary }) {
       >
         <span class="cp-chevron" aria-hidden="true" />
         <span class={styles.rowHead}>
-          <RunRange span={s()} />
+          <span class={styles.markedRange}>
+            <RunRange span={s()} />
+            <Show when={latest()}>
+              <span class={`${styles.mark} ${look.countBadge} ${look.text}`} {...CHIP} data-weight="semibold">
+                Latest
+              </span>
+            </Show>
+          </span>
           <span class={look.text} {...META}>
             {runAside(s(), [TRIGGER_TEXT[s().trigger], s().scope && scopeLabel(s().scope), overlap() !== null && 'overlaps earlier'])}
           </span>

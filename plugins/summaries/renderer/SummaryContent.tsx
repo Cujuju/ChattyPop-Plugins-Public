@@ -33,11 +33,11 @@ const factValue = (strong: boolean | undefined) =>
 /** An inset divider: a rule stopping short of both edges, between one section of a run and the next. */
 const InsetRule = () => <div class={`${styles.insetRule} ${look.ruleAbove}`} data-rule="strong" role="separator" />;
 
-/** What a run read, took, used and cost: labelled facts under the headline, ruled off from the points. */
+/** What a run read, took, used and cost: labelled facts under the headline. */
 function RunFacts(props: { summary: Summary }) {
   const facts = () => runFacts(props.summary, { provider: providerLabel(props.summary.provider), tokens: formatTokens, usd: usdText });
   return (
-    <dl class={`${styles.facts} ${look.ruleBelow}`} data-rule="subtle">
+    <dl class={styles.facts}>
       <For each={facts()}>
         {(f) => (
           <div class={styles.fact} title={f.title}>
@@ -91,7 +91,9 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean; sour
         <PeopleText text={s().headline} people={s().people} channelId={s().channelIds[0]} />
       </p>
       <Show when={props.runDetails !== false}>
+        <InsetRule />
         <RunFacts summary={s()} />
+        <InsetRule />
       </Show>
       <Show when={s().actions.length}>
         <section class={`${styles.actions} ${look.wash}`} aria-label="For you">
