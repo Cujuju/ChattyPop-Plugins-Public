@@ -43,8 +43,9 @@ const sectionQuery = (section: StatsSection): [ActivityQuery] | undefined => {
 
 export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null);
 export const words = pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null);
-export const statsLoading = (): boolean => stats.loading || emoji.loading || words.loading;
-export const refreshStats = async (): Promise<void> => { await Promise.all([stats.refetch(), emoji.refetch(), words.refetch()]); };
+export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null);
+export const statsLoading = (): boolean => stats.loading || emoji.loading || words.loading || sentiment.loading;
+export const refreshStats = async (): Promise<void> => { await Promise.all([stats.refetch(), emoji.refetch(), words.refetch(), sentiment.refetch()]); };
 
 const [privacyChanges, setPrivacyChanges] = createSignal(0);
 

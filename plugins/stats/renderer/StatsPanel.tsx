@@ -11,10 +11,11 @@ import { Links } from './Links';
 import { Timeline } from './Timeline';
 import { Emoji } from './Emoji';
 import { Words } from './Words';
+import { Sentiment } from './Sentiment';
 import { countLabel } from './section';
 import styles from './Stats.module.css';
 
-const SECTION_VIEWS = { overview: Overview, messages: Messages, people: People, channels: Channels, links: Links, timeline: Timeline, emoji: Emoji, words: Words };
+const SECTION_VIEWS = { overview: Overview, messages: Messages, people: People, channels: Channels, links: Links, timeline: Timeline, emoji: Emoji, words: Words, sentiment: Sentiment };
 
 /** Analytics opens one section beside a caller-owned rail, with scope and range above it. */
 export function StatsPanel() {

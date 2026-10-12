@@ -4,6 +4,7 @@ import { plugin } from '../shared';
 import { activityStats, postersPage } from './stats';
 import { emojiStats } from './emoji';
 import { wordStats } from './words';
+import { sentimentStats } from './sentiment';
 
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
@@ -11,5 +12,6 @@ export default defineCorePlugin(plugin, (ctx) => {
     postersPage: (q) => postersPage(ctx.storage.db, q),
     emojiStats: async (q) => emojiStats(ctx.storage.db, q),
     wordStats: async (q) => wordStats(ctx.storage.db, q),
+    sentimentStats: async (q) => sentimentStats(ctx.storage.db, q),
   });
 });

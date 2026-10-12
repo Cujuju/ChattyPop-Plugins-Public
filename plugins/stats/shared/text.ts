@@ -34,3 +34,12 @@ export interface WordStats extends TextCoverage {
   wordsPerMessage: number;
   words: WordCount[];
 }
+
+export const SENTIMENT_CLASSES = ['positive', 'negative', 'neutral'] as const;
+export type SentimentClass = typeof SENTIMENT_CLASSES[number];
+
+export interface SentimentStats extends TextCoverage {
+  classes: Record<SentimentClass, number>;
+  bucket: 'day' | 'week';
+  buckets: { start: string; positive: number; negative: number; messages: number }[];
+}

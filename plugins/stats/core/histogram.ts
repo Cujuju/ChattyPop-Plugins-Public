@@ -34,6 +34,20 @@ const localDate = (start: string): Date => {
   return new Date(year!, month! - MONTH_INDEX_OFFSET, day!);
 };
 const dateStart = (date: Date): string => `${date.getFullYear()}-${pad(date.getMonth() + MONTH_INDEX_OFFSET)}-${pad(date.getDate())}`;
+
+export function bucketForSpan(start: number | null, last: number | null): ActivityStats['bucket'] {
+  const spanDays = start === null || last === null ? 0 : (last - start) / MS_PER_DAY;
+  return spanDays > DAY_BUCKETS_MAX_DAYS ? 'week' : 'day';
+}
+
+export function bucketStart(date: Date, bucket: ActivityStats['bucket']): string {
+  const local = new Date(date);
+  if (bucket === 'week') {
+    const backstep = (local.getDay() + DAYS_PER_WEEK - MONDAY_WEEKDAY) % DAYS_PER_WEEK;
+    local.setDate(local.getDate() - backstep);
+  }
+  return dateStart(local);
+}
 const addCount = (counts: Map<string, number>, start: string, count: number): void => {
   counts.set(start, (counts.get(start) ?? 0) + count);
 };
@@ -48,7 +62,7 @@ function busiest(counts: Map<string, number>): StatsPeriod | null {
 }
 
 /** Calendar increments preserve local dates across daylight-saving changes. */
-function filledBuckets(counts: Map<string, number>, bucket: ActivityStats['bucket']): ActivityStats['buckets'] {
+export function filledBuckets(counts: Map<string, number>, bucket: ActivityStats['bucket']): ActivityStats['buckets'] {
   const starts = [...counts.keys()].sort();
   if (!starts.length) return [];
   const date = localDate(starts[0]!);
@@ -63,8 +77,7 @@ function filledBuckets(counts: Map<string, number>, bucket: ActivityStats['bucke
 }
 
 export function timeStats(histogram: HourCount[], start: number | null, last: number | null) {
-  const spanDays = start === null || last === null ? 0 : (last - start) / MS_PER_DAY;
-  const bucket = spanDays > DAY_BUCKETS_MAX_DAYS ? 'week' : 'day';
+  const bucket = bucketForSpan(start, last);
   const heatmap = Array.from({ length: DAYS_PER_WEEK }, () => new Array<number>(HOURS_PER_DAY).fill(0));
   const buckets = new Map<string, number>();
   const hours = new Map<string, number>();
@@ -75,13 +88,7 @@ export function timeStats(histogram: HourCount[], start: number | null, last: nu
     const date = localDate(row.date);
     const weekday = date.getDay();
     heatmap[weekday]![row.hour]! += row.count;
-    let bucketStart = row.date;
-    if (bucket === 'week') {
-      const backstep = (weekday + DAYS_PER_WEEK - MONDAY_WEEKDAY) % DAYS_PER_WEEK;
-      date.setDate(date.getDate() - backstep);
-      bucketStart = dateStart(date);
-    }
-    addCount(buckets, bucketStart, row.count);
+    addCount(buckets, bucketStart(date, bucket), row.count);
     addCount(hours, `${row.date}T${pad(row.hour)}:00:00`, row.count);
     addCount(days, row.date, row.count);
     addCount(months, `${row.date.slice(0, MONTH_DATE_LENGTH)}-01`, row.count);

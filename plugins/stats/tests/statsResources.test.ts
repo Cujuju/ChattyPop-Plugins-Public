@@ -84,6 +84,12 @@ describe('Analytics section resources', () => {
     const beforeWordsRefresh = env.calls.length;
     await state.refreshStats();
     expect(env.calls.slice(beforeWordsRefresh).map((call) => call.member)).toEqual(['activityStats', 'wordStats']);
+    env.choices.get('section')!('sentiment');
+    await settle();
+    expect(env.calls.filter((call) => call.member === 'sentimentStats')).toHaveLength(1);
+    const beforeSentimentRefresh = env.calls.length;
+    await state.refreshStats();
+    expect(env.calls.slice(beforeSentimentRefresh).map((call) => call.member)).toEqual(['activityStats', 'sentimentStats']);
     env.choices.get('section')!('overview');
     await settle();
     await state.refreshStats();
