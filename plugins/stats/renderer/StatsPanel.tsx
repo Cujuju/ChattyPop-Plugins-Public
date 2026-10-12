@@ -52,7 +52,7 @@ export function StatsPanel() {
               return { id, label, body: () => <View stats={s} /> };
             });
             return (
-              <Show when={s().messages} fallback={<p class={look.text} data-size="md" data-tone="muted">{statsScope() !== 'all' && !shownChannelId() ? 'Open a channel to count it, or choose Everything.' : 'No messages in this range.'}</p>}>
+              <Show when={s().archivedSince !== null} fallback={<p class={look.text} data-size="md" data-tone="muted">{statsScope() !== 'all' && !shownChannelId() ? 'Open a channel to count it, or choose Everything.' : 'No archived messages in this scope.'}</p>}>
                 <SectionSplit title="Analytics" sections={sections} openId={statsSection()} onOpen={(id) => setStatsSection(id as StatsSection)} />
               </Show>
             );
