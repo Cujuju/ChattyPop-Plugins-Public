@@ -18,7 +18,7 @@ import {
   providerName,
   refetchPlanUsage,
 } from '@plugin-sdk/renderer/kit';
-import { MS_PER_DAY, type AppUsage, type PlanUsageWindow, type ProviderId } from '@plugin-sdk/shared';
+import { MS_PER_DAY, timeFormat, type AppUsage, type PlanUsageWindow, type ProviderId } from '@plugin-sdk/shared';
 import { For, Show } from 'solid-js';
 import { USAGE_PANEL } from '../shared';
 import { appTokens, shownProviders } from './state';
@@ -34,12 +34,12 @@ type Provider = ReturnType<typeof shownProviders>[number];
 
 const warn = (w: PlanUsageWindow): boolean => (w.usedPercent ?? 0) >= PLAN_WARN_PERCENT;
 const resetsFull = (w: PlanUsageWindow): string =>
-  w.resetsAt ? `Resets ${new Date(w.resetsAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : '';
+  w.resetsAt ? `Resets ${timeFormat({ weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(w.resetsAt))}` : '';
 const resetsShort = (w: PlanUsageWindow): string => {
   if (!w.resetsAt) return '';
   const at = new Date(w.resetsAt);
   return at.getTime() - Date.now() < RESET_TIME_OF_DAY_WITHIN_MS
-    ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? timeFormat({ hour: 'numeric', minute: '2-digit' }).format(at)
     : at.toLocaleDateString([], { weekday: 'short' });
 };
 

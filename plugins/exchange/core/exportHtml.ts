@@ -1,4 +1,5 @@
 // Standalone offline HTML export without scripts or remote styles. Export styles are independent of app theme tokens.
+import { timeFormat } from '@plugin-sdk/shared';
 import type { DceExport, DceMessage } from './dce';
 
 const IMAGE_FILE = /\.(png|jpe?g|gif|webp|avif)$/i;
@@ -35,7 +36,9 @@ const safeUrl = (u: unknown): string | null => {
   const scheme = URL_SCHEME.exec(u.replace(/[\u0000-\u0020]/g, ''))?.[1];
   return scheme === undefined || SAFE_SCHEMES.has(`${scheme.toLowerCase()}:`) ? u : null;
 };
-const when = (iso: unknown): string => new Date(String(iso)).toLocaleString();
+/** A message's date and time to the second, on the owner's clock. */
+const WHEN = timeFormat({ year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
+const when = (iso: unknown): string => WHEN.format(new Date(String(iso)));
 /** A reaction count: a whole number, else nothing. */
 const count = (n: unknown): string => (Number.isSafeInteger(n) ? String(n) : '');
 

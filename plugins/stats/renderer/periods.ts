@@ -1,10 +1,11 @@
+import { timeFormat } from '@plugin-sdk/shared';
 import type { ActivityStats } from '../shared/types';
 
 type Period = keyof ActivityStats['mostActive'];
 const MONTH_INDEX_OFFSET = 1;
 const FIRST_MONTH_DAY = 1;
 const MIDNIGHT = 0;
-const HOUR = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric' });
+const HOUR = timeFormat({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric' });
 const DAY = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const MONTH = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
 const YEAR = new Intl.DateTimeFormat(undefined, { year: 'numeric' });
