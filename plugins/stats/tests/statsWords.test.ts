@@ -2,7 +2,7 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { CLOUD_WORDS } from '../shared/text';
-import { cloudInputs, CLOUD_FONT_MIN, CLOUD_FONT_MAX } from '../renderer/cloudInputs';
+import { cloudInputs, cloudViewBox, CLOUD_FONT_MIN, CLOUD_FONT_MAX, CLOUD_WIDTH, CLOUD_HEIGHT, CLOUD_VIEWBOX_PADDING } from '../renderer/cloudInputs';
 
 const CHANNEL = { scope: 'channel', channelId: 'c1', sinceTs: null } as const;
 
@@ -64,5 +64,22 @@ describe('Analytics words', () => {
     expect(words).toEqual(copy);
     expect(cloudInputs([])).toEqual([]);
     expect(cloudInputs(Array.from({ length: CLOUD_WORDS + 1 }, (_, index) => ({ word: `word${index}`, count: 1 })))).toHaveLength(CLOUD_WORDS);
+  });
+
+  it('fits a centred clump in layout coordinates with padding', () => {
+    const padding = CLOUD_VIEWBOX_PADDING;
+    expect(cloudViewBox([{ x: 312, y: 156 }, { x: 712, y: 356 }]))
+      .toBe(`${312 - padding} ${156 - padding} ${400 + padding * 2} ${200 + padding * 2}`);
+  });
+
+  it('fits an off-centre clump without shifting bounds by the group translation', () => {
+    const padding = CLOUD_VIEWBOX_PADDING;
+    expect(cloudViewBox([{ x: 60, y: 40 }, { x: 260, y: 120 }]))
+      .toBe(`${60 - padding} ${40 - padding} ${200 + padding * 2} ${80 + padding * 2}`);
+  });
+
+  it('uses the full layout area when no words were placed', () => {
+    expect(cloudViewBox(null)).toBe(`0 0 ${CLOUD_WIDTH} ${CLOUD_HEIGHT}`);
+    expect(cloudViewBox([])).toBe(`0 0 ${CLOUD_WIDTH} ${CLOUD_HEIGHT}`);
   });
 });

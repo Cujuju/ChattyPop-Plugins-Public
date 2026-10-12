@@ -8,6 +8,8 @@ export const CLOUD_FONT_MIN = CLOUD_WIDTH / 64;
 export const CLOUD_FONT_MAX = CLOUD_WIDTH / 14;
 /** Small gaps keep adjacent glyphs distinct without opening large holes. */
 export const CLOUD_PADDING = CLOUD_WIDTH / 512;
+/** A little space around the placed bounds keeps the outer glyphs clear of the viewport. */
+export const CLOUD_VIEWBOX_PADDING = CLOUD_WIDTH / 64;
 
 export interface CloudWord {
   text: string;
@@ -16,6 +18,14 @@ export interface CloudWord {
   size: number;
   x?: number;
   y?: number;
+}
+
+/** d3-cloud bounds use layout coordinates, matching the renderer's centre-translated group. */
+export function cloudViewBox(bounds: readonly { x: number; y: number }[] | null): string {
+  const [min, max] = bounds ?? [];
+  if (!min || !max) return `0 0 ${CLOUD_WIDTH} ${CLOUD_HEIGHT}`;
+  const padding = CLOUD_VIEWBOX_PADDING;
+  return `${min.x - padding} ${min.y - padding} ${max.x - min.x + padding * 2} ${max.y - min.y + padding * 2}`;
 }
 
 /** Square-root scaling leaves less frequent words readable beside the leading word. */
