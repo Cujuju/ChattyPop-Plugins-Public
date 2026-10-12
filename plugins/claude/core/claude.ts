@@ -1,4 +1,5 @@
 // Claude through the Agent SDK, using the owner's sign-in or API key.
+import { accountEnv, API_KEY_ENV } from './accountEnv';
 import { tmpdir } from 'node:os';
 import { query, type ApiKeySource, type EffortLevel, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { MS_PER_DAY, MS_PER_HOUR } from '@plugin-sdk/shared';
@@ -13,6 +14,7 @@ import {
   type LlmProvider,
   type ModelOption,
   type PlanUsageWindow,
+  type ProviderAccount,
 } from '@plugin-sdk/core';
 
 /** The CLI it drives. */
@@ -21,8 +23,6 @@ export const CLAUDE_CLI: CliSpec = { bin: 'claude', npm: '@anthropic-ai/claude-c
 /** Structured output may need a corrective retry turn; plain text needs one. */
 const MAX_TURNS_WITH_SCHEMA = 3;
 const MAX_TURNS_TEXT = 1;
-const CLIENT_APP_ID = 'chattypop/0.1';
-const API_KEY_ENV = 'ANTHROPIC_API_KEY';
 const API_KEY_SOURCE: ApiKeySource = API_KEY_ENV;
 /** supportedModels() row that stands for Claude Code's own default model. */
 const DEFAULT_MODEL_VALUE = 'default';
@@ -49,12 +49,13 @@ function withImages(prompt: string, images: readonly CompletionImage[]): AsyncIt
 
 /** Claude via the user's Claude Code install; an owner API key enters only the child environment. */
 export class ClaudeProvider implements LlmProvider {
-  readonly id = 'claude' as const;
+  get id(): string { return this.account.id; }
+  private readonly queries = new Set<ReturnType<typeof query>>();
   readonly maxInputChars = HOSTED_MAX_INPUT_CHARS;
 
-  constructor(private readonly apiKey: () => string | null) {}
+  constructor(private readonly account: ProviderAccount) {}
 
-  private baseOptions(key = this.apiKey()): Options {
+  private baseOptions(key = this.account.auth === 'apiKey' ? this.account.apiKey() : null): Options {
     const { bin, npm, name } = CLAUDE_CLI;
     const launch = resolveCli(bin, npm);
     if (!launch) throw new ProviderUnavailableError(`${name} is not installed or not on PATH.`);
@@ -69,12 +70,12 @@ export class ClaudeProvider implements LlmProvider {
       persistSession: false,
       permissionMode: 'dontAsk',
       cwd: tmpdir(),
-      env: { ...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: CLIENT_APP_ID, ...(key ? { [API_KEY_ENV]: key } : {}) },
+      env: accountEnv(this.account, key),
     };
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
-    const key = this.apiKey();
+    const key = this.account.auth === 'apiKey' ? this.account.apiKey() : null;
     let verifiedKeySource = key === null;
     const prompt = req.images?.length ? withImages(req.prompt, req.images) : req.prompt;
     const abortController = new AbortController();
@@ -92,6 +93,7 @@ export class ClaudeProvider implements LlmProvider {
         ...(req.schema ? { outputFormat: { type: 'json_schema', schema: req.schema } } : {}),
       },
     });
+    this.queries.add(q);
     try {
       for await (const msg of q) {
         if (key && msg.type === 'system' && msg.subtype === 'init') {
@@ -117,6 +119,7 @@ export class ClaudeProvider implements LlmProvider {
       if (key && err instanceof Error && err.message.includes(key)) throw new Error(err.message.replaceAll(key, '[API key]'));
       throw err;
     } finally {
+      this.queries.delete(q);
       q.close();
     }
   }
@@ -124,7 +127,9 @@ export class ClaudeProvider implements LlmProvider {
   /** Opens a session that never sends a prompt: the SDK exposes usage and models only on a live query. */
   private idleQuery(): ReturnType<typeof query> {
     const idle: AsyncIterable<SDKUserMessage> = { [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}) }) };
-    return query({ prompt: idle, options: this.baseOptions() });
+    const q = query({ prompt: idle, options: this.baseOptions() });
+    this.queries.add(q);
+    return q;
   }
 
   async listModels(): Promise<ModelOption[]> {
@@ -139,12 +144,13 @@ export class ClaudeProvider implements LlmProvider {
         ...(m.value === DEFAULT_MODEL_VALUE ? { isDefault: true } : {}),
       }));
     } finally {
+      this.queries.delete(q);
       q.close();
     }
   }
 
   async planUsage(): Promise<PlanUsageWindow[] | null> {
-    if (this.apiKey()) return null;
+    if (this.account.auth === 'apiKey') return null;
     const q = this.idleQuery();
     try {
       const u = await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true });
@@ -157,7 +163,10 @@ export class ClaudeProvider implements LlmProvider {
       push('seven_day', 'Weekly', SEVEN_DAYS_MS, u.rate_limits.seven_day);
       return windows;
     } finally {
+      this.queries.delete(q);
       q.close();
     }
   }
+  dispose(): void { for (const q of this.queries) q.close(); this.queries.clear(); }
+
 }

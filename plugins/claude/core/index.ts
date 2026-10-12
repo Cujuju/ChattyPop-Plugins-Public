@@ -1,10 +1,14 @@
-// Claude's core side: sign-in or an owner API key supplied through the child environment.
-import { defineCorePlugin, signedInCli } from '@plugin-sdk/core';
+import { cliAccounts, defineCorePlugin } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { CLAUDE_CLI, ClaudeProvider } from './claude';
 import { checkApiKey } from './checkApiKey';
+import { signedIn, linkAccount, signOut } from './accounts';
 
 export default defineCorePlugin(plugin, (ctx) => {
-  const key = () => ctx.ai.apiKey('claude');
-  ctx.ai.registerProvider('claude', signedInCli(CLAUDE_CLI, new ClaudeProvider(key), { apiKey: key, check: (value) => checkApiKey(ctx.net.fetch, value) }));
+  ctx.ai.registerProvider('claude', cliAccounts({
+    cli: CLAUDE_CLI,
+    provider: (account) => new ClaudeProvider(account),
+    checkApiKey: (key) => checkApiKey(ctx.net.fetch, key),
+    signedIn, linkAccount, signOut,
+  }));
 });
