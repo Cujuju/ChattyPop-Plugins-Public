@@ -1,5 +1,5 @@
 import { For, createMemo } from 'solid-js';
-import { look, openPerson } from '@plugin-sdk/renderer/kit';
+import { look, openPerson, personName } from '@plugin-sdk/renderer/kit';
 import type { ConversationStats } from '../shared/conversations';
 import { GRAPH_SIZE } from './graphInputs';
 import { graphLayout } from './graphLayout';
@@ -13,7 +13,10 @@ const GRAPH_LABEL_GAP = GRAPH_SIZE / 200;
 const GRAPH_LABEL_BASELINE = GRAPH_SIZE / 150;
 
 export function TalkGraph(props: { stats: ConversationStats; channelId: string | null }) {
-  const graph = createMemo(() => graphLayout(props.stats));
+  const graph = createMemo(() => graphLayout({
+    ...props.stats,
+    people: props.stats.people.map((person) => ({ ...person, name: personName(person.userId, props.channelId)?.name ?? person.name })),
+  }));
   const label = (name: string): string => {
     const letters = Array.from(name);
     return letters.length > GRAPH_LABEL_CHARACTERS ? `${letters.slice(0, GRAPH_LABEL_CHARACTERS).join('')}…` : name;
