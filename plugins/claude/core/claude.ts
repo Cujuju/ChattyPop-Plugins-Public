@@ -138,6 +138,8 @@ export class ClaudeProvider implements LlmProvider {
       return (await q.supportedModels()).map((m) => ({
         id: m.value,
         label: m.displayName,
+        // Names the version an alias such as "Opus" resolves to.
+        ...(m.description ? { description: m.description } : {}),
         ...(m.supportedEffortLevels?.length ? { efforts: m.supportedEffortLevels } : {}),
         // supportedModels omits input types; this adapter advertises image support for every returned model.
         images: true,
