@@ -1,4 +1,4 @@
-/* Activity layout (#85). TSX sets --v to each value's fraction of the maximum; theme look attributes supply appearance. */
+/* Analytics layout (#85). TSX sets --v to each value's fraction of the maximum; theme look attributes supply appearance. */
 
 /* Scope and range, as the Links filter row. */
 .filters {
@@ -28,6 +28,18 @@
 /* Sections keep their height and the body scrolls; flex would otherwise shrink the fixed-height chart to nothing. */
 .body > * {
   flex: none;
+}
+
+/* One section: its heading, then its charts and lists, spaced as the body spaces them. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+}
+
+/* Sections sit further apart than a section's own parts. */
+.section + .section {
+  margin-top: var(--cp-space-6);
 }
 
 .heading {
@@ -85,11 +97,27 @@
 /* A poster or domain: name and count over a faint bar of its share. */
 .row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: var(--cp-space-4);
   width: 100%;
   padding: var(--cp-space-1) var(--cp-space-3);
   text-align: left;
+}
+
+/* A person in a ranked row: rank, avatar at text size, then the name, which gives way first. */
+.posterIdentity {
+  --cp-chat-avatar: var(--cp-avatar-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-width: 0;
+}
+
+/* The chat row's avatar sits a step down from its text line; here it centres on the row. */
+.posterIdentity [data-avatar] {
+  flex: none;
+  margin: 0;
 }
 
 .rowName {
