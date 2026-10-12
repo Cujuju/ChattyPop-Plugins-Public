@@ -8,7 +8,7 @@ import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing
 import { activityStats, postersPage } from '../core/stats';
 import { hourlyHistogram } from '../core/histogram';
 import type { ActivityQuery } from '../shared/types';
-import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, STATS_TOP } from '../shared/types';
+import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP } from '../shared/types';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
 
 /** Analytics over the whole archive: the heaviest stats read. */
@@ -83,7 +83,7 @@ function expectCounts(db: Db): void {
     expect(stats.mostActive[period]).toEqual(first ? { start: first.id, count: first.count } : null);
   }
   expect(stats.channels.map((c) => ({ id: c.channelId, count: c.count }))).toEqual(ranked(visible.map((m) => m.channel_id)).slice(0, STATS_TOP));
-  expect(stats.posters.map((p) => ({ id: p.userId, count: p.count }))).toEqual(ranked(visible.map((m) => m.author_id)).slice(0, STATS_TOP));
+  expect(stats.posters.map((p) => ({ id: p.userId, count: p.count }))).toEqual(ranked(visible.map((m) => m.author_id)).slice(0, POSTERS_TOP));
   expect(stats.linksByPerson.map((p) => ({ id: p.userId, count: p.count }))).toEqual(ranked(shares.map((s) => byId.get(s.message_id)!.author_id)).slice(0, STATS_TOP));
   expect(stats.linksByChannel.map((c) => ({ id: c.channelId, count: c.count }))).toEqual(ranked(shares.map((s) => byId.get(s.message_id)!.channel_id)).slice(0, STATS_TOP));
   expect(stats.editDelay).toEqual(EDIT_DELAY_BUCKETS.map((bucket) => ({

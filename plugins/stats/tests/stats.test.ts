@@ -4,7 +4,7 @@ import { testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY } from '@shared/units';
 import statsCore from '../core';
 import type { ActivityQuery } from '../shared/types';
-import { EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, STATS_TOP } from '../shared/types';
+import { EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP } from '../shared/types';
 import { analyticsArchive, BEFORE_YEAR, JANUARY_START, MARCH_START } from './statsFixture';
 
 /** A local time in September 2026 (month index 8). */
@@ -214,16 +214,16 @@ describe('Analytics additions', () => {
     }
   });
 
-  it('pages all ranked posters beyond the top ten with stable ties, scope and range', async () => {
+  it('pages all ranked posters beyond the opening ranking with stable ties, scope and range', async () => {
     const { t, core } = analytics();
-    const MANY_POSTERS = STATS_TOP + 3;
+    const MANY_POSTERS = POSTERS_TOP + 3;
     t.archive.arrive(Array.from({ length: MANY_POSTERS }, (_, index) => ({
       channelId: 't1', ts: JANUARY_START, authorId: `poster-${String(index).padStart(2, '0')}`, content: 'hello',
     })));
     const q = { ...CHANNEL, sinceTs: JANUARY_START };
     const all = await core.postersPage({ ...q, offset: 0, limit: POSTERS_PAGE_MAX });
-    const first = await core.postersPage({ ...q, offset: 0, limit: STATS_TOP });
-    const next = await core.postersPage({ ...q, offset: STATS_TOP, limit: STATS_TOP });
+    const first = await core.postersPage({ ...q, offset: 0, limit: POSTERS_TOP });
+    const next = await core.postersPage({ ...q, offset: POSTERS_TOP, limit: POSTERS_TOP });
     expect([...first, ...next]).toEqual(all);
     expect(all).toHaveLength(MANY_POSTERS + 2);
     expect((await core.activityStats(q)).posters).toEqual(first);

@@ -1,5 +1,6 @@
 import { For, Show } from 'solid-js';
 import { look, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { POSTERS_TOP } from '../shared/types';
 import { createPosterList } from './state';
 import { PosterRow } from './PosterRow';
 import { Subheading, countLabel, type StatsSectionProps } from './section';
@@ -31,7 +32,7 @@ export function People(props: StatsSectionProps) {
             {pages.failure() ? 'Retry' : 'Load more'}
           </button>
         </Show>
-        <button type="button" class={look.button} aria-expanded="true" onClick={pages.reset}>Show top ten</button>
+        <button type="button" class={look.button} aria-expanded="true" onClick={pages.reset}>Show top {POSTERS_TOP}</button>
       </Show>
     </section>
   );

@@ -60,8 +60,10 @@ export interface StatsPeriod {
   count: number;
 }
 
-/** Every ranked summary shows ten entries; expanded people are read in bounded pages. */
+/** Ranked summaries show ten entries; expanded people are read in bounded pages. */
 export const STATS_TOP = 10;
+/** People is a section of its own in a wide window, so its ranking opens with thirty. */
+export const POSTERS_TOP = 30;
 export const POSTERS_PAGE_SIZE = 50;
 export const POSTERS_PAGE_MAX = 200;
 

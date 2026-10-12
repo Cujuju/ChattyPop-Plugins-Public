@@ -1,6 +1,6 @@
 // Analytics counts over the visible archive; scope metadata and URL shares retain their existing read grants.
 import type { PluginDb } from '@plugin-sdk/core';
-import { POSTERS_PAGE_MAX, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster } from '../shared/types';
+import { POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster } from '../shared/types';
 import { type StatsSqlScope } from './query';
 import { totals } from './overview';
 import { hourlyHistogram, timeStats } from './histogram';
@@ -87,7 +87,7 @@ export function activityStats(db: PluginDb, q: ActivityQuery): ActivityStats {
     query: q,
     ...overview,
     ...timeStats(hourlyHistogram(db, scope), start, lastTs),
-    posters: posters(db, scope, 0, STATS_TOP),
+    posters: posters(db, scope, 0, POSTERS_TOP),
     channels: channels(db, scope),
     editDelay: editDelay(db, scope),
     attachmentTypes: attachmentTypes(db, scope),
