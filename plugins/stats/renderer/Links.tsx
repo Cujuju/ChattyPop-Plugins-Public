@@ -2,14 +2,13 @@ import { For, Show } from 'solid-js';
 import { BrandIcon, look, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { ChannelRows } from './ChannelRows';
 import { PosterRow } from './PosterRow';
-import { CountRows, SectionHeading, Subheading, type StatsSectionProps } from './section';
+import { CountRows, Subheading, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
 
 export function Links(props: StatsSectionProps) {
   const personChannel = () => props.stats().query.scope === 'all' ? null : shownChannelId();
   return (
     <section class={styles.section} aria-label="Links">
-      <SectionHeading>Links</SectionHeading>
       <Show when={props.stats().linkedMessages} fallback={<p class={look.text} data-size="sm" data-tone="muted">No link shares in this range.</p>}>
         <Subheading>Top link domains</Subheading>
         <CountRows rows={props.stats().domains.map((d) => ({ name: d.domain, count: d.count }))} lead={(domain) => <BrandIcon domain={domain} />} />

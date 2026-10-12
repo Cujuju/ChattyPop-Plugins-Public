@@ -9,6 +9,7 @@ import { createPosterPages } from './posterPages';
 
 export const [statsScope, setStatsScope] = pluginPreference(plugin, 'scope');
 export const [statsRange, setStatsRange] = pluginPreference(plugin, 'range');
+export const [statsSection, setStatsSection] = pluginPreference(plugin, 'section');
 
 /** Open Analytics panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
 const [mounted, setMounted] = createSignal(0);

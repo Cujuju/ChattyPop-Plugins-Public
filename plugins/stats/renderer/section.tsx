@@ -18,10 +18,6 @@ export const countLabel = (n: number, word: string, many = `${word}s`): string =
 /** Charts and ranked rows use the existing fraction variable. */
 export const share = (n: number, max: number): Record<string, string> => ({ '--v': String(max ? n / max : 0) });
 
-export function SectionHeading(props: { children: JSX.Element }) {
-  return <h2 class={`${styles.heading} ${look.text}`} {...HEADING}>{props.children}</h2>;
-}
-
 export function Subheading(props: { children: JSX.Element }) {
   return <h3 class={`${styles.heading} ${look.text}`} {...HEADING}>{props.children}</h3>;
 }

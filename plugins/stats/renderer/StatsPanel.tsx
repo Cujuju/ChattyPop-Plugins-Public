@@ -1,7 +1,7 @@
 import { Show, onCleanup } from 'solid-js';
-import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, Select, shownChannelId } from '@plugin-sdk/renderer/kit';
-import { refreshStats, setStatsRange, setStatsScope, stats, statsPanelMounted, statsRange, statsScope } from './state';
-import { STATS_RANGES, STATS_SCOPES, type StatsRange, type StatsScope } from '../shared/types';
+import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, SectionSplit, Select, shownChannelId, type SectionDef } from '@plugin-sdk/renderer/kit';
+import { refreshStats, setStatsRange, setStatsScope, setStatsSection, stats, statsPanelMounted, statsRange, statsScope, statsSection } from './state';
+import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
 import { STATS_PANEL } from '../shared';
 import { Overview } from './Overview';
 import { Messages } from './Messages';
@@ -12,7 +12,9 @@ import { Timeline } from './Timeline';
 import { countLabel } from './section';
 import styles from './Stats.module.css';
 
-/** Analytics stacks independently mountable sections in the panel's scrolling body. */
+const SECTION_VIEWS = { overview: Overview, messages: Messages, people: People, channels: Channels, links: Links, timeline: Timeline };
+
+/** Analytics opens one section beside a caller-owned rail, with scope and range above it. */
 export function StatsPanel() {
   onCleanup(statsPanelMounted());
   return (
@@ -34,19 +36,20 @@ export function StatsPanel() {
           <Select class={styles.select} label="Scope" value={statsScope()} options={Object.entries(STATS_SCOPES).map(([value, label]) => ({ value, label }))} onChange={(v) => setStatsScope(v as StatsScope)} />
           <Select class={styles.select} label="Date range" value={statsRange()} options={Object.entries(STATS_RANGES).map(([value, range]) => ({ value, label: range.label }))} onChange={(v) => setStatsRange(v as StatsRange)} />
         </div>
-        <div class={`cp-panel-body ${styles.body}`} aria-busy={stats.loading}>
+        <div class="cp-panel-body cp-settings-page" aria-busy={stats.loading}>
           <Show when={stats.failure}><p class="cp-error" role="alert">Couldn't load Analytics.</p></Show>
           <Show when={stats.loading && !stats()}><p class={look.text} data-size="md" data-tone="muted" role="status">Loading Analytics…</p></Show>
-          <Show when={stats()}>{(s) => (
-            <Show when={s().messages} fallback={<p class={look.text} data-size="md" data-tone="muted">{statsScope() !== 'all' && !shownChannelId() ? 'Open a channel to count it, or choose Everything.' : 'No messages in this range.'}</p>}>
-              <Overview stats={s} />
-              <Messages stats={s} />
-              <People stats={s} />
-              <Channels stats={s} />
-              <Links stats={s} />
-              <Timeline stats={s} />
-            </Show>
-          )}</Show>
+          <Show when={stats()}>{(s) => {
+            const sections: SectionDef[] = Object.entries(STATS_SECTIONS).map(([id, label]) => {
+              const View = SECTION_VIEWS[id as StatsSection];
+              return { id, label, body: () => <View stats={s} /> };
+            });
+            return (
+              <Show when={s().messages} fallback={<p class={look.text} data-size="md" data-tone="muted">{statsScope() !== 'all' && !shownChannelId() ? 'Open a channel to count it, or choose Everything.' : 'No messages in this range.'}</p>}>
+                <SectionSplit title="Analytics" sections={sections} openId={statsSection()} onOpen={(id) => setStatsSection(id as StatsSection)} />
+              </Show>
+            );
+          }}</Show>
         </div>
       </Show>
     </section>

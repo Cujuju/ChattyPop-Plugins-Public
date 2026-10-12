@@ -2,7 +2,7 @@ import { For, Show } from 'solid-js';
 import { look, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { createPosterList } from './state';
 import { PosterRow } from './PosterRow';
-import { SectionHeading, Subheading, countLabel, type StatsSectionProps } from './section';
+import { Subheading, countLabel, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
 
 export function People(props: StatsSectionProps) {
@@ -12,7 +12,6 @@ export function People(props: StatsSectionProps) {
   const max = () => posters()[0]?.count ?? 0;
   return (
     <section class={styles.section} aria-label="People">
-      <SectionHeading>People</SectionHeading>
       <Subheading>{pages.expanded() ? 'All posters' : 'Top posters'}</Subheading>
       <ol class={styles.list} aria-busy={pages.loading()}>
         <For each={posters()}>{(poster, index) => <PosterRow poster={poster} rank={index() + 1} channelId={personChannel()} max={max()} />}</For>

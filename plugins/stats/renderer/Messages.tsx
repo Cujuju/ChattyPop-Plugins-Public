@@ -1,7 +1,7 @@
 import { For } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
 import { EDIT_DELAY_BUCKETS } from '../shared/types';
-import { CHART_LABEL, CountRows, SectionHeading, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
+import { CHART_LABEL, CountRows, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
@@ -20,7 +20,6 @@ export function Messages(props: StatsSectionProps) {
   const maxCell = () => Math.max(0, ...props.stats().heatmap.flat());
   return (
     <section class={styles.section} aria-label="Messages">
-      <SectionHeading>Messages</SectionHeading>
       <Subheading>Messages per {props.stats().bucket}</Subheading>
       <div class={`${styles.bars} ${look.ruleBelow}`} role="img" aria-label={`Messages per ${props.stats().bucket}, ${formatCount(props.stats().buckets.length)} bars`}>
         <For each={props.stats().buckets}>{(b) => <span class={`${styles.bar} ${look.chartBar}`} style={share(b.count, maxBucket())} title={`${formatPeriod(b.start, 'day')}: ${countLabel(b.count, 'message')}`} />}</For>

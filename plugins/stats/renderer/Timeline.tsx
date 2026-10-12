@@ -1,6 +1,6 @@
 import { For } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
-import { CHART_LABEL, SectionHeading, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
+import { CHART_LABEL, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
@@ -10,7 +10,6 @@ export function Timeline(props: StatsSectionProps) {
   const max = (key: typeof CHARTS[number][0]) => Math.max(0, ...props.stats().timeline.map((m) => m[key]));
   return (
     <section class={styles.section} aria-label="Timeline">
-      <SectionHeading>Timeline</SectionHeading>
       <p class={look.text} data-size="xs" data-tone="muted">New people posted their first message in this scope during that month.</p>
       <For each={CHARTS}>{([key, label]) => (
         <>

@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
-import { SectionHeading, Subheading, countLabel, formatCount, type StatsSectionProps } from './section';
+import { Subheading, countLabel, formatCount, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
@@ -13,7 +13,6 @@ const PERIODS = ['hour', 'day', 'month', 'year'] as const;
 export function Overview(props: StatsSectionProps) {
   return (
     <section class={styles.section} aria-label="Overview">
-      <SectionHeading>Overview</SectionHeading>
       <ul class={styles.list}>
         <For each={TOTALS}>{([key, label]) => (
           <li class={`${styles.row} ${look.text}`} data-size="sm" data-tone="primary">
