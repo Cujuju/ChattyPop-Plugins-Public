@@ -1,7 +1,7 @@
 // #85 Analytics panel: what it counts (scope follows the shown channel) and the counts from core.
 import { createEffect, createSignal, on, onCleanup } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
-import { STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope } from '../shared/types';
+import { STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { isPanelCollapsed, shownChannelId } from '@plugin-sdk/renderer/kit';
@@ -35,7 +35,15 @@ export const stats = pluginResource(plugin, 'activityStats', () => {
   const c = choices();
   return c && [queryOf(c)];
 }, null);
-export const refreshStats = (): Promise<void> => stats.refetch();
+const sectionQuery = (section: StatsSection): [ActivityQuery] | undefined => {
+  if (statsSection() !== section) return undefined;
+  const c = choices();
+  return c && [queryOf(c)];
+};
+
+export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null);
+export const statsLoading = (): boolean => stats.loading || emoji.loading;
+export const refreshStats = async (): Promise<void> => { await Promise.all([stats.refetch(), emoji.refetch()]); };
 
 const [privacyChanges, setPrivacyChanges] = createSignal(0);
 

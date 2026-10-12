@@ -1,6 +1,6 @@
 import { Show, onCleanup } from 'solid-js';
 import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, SectionSplit, Select, shownChannelId, type SectionDef } from '@plugin-sdk/renderer/kit';
-import { refreshStats, setStatsRange, setStatsScope, setStatsSection, stats, statsPanelMounted, statsRange, statsScope, statsSection } from './state';
+import { refreshStats, setStatsRange, setStatsScope, setStatsSection, stats, statsLoading, statsPanelMounted, statsRange, statsScope, statsSection } from './state';
 import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
 import { STATS_PANEL } from '../shared';
 import { Overview } from './Overview';
@@ -9,10 +9,11 @@ import { People } from './People';
 import { Channels } from './Channels';
 import { Links } from './Links';
 import { Timeline } from './Timeline';
+import { Emoji } from './Emoji';
 import { countLabel } from './section';
 import styles from './Stats.module.css';
 
-const SECTION_VIEWS = { overview: Overview, messages: Messages, people: People, channels: Channels, links: Links, timeline: Timeline };
+const SECTION_VIEWS = { overview: Overview, messages: Messages, people: People, channels: Channels, links: Links, timeline: Timeline, emoji: Emoji };
 
 /** Analytics opens one section beside a caller-owned rail, with scope and range above it. */
 export function StatsPanel() {
@@ -26,7 +27,7 @@ export function StatsPanel() {
         meta={stats() ? `${countLabel(stats()!.messages, 'message')} · ${countLabel(stats()!.authors, 'person', 'people')}` : undefined}
       >
         <HeaderActions>
-          <HeaderButton variant="icon" aria-label="Refresh analytics" title="Refresh" disabled={stats.loading} onClick={() => void refreshStats()}>
+          <HeaderButton variant="icon" aria-label="Refresh analytics" title="Refresh" disabled={statsLoading()} onClick={() => void refreshStats()}>
             <Icon name="refresh" />
           </HeaderButton>
         </HeaderActions>
