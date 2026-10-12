@@ -105,6 +105,14 @@
   text-align: left;
 }
 
+/* What leads a row before its name (a site's mark): beside the name, which gives way first. */
+.rowLead {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-3);
+  min-width: 0;
+}
+
 /* A person in a ranked row: rank, avatar at text size, then the name, which gives way first. */
 .posterIdentity {
   --cp-chat-avatar: var(--cp-avatar-xs);
