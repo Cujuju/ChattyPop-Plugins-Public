@@ -51,7 +51,7 @@ describe("Plans' provider", () => {
     expect(h.asked[0]).toMatchObject({ model: 'opus', effort: 'high' });
   });
 
-  it('none chosen, or turned off: the hit is dropped, saying where to choose or why', async () => {
+  it('none chosen, or not added: the hit is dropped, saying where to choose or why', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     onTestFinished(() => warn.mockRestore());
     const h = start();
@@ -60,7 +60,7 @@ describe("Plans' provider", () => {
     h.t.preferences.set('settings', { defaultProvider: 'claude' });
     h.saveAi({ providers: { claude: { enabled: false } } });
     h.hit();
-    await vi.waitFor(() => expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[plans\] not extracted: claude: Turned off/)));
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^\[plans\] not extracted: claude: Not added/)));
     expect(h.asked).toEqual([]);
     expect(h.extracted()).toEqual([]);
   });
