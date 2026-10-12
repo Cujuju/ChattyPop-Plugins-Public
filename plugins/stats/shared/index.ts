@@ -1,6 +1,6 @@
 // #85 Analytics: who posts most, when, and in which channels, for the shown channel, its server or everything.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { STATS_RANGES, STATS_SCOPES, isKey, type ActivityQuery, type ActivityStats, type StatsRange, type StatsScope } from './types';
+import { STATS_RANGES, STATS_SCOPES, isKey, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster, type StatsRange, type StatsScope } from './types';
 
 export const manifest = {
   id: 'stats',
@@ -15,11 +15,12 @@ export const STATS_PANEL = 'stats' as const;
 /** Core's calls, from the panel. */
 export interface StatsCoreCalls {
   activityStats(q: ActivityQuery): ActivityStats;
+  postersPage(q: PostersQuery): StatsPoster[];
 }
 
 export const plugin = definePlugin({
   manifest,
-  channels: defineChannels<{ core: StatsCoreCalls }>()({ core: { activityStats: ['renderer'] } }),
+  channels: defineChannels<{ core: StatsCoreCalls }>()({ core: { activityStats: ['renderer'], postersPage: ['renderer'] } }),
   // The panel's scope and range choices.
   preferences: {
     scope: definePreference<StatsScope>({ default: 'channel', normalize: (v) => (isKey(STATS_SCOPES)(v) ? v : 'channel') }),

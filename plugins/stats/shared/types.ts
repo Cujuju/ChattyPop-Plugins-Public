@@ -1,3 +1,5 @@
+import { MS_PER_MIN, MS_PER_HOUR, MS_PER_DAY } from '@plugin-sdk/shared';
+
 /** The panel's scope choices and their labels. */
 export const STATS_SCOPES = { channel: 'This channel', server: 'This server', all: 'Everything' } as const;
 export type StatsScope = keyof typeof STATS_SCOPES;
@@ -26,16 +28,76 @@ export interface ActivityQuery {
   sinceTs: number | null;
 }
 
+/** One ranked person, including the avatar hash exposed by the archive. */
+export interface StatsPoster {
+  userId: string;
+  name: string;
+  avatar: string | null;
+  count: number;
+}
+
+export interface PostersQuery extends ActivityQuery {
+  offset: number;
+  limit: number;
+}
+
+export interface StatsChannel {
+  channelId: string;
+  name: string;
+  count: number;
+}
+
+export interface StatsPeriod {
+  /** Local start, with hour precision for hours and date precision otherwise. */
+  start: string;
+  count: number;
+}
+
+/** Every ranked summary shows ten entries; expanded people are read in bounded pages. */
+export const STATS_TOP = 10;
+export const POSTERS_PAGE_SIZE = 50;
+export const POSTERS_PAGE_MAX = 200;
+
+/** Minute, hour, day and week boundaries separate immediate corrections from later revisions. */
+const EDIT_IMMEDIATE_MS = MS_PER_MIN;
+const EDIT_SAME_HOUR_MS = MS_PER_HOUR;
+const EDIT_SAME_DAY_MS = MS_PER_DAY;
+const EDIT_SAME_WEEK_DAYS = 7;
+const EDIT_SAME_WEEK_MS = EDIT_SAME_WEEK_DAYS * MS_PER_DAY;
+export const EDIT_DELAY_BUCKETS = [
+  { id: 'minute', label: 'Under a minute', beforeMs: EDIT_IMMEDIATE_MS },
+  { id: 'hour', label: 'A minute to an hour', beforeMs: EDIT_SAME_HOUR_MS },
+  { id: 'day', label: 'An hour to a day', beforeMs: EDIT_SAME_DAY_MS },
+  { id: 'week', label: 'A day to a week', beforeMs: EDIT_SAME_WEEK_MS },
+  { id: 'later', label: 'A week or later', beforeMs: null },
+] as const;
+export const ATTACHMENT_KINDS = ['image', 'video', 'audio', 'other'] as const;
+
 export interface ActivityStats {
+  /** The exact range anchor used for this read and subsequent poster pages. */
+  query: ActivityQuery;
   messages: number;
   authors: number;
+  activeDays: number;
+  editedMessages: number;
+  textMessages: number;
+  linkedMessages: number;
+  attachmentMessages: number;
+  mostActive: Record<'hour' | 'day' | 'month' | 'year', StatsPeriod | null>;
   /** Bar width of `buckets`: days for short spans, weeks (from Monday) for long ones. */
   bucket: 'day' | 'week';
   /** Local-date start of each non-empty bucket (YYYY-MM-DD), oldest first. */
   buckets: { start: string; count: number }[];
   /** Messages by local weekday (0 = Sunday) then hour (0–23). */
   heatmap: number[][];
-  posters: { userId: string; name: string; count: number }[];
+  posters: StatsPoster[];
+  channels: StatsChannel[];
+  editDelay: { id: typeof EDIT_DELAY_BUCKETS[number]['id']; count: number }[];
+  attachmentTypes: { kind: typeof ATTACHMENT_KINDS[number]; count: number }[];
   /** Link shares by host name, most first. */
   domains: { domain: string; count: number }[];
+  linksByPerson: StatsPoster[];
+  linksByChannel: StatsChannel[];
+  /** Every local month from the range start through the last message, including empty months. */
+  timeline: { start: string; activePosters: number; newPosters: number }[];
 }

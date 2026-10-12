@@ -5,31 +5,131 @@ import { privacyScope } from '@core/queries/privacy';
 import { tempDb } from '@chattypop/host-testing';
 import { statementPlans } from '@chattypop/host-testing/queryPlan';
 import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
-import { activityStats } from '../core/stats';
+import { activityStats, postersPage } from '../core/stats';
 import type { ActivityQuery } from '../shared/types';
+import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, STATS_TOP } from '../shared/types';
+import { MS_PER_MIN } from '@plugin-sdk/shared';
 
 /** Analytics over the whole archive: the heaviest stats read. */
 const ALL_TIME: ActivityQuery = { scope: 'all', channelId: null, sinceTs: null };
 
 /** Visible messages computed outside SQL from the privacy scope: the parity oracle. */
-function visibleMessages(db: Db): { id: string; author_id: string }[] {
+interface Message {
+  id: string;
+  channel_id: string;
+  author_id: string;
+  ts: number;
+  edited_ts: number | null;
+  content: string;
+}
+
+function visibleMessages(db: Db): Message[] {
   const { channelIds, guildIds } = privacyScope(db);
   const hidden = [...channelIds, ...guildIds];
-  return (db.prepare('SELECT id, channel_id, author_id, content FROM messages').all() as { id: string; channel_id: string; author_id: string; content: string }[])
+  return (db.prepare('SELECT id, channel_id, author_id, ts, edited_ts, content FROM messages').all() as Message[])
     .filter((m) => !channelIds.includes(m.channel_id) && !hidden.some((id) => m.content.includes(id)));
+}
+
+const EDIT_EVERY_MESSAGES = 11;
+const ATTACHMENT_EVERY_MESSAGES = 19;
+const LOCAL_DATE_PAD = 2;
+const MONTH_NUMBER_OFFSET = 1;
+
+function seedCounts(db: Db): void {
+  const rows = db.prepare('SELECT id, channel_id FROM messages ORDER BY seq').all() as Pick<Message, 'id' | 'channel_id'>[];
+  const edit = db.prepare('UPDATE messages SET edited_ts = ts + ? WHERE id = ?');
+  const attach = db.prepare('INSERT INTO attachments (id, message_id, channel_id, filename, content_type, url) VALUES (?, ?, ?, ?, ?, ?)');
+  for (const [index, row] of rows.entries()) {
+    if (index % EDIT_EVERY_MESSAGES === 0) edit.run(index * MS_PER_MIN, row.id);
+    if (index % ATTACHMENT_EVERY_MESSAGES === 0) {
+      const kind = ATTACHMENT_KINDS[index % ATTACHMENT_KINDS.length]!;
+      attach.run(`a-${index}`, row.id, row.channel_id, 'file', kind === 'other' ? null : `${kind}/test`, 'https://cdn.example/file');
+    }
+  }
+}
+
+const pad = (n: number): string => String(n).padStart(LOCAL_DATE_PAD, '0');
+function localStart(ts: number, period: 'hour' | 'day' | 'month' | 'year'): string {
+  const d = new Date(ts);
+  const year = d.getFullYear();
+  const month = period === 'year' ? '01' : pad(d.getMonth() + MONTH_NUMBER_OFFSET);
+  const day = period === 'year' || period === 'month' ? '01' : pad(d.getDate());
+  return `${year}-${month}-${day}${period === 'hour' ? `T${pad(d.getHours())}:00:00` : ''}`;
+}
+
+function ranked(values: string[]): { id: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const id of values) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+}
+
+/** JS grouping over raw fixture rows is independent of the plugin's aggregate SQL. */
+function expectCounts(db: Db): void {
+  const visible = visibleMessages(db);
+  const byId = new Map(visible.map((m) => [m.id, m]));
+  const attachments = (db.prepare('SELECT message_id, content_type FROM attachments').all() as { message_id: string; content_type: string | null }[])
+    .filter((a) => byId.has(a.message_id));
+  const shares = (db.prepare('SELECT message_id FROM message_links').all() as { message_id: string }[]).filter((s) => byId.has(s.message_id));
+  const stats = activityStats(db, ALL_TIME);
+  expect(stats.activeDays).toBe(new Set(visible.map((m) => localStart(m.ts, 'day'))).size);
+  const edited = visible.filter((m) => m.edited_ts !== null);
+  expect(stats.editedMessages).toBe(edited.length);
+  expect(stats.textMessages).toBe(visible.filter((m) => m.content.trim() !== '').length);
+  expect(stats.linkedMessages).toBe(new Set(shares.map((s) => s.message_id)).size);
+  expect(stats.attachmentMessages).toBe(new Set(attachments.map((a) => a.message_id)).size);
+  for (const period of ['hour', 'day', 'month', 'year'] as const) {
+    const first = ranked(visible.map((m) => localStart(m.ts, period)))[0];
+    expect(stats.mostActive[period]).toEqual(first ? { start: first.id, count: first.count } : null);
+  }
+  expect(stats.channels.map((c) => ({ id: c.channelId, count: c.count }))).toEqual(ranked(visible.map((m) => m.channel_id)).slice(0, STATS_TOP));
+  expect(stats.posters.map((p) => ({ id: p.userId, count: p.count }))).toEqual(ranked(visible.map((m) => m.author_id)).slice(0, STATS_TOP));
+  expect(stats.linksByPerson.map((p) => ({ id: p.userId, count: p.count }))).toEqual(ranked(shares.map((s) => byId.get(s.message_id)!.author_id)).slice(0, STATS_TOP));
+  expect(stats.linksByChannel.map((c) => ({ id: c.channelId, count: c.count }))).toEqual(ranked(shares.map((s) => byId.get(s.message_id)!.channel_id)).slice(0, STATS_TOP));
+  expect(stats.editDelay).toEqual(EDIT_DELAY_BUCKETS.map((bucket) => ({
+    id: bucket.id,
+    count: edited.filter((m) => EDIT_DELAY_BUCKETS.find((b) => b.beforeMs === null || m.edited_ts! - m.ts < b.beforeMs)!.id === bucket.id).length,
+  })));
+  expect(stats.attachmentTypes).toEqual(ATTACHMENT_KINDS.map((kind) => ({ kind, count: attachments.filter((a) => {
+    const prefix = a.content_type?.split('/')[0];
+    return (prefix && ATTACHMENT_KINDS.includes(prefix as typeof kind) ? prefix : 'other') === kind;
+  }).length })));
+  const firstByPerson = new Map<string, number>();
+  for (const m of visible) firstByPerson.set(m.author_id, Math.min(firstByPerson.get(m.author_id) ?? Infinity, m.ts));
+  for (const month of stats.timeline) {
+    expect(month.activePosters).toBe(new Set(visible.filter((m) => localStart(m.ts, 'month') === month.start).map((m) => m.author_id)).size);
+    expect(month.newPosters).toBe([...firstByPerson.values()].filter((ts) => localStart(ts, 'month') === month.start).length);
+  }
+  expect(postersPage(db, { ...ALL_TIME, offset: STATS_TOP, limit: POSTERS_PAGE_MAX }).map((p) => ({ id: p.userId, count: p.count })))
+    .toEqual(ranked(visible.map((m) => m.author_id)).slice(STATS_TOP, STATS_TOP + POSTERS_PAGE_MAX));
 }
 
 describe('activity stats under privacy mode', () => {
   it.each([false, true])('checks the scope once per statement and each message against the hidden ids alone (hiding: %s)', (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    seedCounts(db);
     if (hiding) hideSome(db, fixture);
-    const details = statementPlans(db, () => activityStats(db, ALL_TIME)).join('\n');
+    const details = statementPlans(db, () => {
+      activityStats(db, ALL_TIME);
+      postersPage(db, { ...ALL_TIME, offset: STATS_TOP, limit: STATS_TOP });
+    }).join('\n');
     // Whether anything is hidden: an uncorrelated subquery, run once.
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     // Per message: a scan of the few hidden ids (#135), never the channels and servers the scope derives from.
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
     expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
+  });
+
+  it.each([false, true])('matches every new aggregate and poster page to raw fixture rows (hiding: %s)', (hiding) => {
+    const db = tempDb();
+    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    seedCounts(db);
+    if (hiding) hideSome(db, fixture);
+    expectCounts(db);
+    const details = statementPlans(db, () => activityStats(db, ALL_TIME)).join('\n');
+    expect(details).toMatch(/SCAN message_links\nSEARCH (?:l|m)\b/);
+    expect(details).toMatch(/SEARCH m USING INDEX sqlite_autoindex_messages_1 \(id=\?\)/);
+    expect(details).toMatch(/SEARCH (?:a|attachments).*attachments_message/);
   });
 
   it('counts exactly the messages privacy mode leaves visible, on and off', () => {
