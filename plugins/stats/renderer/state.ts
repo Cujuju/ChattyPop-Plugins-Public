@@ -1,10 +1,11 @@
 // #85 Analytics panel: what it counts (scope follows the shown channel) and the counts from core.
-import { createSignal } from 'solid-js';
+import { createEffect, createSignal, on, onCleanup } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
 import { STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope } from '../shared/types';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
-import { onAppEvent, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
+import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { isPanelCollapsed, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { createPosterPages } from './posterPages';
 
 export const [statsScope, setStatsScope] = pluginPreference(plugin, 'scope');
 export const [statsRange, setStatsRange] = pluginPreference(plugin, 'range');
@@ -35,4 +36,21 @@ export const stats = pluginResource(plugin, 'activityStats', () => {
 }, null);
 export const refreshStats = (): Promise<void> => stats.refetch();
 
-onAppEvent('privacy-changed', () => void refreshStats());
+const [privacyChanges, setPrivacyChanges] = createSignal(0);
+
+/** Each mounted People section owns its expanded pages. */
+export function createPosterList() {
+  const pages = createPosterPages(async (q) => {
+    const call = coreClient(plugin).postersPage;
+    if (!call) throw new Error('Analytics is unavailable in this window.');
+    return pluginData(() => call(q), []);
+  });
+  createEffect(on(() => [statsScope(), statsRange(), shownChannelId(), stats(), privacyChanges(), callable(plugin, 'postersPage')], pages.reset));
+  onCleanup(pages.reset);
+  return pages;
+}
+
+onAppEvent('privacy-changed', () => {
+  setPrivacyChanges((n) => n + 1);
+  void refreshStats();
+});
