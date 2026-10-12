@@ -3,12 +3,14 @@ import type { Options } from '@anthropic-ai/claude-agent-sdk';
 
 const options: Options[] = [];
 let messages: unknown[] = [];
+/** Thrown by the run after its messages. */
+let failure: Error | null = null;
 const close = vi.fn();
 vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'test-claude', args: [] }) }));
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
   query: ({ options: value }: { options: Options }) => {
     options.push(value);
-    return { close, [Symbol.asyncIterator]: async function* () { yield* messages; } };
+    return { close, [Symbol.asyncIterator]: async function* () { yield* messages; if (failure) throw failure; } };
   },
 }));
 const { ClaudeProvider } = await import('../core/claude');
@@ -16,7 +18,7 @@ const KEY = 'test-key';
 const REQUEST = { system: '', prompt: 'hello' };
 const RESULT = { type: 'result', subtype: 'success', result: 'answer', usage: { input_tokens: 1, output_tokens: 1 }, total_cost_usd: 0 };
 
-afterEach(() => { options.length = 0; messages = []; close.mockClear(); vi.unstubAllEnvs(); });
+afterEach(() => { options.length = 0; messages = []; failure = null; close.mockClear(); vi.unstubAllEnvs(); });
 
 describe('Claude owner key', () => {
   it('passes a stored key only through the child environment and confirms its source', async () => {
@@ -52,6 +54,14 @@ describe('Claude owner key', () => {
     await claude.complete(REQUEST);
     expect(options[0]?.env?.ANTHROPIC_API_KEY).toBe(KEY);
     expect(options[1]?.env?.ANTHROPIC_API_KEY).toBe(process.env.ANTHROPIC_API_KEY);
+  });
+  it('a failure that does not echo the key keeps its own error, so an abort stays an abort', async () => {
+    failure = new DOMException('stopped', 'AbortError');
+    await expect(new ClaudeProvider(() => KEY).complete(REQUEST)).rejects.toBe(failure);
+  });
+  it('a failure that echoes the key is reported without it', async () => {
+    failure = new Error(`rejected ${KEY}`);
+    await expect(new ClaudeProvider(() => KEY).complete(REQUEST)).rejects.toThrow('rejected [API key]');
   });
   it('API key payments have no plan usage and start no subprocess', async () => {
     await expect(new ClaudeProvider(() => KEY).planUsage()).resolves.toBeNull();

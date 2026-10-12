@@ -113,7 +113,8 @@ export class ClaudeProvider implements LlmProvider {
       }
       throw new Error('Claude run ended without a result.');
     } catch (err) {
-      if (key && err instanceof Error) throw new Error(err.message.replaceAll(key, '[API key]'));
+      // Rewritten only when it echoes the key, so an abort keeps its own error.
+      if (key && err instanceof Error && err.message.includes(key)) throw new Error(err.message.replaceAll(key, '[API key]'));
       throw err;
     } finally {
       q.close();
