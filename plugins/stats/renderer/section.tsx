@@ -26,13 +26,16 @@ export function Subheading(props: { children: JSX.Element }) {
   return <h3 class={`${styles.heading} ${look.text}`} {...HEADING}>{props.children}</h3>;
 }
 
-export function CountRows(props: { rows: { name: string; count: number }[] }) {
+export function CountRows(props: { rows: { name: string; count: number }[]; lead?: (name: string) => JSX.Element }) {
   const max = () => Math.max(0, ...props.rows.map((r) => r.count));
   return (
     <ul class={styles.list}>
       <For each={props.rows}>{(row) => (
         <li class={`${styles.row} ${look.shareBar} ${look.text}`} {...SHARE_ROW} style={share(row.count, max())}>
-          <span class={styles.rowName}>{row.name}</span>
+          <span class={styles.rowLead}>
+            {props.lead?.(row.name)}
+            <span class={styles.rowName}>{row.name}</span>
+          </span>
           <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{formatCount(row.count)}</span>
         </li>
       )}</For>
