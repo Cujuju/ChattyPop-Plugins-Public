@@ -37,14 +37,33 @@ interface OllamaLoaded {
   models: { name: string; context_length: number }[];
 }
 
-/** The non-streamed chat answer, including why generation stopped. */
-interface OllamaChatResponse {
-  message?: { content?: string };
+/** One line of /api/chat's stream: a piece of the model's thinking or of its answer; the last says why generation stopped. */
+interface OllamaChatLine {
+  message?: { content?: string; thinking?: string };
   error?: string;
   done?: boolean;
   done_reason?: string;
   prompt_eval_count?: number;
   eval_count?: number;
+}
+
+/** Splits a streamed body into JSON lines. A reader that stops early closes the body, which ends the server's work. */
+export async function* jsonLines<T>(body: ReadableStream<Uint8Array>): AsyncGenerator<T> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffered = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      buffered += decoder.decode(value, { stream: !done });
+      const lines = buffered.split('\n');
+      buffered = done ? '' : (lines.pop() ?? '');
+      for (const line of lines) if (line.trim()) yield JSON.parse(line) as T;
+      if (done) return;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined); // already ended or failed: nothing left to close
+  }
 }
 
 /** `/api/show` fields that say how a model thinks; `thinking` is absent on older servers. */
@@ -117,7 +136,11 @@ export async function applyUnloadAfter(net: PluginFetch, baseUrl: string, unload
   );
 }
 
-/** Local models through Ollama's native chat API (structured output via `format`). */
+/**
+ * Local models through Ollama's native chat API (structured output via `format`), streamed: a model's thinking and its
+ * answer arrive apart, so `maxOutputTokens` limits the answer alone. Ollama's own limit (`num_predict`) counts both, and
+ * a thinking model can spend it all before answering.
+ */
 export class OllamaProvider implements LlmProvider {
   readonly id = 'ollama' as const;
   readonly maxInputChars = OLLAMA_MAX_INPUT_CHARS;
@@ -151,8 +174,8 @@ export class OllamaProvider implements LlmProvider {
       signal: req.signal ?? null,
       body: JSON.stringify({
         model,
-        stream: false,
-        options: { num_ctx: OLLAMA_NUM_CTX_TOKENS, ...(req.maxOutputTokens ? { num_predict: req.maxOutputTokens } : {}) },
+        stream: true,
+        options: { num_ctx: OLLAMA_NUM_CTX_TOKENS },
         ...keepAliveField(this.unloadAfterS),
         ...(req.effort ? { think: toThink(req.effort) } : {}),
         messages: [
@@ -163,23 +186,40 @@ export class OllamaProvider implements LlmProvider {
       }),
     });
     if (!res.ok) throw new Error(`Ollama ${res.status}: ${await res.text()}`);
-    let body: OllamaChatResponse | null;
+    /** The answer so far; undefined until a line carries some. */
+    let text: string | undefined;
+    // Each line carries about one token: lines counted 4,329 where Ollama reported 4,356 output tokens.
+    let answerTokens = 0;
+    let thought = false;
+    /** The last line read: it carries why generation stopped and the token counts. */
+    let body: OllamaChatLine | null = null;
+    const invalid = (): Error => new Error(`Ollama (${model}) returned an invalid API response.`);
+    if (!res.body) throw invalid();
     try {
-      body = (await res.json()) as OllamaChatResponse | null;
+      for await (const line of jsonLines<OllamaChatLine | null>(res.body)) {
+        body = line;
+        if (typeof line?.error === 'string') throw new Error(`Ollama (${model}): ${line.error}`);
+        if (line?.message?.thinking) thought = true;
+        const piece = line?.message?.content;
+        if (typeof piece !== 'string') continue;
+        text = (text ?? '') + piece;
+        if (piece) answerTokens++;
+        // Leaving the loop closes the stream, so the model stops generating.
+        if (req.maxOutputTokens && answerTokens > req.maxOutputTokens)
+          throw new Error(`Ollama (${model}) reached its output token limit; the response may be incomplete (answer limit: ${req.maxOutputTokens} tokens).`);
+      }
     } catch (err) {
       if (!(err instanceof SyntaxError)) throw err; // Cancellation and response-body read failures keep their identity.
-      throw new Error(`Ollama (${model}) returned an invalid API response.`);
+      throw invalid();
     }
-    if (typeof body?.error === 'string') throw new Error(`Ollama (${model}): ${body.error}`);
     const details = [
       typeof body?.done_reason === 'string' ? `stop reason: ${body.done_reason}` : 'stop reason not reported',
       ...(typeof body?.eval_count === 'number' ? [`output tokens: ${body.eval_count}`] : []),
     ].join('; ');
     const failure = (message: string): Error => new Error(`Ollama (${model}) ${message} (${details}).`);
-    // A token-limited answer can even parse as JSON while its transcription or summary is incomplete.
-    if (body?.done_reason === 'length') throw failure('reached its output token limit; the response may be incomplete');
+    // Ollama's own limit (its context window). A token-limited answer can even parse as JSON while its transcription or summary is incomplete.
+    if (body?.done_reason === 'length') throw failure(thought && !text ? 'ran out of output while thinking and gave no answer' : 'reached its output token limit; the response may be incomplete');
     if (body?.done === false) throw failure('returned an unfinished response');
-    const text = body?.message?.content;
     if (typeof text !== 'string') throw failure('returned no response text');
     const usage = { inputTokens: body?.prompt_eval_count ?? 0, cachedInputTokens: 0, outputTokens: body?.eval_count ?? 0 };
     if (!req.schema) return { text, usage };

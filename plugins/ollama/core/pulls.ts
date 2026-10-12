@@ -2,6 +2,7 @@
 import { errorMessage } from '@plugin-sdk/shared';
 import type { PluginFetch } from '@plugin-sdk/core';
 import type { OllamaPull } from '../shared/types';
+import { jsonLines } from './ollama';
 
 /** Coalesces Ollama's many progress lines a second into one event. */
 const PROGRESS_EVENT_MS = 250;
@@ -22,21 +23,6 @@ interface Job {
   /** Each layer's progress by digest: a model downloads several. */
   layers: Map<string, { completed: number; total: number }>;
   abort: AbortController;
-}
-
-/** Splits a streamed body into JSON lines. */
-async function* jsonLines(body: ReadableStream<Uint8Array>): AsyncGenerator<PullLine> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffered = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    buffered += decoder.decode(value, { stream: !done });
-    const lines = buffered.split('\n');
-    buffered = done ? '' : (lines.pop() ?? '');
-    for (const line of lines) if (line.trim()) yield JSON.parse(line) as PullLine;
-    if (done) return;
-  }
 }
 
 /** Where the names of models being downloaded are kept across runs. */
@@ -139,7 +125,7 @@ export class ModelPulls {
       })();
       throw new Error(error ?? `Ollama ${res.status}: ${text}`);
     }
-    for await (const line of jsonLines(res.body)) {
+    for await (const line of jsonLines<PullLine>(res.body)) {
       if (line.error) throw new Error(line.error);
       if (line.status === PULL_SUCCESS) return;
       if (line.status) job.pull.step = line.status;

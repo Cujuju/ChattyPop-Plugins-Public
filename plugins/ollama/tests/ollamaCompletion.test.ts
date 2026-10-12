@@ -13,13 +13,47 @@ function provider(response: Response) {
   return { net, p: new OllamaProvider(net, OLLAMA_DEFAULT_URL, MODEL) };
 }
 
+/** A response streamed as Ollama does, one JSON line per piece; `closed`: called when its reader closes it before the last. */
+function streamed(lines: readonly object[]) {
+  const closed = vi.fn();
+  const body = new ReadableStream<Uint8Array>({
+    start(c) {
+      for (const line of lines) c.enqueue(new TextEncoder().encode(`${JSON.stringify(line)}\n`));
+      c.close();
+    },
+    cancel: closed,
+  });
+  return { response: new Response(body), closed };
+}
+
 describe('Ollama completion responses', () => {
   it('returns completed structured output and usage with the existing request options', async () => {
     const content = '{"text":"hello"}';
     const { p, net } = provider(Response.json({ message: { content }, done: true, done_reason: 'stop', prompt_eval_count: 3800, eval_count: 12 }));
     expect(await p.complete(REQUEST)).toEqual({ text: content, json: { text: 'hello' }, usage: { inputTokens: 3800, cachedInputTokens: 0, outputTokens: 12 } });
     expect(net).toHaveBeenCalledOnce();
-    expect(JSON.parse(String(net.mock.calls[0]![1]?.body))).toMatchObject({ model: MODEL, stream: false, format: SCHEMA, options: { num_ctx: 16_384, num_predict: 2048 } });
+    // The cap is not Ollama's `num_predict`, which counts thinking too.
+    expect(JSON.parse(String(net.mock.calls[0]![1]?.body))).toMatchObject({ model: MODEL, stream: true, format: SCHEMA, options: { num_ctx: 16_384 } });
+    expect(JSON.parse(String(net.mock.calls[0]![1]?.body)).options).not.toHaveProperty('num_predict');
+  });
+
+  it('limits the answer alone: thinking longer than the cap still answers', async () => {
+    const thinking = Array.from({ length: 5 }, () => ({ message: { content: '', thinking: 'hm ' }, done: false }));
+    const answer = ['{"text":', '"hi"', '}'].map((content) => ({ message: { content }, done: false }));
+    const { p } = provider(streamed([...thinking, ...answer, { message: { content: '' }, done: true, done_reason: 'stop', prompt_eval_count: 9, eval_count: 8 }]).response);
+    expect(await p.complete({ ...REQUEST, maxOutputTokens: 3 })).toEqual({ text: '{"text":"hi"}', json: { text: 'hi' }, usage: { inputTokens: 9, cachedInputTokens: 0, outputTokens: 8 } });
+  });
+
+  it('rejects an answer longer than the cap, and stops the model by closing the stream', async () => {
+    const s = streamed(['{"text":', '"a', ' long', ' answer', ' goes', ' on'].map((content) => ({ message: { content }, done: false })));
+    const { p } = provider(s.response);
+    await expect(p.complete({ ...REQUEST, maxOutputTokens: 3 })).rejects.toThrow('Ollama (qwen3-vl:8b-instruct) reached its output token limit; the response may be incomplete (answer limit: 3 tokens).');
+    expect(s.closed).toHaveBeenCalledOnce();
+  });
+
+  it('says so when the model ran out of output while still thinking', async () => {
+    const { p } = provider(streamed([{ message: { content: '', thinking: 'hm ' }, done: false }, { message: { content: '' }, done: true, done_reason: 'length', eval_count: 16_000 }]).response);
+    await expect(p.complete(REQUEST)).rejects.toThrow('Ollama (qwen3-vl:8b-instruct) ran out of output while thinking and gave no answer (stop reason: length; output tokens: 16000).');
   });
 
   it.each([
