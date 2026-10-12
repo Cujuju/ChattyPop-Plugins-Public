@@ -159,7 +159,12 @@ describe('Analytics additions', () => {
       { start: '2026-02-01', activePosters: 0, newPosters: 0 },
       { start: '2026-03-01', activePosters: 2, newPosters: 0 },
     ]);
-    expect(s.mostActive.year).toEqual({ start: '2026-01-01', count: 5 });
+    expect(s.mostActive).toEqual({
+      hour: { start: '2026-01-01T00:00:00', count: 2 },
+      day: { start: '2026-01-01', count: 2 },
+      month: { start: '2026-01-01', count: 3 },
+      year: { start: '2026-01-01', count: 5 },
+    });
   });
 
   it('preserves visible later link shares when the first share is hidden', async () => {
@@ -171,6 +176,17 @@ describe('Analytics additions', () => {
     expect(s.channels.some((c) => c.channelId === 'hidden')).toBe(false);
     expect(s.linksByPerson.some((p) => p.userId === 'private')).toBe(false);
     expect((await core.postersPage({ ...EVERYTHING, offset: 0, limit: POSTERS_PAGE_MAX })).some((p) => p.userId === 'private')).toBe(false);
+  });
+
+  it('keeps server scope on a DM to that conversation', async () => {
+    const { t, core } = analytics();
+    t.db.prepare('UPDATE channels SET guild_id = NULL WHERE id = ?').run('c3');
+    const q: ActivityQuery = { scope: 'server', channelId: 'c3', sinceTs: null };
+    const s = await core.activityStats(q);
+    expect([s.messages, s.activeDays, s.editedMessages, s.textMessages, s.linkedMessages, s.attachmentMessages]).toEqual([1, 1, 1, 1, 0, 0]);
+    expect(s.channels).toEqual([{ channelId: 'c3', name: 'Away', count: 1 }]);
+    expect(s.timeline).toEqual([{ start: '2026-01-01', activePosters: 1, newPosters: 1 }]);
+    expect((await core.postersPage({ ...q, offset: 0, limit: STATS_TOP })).map((p) => p.userId)).toEqual(['u4']);
   });
 
   it('returns complete empty summaries for absent channel scopes and empty ranges', async () => {

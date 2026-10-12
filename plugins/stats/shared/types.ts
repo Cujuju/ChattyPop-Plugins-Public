@@ -20,7 +20,7 @@ export const isKey =
   (v: unknown): v is keyof T =>
     typeof v === 'string' && Object.hasOwn(o, v);
 
-/** #85 activity stats: which messages to count. `channelId` anchors 'channel' (with its threads) and 'server' (its server). */
+/** Analytics messages to count. `channelId` anchors 'channel' (with its threads) and 'server' (its server). */
 export interface ActivityQuery {
   scope: 'channel' | 'server' | 'all';
   channelId: string | null;

@@ -6,6 +6,7 @@ type Totals = Pick<ActivityStats, 'messages' | 'authors' | 'activeDays' | 'edite
   firstTs: number | null;
   lastTs: number | null;
 };
+const SINGLE_BUSIEST_PERIOD = 1;
 
 export function totals(db: PluginDb, scope: StatsSqlScope): Totals {
   return db.prepare(`SELECT COUNT(*) AS messages, COUNT(DISTINCT m.author_id) AS authors,
@@ -27,6 +28,6 @@ export function mostActive(db: PluginDb, scope: StatsSqlScope): ActivityStats['m
   };
   const busiest = (startSql: string): StatsPeriod | null =>
     db.prepare(`SELECT ${startSql} AS start, COUNT(*) AS count FROM archive_messages m
-      WHERE ${scope.sql} GROUP BY start ORDER BY count DESC, start LIMIT 1`).get(...scope.params) as StatsPeriod | undefined ?? null;
+      WHERE ${scope.sql} GROUP BY start ORDER BY count DESC, start LIMIT ${SINGLE_BUSIEST_PERIOD}`).get(...scope.params) as StatsPeriod | undefined ?? null;
   return { hour: busiest(starts.hour), day: busiest(starts.day), month: busiest(starts.month), year: busiest(starts.year) };
 }
