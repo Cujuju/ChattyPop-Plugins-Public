@@ -58,4 +58,21 @@ describe('queued summaries', () => {
     await expect(queued).rejects.toThrow(/which is off/);
     expect(used).toEqual(['codex']);
   });
+  it('rejects a removed account choice without asking the machine account', async () => {
+    const db = adoptSummaries(tempDb());
+    seedArchive(db, [{ id: 'c1' }]).ingestMessages([rawMessage('c1', Date.now() - MS_PER_MIN, 'hello')], ARRIVAL.gateway);
+    const registry = new ProviderRegistry(() => undefined, declaredProviders());
+    const complete = vi.fn(async () => ({ text: ANSWER, json: JSON.parse(ANSWER) }));
+    registry.register('claude', { create: () => ({ id: 'claude', maxInputChars: 100_000, complete, listModels: async () => [] }), status: async () => ({ available: true, detail: '', models: [] }) });
+    const settings = normalizeAiSettings({ providers: { claude: { enabled: true } }, accounts: [] }, declaredProviders());
+    registry.bindAccounts(() => settings, () => undefined);
+    const summarizer = new Summarizer(db, (ids) => archivePayloads(db, ids), {
+      get: (id, ai) => registry.get(id, ai), decider: () => null,
+      permitted: aiSources(() => db, (id) => registry.isLocal(id)).permitted, localNames: () => [],
+    }, () => undefined);
+    const prefs = { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'claude@work' };
+    await expect(summarizer.run({ sinceTs: 0 }, settings, prefs, 'manual')).rejects.toThrow('That account was removed in Settings → AI.');
+    expect(complete).not.toHaveBeenCalled(); expect(prefs.defaultProvider).toBe('claude@work');
+  });
+
 });
