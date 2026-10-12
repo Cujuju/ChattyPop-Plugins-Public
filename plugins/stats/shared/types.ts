@@ -100,8 +100,8 @@ export interface ActivityStats {
   channels: StatsChannel[];
   editDelay: { id: typeof EDIT_DELAY_BUCKETS[number]['id']; count: number }[];
   attachmentTypes: { kind: typeof ATTACHMENT_KINDS[number]; count: number }[];
-  /** Link shares by host name, most first. */
-  domains: { domain: string; count: number }[];
+  /** Link shares by registrable site, with every contributing host; most first. */
+  domains: { domain: string; count: number; hosts: { host: string; count: number }[] }[];
   linksByPerson: StatsPoster[];
   linksByChannel: StatsChannel[];
   /** Every local month from the range start through the last message, including empty months. */

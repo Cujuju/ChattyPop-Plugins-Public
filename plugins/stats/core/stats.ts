@@ -6,6 +6,7 @@ import { totals } from './overview';
 import { hourlyHistogram, timeStats } from './histogram';
 import { attachmentTypes, editDelay } from './messages';
 import { timeline } from './timeline';
+import { domainTree } from './domains';
 
 /** SQL over messages `m`, with the same scope for every summary and poster page. */
 export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
@@ -61,27 +62,13 @@ function channels(db: PluginDb, scope: StatsSqlScope): ActivityStats['channels']
     .all(...scope.params, STATS_TOP) as ActivityStats['channels'];
 }
 
-const hostOf = (url: string): string | null => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return null;
-  }
-};
-
 function links(db: PluginDb, scope: StatsSqlScope) {
   const linkedMessages = db.prepare(`SELECT COUNT(DISTINCT m.id) ${LINK_SHARES} WHERE ${scope.sql}`)
     .pluck().get(...scope.params) as number;
   // Host names aren't stored: count shares per URL, then fold by host.
   const byUrl = db.prepare(`SELECT l.url, COUNT(*) AS n ${LINK_SHARES} WHERE ${scope.sql} GROUP BY l.id`)
     .all(...scope.params) as { url: string; n: number }[];
-  const byHost = new Map<string, number>();
-  for (const { url, n } of byUrl) {
-    const host = hostOf(url);
-    if (host) byHost.set(host, (byHost.get(host) ?? 0) + n);
-  }
-  const domains = [...byHost].map(([domain, count]) => ({ domain, count }))
-    .sort((a, b) => b.count - a.count || a.domain.localeCompare(b.domain)).slice(0, STATS_TOP);
+  const domains = domainTree(byUrl);
   const linksByPerson = db.prepare(`SELECT ${POSTER_COLUMNS} ${LINK_SHARES} LEFT JOIN archive_users u ON u.id = m.author_id
     WHERE ${scope.sql} GROUP BY m.author_id ORDER BY count DESC, userId LIMIT ?`)
     .all(...scope.params, STATS_TOP) as ActivityStats['linksByPerson'];

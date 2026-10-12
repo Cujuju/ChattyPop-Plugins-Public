@@ -1,0 +1,8 @@
+{
+  "name": "@chattypop-plugins/stats",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "tldts": "7.4.18"
+  }
+}

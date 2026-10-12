@@ -49,10 +49,10 @@ describe('activity stats', () => {
     ]);
   });
 
-  it('folds link shares by host name, dropping www.', async () => {
+  it('groups link shares by site while preserving hosts', async () => {
     expect((await start().stats({ scope: 'all', channelId: null, sinceTs: null })).domains).toEqual([
-      { domain: 'youtube.com', count: 2 },
-      { domain: 'x.com', count: 1 },
+      { domain: 'youtube.com', count: 2, hosts: [{ host: 'www.youtube.com', count: 2 }] },
+      { domain: 'x.com', count: 1, hosts: [{ host: 'x.com', count: 1 }] },
     ]);
   });
 
@@ -126,7 +126,9 @@ describe('Analytics additions', () => {
     expect(s.linksByPerson.map((p) => [p.userId, p.avatar, p.count])).toEqual([['u1', 'alice-avatar', 4], ['u2', null, 2]]);
     expect(s.linksByChannel).toEqual([{ channelId: 'c1', name: 'General', count: 6 }]);
     expect(s.domains).toEqual([
-      { domain: 'shared.example', count: 3 }, { domain: 'second.example', count: 2 }, { domain: 'third.example', count: 1 },
+      { domain: 'shared.example', count: 3, hosts: [{ host: 'shared.example', count: 3 }] },
+      { domain: 'second.example', count: 2, hosts: [{ host: 'second.example', count: 2 }] },
+      { domain: 'third.example', count: 1, hosts: [{ host: 'third.example', count: 1 }] },
     ]);
   });
 
