@@ -138,3 +138,16 @@
 .rowCount {
   flex: none;
 }
+
+/* A drawn chart fills the width at a fixed shape: the word cloud wide, the talk graph square. */
+.cloud {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2;
+}
+
+.graph {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+}
