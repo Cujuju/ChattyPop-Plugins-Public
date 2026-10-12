@@ -1,12 +1,15 @@
 import type { ConversationPerson, ConversationStats } from '../shared/conversations';
 
-/** Twenty people keep names and ties legible within a square panel. */
+/** Twenty people keep names and ties legible within the drawing. */
 export const GRAPH_PEOPLE_MAX = 20;
 /** The theme's edge and node line widths assume a viewBox about a thousand units across. */
-export const GRAPH_SIZE = 1000;
+export const GRAPH_WIDTH = 1000;
+/** Height is two thirds of the width; the SVG element takes its shape from the viewBox. */
+export const GRAPH_HEIGHT_RATIO = 2 / 3;
+export const GRAPH_HEIGHT = GRAPH_WIDTH * GRAPH_HEIGHT_RATIO;
 /** Dot areas follow exchange totals; these bounds leave both weak and strong participants visible. */
-export const GRAPH_RADIUS_MIN = GRAPH_SIZE / 100;
-export const GRAPH_RADIUS_MAX = GRAPH_SIZE / 40;
+export const GRAPH_RADIUS_MIN = GRAPH_WIDTH / 100;
+export const GRAPH_RADIUS_MAX = GRAPH_WIDTH / 40;
 
 export interface GraphNode extends ConversationPerson {
   r: number;
