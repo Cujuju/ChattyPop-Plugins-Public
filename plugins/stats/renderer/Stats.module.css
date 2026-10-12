@@ -151,3 +151,22 @@
   width: 100%;
   aspect-ratio: 1;
 }
+
+/* A site that opens to its hosts. Its native marker gives way to a mark after the count, so names line up with plain rows. */
+.siteSummary {
+  list-style: none;
+}
+
+.siteSummary .rowCount::after {
+  content: ' ▸';
+}
+
+details[open] > .siteSummary .rowCount::after {
+  content: ' ▾';
+}
+
+/* A site's hosts, set in under it. */
+.hostList {
+  margin: var(--cp-space-1) 0 var(--cp-space-2);
+  padding-left: var(--cp-space-7);
+}
