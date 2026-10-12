@@ -19,6 +19,20 @@ function start() {
 }
 
 describe('Analytics words', () => {
+  it.each([
+    { content: '[Tweet](https://x.com/a/status/1) • [@name](https://x.com/name) • [FxTwitter](https://fxtwitter.com/i/status/1)', total: 0, unique: 0, words: [] },
+    { content: '[Tweet](<https://x.com/a/status/1>) • [@name](<https://x.com/name>) • [FxTwitter](<https://fxtwitter.com/i/status/1>)', total: 0, unique: 0, words: [] },
+    { content: 'see [the docs](https://example.com/x) now', total: 2, unique: 2, words: [] },
+    { content: '[not a link] stays', total: 4, unique: 4, words: [{ word: 'link', count: 1 }, { word: 'stays', count: 1 }] },
+    { content: "it’s it's", total: 2, unique: 1, words: [] },
+    { content: "i‘m i’m i'm don’t don't that’s that's can’t can't you’re you're", total: 11, unique: 5, words: [] },
+  ])('counts sanitized prose and filters normalized stop words: $content', async ({ content, total, unique, words }) => {
+    const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }], messages: [{ channelId: 'c1', ts: 0, content }] } });
+    onTestFinished(() => t.dispose());
+    const stats = await t.client('renderer').wordStats(CHANNEL);
+    expect([stats.textMessages, stats.totalWords, stats.uniqueWords, stats.wordsPerMessage, stats.words]).toEqual([1, total, unique, total, words]);
+  });
+
   it('reports all token totals while filtering English stop words and short fragments from rankings', async () => {
     const stats = await start().core.wordStats(CHANNEL);
     expect([stats.textMessages, stats.totalWords, stats.uniqueWords, stats.wordsPerMessage]).toEqual([2, 8, 6, 4]);
