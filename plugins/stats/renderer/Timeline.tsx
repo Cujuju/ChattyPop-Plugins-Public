@@ -1,6 +1,6 @@
 import { For } from 'solid-js';
-import { countText, look } from '@plugin-sdk/renderer/kit';
-import { CHART_LABEL, SectionHeading, Subheading, share, type StatsSectionProps } from './section';
+import { look } from '@plugin-sdk/renderer/kit';
+import { CHART_LABEL, SectionHeading, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
@@ -15,10 +15,10 @@ export function Timeline(props: StatsSectionProps) {
       <For each={CHARTS}>{([key, label]) => (
         <>
           <Subheading>{label}</Subheading>
-          <div class={`${styles.bars} ${look.ruleBelow}`} role="img" aria-label={`${label}, ${props.stats().timeline.length} months`}>
+          <div class={`${styles.bars} ${look.ruleBelow}`} role="img" aria-label={`${label}, ${formatCount(props.stats().timeline.length)} months`}>
             <For each={props.stats().timeline}>{(month) => (
               <span class={`${styles.bar} ${look.chartBar}`} style={share(month[key], max(key))}
-                title={`${formatPeriod(month.start, 'month')}: ${countText(month[key], 'person', 'people')}`} />
+                title={`${formatPeriod(month.start, 'month')}: ${countLabel(month[key], 'person', 'people')}`} />
             )}</For>
           </div>
           <div class={`${styles.axis} ${look.text}`} {...CHART_LABEL}>

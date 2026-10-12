@@ -2,7 +2,7 @@ import { For } from 'solid-js';
 import { look, openArchive } from '@plugin-sdk/renderer/kit';
 import type { StatsChannel, StatsScope } from '../shared/types';
 import { statsChannelLabel } from './channelLabels';
-import { SHARE_ROW, share } from './section';
+import { SHARE_ROW, formatCount, share } from './section';
 import styles from './Stats.module.css';
 
 export function ChannelRows(props: { channels: StatsChannel[]; scope: StatsScope }) {
@@ -15,7 +15,7 @@ export function ChannelRows(props: { channels: StatsChannel[]; scope: StatsScope
           <button type="button" class={`${styles.row} ${look.shareBar} ${look.text}`} {...SHARE_ROW}
             style={share(channel.count, max())} title="Open channel in the Archive" onClick={() => void openArchive(channel.channelId)}>
             <span class={styles.rowName}>{label(channel)}</span>
-            <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{channel.count}</span>
+            <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{formatCount(channel.count)}</span>
           </button>
         </li>
       )}</For>

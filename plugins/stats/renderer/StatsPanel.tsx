@@ -1,5 +1,5 @@
 import { Show, onCleanup } from 'solid-js';
-import { countText, HeaderActions, HeaderButton, isPanelCollapsed, look, PanelHeader, Select, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { HeaderActions, HeaderButton, isPanelCollapsed, look, PanelHeader, Select, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { refreshStats, setStatsRange, setStatsScope, stats, statsPanelMounted, statsRange, statsScope } from './state';
 import { STATS_RANGES, STATS_SCOPES, type StatsRange, type StatsScope } from '../shared/types';
 import { STATS_PANEL } from '../shared';
@@ -9,6 +9,7 @@ import { People } from './People';
 import { Channels } from './Channels';
 import { Links } from './Links';
 import { Timeline } from './Timeline';
+import { countLabel } from './section';
 import styles from './Stats.module.css';
 
 /** Analytics stacks independently mountable sections in the panel's scrolling body. */
@@ -20,7 +21,7 @@ export function StatsPanel() {
         section="stats"
         collapsible
         title="Analytics"
-        meta={stats() ? `${countText(stats()!.messages, 'message')} · ${countText(stats()!.authors, 'person', 'people')}` : undefined}
+        meta={stats() ? `${countLabel(stats()!.messages, 'message')} · ${countLabel(stats()!.authors, 'person', 'people')}` : undefined}
       >
         <HeaderActions>
           <HeaderButton disabled={stats.loading} onClick={() => void refreshStats()}>Refresh</HeaderButton>

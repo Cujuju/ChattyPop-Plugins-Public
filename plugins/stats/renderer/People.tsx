@@ -1,8 +1,8 @@
 import { For, Show } from 'solid-js';
-import { countText, look, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { look, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { createPosterList } from './state';
 import { PosterRow } from './PosterRow';
-import { SectionHeading, Subheading, type StatsSectionProps } from './section';
+import { SectionHeading, Subheading, countLabel, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
 
 export function People(props: StatsSectionProps) {
@@ -26,7 +26,7 @@ export function People(props: StatsSectionProps) {
       <Show when={pages.expanded()} fallback={
         <button type="button" class={look.button} aria-expanded="false" onClick={() => void pages.showAll(props.stats().query)}>Show all</button>
       }>
-        <p class={look.text} data-size="xs" data-tone="muted">{countText(pages.items().length, 'person loaded', 'people loaded')}</p>
+        <p class={look.text} data-size="xs" data-tone="muted">{countLabel(pages.items().length, 'person loaded', 'people loaded')}</p>
         <Show when={!pages.reachedEnd()}>
           <button type="button" class={look.button} disabled={pages.loading()} onClick={() => void pages.loadMore(props.stats().query)}>
             {pages.failure() ? 'Retry' : 'Load more'}

@@ -1,7 +1,7 @@
 import { For } from 'solid-js';
-import { countText, look } from '@plugin-sdk/renderer/kit';
+import { look } from '@plugin-sdk/renderer/kit';
 import { EDIT_DELAY_BUCKETS } from '../shared/types';
-import { CHART_LABEL, CountRows, SectionHeading, Subheading, share, type StatsSectionProps } from './section';
+import { CHART_LABEL, CountRows, SectionHeading, Subheading, countLabel, formatCount, share, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
@@ -22,8 +22,8 @@ export function Messages(props: StatsSectionProps) {
     <section class={styles.section} aria-label="Messages">
       <SectionHeading>Messages</SectionHeading>
       <Subheading>Messages per {props.stats().bucket}</Subheading>
-      <div class={`${styles.bars} ${look.ruleBelow}`} role="img" aria-label={`Messages per ${props.stats().bucket}, ${props.stats().buckets.length} bars`}>
-        <For each={props.stats().buckets}>{(b) => <span class={`${styles.bar} ${look.chartBar}`} style={share(b.count, maxBucket())} title={`${formatPeriod(b.start, 'day')}: ${countText(b.count, 'message')}`} />}</For>
+      <div class={`${styles.bars} ${look.ruleBelow}`} role="img" aria-label={`Messages per ${props.stats().bucket}, ${formatCount(props.stats().buckets.length)} bars`}>
+        <For each={props.stats().buckets}>{(b) => <span class={`${styles.bar} ${look.chartBar}`} style={share(b.count, maxBucket())} title={`${formatPeriod(b.start, 'day')}: ${countLabel(b.count, 'message')}`} />}</For>
       </div>
       <div class={`${styles.axis} ${look.text}`} {...CHART_LABEL}>
         <span>{props.stats().buckets[0] && formatPeriod(props.stats().buckets[0]!.start, 'day')}</span>
@@ -34,7 +34,7 @@ export function Messages(props: StatsSectionProps) {
         <For each={WEEK_ROWS}>{(wd) => (
           <>
             <span class={`${styles.dayLabel} ${look.text}`} {...CHART_LABEL}>{weekdayName(wd)}</span>
-            <For each={HOURS}>{(hour) => <span class={`${styles.cell} ${look.heatCell}`} style={share(props.stats().heatmap[wd]![hour]!, maxCell())} title={`${weekdayName(wd)} ${hour}:00 · ${countText(props.stats().heatmap[wd]![hour]!, 'message')}`} />}</For>
+            <For each={HOURS}>{(hour) => <span class={`${styles.cell} ${look.heatCell}`} style={share(props.stats().heatmap[wd]![hour]!, maxCell())} title={`${weekdayName(wd)} ${hour}:00 · ${countLabel(props.stats().heatmap[wd]![hour]!, 'message')}`} />}</For>
           </>
         )}</For>
         <span />

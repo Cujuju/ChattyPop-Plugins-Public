@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js';
-import { countText, look } from '@plugin-sdk/renderer/kit';
-import { SectionHeading, Subheading, type StatsSectionProps } from './section';
+import { look } from '@plugin-sdk/renderer/kit';
+import { SectionHeading, Subheading, countLabel, formatCount, type StatsSectionProps } from './section';
 import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
@@ -18,7 +18,7 @@ export function Overview(props: StatsSectionProps) {
         <For each={TOTALS}>{([key, label]) => (
           <li class={`${styles.row} ${look.text}`} data-size="sm" data-tone="primary">
             <span class={styles.rowName}>{label}</span>
-            <span class={styles.rowCount}>{props.stats()[key]}</span>
+            <span class={styles.rowCount}>{formatCount(props.stats()[key])}</span>
           </li>
         )}</For>
       </ul>
@@ -28,7 +28,7 @@ export function Overview(props: StatsSectionProps) {
           <Show when={props.stats().mostActive[period]}>{(busiest) => (
             <li class={`${styles.row} ${look.text}`} data-size="sm" data-tone="primary">
               <span class={styles.rowName}>Busiest {period}: {formatPeriod(busiest().start, period)}</span>
-              <span class={styles.rowCount}>{countText(busiest().count, 'message')}</span>
+              <span class={styles.rowCount}>{countLabel(busiest().count, 'message')}</span>
             </li>
           )}</Show>
         )}</For>
