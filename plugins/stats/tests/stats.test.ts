@@ -1,4 +1,4 @@
-// The Activity plugin's counts, as a desktop window asks its core side for them over a seeded archive.
+// The Analytics plugin's counts, as a desktop window asks its core side for them over a seeded archive.
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY } from '@shared/units';

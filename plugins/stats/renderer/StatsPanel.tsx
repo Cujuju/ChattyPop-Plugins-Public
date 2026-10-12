@@ -32,11 +32,11 @@ export function StatsPanel() {
   const maxPoster = () => stats()?.posters[0]?.count ?? 0;
   const maxDomain = () => stats()?.domains[0]?.count ?? 0;
   return (
-    <section class="cp-panel" aria-label="Activity" data-section="stats">
+    <section class="cp-panel" aria-label="Analytics" data-section="stats">
       <PanelHeader
         section="stats"
         collapsible
-        title="Activity"
+        title="Analytics"
         meta={stats() ? `${countText(stats()!.messages, 'message')} · ${countText(stats()!.authors, 'person', 'people')}` : undefined}
       >
         <HeaderActions>
@@ -53,7 +53,7 @@ export function StatsPanel() {
         <div class={`cp-panel-body ${styles.body}`}>
           <Show when={stats.failure}>
             <p class="cp-error" role="alert">
-              Couldn't count activity.
+              Couldn't load Analytics.
             </p>
           </Show>
           <Show when={stats()}>

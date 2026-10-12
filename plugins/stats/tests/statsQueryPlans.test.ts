@@ -1,4 +1,4 @@
-// Activity stats over a realistically shaped archive: indexed plans, and the same counts as reading outside SQL.
+// Analytics stats over a realistically shaped archive: indexed plans, and the same counts as reading outside SQL.
 import { describe, expect, it } from 'vitest';
 import type { Db } from '@core/db';
 import { privacyScope } from '@core/queries/privacy';
@@ -8,7 +8,7 @@ import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing
 import { activityStats } from '../core/stats';
 import type { ActivityQuery } from '../shared/types';
 
-/** Activity over the whole archive: the heaviest stats read. */
+/** Analytics over the whole archive: the heaviest stats read. */
 const ALL_TIME: ActivityQuery = { scope: 'all', channelId: null, sinceTs: null };
 
 /** Visible messages computed outside SQL from the privacy scope: the parity oracle. */

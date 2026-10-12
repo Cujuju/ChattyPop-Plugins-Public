@@ -1,4 +1,4 @@
-// The Activity plugin's renderer side: its panel.
+// The Analytics plugin's renderer side: its panel.
 import { defineRendererPlugin } from '@plugin-sdk/renderer';
 import { STATS_PANEL, plugin } from '../shared';
 import { StatsPanel } from './StatsPanel';

@@ -1,4 +1,4 @@
-// #85 Activity panel: what it counts (scope follows the shown channel) and the counts from core.
+// #85 Analytics panel: what it counts (scope follows the shown channel) and the counts from core.
 import { createSignal } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
 import { STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope } from '../shared/types';
@@ -9,7 +9,7 @@ import { isPanelCollapsed, shownChannelId } from '@plugin-sdk/renderer/kit';
 export const [statsScope, setStatsScope] = pluginPreference(plugin, 'scope');
 export const [statsRange, setStatsRange] = pluginPreference(plugin, 'range');
 
-/** Open Activity panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
+/** Open Analytics panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
 const [mounted, setMounted] = createSignal(0);
 export const statsPanelMounted = (): (() => void) => {
   setMounted((n) => n + 1);

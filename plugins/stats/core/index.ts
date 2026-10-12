@@ -1,4 +1,4 @@
-// The Activity plugin's core side: counts for the panel.
+// The Analytics plugin's core side: counts for the panel.
 import { defineCorePlugin } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { activityStats } from './stats';
