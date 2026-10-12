@@ -86,7 +86,7 @@ export interface ActivityStats {
   mostActive: Record<'hour' | 'day' | 'month' | 'year', StatsPeriod | null>;
   /** Bar width of `buckets`: days for short spans, weeks (from Monday) for long ones. */
   bucket: 'day' | 'week';
-  /** Local-date start of each non-empty bucket (YYYY-MM-DD), oldest first. */
+  /** Every local day or Monday-start week from the first bucket through the last, including zero counts; oldest first (YYYY-MM-DD). */
   buckets: { start: string; count: number }[];
   /** Messages by local weekday (0 = Sunday) then hour (0–23). */
   heatmap: number[][];
