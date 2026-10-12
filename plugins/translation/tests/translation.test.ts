@@ -174,6 +174,16 @@ describe('the Translation plugin', { timeout: HOST_START_TIMEOUT_MS }, () => {
     expect(partNotes([{ id, attachmentIds: ['a1', 'a2'] }]).get(id)?.has(AUDIO)).toBe(false);
   });
 
+  it('judges each block’s language by itself: a quoted post in another language is translated, the rest kept as written', async () => {
+    const { t, sent } = start({ translate: true });
+    const id = arrive(t);
+    const footer = '[💬](https://x.com/intent/tweet) 296';
+    say(id, IMAGE, `Big news today\nRead on\n\n> 世界\n> こんにちは\n\n${footer}`);
+    await vi.waitFor(() => expect(translations(t, id)).toEqual({ [IMAGE]: `Big news today\nRead on\n\n> EN(世界\n> こんにちは)\n\n${footer}` }));
+    // One request per block, its quote marker taken off; a line whose only letters are a link's target is never sent.
+    expect(sent.map((s) => s.prompt.slice(s.prompt.indexOf('Text:\n') + 'Text:\n'.length))).toEqual(['Big news today\nRead on', '世界\nこんにちは']);
+  });
+
   it('takes Image text’s translation settings, its automatic switch becoming image text’s', async () => {
     const imageText = { engine: 'windows', translate: true, translateLanguage: 'German', translateProvider: 'tx', translateModel: 'm', translateMenu: { tx: false } };
     const { t } = start({}, { profile: { 'plugin.imagetext.settings': imageText } });
