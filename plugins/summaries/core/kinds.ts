@@ -38,6 +38,8 @@ export function registerSummaryKinds(
     const covered = actionRange(r, c.lookbackMs);
     // Catching up missed due times, oldest first: only the newest window's summary notifies.
     const quiet = r.event.kind === 'window' && r.event.owedAfter > 0;
+    // A failure the schedule will retry is not reported: only the last attempt's.
+    const retrying = r.event.kind === 'window' && r.event.retriesLeft > 0;
     // A picked time frame replaces a timed window's span, ending where it ends; its channels stay.
     const { channelIds, ...span } = range && r.event.kind === 'window' ? { ...covered, ...ruleRangeSpan(range, covered.untilTs) } : covered;
     try {
@@ -45,7 +47,7 @@ export function registerSummaryKinds(
       return { outcome: 'done', detail: namedText(summary.headline, summary.people) || null };
     } catch (err) {
       if (err instanceof EmptyRangeError) return { outcome: 'skipped', detail: err.message };
-      if (r.event.kind === 'window') emit({ type: 'summary-auto-failed', trigger, message: errorMessage(err), ...(channelIds && { channelIds }) });
+      if (r.event.kind === 'window' && !retrying) emit({ type: 'summary-auto-failed', trigger, message: errorMessage(err), ...(channelIds && { channelIds }) });
       return { outcome: 'failed', detail: errorMessage(err) };
     }
   });

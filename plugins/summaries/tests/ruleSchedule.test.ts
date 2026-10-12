@@ -1,7 +1,7 @@
 // Summaries' timed rules: a timed summary input, the digest's runs and failure notice, and the old settings becoming rules.
 import { describe, expect, it } from 'vitest';
 import { newRuleAction, validateRuleInput } from '@shared/ruleSpec';
-import type { TimedTrigger } from '@shared/ruleTime';
+import { TIMED_ATTEMPTS_MAX, TIMED_RETRY_DELAYS_MS, type TimedTrigger } from '@shared/ruleTime';
 import { MS_PER_HOUR } from '@shared/units';
 import { getSetting, setSetting, type Db } from '@core/db';
 import { RuleSchedule } from '@core/rules/schedule';
@@ -24,7 +24,7 @@ describe('timed rules', () => {
     expect(() => validateRuleInput(timedSummaryInput('D', daily))).not.toThrow();
   });
 
-  it('run once per due time over their Where, labelled by trigger, and report a failed summary with its channels', async () => {
+  it('run once per due time over their Where and report a failed summary only after its last attempt', async () => {
     let now = at(8, 30);
     const h = summaryRuleHarness(() => now);
     const id = h.rules.create(
@@ -53,7 +53,33 @@ describe('timed rules', () => {
     h.ranges.answer = () => Promise.reject(new Error('provider down'));
     now = at(9, 1, 26);
     await schedule.tick();
-    expect(h.summaryEvents).toContainEqual({ type: 'summary-auto-failed', trigger: 'digest', message: 'provider down', channelIds: ['c1'] });
+    expect(h.summaryEvents).toEqual([]);
+    for (const delay of TIMED_RETRY_DELAYS_MS) {
+      now += delay;
+      await schedule.tick();
+    }
+    await schedule.tick();
+    expect(h.ranges.summaries.slice(1)).toEqual(Array(TIMED_ATTEMPTS_MAX).fill({ sinceTs: at(9, 1), untilTs: at(9, 1, 26), channelIds: ['c1'] }));
+    expect(h.summaryEvents).toEqual([{ type: 'summary-auto-failed', trigger: 'digest', message: 'provider down', channelIds: ['c1'] }]);
+    expect(h.rules.runs(id, 1)[0]!.actions[0]).toMatchObject({ outcome: 'failed', retryAt: null });
+  });
+
+  it('emit no failure notice when a retry succeeds over the same window', async () => {
+    let now = at(0);
+    const h = summaryRuleHarness(() => now);
+    const id = h.rules.create(timedSummaryInput('D', { kind: 'every', hours: 24 }));
+    h.ranges.answer = () => Promise.reject(new Error('provider down'));
+    now = at(24);
+    const schedule = new RuleSchedule(h.db, h.engine, h.actions, at(0), () => {}, () => now);
+    await schedule.tick();
+    expect(h.summaryEvents).toEqual([]);
+    h.ranges.answer = async () => 'answered';
+    now += TIMED_RETRY_DELAYS_MS[0]!;
+    await schedule.tick();
+    expect(h.ranges.summaries).toEqual(Array(2).fill({ sinceTs: at(0), untilTs: at(24) }));
+    expect(h.summaryEvents).toEqual([]);
+    expect(h.rules.runs(id, 10)).toHaveLength(1);
+    expect(h.rules.runs(id, 1)[0]!.actions[0]).toMatchObject({ outcome: 'done', retryAt: null });
   });
 
   it("read a picked time frame ending at the run, over their Where, with the rule's own options", async () => {
