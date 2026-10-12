@@ -44,9 +44,10 @@ export class CodexConnection {
     }
   }
 
-  /** Refuses a turn whose connection stopped matching the owner's current payment key. */
+  /** Refuses a turn whose connection stopped matching the owner's current payment key. An exited process is its request's to report. */
   assertCurrent(connection: Connection): void {
-    if (!this.disposed && this.current === connection && connection.key === this.apiKey()) return;
+    if (this.disposed) throw new ProviderUnavailableError('Codex was turned off.');
+    if (connection.key === this.apiKey()) return;
     this.drop(connection);
     throw new ProviderUnavailableError('Codex payment key changed. Send the request again.');
   }

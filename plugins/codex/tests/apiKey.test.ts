@@ -25,6 +25,7 @@ vi.mock('../core/jsonRpcStdio', () => ({
       started.push(this.state);
     }
     request = async (method: string) => {
+      if (this.state.dispose.mock.calls.length) throw new Error('codex app-server exited (1)');
       this.state.methods.push(method);
       if (method === 'initialize') return initialize();
       if (method === 'thread/start') {
@@ -120,6 +121,10 @@ describe('Codex owner key payment', () => {
     startThread = async () => { key = 'test-replacement'; };
     await expect(provider(() => key).complete(REQUEST)).rejects.toThrow('payment key changed');
     expect(started[0]?.methods).not.toContain('turn/start');
+  });
+  it('an app-server that exits mid-request is reported as that, not as a key change', async () => {
+    startThread = async () => { started[0]!.dispose(); };
+    await expect(provider(() => 'test-key').complete(REQUEST)).rejects.toThrow('codex app-server exited (1)');
   });
   it('stored keys have no plan usage and make no RPC call', async () => {
     await expect(provider(() => 'test-key').planUsage()).resolves.toBeNull();
