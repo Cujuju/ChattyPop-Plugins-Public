@@ -1,5 +1,6 @@
 // Claude through the Agent SDK, using the owner's sign-in or API key.
 import { accountEnv, API_KEY_ENV } from './accountEnv';
+import { modelFacts } from './modelFacts';
 import { tmpdir } from 'node:os';
 import { query, type ApiKeySource, type EffortLevel, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { MS_PER_DAY, MS_PER_HOUR } from '@plugin-sdk/shared';
@@ -138,8 +139,8 @@ export class ClaudeProvider implements LlmProvider {
       return (await q.supportedModels()).map((m) => ({
         id: m.value,
         label: m.displayName,
-        // Names the version an alias such as "Opus" resolves to.
-        ...(m.description ? { description: m.description } : {}),
+        // Names the version an alias such as "Opus" resolves to, and its price.
+        ...modelFacts(m.description),
         ...(m.supportedEffortLevels?.length ? { efforts: m.supportedEffortLevels } : {}),
         // supportedModels omits input types; this adapter advertises image support for every returned model.
         images: true,

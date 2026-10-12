@@ -9,7 +9,7 @@ export function DisplayNameRow(props: { provider: ProviderId }) {
     <Row
       label="Display name"
       for={`ai-display-${id}`}
-      hint="How Plan usage names this provider. Blank uses the default."
+      hint="Its name in Plan usage."
       control={
         <input
           id={`ai-display-${id}`}
