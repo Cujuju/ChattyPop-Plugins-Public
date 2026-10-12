@@ -2,6 +2,7 @@ import { For } from 'solid-js';
 import { countText, look } from '@plugin-sdk/renderer/kit';
 import { EDIT_DELAY_BUCKETS } from '../shared/types';
 import { CHART_LABEL, CountRows, SectionHeading, Subheading, share, type StatsSectionProps } from './section';
+import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
 /** Monday first; weekday values match JavaScript and SQLite. */
@@ -22,11 +23,11 @@ export function Messages(props: StatsSectionProps) {
       <SectionHeading>Messages</SectionHeading>
       <Subheading>Messages per {props.stats().bucket}</Subheading>
       <div class={`${styles.bars} ${look.ruleBelow}`} role="img" aria-label={`Messages per ${props.stats().bucket}, ${props.stats().buckets.length} bars`}>
-        <For each={props.stats().buckets}>{(b) => <span class={`${styles.bar} ${look.chartBar}`} style={share(b.count, maxBucket())} title={`${b.start}: ${countText(b.count, 'message')}`} />}</For>
+        <For each={props.stats().buckets}>{(b) => <span class={`${styles.bar} ${look.chartBar}`} style={share(b.count, maxBucket())} title={`${formatPeriod(b.start, 'day')}: ${countText(b.count, 'message')}`} />}</For>
       </div>
       <div class={`${styles.axis} ${look.text}`} {...CHART_LABEL}>
-        <span>{props.stats().buckets[0]?.start}</span>
-        <span>{props.stats().buckets.at(-1)?.start}</span>
+        <span>{props.stats().buckets[0] && formatPeriod(props.stats().buckets[0]!.start, 'day')}</span>
+        <span>{props.stats().buckets.at(-1) && formatPeriod(props.stats().buckets.at(-1)!.start, 'day')}</span>
       </div>
       <Subheading>By weekday and hour</Subheading>
       <div class={styles.heatmap} role="img" aria-label="Messages by weekday and hour">

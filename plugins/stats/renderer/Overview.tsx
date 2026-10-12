@@ -1,6 +1,7 @@
 import { For, Show } from 'solid-js';
 import { countText, look } from '@plugin-sdk/renderer/kit';
 import { SectionHeading, Subheading, type StatsSectionProps } from './section';
+import { formatPeriod } from './periods';
 import styles from './Stats.module.css';
 
 const TOTALS = [
@@ -26,7 +27,7 @@ export function Overview(props: StatsSectionProps) {
         <For each={PERIODS}>{(period) => (
           <Show when={props.stats().mostActive[period]}>{(busiest) => (
             <li class={`${styles.row} ${look.text}`} data-size="sm" data-tone="primary">
-              <span class={styles.rowName}>Busiest {period}: {busiest().start.replace('T', ' ')}</span>
+              <span class={styles.rowName}>Busiest {period}: {formatPeriod(busiest().start, period)}</span>
               <span class={styles.rowCount}>{countText(busiest().count, 'message')}</span>
             </li>
           )}</Show>
