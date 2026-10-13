@@ -791,6 +791,13 @@
       "description": "Your own message tags, applied by hand, Jev or rules.",
       "releases": [
         {
+          "version": "1.2.1",
+          "tag": "tags-v1.2.1",
+          "asset": "tags-1.2.1.tar.gz",
+          "sha256": "b1ce2653723dbee1e15033ef983ec33737fdebff592c60d97374155251e71758",
+          "sdk": "3.0.0"
+        },
+        {
           "version": "1.2.0",
           "tag": "tags-v1.2.0",
           "asset": "tags-1.2.0.tar.gz",
