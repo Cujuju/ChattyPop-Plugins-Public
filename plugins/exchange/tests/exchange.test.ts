@@ -6,6 +6,7 @@ import { MS_PER_MIN } from '@shared/units';
 import { Archive } from '@core/archive';
 import type { Db } from '@core/db';
 import { exportChannels, importDceFiles } from '../core/exchange';
+import type { ExportFormat, ExportRequest } from '../shared/types';
 import { messagePage } from '@core/queries/messages';
 import { rawMessage, seedArchive, tempDb, tempDir } from '@chattypop/host-testing';
 import { attachmentStored } from '@core/mediaQueue';
@@ -14,6 +15,7 @@ import type { DceExport, DceMessage } from '../core/dce';
 import { ARRIVAL } from '@core/arrival';
 
 const CH = '200000000000000001';
+const LONG = '200000000000000003';
 const T0 = Date.UTC(2026, 8, 1);
 
 let db: Db;
@@ -29,16 +31,27 @@ beforeEach(() => {
   a.ingestMessages([first, reply], ARRIVAL.gateway);
 });
 
-const exportTo = (format: 'json' | 'html') => {
-  const dir = tempDir();
-  const r = exportChannels(db, tempDir(), { channelIds: [CH], format, includeMedia: false, dir });
-  return { r, dir, file: join(dir, readdirSync(dir)[0]!) };
+/** An export of CH alone, without threads or media, into a fresh folder. */
+const request = (over: Partial<ExportRequest> = {}): ExportRequest => ({ channelIds: [CH], includeThreads: false, format: 'json', includeMedia: false, dir: tempDir(), ...over });
+const exportTo = async (format: ExportFormat) => {
+  const req = request({ format });
+  const r = await exportChannels(db, tempDir(), req);
+  return { r, dir: req.dir, file: join(req.dir, readdirSync(req.dir)[0]!) };
+};
+/** Clear of the seeded messages: a message's id is its time. */
+const LONG_T0 = T0 + 10 * MS_PER_MIN;
+/** A second channel of `count` messages a millisecond apart, from `startMs`. */
+const fillLong = (count: number, startMs = LONG_T0): void => {
+  const a = new Archive(db);
+  a.upsertChannels('g1', [{ id: LONG, name: 'long', type: 0 }]);
+  a.setOptIn(LONG, true);
+  a.ingestMessages(Array.from({ length: count }, (_, i) => rawMessage(LONG, startMs + i, `m${i}`)), ARRIVAL.gateway);
 };
 
 describe('archive exchange (DiscordChatExporter format)', () => {
-  it('round-trips a channel through a DCE JSON export', () => {
-    const { r, file } = exportTo('json');
-    expect(r).toEqual({ channelIds: [CH], messages: 2, skippedFiles: [] });
+  it('round-trips a channel through a DCE JSON export', async () => {
+    const { r, file } = await exportTo('json');
+    expect(r).toEqual({ channelIds: [CH], messages: 2, emptyChannelIds: [], failedChannelIds: [], cancelled: false });
 
     const target = tempDb();
     const imported = importDceFiles(new Archive(target), [file]);
@@ -52,10 +65,11 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     expect(target.prepare('SELECT opted_in FROM channels WHERE id = ?').pluck().get(CH)).toBe(1);
   });
 
-  it('writes a standalone HTML page with message text escaped', () => {
-    const html = readFileSync(exportTo('html').file, 'utf8');
+  it('writes a standalone HTML page with message text escaped', async () => {
+    const html = readFileSync((await exportTo('html')).file, 'utf8');
     expect(html).toContain('hello &lt;b&gt;world&lt;/b&gt;');
     expect(html).toContain(`href="#m${snowflakeFromMs(T0)}"`);
+    expect(html).toContain('<footer>2 messages</footer>');
     expect(html).not.toMatch(/<script/i);
   });
 
@@ -81,7 +95,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     ...over,
   });
 
-  it('never lets an imported or archived payload run script or load code in the HTML export', () => {
+  it('never lets an imported or archived payload run script or load code in the HTML export', async () => {
     const hostile = [
       dceMessage(1, {
         content: '<img src=x onerror=alert(1)>',
@@ -95,12 +109,16 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     expect(imported.skippedFiles).toEqual([]);
     // A payload the archive already holds (any source): a count that isn't a number.
     new Archive(target).ingestMessages([rawMessage('200000000000000009', T0 + 5, 'x', { reactions: [{ emoji: { id: null, name: 'a' }, count: '<script>alert(5)</script>' as unknown as number }] })], ARRIVAL.gateway);
-    const dir = tempDir();
-    exportChannels(target, tempDir(), { channelIds: ['200000000000000009'], format: 'html', includeMedia: false, dir });
-    const html = readFileSync(join(dir, readdirSync(dir)[0]!), 'utf8');
+    const html = request({ channelIds: ['200000000000000009'], format: 'html' });
+    await exportChannels(target, tempDir(), html);
+    const page = readFileSync(join(html.dir, readdirSync(html.dir)[0]!), 'utf8');
     // Hostile text may appear escaped, as text; never as an element, attribute or link.
-    expect(html).not.toMatch(/<script|<img[^>]*onerror|(?:href|src)="\s*javascript:|style="[^"]*url\(/i);
-    expect(html).toContain("script-src 'none'");
+    expect(page).not.toMatch(/<script|<img[^>]*onerror|(?:href|src)="\s*javascript:|style="[^"]*url\(/i);
+    expect(page).toContain("script-src 'none'");
+    // Markdown links only what a browser may open; the rest stays text.
+    const md = request({ channelIds: ['200000000000000009'], format: 'md' });
+    await exportChannels(target, tempDir(), md);
+    expect(readFileSync(join(md.dir, readdirSync(md.dir)[0]!), 'utf8')).not.toMatch(/\]\(<?\s*javascript:/i);
   });
 
   it('skips an import whose fields have the wrong types, without importing any of it', () => {
@@ -122,19 +140,19 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     expect(archive.isOptedIn('200000000000000008')).toBe(false);
   });
 
-  it('gives channels with the same names their own export file and media folder', () => {
+  it('gives channels with the same names their own export file and media folder', async () => {
     const OTHER = '200000000000000002';
     const a = new Archive(db);
     a.upsertChannels('g1', [{ id: OTHER, name: 'general', type: 0 }]);
     a.setOptIn(OTHER, true);
     a.ingestMessages([rawMessage(OTHER, T0 + 5, 'the other general')], ARRIVAL.gateway);
-    const dir = tempDir();
-    expect(exportChannels(db, tempDir(), { channelIds: [CH, OTHER], format: 'json', includeMedia: false, dir }).channelIds).toEqual([CH, OTHER]);
-    const docs = readdirSync(dir).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as DceExport);
+    const req = request({ channelIds: [CH, OTHER] });
+    expect((await exportChannels(db, tempDir(), req)).channelIds).toEqual([CH, OTHER]);
+    const docs = readdirSync(req.dir).map((f) => JSON.parse(readFileSync(join(req.dir, f), 'utf8')) as DceExport);
     expect(docs.map((d) => d.messages.map((m) => m.content))).toEqual(expect.arrayContaining([['hello <b>world</b>', 'yes'], ['the other general']]));
   });
 
-  it('links copied media by URL-encoded path, so # and % in names reach the file', () => {
+  it('links copied media by URL-encoded path, so # and % in names reach the file', async () => {
     db.prepare("UPDATE guilds SET name = 'Guild #1 100%'").run();
     const sha = 'c'.repeat(64);
     const attachmentsDir = tempDir();
@@ -142,11 +160,94 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     mkdirSync(join(src, '..'), { recursive: true });
     writeFileSync(src, 'abc');
     attachmentStored(db, '500000000000000001', sha, 3);
-    const dir = tempDir();
-    exportChannels(db, attachmentsDir, { channelIds: [CH], format: 'html', includeMedia: true, dir });
-    const html = readFileSync(join(dir, readdirSync(dir).find((f) => f.endsWith('.html'))!), 'utf8');
+    const req = request({ format: 'html', includeMedia: true });
+    await exportChannels(db, attachmentsDir, req);
+    const html = readFileSync(join(req.dir, readdirSync(req.dir).find((f) => f.endsWith('.html'))!), 'utf8');
     const href = /<a href="([^"]+)">a\.txt<\/a>/.exec(html)![1]!;
     const target = decodeURIComponent(new URL(href, 'file:///export/').pathname).slice('/export/'.length);
-    expect(existsSync(join(dir, target))).toBe(true);
+    expect(existsSync(join(req.dir, target))).toBe(true);
+  });
+
+  it('writes JSON in pieces as JSON.stringify would write the whole document', async () => {
+    const text = readFileSync((await exportTo('json')).file, 'utf8');
+    expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2));
+    expect((JSON.parse(text) as DceExport).messageCount).toBe(2);
+  });
+
+  it('writes a channel longer than one page whole, in order, once each', async () => {
+    const COUNT = 2001;
+    fillLong(COUNT);
+    const req = request({ channelIds: [LONG] });
+    const reported: number[] = [];
+    const r = await exportChannels(db, tempDir(), req, { stopped: () => false, progress: (p) => reported.push(p.messages) });
+    expect(r.messages).toBe(COUNT);
+    const text = readFileSync(join(req.dir, readdirSync(req.dir)[0]!), 'utf8');
+    const doc = JSON.parse(text) as DceExport;
+    expect(doc.messages.map((m) => m.content)).toEqual(Array.from({ length: COUNT }, (_, i) => `m${i}`));
+    expect(doc.messageCount).toBe(COUNT);
+    expect(text).toBe(JSON.stringify(doc, null, 2));
+    // One report per page, then the channel's.
+    expect(reported).toEqual([1000, 2000, COUNT, COUNT]);
+  });
+
+  it('stops between pages, leaving no partial file and an earlier export of the channel as it was', async () => {
+    fillLong(1);
+    const req = request({ channelIds: [CH, LONG] });
+    await exportChannels(db, tempDir(), req);
+    const before = readdirSync(req.dir).sort();
+    const longFile = join(req.dir, before.find((f) => f.includes(LONG))!);
+    const earlier = readFileSync(longFile, 'utf8');
+    fillLong(2000, LONG_T0 + 1);
+    // Reports: CH's page, CH done, then LONG's first page.
+    let reports = 0;
+    const r = await exportChannels(db, tempDir(), req, { stopped: () => reports > 2, progress: () => void reports++ });
+    expect(r).toMatchObject({ channelIds: [CH], messages: 2, cancelled: true });
+    expect(readdirSync(req.dir).sort()).toEqual(before);
+    expect(readFileSync(longFile, 'utf8')).toBe(earlier);
+  });
+
+  it("exports a channel's threads with it when asked, each to its own file", async () => {
+    const THREAD = '200000000000000004';
+    const FORUM = '200000000000000005';
+    const POST = '200000000000000006';
+    const a = new Archive(db);
+    a.upsertChannels('g1', [
+      { id: THREAD, name: 'side talk', type: 11, parent_id: CH },
+      { id: FORUM, name: 'help', type: 15 },
+      { id: POST, name: 'a question', type: 11, parent_id: FORUM },
+    ]);
+    [FORUM, THREAD, POST].forEach((id) => a.setOptIn(id, true));
+    a.ingestMessages([rawMessage(THREAD, T0 + 5, 'in the thread'), rawMessage(POST, T0 + 6, 'in the post')], ARRIVAL.gateway);
+    expect(await exportChannels(db, tempDir(), request({ channelIds: [CH, FORUM] }))).toMatchObject({ channelIds: [CH], emptyChannelIds: [FORUM] });
+    const req = request({ channelIds: [CH, FORUM, THREAD], includeThreads: true });
+    expect(await exportChannels(db, tempDir(), req)).toMatchObject({ channelIds: [CH, THREAD, POST], messages: 4, emptyChannelIds: [] });
+    expect(readdirSync(req.dir).find((f) => f.includes(THREAD))).toContain('general - side talk');
+  });
+
+  it('bounds the range at both ends and writes no file for a channel with nothing in it', async () => {
+    expect(await exportChannels(db, tempDir(), request({ untilTs: T0 }))).toMatchObject({ channelIds: [CH], messages: 1 });
+    const none = request({ sinceTs: T0 + MS_PER_MIN + 1, untilTs: T0 + 2 * MS_PER_MIN });
+    expect(await exportChannels(db, tempDir(), none)).toMatchObject({ channelIds: [], messages: 0, emptyChannelIds: [CH] });
+    expect(readdirSync(none.dir)).toEqual([]);
+  });
+
+  it('writes plain text and Markdown transcripts', async () => {
+    const text = readFileSync((await exportTo('txt')).file, 'utf8');
+    expect(text).toContain('] Alice\nhello <b>world</b>\n📎 a.txt https://cdn.discordapp.com/a.txt\nExample https://example.com\n👍 2\n\n');
+    expect(text.endsWith('] Alice\n↪ reply\nyes\n\n2 messages\n')).toBe(true);
+    const md = readFileSync((await exportTo('md')).file, 'utf8');
+    expect(md.match(/^## /gm)).toHaveLength(1);
+    expect(md).toContain('hello <b>world</b>  \n');
+    expect(md).toContain('- 📎 [a.txt](<https://cdn.discordapp.com/a.txt>)');
+    expect(md).toContain('- [Example](<https://example.com>)');
+  });
+
+  it('writes CSV a spreadsheet reads as text: quoted cells, no formulas, a byte-order mark', async () => {
+    new Archive(db).ingestMessages([rawMessage(CH, T0 + 2 * MS_PER_MIN, '=HYPERLINK("https://evil.example","x")\nsecond, line')], ARRIVAL.gateway);
+    const csv = readFileSync((await exportTo('csv')).file, 'utf8');
+    expect(csv.startsWith('﻿"id","timestamp","edited","authorId","author","content","attachments","reactions","replyToId"\r\n')).toBe(true);
+    expect(csv).toContain(`"'=HYPERLINK(""https://evil.example"",""x"")\nsecond, line"`);
+    expect(csv).toContain(`"yes","","","${snowflakeFromMs(T0)}"\r\n`);
+    expect(csv.split('\r\n')).toHaveLength(5);
   });
 });

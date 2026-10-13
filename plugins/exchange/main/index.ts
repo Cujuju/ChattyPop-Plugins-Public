@@ -15,6 +15,7 @@ export default defineMainPlugin(plugin, (ctx) => {
     exportChannels: async (opts) => {
       const dir = await ctx.dialogs.pickFolder('Export to folder');
       if (!dir) return null;
+      // Resolves when the last file is written, however long that takes.
       return core.exportChannels({ ...opts, dir });
     },
   });

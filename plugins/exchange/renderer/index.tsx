@@ -4,5 +4,5 @@ import { EXCHANGE_SECTION, plugin } from '../shared';
 import { ExchangeControls } from './ExchangeControls';
 
 export default defineRendererPlugin(plugin, {
-  settings: { [EXCHANGE_SECTION]: { body: ExchangeControls, meta: () => 'HTML page or DiscordChatExporter JSON' } },
+  settings: { [EXCHANGE_SECTION]: { body: ExchangeControls, meta: () => 'HTML, JSON, text, Markdown or CSV' } },
 });

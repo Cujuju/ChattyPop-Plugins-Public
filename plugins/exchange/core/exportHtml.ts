@@ -1,6 +1,7 @@
 // Standalone offline HTML export without scripts or remote styles. Export styles are independent of app theme tokens.
 import { timeFormat } from '@plugin-sdk/shared';
-import type { DceExport, DceMessage } from './dce';
+import type { DceMessage } from './dce';
+import type { ExportHead, FormatWriter } from './formats';
 
 const IMAGE_FILE = /\.(png|jpe?g|gif|webp|avif)$/i;
 
@@ -8,7 +9,7 @@ const PAGE_CSS = `
   body { margin: 0; background: #1e1f22; color: #dbdee1; font: 15px/1.4 "Segoe UI", system-ui, sans-serif; }
   header { position: sticky; top: 0; padding: 12px 20px; background: #2b2d31; border-bottom: 1px solid #111214; }
   header h1 { margin: 0; font-size: 16px; } header p { margin: 2px 0 0; color: #949ba4; font-size: 12px; }
-  main { padding: 8px 20px 40px; max-width: 960px; }
+  main { padding: 8px 20px 12px; max-width: 960px; }
   .msg { padding: 6px 0; border-bottom: 1px solid #26282c; }
   .meta { color: #949ba4; font-size: 12px; } .author { color: #f2f3f5; font-weight: 600; font-size: 15px; margin-right: 6px; }
   .text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
@@ -18,6 +19,7 @@ const PAGE_CSS = `
   .embed .t { font-weight: 600; } .embed img { max-width: 100%; border-radius: 4px; margin-top: 6px; }
   .reactions span { display: inline-block; background: #2b2d31; border-radius: 8px; padding: 1px 6px; margin: 4px 4px 0 0; font-size: 12px; }
   a { color: #00a8fc; }
+  footer { padding: 0 20px 40px; color: #949ba4; font-size: 12px; }
 `;
 
 /** CSP disables scripts and plugins while allowing styles, images, and links. */
@@ -31,16 +33,16 @@ const HEX_COLOR = /^#[\da-f]{6}$/i;
 /** Every interpolation goes through here: text of any type, escaped for element text and quoted attributes. */
 const esc = (v: unknown): string => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
 /** `u` when it is an http(s) URL or a relative path, else null. Browsers ignore leading spaces and control characters. */
-const safeUrl = (u: unknown): string | null => {
+export const safeUrl = (u: unknown): string | null => {
   if (typeof u !== 'string') return null;
   const scheme = URL_SCHEME.exec(u.replace(/[\u0000-\u0020]/g, ''))?.[1];
   return scheme === undefined || SAFE_SCHEMES.has(`${scheme.toLowerCase()}:`) ? u : null;
 };
 /** A message's date and time to the second, on the owner's clock. */
 const WHEN = timeFormat({ year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
-const when = (iso: unknown): string => WHEN.format(new Date(String(iso)));
+export const when = (iso: unknown): string => WHEN.format(new Date(String(iso)));
 /** A reaction count: a whole number, else nothing. */
-const count = (n: unknown): string => (Number.isSafeInteger(n) ? String(n) : '');
+export const count = (n: unknown): string => (Number.isSafeInteger(n) ? String(n) : '');
 
 function renderMessage(m: DceMessage): string {
   const author = m.author.nickname || m.author.name;
@@ -77,11 +79,20 @@ function renderMessage(m: DceMessage): string {
   return `<article class="msg" id="m${esc(m.id)}">${parts.join('')}</article>`;
 }
 
-export function renderHtml(doc: DceExport): string {
-  const title = `${doc.guild.name ? `${doc.guild.name} · ` : ''}#${doc.channel.name}`;
-  return `<!doctype html>
+/** A channel's heading: its server, then its name. */
+export const exportTitle = (doc: ExportHead): string => `${doc.guild.name ? `${doc.guild.name} · ` : ''}#${doc.channel.name}`;
+
+/** The message count is in the foot: it is known only once the last page is written. */
+export function htmlWriter(doc: ExportHead): FormatWriter {
+  const title = exportTitle(doc);
+  return {
+    head: `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${PAGE_CSP}"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title><style>${PAGE_CSS}</style></head>
-<body><header><h1>${esc(title)}</h1><p>${doc.messages.length} messages · exported from ChattyPop ${esc(when(doc.exportedAt ?? new Date().toISOString()))}</p></header>
-<main>${doc.messages.map(renderMessage).join('\n')}</main></body></html>`;
+<body><header><h1>${esc(title)}</h1><p>exported from ChattyPop ${esc(when(doc.exportedAt))}</p></header>
+<main>
+`,
+    message: (m) => `${renderMessage(m)}\n`,
+    foot: (written) => `</main><footer>${written} messages</footer></body></html>`,
+  };
 }
