@@ -9,6 +9,7 @@ import { activityStats, postersPage } from '../core/stats';
 import { hourlyHistogram } from '../core/histogram';
 import { voiceStats } from '../core/voice';
 import { VOICE_PEOPLE } from '../shared/voice';
+import { wordStats } from '../core/words';
 import type { ActivityQuery } from '../shared/types';
 import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP } from '../shared/types';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
@@ -107,6 +108,23 @@ function expectCounts(db: Db): void {
 }
 
 describe('activity stats under privacy mode', () => {
+  it.each([false, true])('keeps word-trend extent and token counts private (hiding: %s)', async (hiding) => {
+    const db = tempDb();
+    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    if (hiding) hideSome(db, fixture);
+    const prepare = vi.spyOn(db, 'prepare');
+    try {
+      const stats = await wordStats(db, ALL_TIME);
+      expect(stats.textMessages).toBe(visibleMessages(db).filter((m) => m.content.trim()).length);
+      expect(stats.trends.earlierWords + stats.trends.laterWords).toBe(stats.totalWords);
+      const extent = prepare.mock.calls.map(([sql]) => sql).find((sql) => sql.startsWith('SELECT MIN(m.ts)'))!;
+      prepare.mockRestore();
+      const details = statementPlans(db, () => db.prepare(extent).get()).join('\n');
+      expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
+      expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
+    } finally { prepare.mockRestore(); }
+  });
+
   it.each([false, true])('keeps share-of-voice SQL on the privacy-aware archive (hiding: %s)', (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);

@@ -7,6 +7,7 @@ import { WordCloud } from './WordCloud';
 import { SHARE_ROW, Subheading, formatCount, share } from './section';
 import styles from './Stats.module.css';
 import { MessageLength, formatAverage } from './MessageLength';
+import { WordTrends } from './WordTrends';
 
 export function Words() {
   return <TextSection label="Words" resource={words}>{(stats) => <>
@@ -29,5 +30,6 @@ export function Words() {
         <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{formatCount(word.count)}</span>
       </li>}</For>
     </ol>
+    <WordTrends stats={stats().trends} />
   </>}</TextSection>;
 }
