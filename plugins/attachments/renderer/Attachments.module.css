@@ -1,0 +1,330 @@
+/* Attachments panel: breakdown, selection bar and a virtualised grid or list. Structure only; TSX applies the theme's look roles. */
+
+/* Under the header: the bars stacked over the scroller, which takes what is left. Relative for the jump button. */
+.body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* Owns the scroll. No padding: rows are offset-measured. Relative so .measure spans its content width. */
+.scroller {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--cp-space-6) var(--cp-panel-pad-x);
+}
+
+/* Never seen, inside .scroller: its computed track count is the grid's column count. Same tracks and inset as .gridRow. */
+.measure {
+  position: absolute;
+  inset: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--cp-attachment-tile), 1fr));
+  column-gap: var(--cp-media-grid-gap);
+  height: 0;
+  padding: 0 var(--cp-panel-pad-x);
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* One virtual row of tiles: --cols (set in TSX) equal columns. The gap under it is the row's own, so rows measure whole. */
+.gridRow {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  column-gap: var(--cp-media-grid-gap);
+  padding: 0 var(--cp-panel-pad-x) var(--cp-media-grid-gap);
+}
+
+/* A square tile. */
+.cell {
+  position: relative;
+  display: block;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* The picked ring and wash (look.mediaCell draws them) lie over the picture. */
+.cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* No picture (a spoiler, audio, another file, a file not on this PC): an icon over the name. */
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cp-space-2);
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: var(--cp-space-4);
+}
+
+.placeholderIcon {
+  flex: none;
+  width: var(--cp-thumb-icon);
+  height: var(--cp-thumb-icon);
+}
+
+/* The filename, two lines at most. */
+.placeholderName {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* The selection mark, top start, over the ring. Hidden until the tile is hovered, focused or picked, or selecting is on. */
+.pick {
+  position: absolute;
+  top: var(--cp-space-3);
+  left: var(--cp-space-3);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cp-media-pick-mark);
+  height: var(--cp-media-pick-mark);
+  visibility: hidden;
+}
+
+.cell:hover .pick,
+.cell:focus-visible .pick,
+.cell[aria-pressed='true'] .pick,
+[data-selecting='true'] .pick {
+  visibility: visible;
+}
+
+/* Marks along the tile's bottom edge, over the ring: kind and state at the start, size at the end. */
+.cornerStart,
+.cornerEnd {
+  position: absolute;
+  bottom: var(--cp-space-3);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Gives way to the size: at most the tile's first half. */
+.cornerStart {
+  left: var(--cp-space-3);
+  gap: var(--cp-space-1);
+  max-width: 50%;
+  overflow: hidden;
+}
+
+.cornerEnd {
+  right: var(--cp-space-3);
+  padding: var(--cp-space-1) var(--cp-space-3);
+}
+
+/* A list row: pick | picture | name over who-where-when | kind | size | menu. */
+.listRow {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  column-gap: var(--cp-space-4);
+  min-height: calc(var(--cp-attachment-list-thumb) + 2 * var(--cp-space-2));
+  padding: var(--cp-space-2) var(--cp-panel-pad-x);
+}
+
+.listPick {
+  margin: 0;
+}
+
+.listThumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cp-attachment-list-thumb);
+  height: var(--cp-attachment-list-thumb);
+  padding: 0;
+  overflow: hidden;
+}
+
+.listThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.listMain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cp-space-1);
+  min-width: 0;
+}
+
+.listName,
+.listMeta {
+  max-width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listMeta {
+  padding: 0;
+}
+
+.listKind {
+  white-space: nowrap;
+}
+
+.listSize {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.listMenu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cp-btn-h-sm);
+  height: var(--cp-btn-h-sm);
+  padding: 0;
+}
+
+/* Over the scroller while files are picked or a job runs: count | actions, wrapping when narrow. */
+.selectionBar {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-3) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-panel-pad-x);
+}
+
+.selectionText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.selectionActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-3);
+  margin-left: auto;
+}
+
+/* A running job's sweep along the bar's bottom edge, as wide as --progress (0 to 1, set in TSX); look.progressSweep draws its ::after. */
+.selectionProgress {
+  position: absolute;
+  inset: auto auto 0 0;
+  width: calc(var(--progress, 1) * 100%);
+  height: var(--cp-space-1);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.selectionProgress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* Where the bytes are: a heading line over ranked rows. */
+.breakdown {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  padding: var(--cp-space-4) var(--cp-panel-pad-x);
+}
+
+.breakdownHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cp-space-3) var(--cp-space-4);
+}
+
+.breakdownRows {
+  display: grid;
+  gap: var(--cp-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* name (and its server) | bytes and count; look.shareBar draws its share behind it. */
+.breakdownRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--cp-space-4);
+  width: 100%;
+  padding: var(--cp-space-2) var(--cp-space-4);
+  text-align: left;
+}
+
+.breakdownName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdownDetail {
+  margin-left: var(--cp-space-3);
+}
+
+.breakdownFigure {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A person's files in the Person window: the same tiles, not virtualised. */
+.personGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--cp-attachment-tile), 1fr));
+  gap: var(--cp-media-grid-gap);
+  padding: var(--cp-space-4);
+}
+
+.personNote {
+  margin: 0;
+  padding: var(--cp-space-3) var(--cp-space-4);
+}
+
+/* Under the last tile, on a line of its own. */
+.older {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: var(--cp-space-3);
+}

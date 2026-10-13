@@ -1,0 +1,91 @@
+/* The Attachments panel's filter bar, under its header: it wraps, since the panel is often a narrow side panel. Structure only. */
+
+.filters {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cp-space-3) var(--cp-space-4);
+  padding: var(--cp-space-3) var(--cp-panel-pad-x);
+}
+
+/* Where and who: they share a line's spare width, and shrink before the bar wraps. Field look is theme/forms.css. */
+.scope,
+.who {
+  flex: 1 1 0;
+  min-width: var(--cp-attachment-picker-min);
+  max-width: var(--cp-filter-select-max-w);
+  height: var(--cp-btn-h-sm);
+}
+
+/* The kinds: one tight row, read as one control. */
+.kinds {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cp-space-2);
+}
+
+/* icon | name | count, at the header's control height. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  height: var(--cp-btn-h-sm);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
+.chipIcon {
+  flex: none;
+  width: var(--cp-icon-md);
+  height: var(--cp-icon-md);
+}
+
+.chipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The range segments keep their size. */
+.tool {
+  flex: none;
+}
+
+.size,
+.state {
+  flex: none;
+  min-width: 0;
+  max-width: var(--cp-filter-select-max-w);
+  height: var(--cp-btn-h-sm);
+}
+
+/* The order: one button naming it. */
+.sortButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: var(--cp-btn-h-sm);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
+/* The file-name field: takes spare width as the pickers do. */
+.search {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: var(--cp-attachment-picker-min);
+  max-width: var(--cp-filter-select-max-w);
+  height: var(--cp-btn-h-sm);
+}
+
+/* "Can compress": a switch and its name. */
+.toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cp-space-3);
+  height: var(--cp-btn-h-sm);
+  white-space: nowrap;
+}

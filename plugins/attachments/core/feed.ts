@@ -1,0 +1,51 @@
+import type { ArchiveMessage } from '@plugin-sdk/shared';
+import type { PluginDb } from '@plugin-sdk/core';
+import type { AttachmentCursor, AttachmentItem, AttachmentPageQuery, PersonFilesQuery } from '../shared/types';
+import { ATTACHMENT_FROM, DISK_BYTES, SIZE_KEY, attachmentWhere } from './filters';
+
+type AttachmentRow = Omit<AttachmentItem, 'compressed' | 'animated' | 'spoiler' | 'removed' | 'message'> & {
+  compressedAt: number | null;
+  removedAt: number | null;
+};
+type MessageReader = (ids: string[]) => ArchiveMessage[];
+
+/** Row-value cursors match every descending sort key; before reads ascend, then reverse to return the nearest rows. */
+export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): AttachmentRow[] {
+  const w = attachmentWhere(q);
+  const largest = q.sort === 'largest';
+  const cursor: AttachmentCursor | undefined = q.before ?? q.after;
+  const op = q.before ? '>' : '<';
+  const past = cursor ? ` AND (${largest ? `${SIZE_KEY}, ` : ''}a.ts, a.id) ${op} (${largest ? '?, ' : ''}?, ?)` : '';
+  const args = !cursor ? [] : largest ? [cursor.bytes ?? 0, cursor.ts, cursor.id] : [cursor.ts, cursor.id];
+  const dir = q.before ? 'ASC' : 'DESC';
+  const rows = db.prepare(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
+      COALESCE(c.name, a.channel_id) AS channelName, c.guild_id AS guildId, COALESCE(g.name, '') AS guildName,
+      m.author_id AS authorId, COALESCE(m.author_name, '') AS authorName, a.ts,
+      a.filename, a.content_type AS contentType, a.kind, a.size, ${DISK_BYTES} AS bytes, ${SIZE_KEY} AS sortBytes,
+      a.width, a.height, a.sha256, a.stored_ext AS storedExt, a.status,
+      a.compressed_at AS compressedAt, a.removed_at AS removedAt
+    ${ATTACHMENT_FROM} WHERE ${w.sql}${past}
+    ORDER BY ${largest ? `${SIZE_KEY} ${dir}, ` : ''}a.ts ${dir}, a.id ${dir} LIMIT ?`)
+    .all(...w.params, ...args, q.limit) as AttachmentRow[];
+  return q.before ? rows.reverse() : rows;
+}
+
+/** Archive attachment metadata supplies local edits and animation flags; orphan rows retain safe filename/MIME fallbacks. */
+export function attachmentPage(db: PluginDb, messagesByIds: MessageReader, q: AttachmentPageQuery): AttachmentItem[] {
+  const rows = attachmentRows(db, q);
+  const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
+  return rows.map(({ compressedAt, removedAt, ...row }) => {
+    const message = messages.get(row.messageId) ?? null;
+    const a = message?.attachments.find((a) => a.id === row.id);
+    return {
+      ...row, message,
+      compressed: a?.compressed ?? compressedAt !== null,
+      animated: a?.animated ?? row.contentType?.toLowerCase() === 'image/gif',
+      spoiler: a?.spoiler ?? row.filename.startsWith('SPOILER_'),
+      removed: a?.removed ?? removedAt !== null,
+    };
+  });
+}
+
+export const personFiles = (db: PluginDb, messagesByIds: MessageReader, q: PersonFilesQuery): AttachmentItem[] =>
+  attachmentPage(db, messagesByIds, { authorId: q.userId, limit: q.limit });
