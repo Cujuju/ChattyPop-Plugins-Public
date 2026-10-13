@@ -101,7 +101,7 @@ describe('Analytics section resources', () => {
     expect(env.calls.filter((call) => call.member === 'personStreaks')).toHaveLength(1);
     const beforeStreaksRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeStreaksRefresh).map((call) => call.member)).toEqual(['activityStats', 'personStreaks']);
+    expect(env.calls.slice(beforeStreaksRefresh).map((call) => call.member)).toEqual(['activityStats', 'personStreaks', 'voiceStats']);
     env.choices.get('section')!('links');
     await settle();
     expect(env.calls.filter((call) => call.member === 'repeatedLinks')).toHaveLength(1);

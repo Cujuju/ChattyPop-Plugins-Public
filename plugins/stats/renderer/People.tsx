@@ -6,6 +6,7 @@ import { PosterRow } from './PosterRow';
 import { Subheading, countLabel, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
 import { PersonStreakRows } from './StreakRows';
+import { Voice } from './Voice';
 
 export function People(props: StatsSectionProps) {
   const pages = createPosterList();
@@ -36,6 +37,7 @@ export function People(props: StatsSectionProps) {
         <button type="button" class={look.button} aria-expanded="true" onClick={pages.reset}>Show top {POSTERS_TOP}</button>
       </Show>
       <PersonStreakRows channelId={personChannel()} />
+      <Voice channelId={personChannel()} />
     </section>
   );
 }

@@ -7,6 +7,8 @@ import { statementPlans } from '@chattypop/host-testing/queryPlan';
 import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
 import { activityStats, postersPage } from '../core/stats';
 import { hourlyHistogram } from '../core/histogram';
+import { voiceStats } from '../core/voice';
+import { VOICE_PEOPLE } from '../shared/voice';
 import type { ActivityQuery } from '../shared/types';
 import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP } from '../shared/types';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
@@ -105,6 +107,20 @@ function expectCounts(db: Db): void {
 }
 
 describe('activity stats under privacy mode', () => {
+  it.each([false, true])('keeps share-of-voice SQL on the privacy-aware archive (hiding: %s)', (hiding) => {
+    const db = tempDb();
+    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    if (hiding) hideSome(db, fixture);
+    const visible = visibleMessages(db);
+    const stats = voiceStats(db, ALL_TIME);
+    expect(stats.buckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(visible.length);
+    expect(stats.people.map((p) => [p.poster.userId, p.poster.count])).toEqual(ranked(visible.map((m) => m.author_id)).slice(0, VOICE_PEOPLE).map((p) => [p.id, p.count]));
+    const details = statementPlans(db, () => voiceStats(db, ALL_TIME)).join('\n');
+    expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
+    expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
+    expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
+  });
+
   it('runs 12 archive-message statements with one local hourly histogram for Everything', () => {
     const db = tempDb();
     seedPerfArchive(db, TEST_ARCHIVE);

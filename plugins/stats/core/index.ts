@@ -8,12 +8,14 @@ import { sentimentStats } from './sentiment';
 import { conversationStats } from './conversations';
 import { personStreaks } from './streaks';
 import { repeatedLinks } from './repeatedLinks';
+import { voiceStats } from './voice';
 
 export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     activityStats: (q) => activityStats(ctx.storage.db, q),
     postersPage: (q) => postersPage(ctx.storage.db, q),
     personStreaks: (q) => personStreaks(ctx.storage.db, q),
+    voiceStats: (q) => voiceStats(ctx.storage.db, q),
     repeatedLinks: (q) => repeatedLinks(ctx.storage.db, q),
     emojiStats: async (q) => emojiStats(ctx.storage.db, q),
     wordStats: async (q) => wordStats(ctx.storage.db, q),
