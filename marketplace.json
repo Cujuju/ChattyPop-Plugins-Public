@@ -7,6 +7,13 @@
       "description": "A rule-driven inbox, unread badges and notifications for messages that need your attention.",
       "releases": [
         {
+          "version": "1.3.5",
+          "tag": "alerts-v1.3.5",
+          "asset": "alerts-1.3.5.tar.gz",
+          "sha256": "459313b5bf2a10dd96e2486bd7c7e3cbf90cdb7cd6ab75348276ee878286ca0d",
+          "sdk": "3.0.0"
+        },
+        {
           "version": "1.3.4",
           "tag": "alerts-v1.3.4",
           "asset": "alerts-1.3.4.tar.gz",
