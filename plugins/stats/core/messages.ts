@@ -19,6 +19,6 @@ export function attachmentTypes(db: PluginDb, scope: StatsSqlScope): ActivitySta
     WHEN lower(a.content_type) LIKE 'audio/%' THEN 'audio'
     ELSE 'other' END AS kind, COUNT(*) AS count
     FROM archive_attachments a JOIN archive_messages m ON m.id = a.message_id
-    WHERE ${scope.sql} GROUP BY kind`).all(...scope.params) as ActivityStats['attachmentTypes'];
+    WHERE ${scope.sql} GROUP BY 1`).all(...scope.params) as ActivityStats['attachmentTypes'];
   return ATTACHMENT_KINDS.map((kind) => ({ kind, count: rows.find((r) => r.kind === kind)?.count ?? 0 }));
 }
