@@ -1,4 +1,4 @@
-// A summary's body: headline, run details, "For you", points and key themes. The Summary panel and comparisons show it.
+// A summary's body: headline, run details, key themes, "For you" and points. The Summary panel and comparisons show it.
 import { For, Show } from 'solid-js';
 import { CITATION_FLAG_CONFIDENCE, type Summary, type SummaryItem } from '../shared/types';
 import { look, providerLabel, formatTokens, usdText, weekdayDate } from '@plugin-sdk/renderer/kit';
@@ -95,6 +95,26 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean; sour
         <RunFacts summary={s()} />
         <InsetRule />
       </Show>
+      <Show when={s().themes?.length}>
+        <h3 class={`${styles.sectionHead} ${look.text}`} {...SECTION_HEAD}>
+          Key themes
+        </h3>
+        <ul class={styles.items}>
+          <For each={s().themes!}>
+            {(t) => (
+              <li class={`${styles.item} ${look.numbered} ${look.text}`} {...POINT} data-tone="secondary">
+                <span class={styles.itemText}>
+                  <PeopleText text={t.title} people={s().people} channelId={t.citations[0]?.channelId ?? s().channelIds[0]} />
+                </span>
+                <Sources citations={t.citations} summary={s()} withDay={props.withDay} limit={THEME_CHIPS} shown={props.sourcesOpen} />
+              </li>
+            )}
+          </For>
+        </ul>
+        <Show when={s().actions.length || s().items.length}>
+          <InsetRule />
+        </Show>
+      </Show>
       <Show when={s().actions.length}>
         <section class={`${styles.actions} ${look.wash}`} aria-label="For you">
           <p class={look.text} data-size="xs" data-weight="semibold" data-case="upper" data-tracking="label" data-font="sans" data-tone="section">
@@ -156,26 +176,6 @@ export function SummaryContent(props: { summary: Summary; withDay: boolean; sour
           </>
         )}
       </For>
-      <Show when={s().themes?.length}>
-        <Show when={s().items.length}>
-          <InsetRule />
-        </Show>
-        <h3 class={`${styles.sectionHead} ${look.text}`} {...SECTION_HEAD}>
-          Key themes
-        </h3>
-        <ul class={styles.items}>
-          <For each={s().themes!}>
-            {(t) => (
-              <li class={`${styles.item} ${look.numbered} ${look.text}`} {...POINT} data-tone="secondary">
-                <span class={styles.itemText}>
-                  <PeopleText text={t.title} people={s().people} channelId={t.citations[0]?.channelId ?? s().channelIds[0]} />
-                </span>
-                <Sources citations={t.citations} summary={s()} withDay={props.withDay} limit={THEME_CHIPS} shown={props.sourcesOpen} />
-              </li>
-            )}
-          </For>
-        </ul>
-      </Show>
     </>
   );
 }
