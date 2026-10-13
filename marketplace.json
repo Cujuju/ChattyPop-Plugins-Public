@@ -791,6 +791,13 @@
       "description": "Every enabled AI provider's plan limits side by side, and what ChattyPop used of them.",
       "releases": [
         {
+          "version": "1.2.1",
+          "tag": "usage-v1.2.1",
+          "asset": "usage-1.2.1.tar.gz",
+          "sha256": "292f368c2af69cadeab5456aea6bb67b9f699b3d5a2dd4993df5e01740670385",
+          "sdk": "2.43.0"
+        },
+        {
           "version": "1.1.2",
           "tag": "usage-v1.1.2",
           "asset": "usage-1.1.2.tar.gz",
