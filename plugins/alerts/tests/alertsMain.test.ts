@@ -30,6 +30,7 @@ it('routes an eligible alert burst to desktop and push once, without reading set
     },
     panelWindows: { windows: () => [] },
     downloader: { kick: vi.fn() },
+    desktopNotices: true,
     phone: {
       broadcast,
       notify,
