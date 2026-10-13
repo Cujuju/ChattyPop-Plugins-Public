@@ -99,10 +99,12 @@
   min-width: 0;
 }
 
-/* With cp-panel-body. */
+/* With cp-panel-body. The panel places its own scroll (the newest run followed, older runs loading above): the browser's
+   anchoring, which may hold a run under the one the reader unfolds, would push that one up. */
 .body {
   gap: var(--cp-space-4);
   overflow-x: hidden;
+  overflow-anchor: none;
 }
 
 .error {
