@@ -1,6 +1,6 @@
-// Summary history in the renderer: a refreshed page merges in order, which runs show their body, where failed runs sit, and a run's facts.
+// Summary history in the renderer: a refreshed page merges in order, which runs show their body, where failed runs sit, which row has just landed, and a run's facts.
 import { expect, it } from 'vitest';
-import { historyEntries, isFailure, mergeHistoryPage, runOpen } from '../renderer/historyPage';
+import { entryKey, historyEntries, isFailure, landedRow, mergeHistoryPage, runOpen } from '../renderer/historyPage';
 import { durationText, runFacts, type FactText } from '../renderer/runFacts';
 import type { Summary, SummaryRunFailure } from '../shared/types';
 
@@ -44,7 +44,23 @@ it('holds a failure from before the loaded runs until its page is loaded', () =>
   expect(historyEntries([], failures, true)).toHaveLength(2);
 });
 
-const TEXT: FactText = { provider: 'Claude', tokens: (n) => `${n}t`, usd: (n) => `$${n}` };
+it('tells the row that has just landed at the end from older pages, rows leaving and rows read again', () => {
+  const rows = [ranAt(1, 100), ranAt(2, 300)];
+  const listed = new Set(rows.map(entryKey));
+  // Nothing listed before: the newest row has landed.
+  expect(landedRow(rows, new Set())).toBe(rows[1]);
+  expect(landedRow([], new Set())).toBeNull();
+  const newer = ranAt(3, 500);
+  expect(landedRow([...rows, newer], listed)).toBe(newer);
+  // An older page above, the newest row leaving, and a failure read again as a new object.
+  expect(landedRow([ranAt(0, 50), ...rows], listed)).toBeNull();
+  expect(landedRow(rows.slice(0, 1), listed)).toBeNull();
+  const failed = failedAt(9, 400);
+  expect(landedRow([...rows, { ...failed }], new Set([...listed, entryKey(failed)]))).toBeNull();
+  expect(landedRow([...rows, failed], listed)).toBe(failed);
+});
+
+const TEXT: FactText ={ provider: 'Claude', tokens: (n) => `${n}t`, usd: (n) => `$${n}` };
 const run = (over: Partial<Summary>): Summary =>
   ({ messageCount: 89, skippedCount: 0, durationMs: 127_000, model: 'haiku', usage: null, apiCostUsd: null, apiCostEstimated: false, jevCostUsd: null, ...over }) as Summary;
 const labelled = (s: Summary): Record<string, string> => Object.fromEntries(runFacts(s, TEXT).map((f) => [f.label, f.value]));

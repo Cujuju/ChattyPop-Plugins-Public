@@ -4,7 +4,6 @@ import type { Summary, SummaryRunFailure } from '../shared/types';
 import type { SummaryTrigger } from '../shared/settings';
 import {
   look,
-  createFollowBottom,
   clockTime,
   now,
   shortDateTime,
@@ -30,7 +29,7 @@ import {
   summaryRunning,
   toggleSummary,
 } from './state';
-import { historyEntries, isFailure } from './historyPage';
+import { entryKey, historyEntries, isFailure, landedRow } from './historyPage';
 import { scopeLabel } from './scope';
 import { SummaryControls } from './SummaryControls';
 import { spansDays } from './order';
@@ -53,10 +52,14 @@ const PHASE_TEXT = {
 
 const TRIGGER_TEXT: Record<SummaryTrigger, string> = { manual: '', 'catch-up': 'Catch-up', digest: 'Daily digest', rule: 'Rule' };
 
-/** F2 Summary: range and run; every run kept, oldest at the top and newest at the bottom, each folding under the time it covers. */
+/**
+ * F2 Summary: range and run; every run kept, oldest at the top and newest at the bottom, each folding under the time it
+ * covers. The newest shows from its top, to be read downwards.
+ */
 export function SummaryPanel() {
-  const log = createFollowBottom();
   let body!: HTMLDivElement;
+  const newestRow = (): Element | null => (body?.isConnected ? body.querySelector(':scope > article:last-of-type') : null);
+  const viewBottom = (): number => body.getBoundingClientRect().bottom;
   // Within a screen of the top, load older runs and keep what is on screen in place.
   const onScroll = async (): Promise<void> => {
     if (scrolledFromTop(body) > body.clientHeight) return;
@@ -79,6 +82,33 @@ export function SummaryPanel() {
     if (!p) return PHASE_TEXT.reading;
     return p.total > 0 ? `${PHASE_TEXT[p.phase]} ${p.done}/${p.total}` : PHASE_TEXT[p.phase];
   };
+  // The newest row shows from its top when it lands, and when the panel opens: nothing was listed before.
+  let listed: ReadonlySet<string> = new Set();
+  createEffect(() => {
+    const rows = entries();
+    if (isPanelCollapsed('summary')) return void (listed = new Set());
+    const opening = listed.size === 0;
+    const landed = landedRow(rows, listed);
+    listed = new Set(rows.map(entryKey));
+    if (!landed) return;
+    queueMicrotask(() => {
+      const row = newestRow();
+      // A reader in older runs, the row that was newest still under the view, is left there.
+      const before = row?.previousElementSibling;
+      if (!row || (!opening && before && before.getBoundingClientRect().top >= viewBottom())) return;
+      row.scrollIntoView({ block: 'start' });
+    });
+  });
+  // The line under the runs (progress, or why a run failed) comes into view while the runs' end is in view.
+  createEffect(() => {
+    if (!progressText() && !summaryError()) return;
+    queueMicrotask(() => {
+      if (!body?.isConnected) return;
+      const row = newestRow();
+      const line = body.lastElementChild;
+      if (line && line !== row && (!row || row.getBoundingClientRect().bottom <= viewBottom())) line.scrollIntoView({ block: 'nearest' });
+    });
+  });
   return (
     <section class="cp-panel" aria-label="Summary">
       <PanelHeader section="summary" collapsible title="Summary">
@@ -89,10 +119,7 @@ export function SummaryPanel() {
       <Show when={!isPanelCollapsed('summary')}>
         <div
           class={`cp-panel-body ${styles.body}`}
-          ref={(el) => {
-            body = el;
-            log.ref(el);
-          }}
+          ref={body}
           onScroll={() => void onScroll()}
         >
           <Show when={entries().length === 0 && !summaryRunning()}>
@@ -157,7 +184,7 @@ function SummaryRun(props: { summary: Summary }) {
     if (picked && !picked.isCollapsed && run.contains(picked.anchorNode)) return;
     toggleSummary(s().id);
     // Folded from far down its body, its heading is above the view: it comes back in.
-    if (!open()) heading.scrollIntoView({ block: 'nearest' });
+    if (!open()) run.scrollIntoView({ block: 'nearest' });
   };
   return (
     <article ref={run} class={styles.summary} onClick={onClick}>

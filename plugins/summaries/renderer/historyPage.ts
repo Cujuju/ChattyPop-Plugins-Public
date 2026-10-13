@@ -1,4 +1,4 @@
-// The history list: merging a refreshed newest page with runs completed meanwhile, which runs show their body, and where failed runs sit.
+// The history list: merging a refreshed newest page with runs completed meanwhile, which runs show their body, where failed runs sit, and which row has just landed.
 import type { Summary, SummaryRunFailure } from '../shared/types';
 /** Core returns newest first; older paged-in rows never follow the refreshed newest page. */
 export function mergeHistoryPage<T extends { id: number }>(page: readonly T[], current: readonly T[]): T[] {
@@ -13,6 +13,17 @@ export const runOpen = (toggles: ReadonlyMap<number, boolean>, id: number, newes
 export type HistoryEntry = Summary | SummaryRunFailure;
 export const isFailure = (e: HistoryEntry): e is SummaryRunFailure => 'runId' in e;
 const enteredAt = (e: HistoryEntry): number => (isFailure(e) ? e.claimedAt : e.createdAt);
+/** A row's identity across reads: a failure is read anew each time, and one run can owe more than one summary. */
+export const entryKey = (e: HistoryEntry): string => (isFailure(e) ? `failed:${e.runId}:${e.actionId}` : `run:${e.id}`);
+
+/**
+ * The row that has just landed at the list's end: the newest, when `listed` (the rows' keys before) lacks it. Older
+ * pages loading above, rows leaving and rows read again land nothing; with nothing listed before, the newest row has.
+ */
+export function landedRow(rows: readonly HistoryEntry[], listed: ReadonlySet<string>): HistoryEntry | null {
+  const newest = rows.at(-1);
+  return newest && !listed.has(entryKey(newest)) ? newest : null;
+}
 
 /**
  * Runs with each failure where its summary would be: by when it was first tried. A failure from before the loaded

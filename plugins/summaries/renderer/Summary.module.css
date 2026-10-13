@@ -99,8 +99,8 @@
   min-width: 0;
 }
 
-/* With cp-panel-body. The panel places its own scroll (the newest run followed, older runs loading above): the browser's
-   anchoring, which may hold a run under the one the reader unfolds, would push that one up. */
+/* With cp-panel-body. The panel places its own scroll (the newest run shown from its top, older runs loading above): the
+   browser's anchoring, which may hold a run under the one the reader unfolds, would push that one up. */
 .body {
   gap: var(--cp-space-4);
   overflow-x: hidden;
@@ -111,12 +111,14 @@
   overflow-wrap: anywhere;
 }
 
-/* A run, or one that failed: its heading card (or notice), then its body when open. */
+/* A run, or one that failed: its heading card (or notice), then its body when open. Scrolled to, it keeps the list's
+   gap above it. */
 .summary {
   display: flex;
   flex-direction: column;
   gap: var(--cp-space-4);
   min-width: 0;
+  scroll-margin-top: var(--cp-space-4);
 }
 
 /* A run's heading, a card of its own: the chevron, then the time it covers and what ran it; folded, its headline
