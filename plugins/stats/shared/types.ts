@@ -1,4 +1,5 @@
 import { MS_PER_MIN, MS_PER_HOUR, MS_PER_DAY } from '@plugin-sdk/shared';
+import type { PeriodComparison } from './comparison';
 
 /** The panel's scope choices and their labels. */
 export const STATS_SCOPES = { channel: 'This channel', server: 'This server', all: 'Everything' } as const;
@@ -87,6 +88,7 @@ export interface ActivityStats {
   query: ActivityQuery;
   /** First visible archived message in the whole scope, independent of the selected range. */
   archivedSince: number | null;
+  comparison: PeriodComparison | null;
   messages: number;
   authors: number;
   activeDays: number;

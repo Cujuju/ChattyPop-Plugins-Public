@@ -7,6 +7,7 @@ import { hourlyHistogram, timeStats } from './histogram';
 import { attachmentTypes, editDelay } from './messages';
 import { timeline } from './timeline';
 import { domainTree } from './domains';
+import { periodComparison } from './comparison';
 
 /** SQL over messages `m`, with the same scope for every summary and poster page. */
 export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
@@ -39,8 +40,10 @@ export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
 const POSTER_COLUMNS = 'm.author_id AS userId, MIN(m.author_plain_name) AS name, u.avatar AS avatar, COUNT(*) AS count';
 const CHANNEL_COLUMNS = 'm.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS name, COUNT(*) AS count';
 /** URL shares join visible messages, even when the link's first share is hidden. */
-const LINK_SHARES = `FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id
+export const LINK_SHARES = `FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id
   JOIN archive_all_links l ON l.id = ml.link_id`;
+/** A link-bearing message counts once, regardless of how many URLs it contains. */
+export const LINKED_MESSAGE = 'EXISTS (SELECT 1 FROM archive_all_message_links ml WHERE ml.message_id = m.id)';
 
 function posters(db: PluginDb, scope: StatsSqlScope, offset: number, limit: number): StatsPoster[] {
   return db.prepare(`SELECT ${POSTER_COLUMNS} FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id
@@ -79,10 +82,13 @@ function links(db: PluginDb, scope: StatsSqlScope) {
 }
 
 export function activityStats(db: PluginDb, q: ActivityQuery): ActivityStats {
+  const now = Date.now();
   const scope = scopeSql(db, q);
   const counted = totals(db, scope);
   const { firstTs, lastTs, ...overview } = counted;
   const start = firstTs === null ? null : q.sinceTs ?? firstTs;
+  const wholeScope = scopeSql(db, { ...q, sinceTs: null });
+  const history = timeline(db, scope, wholeScope, start, lastTs);
   return {
     query: q,
     ...overview,
@@ -92,6 +98,7 @@ export function activityStats(db: PluginDb, q: ActivityQuery): ActivityStats {
     editDelay: editDelay(db, scope),
     attachmentTypes: attachmentTypes(db, scope),
     ...links(db, scope),
-    ...timeline(db, scope, scopeSql(db, { ...q, sinceTs: null }), start, lastTs),
+    ...history,
+    comparison: periodComparison(db, wholeScope, q.sinceTs, history.archivedSince, now),
   };
 }

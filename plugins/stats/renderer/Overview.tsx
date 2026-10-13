@@ -2,6 +2,7 @@ import { For, Show } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
 import { Subheading, countLabel, formatCount, type StatsSectionProps } from './section';
 import { formatPeriod, formatTimestamp } from './periods';
+import { comparisonDelta } from './comparison';
 import styles from './Stats.module.css';
 
 const TOTALS = [
@@ -21,10 +22,21 @@ export function Overview(props: StatsSectionProps) {
         <For each={TOTALS}>{([key, label]) => (
           <li class={`${styles.row} ${look.text}`} data-size="sm" data-tone="primary">
             <span class={styles.rowName}>{label}</span>
-            <span class={styles.rowCount}>{formatCount(props.stats()[key])}</span>
+            <span class={styles.rowCount}>
+              {formatCount(props.stats()[key])}
+              <Show when={props.stats().comparison?.totals}>{(earlier) => <>
+                {' '}<span class={look.text} data-size="xs" data-tone="muted"
+                  title={`Current: ${formatCount(props.stats()[key])}; preceding: ${formatCount(earlier()[key])}`}>
+                  {comparisonDelta(props.stats()[key], earlier()[key])}
+                </span>
+              </>}</Show>
+            </span>
           </li>
         )}</For>
       </ul>
+      <Show when={props.stats().comparison && !props.stats().comparison!.totals}>
+        <p class={look.text} data-size="xs" data-tone="muted">The archive does not reach the earlier period.</p>
+      </Show>
       <Subheading>Most active</Subheading>
       <ul class={styles.list}>
         <For each={PERIODS}>{(period) => (
