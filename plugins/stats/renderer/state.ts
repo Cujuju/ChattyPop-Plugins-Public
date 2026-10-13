@@ -1,15 +1,21 @@
 // #85 Analytics panel: what it counts (scope follows the shown channel) and the counts from core.
 import { createEffect, createSignal, on, onCleanup } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
-import { STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
+import { POSTERS_PAGE_MAX, STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { isPanelCollapsed, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { createPosterPages } from './posterPages';
+import { listedPerson, resetPerson } from './personSelection';
 
 export const [statsScope, setStatsScope] = pluginPreference(plugin, 'scope');
 export const [statsRange, setStatsRange] = pluginPreference(plugin, 'range');
 export const [statsSection, setStatsSection] = pluginPreference(plugin, 'section');
+/** A person choice lasts only for this renderer session, never a stored preference. */
+export const [statsAuthor, setStatsAuthor] = createSignal<string | null>(null);
+createEffect(on(() => ({ scope: statsScope(), channelId: shownChannelId() }), (next, previous) => {
+  setStatsAuthor((authorId) => resetPerson(authorId, previous, next));
+}));
 
 /** Open Analytics panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
 const [mounted, setMounted] = createSignal(0);
@@ -18,7 +24,7 @@ export const statsPanelMounted = (): (() => void) => {
   return () => setMounted((n) => n - 1);
 };
 
-type Choices = { scope: StatsScope; channelId: string | null; range: StatsRange };
+type Choices = { scope: StatsScope; channelId: string | null; range: StatsRange; authorId?: string | null };
 
 function choices(): Choices | undefined {
   if (!mounted() || isPanelCollapsed(STATS_PANEL)) return undefined;
@@ -28,17 +34,26 @@ function choices(): Choices | undefined {
 /** The query for `c`. A read takes the range start then (a refetch re-reads its arguments), so a refresh counts up to now. */
 const queryOf = (c: Choices): ActivityQuery => {
   const days = STATS_RANGES[c.range].days;
-  return { scope: c.scope, channelId: c.channelId, sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY };
+  return { scope: c.scope, channelId: c.channelId, sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY, authorId: c.authorId ?? null };
 };
+
+export const personOptions = pluginResource(plugin, 'postersPage', () => {
+  const c = choices();
+  return c && [{ ...queryOf(c), offset: 0, limit: POSTERS_PAGE_MAX }];
+}, null);
+createEffect(() => {
+  const posters = personOptions();
+  if (!personOptions.loading && !personOptions.failure && posters) setStatsAuthor((authorId) => listedPerson(authorId, posters));
+});
 
 export const stats = pluginResource(plugin, 'activityStats', () => {
   const c = choices();
-  return c && [queryOf(c)];
+  return c && [queryOf({ ...c, authorId: statsAuthor() })];
 }, null);
 const sectionQuery = (section: StatsSection): [ActivityQuery] | undefined => {
   if (statsSection() !== section) return undefined;
   const c = choices();
-  return c && [queryOf(c)];
+  return c && [queryOf({ ...c, authorId: statsAuthor() })];
 };
 
 export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null);
@@ -47,7 +62,7 @@ export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQ
 export const conversations = pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null);
 export const people = pluginResource(plugin, 'peopleStats', () => sectionQuery('people'), null);
 export const repeats = pluginResource(plugin, 'repeatedLinks', () => sectionQuery('links'), null);
-const resources = [stats, emoji, words, sentiment, conversations, people, repeats];
+const resources = [stats, emoji, words, sentiment, conversations, people, repeats, personOptions];
 export const statsLoading = (): boolean => resources.some((resource) => resource.loading);
 export const refreshStats = async (): Promise<void> => {
   await Promise.all(resources.map((resource) => resource.refetch()));

@@ -32,6 +32,7 @@ export function Conversations() {
           <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{countLabel(pair.exchanges, 'exchange')}</span>
         </li>}</For>
       </ol>
+      <Show when={!stats().pairs.length}><p class={look.text} data-size="sm" data-tone="muted">No exchanges in this range.</p></Show>
     </>}</Show>
   </section>;
 }

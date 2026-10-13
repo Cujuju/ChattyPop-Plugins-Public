@@ -5,6 +5,7 @@ const env = vi.hoisted(() => ({
   calls: [] as { member: string; query: ActivityQuery }[],
   events: new Map<string, () => void>(),
   choices: new Map<string, (value: string) => void>(),
+  pickerIds: ['u1', 'u2'],
   setChannel: (_value: string | null): void => { throw new Error('Channel signal not initialized.'); },
   setCollapsed: (_value: boolean): void => { throw new Error('Collapsed signal not initialized.'); },
 }));
@@ -13,7 +14,7 @@ vi.mock('solid-js', () => { const client = 'solid-js/dist/solid.js'; return impo
 vi.mock('@plugin-sdk/renderer/clients', () => ({
   coreClient: () => new Proxy({}, { get: (_target, member: string) => async (query: ActivityQuery) => {
     env.calls.push({ member, query });
-    return null;
+    return member === 'postersPage' ? env.pickerIds.map((userId) => ({ userId, name: userId, avatar: null, count: 1 })) : null;
   } }),
 }));
 vi.mock('@plugin-sdk/renderer/pluginList', () => ({ callable: () => true }));
@@ -43,7 +44,7 @@ vi.mock('@plugin-sdk/renderer/kit', async () => {
 });
 
 const statePath = '../renderer/state.ts';
-const state = await import(statePath) as { statsPanelMounted(): () => void; refreshStats(): Promise<void> };
+const state = await import(statePath) as { statsPanelMounted(): () => void; refreshStats(): Promise<void>; statsAuthor(): string | null; setStatsAuthor(value: string | null): void };
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
 const emojiReads = () => env.calls.filter((call) => call.member === 'emojiStats');
 
@@ -83,19 +84,19 @@ describe('Analytics section resources', () => {
     expect(env.calls.filter((call) => call.member === 'wordStats')).toHaveLength(1);
     const beforeWordsRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeWordsRefresh).map((call) => call.member)).toEqual(['activityStats', 'wordStats']);
+    expect(env.calls.slice(beforeWordsRefresh).map((call) => call.member)).toEqual(['activityStats', 'wordStats', 'postersPage']);
     env.choices.get('section')!('sentiment');
     await settle();
     expect(env.calls.filter((call) => call.member === 'sentimentStats')).toHaveLength(1);
     const beforeSentimentRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeSentimentRefresh).map((call) => call.member)).toEqual(['activityStats', 'sentimentStats']);
+    expect(env.calls.slice(beforeSentimentRefresh).map((call) => call.member)).toEqual(['activityStats', 'sentimentStats', 'postersPage']);
     env.choices.get('section')!('conversations');
     await settle();
     expect(env.calls.filter((call) => call.member === 'conversationStats')).toHaveLength(1);
     const beforeConversationsRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeConversationsRefresh).map((call) => call.member)).toEqual(['activityStats', 'conversationStats']);
+    expect(env.calls.slice(beforeConversationsRefresh).map((call) => call.member)).toEqual(['activityStats', 'conversationStats', 'postersPage']);
     env.choices.get('section')!('people');
     await settle();
     expect(env.calls.filter((call) => call.member === 'peopleStats')).toHaveLength(1);
@@ -103,13 +104,13 @@ describe('Analytics section resources', () => {
     expect(env.calls.filter((call) => call.member === 'personStreaks')).toHaveLength(0);
     const beforeStreaksRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeStreaksRefresh).map((call) => call.member)).toEqual(['activityStats', 'peopleStats']);
+    expect(env.calls.slice(beforeStreaksRefresh).map((call) => call.member)).toEqual(['activityStats', 'peopleStats', 'postersPage']);
     env.choices.get('section')!('links');
     await settle();
     expect(env.calls.filter((call) => call.member === 'repeatedLinks')).toHaveLength(1);
     const beforeLinksRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeLinksRefresh).map((call) => call.member)).toEqual(['activityStats', 'repeatedLinks']);
+    expect(env.calls.slice(beforeLinksRefresh).map((call) => call.member)).toEqual(['activityStats', 'repeatedLinks', 'postersPage']);
     env.setCollapsed(true);
     await settle();
     const beforeFoldedRefresh = env.calls.length;
@@ -120,7 +121,7 @@ describe('Analytics section resources', () => {
     const beforeLinksPrivacy = env.calls.length;
     env.events.get('privacy-changed')!();
     await settle();
-    expect(env.calls.slice(beforeLinksPrivacy).map((call) => call.member)).toEqual(['activityStats', 'repeatedLinks']);
+    expect(env.calls.slice(beforeLinksPrivacy).map((call) => call.member)).toEqual(['activityStats', 'repeatedLinks', 'postersPage']);
     env.choices.get('section')!('overview');
     await settle();
     await state.refreshStats();
@@ -129,5 +130,45 @@ describe('Analytics section resources', () => {
     env.choices.get('section')!('emoji');
     await settle();
     expect(emojiReads()).toHaveLength(beforePrivacy + 2);
+  });
+
+  it('wires the session author into every section, refresh, picker fallback and scope resets', async () => {
+    const unmount = state.statsPanelMounted();
+    env.choices.get('scope')!('all');
+    env.choices.get('range')!('all');
+    await settle();
+    state.setStatsAuthor('u1');
+    await settle();
+    for (const [section, member] of [['emoji', 'emojiStats'], ['words', 'wordStats'], ['sentiment', 'sentimentStats'], ['conversations', 'conversationStats'], ['people', 'peopleStats'], ['links', 'repeatedLinks']]) {
+      env.choices.get('section')!(section!);
+      await settle();
+      expect(env.calls.filter((call) => call.member === member).at(-1)?.query.authorId).toBe('u1');
+    }
+    await state.refreshStats();
+    expect(env.calls.filter((call) => call.member === 'activityStats').at(-1)?.query.authorId).toBe('u1');
+    expect(env.calls.filter((call) => call.member === 'postersPage').every((call) => call.query.authorId === null)).toBe(true);
+    env.setChannel('c3');
+    await settle();
+    expect(state.statsAuthor()).toBe('u1');
+    env.choices.get('scope')!('server');
+    await settle();
+    expect(state.statsAuthor()).toBeNull();
+    state.setStatsAuthor('u1');
+    env.setChannel('c4');
+    await settle();
+    expect(state.statsAuthor()).toBeNull();
+    env.choices.get('scope')!('channel');
+    await settle();
+    state.setStatsAuthor('u1');
+    env.setChannel(null);
+    await settle();
+    expect(state.statsAuthor()).toBeNull();
+    state.setStatsAuthor('u1');
+    env.pickerIds = ['u2'];
+    env.choices.get('range')!('7d');
+    await settle();
+    expect(state.statsAuthor()).toBeNull();
+    env.pickerIds = ['u1', 'u2'];
+    unmount();
   });
 });

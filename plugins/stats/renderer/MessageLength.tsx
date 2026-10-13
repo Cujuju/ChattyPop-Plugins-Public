@@ -5,6 +5,7 @@ import { PosterRow } from './PosterRow';
 import { CountRows, SHARE_ROW, Subheading, countLabel } from './section';
 import { formatTimestamp } from './periods';
 import styles from './Stats.module.css';
+import { PeopleRanking } from './PeopleRanking';
 
 /** One decimal retains useful differences between average message lengths. */
 const AVERAGE_DECIMALS = 1;
@@ -30,13 +31,15 @@ export function MessageLength(props: { stats: MessageLengthStats; channelId: str
         </button>
       </li>}</For>
     </ol>
-    <Subheading>Words per person</Subheading>
-    <p class={look.text} data-size="xs" data-tone="muted">Average words per message, among people with at least {WORDS_PERSON_MIN_MESSAGES} text messages.</p>
-    <ol class={styles.list}>
-      <For each={props.stats.people}>{(person, index) => <PosterRow
-        poster={{ userId: person.userId, name: personName(person.userId, props.channelId)?.name ?? person.userId, avatar: null, count: person.averageWords }}
-        channelId={props.channelId} rank={index() + 1} max={props.stats.people[0]?.averageWords ?? 0}
-        value={formatAverage(person.averageWords)} title={countLabel(person.textMessages, 'text message')} />}</For>
-    </ol>
+    <PeopleRanking>
+      <Subheading>Words per person</Subheading>
+      <p class={look.text} data-size="xs" data-tone="muted">Average words per message, among people with at least {WORDS_PERSON_MIN_MESSAGES} text messages.</p>
+      <ol class={styles.list}>
+        <For each={props.stats.people}>{(person, index) => <PosterRow
+          poster={{ userId: person.userId, name: personName(person.userId, props.channelId)?.name ?? person.userId, avatar: null, count: person.averageWords }}
+          channelId={props.channelId} rank={index() + 1} max={props.stats.people[0]?.averageWords ?? 0}
+          value={formatAverage(person.averageWords)} title={countLabel(person.textMessages, 'text message')} />}</For>
+      </ol>
+    </PeopleRanking>
   </>;
 }

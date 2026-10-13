@@ -1,7 +1,7 @@
 import { For, Show } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
 import { VOICE_PEOPLE, voiceShare } from '../shared/voice';
-import { people } from './state';
+import { people, statsAuthor } from './state';
 import { PosterIdentity } from './PosterRow';
 import { Subheading, countLabel, share } from './section';
 import { formatPeriod } from './periods';
@@ -15,7 +15,7 @@ export function Voice(props: { channelId: string | null }) {
   const voice = () => people()?.voice;
   return <>
     <Subheading>Share of voice</Subheading>
-    <p class={look.text} data-size="xs" data-tone="muted">Top {VOICE_PEOPLE} posters in this range. Every strip uses the same highest-share scale.</p>
+    <p class={look.text} data-size="xs" data-tone="muted">{statsAuthor() === null ? `Top ${VOICE_PEOPLE} posters in this range. Every strip uses the same highest-share scale.` : "This person's share of all messages in the scope and range. Buckets include everyone's messages."}</p>
     <Show when={people.failure}><p class="cp-error" role="alert">Couldn't load share of voice. {people.failure}</p></Show>
     <Show when={people.loading && !voice()}><p class={look.text} data-size="sm" data-tone="muted" role="status">Loading share of voice…</p></Show>
     <Show when={voice()}>{(stats) => <ul class={styles.multiples} aria-busy={people.loading}>

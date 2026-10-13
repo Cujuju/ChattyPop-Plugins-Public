@@ -4,6 +4,7 @@ import { repeats } from './state';
 import { PosterRow } from './PosterRow';
 import { SHARE_ROW, Subheading, countLabel, share } from './section';
 import styles from './Stats.module.css';
+import { PeopleRanking } from './PeopleRanking';
 
 export function RepeatedLinks(props: { channelId: string | null }) {
   return <>
@@ -25,12 +26,14 @@ export function RepeatedLinks(props: { channelId: string | null }) {
         </li>}</For>
       </ul>
       <Show when={!stats().urls.length}><p class={look.text} data-size="sm" data-tone="muted">No repeated links in this range.</p></Show>
-      <Subheading>Most reposts</Subheading>
-      <ol class={styles.list} aria-busy={repeats.loading}>
-        <For each={stats().reposts}>{(person, index) => <PosterRow
-          poster={{ userId: person.userId, name: personName(person.userId, props.channelId)?.name ?? person.userId, avatar: null, count: person.count }}
-          channelId={props.channelId} rank={index() + 1} max={stats().reposts[0]?.count ?? 0} value={countLabel(person.count, 'repost')} />}</For>
-      </ol>
+      <PeopleRanking>
+        <Subheading>Most reposts</Subheading>
+        <ol class={styles.list} aria-busy={repeats.loading}>
+          <For each={stats().reposts}>{(person, index) => <PosterRow
+            poster={{ userId: person.userId, name: personName(person.userId, props.channelId)?.name ?? person.userId, avatar: null, count: person.count }}
+            channelId={props.channelId} rank={index() + 1} max={stats().reposts[0]?.count ?? 0} value={countLabel(person.count, 'repost')} />}</For>
+        </ol>
+      </PeopleRanking>
     </>}</Show>
   </>;
 }
