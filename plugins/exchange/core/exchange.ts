@@ -175,7 +175,7 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
      WHERE channel_id = ? AND raw_json IS NOT NULL AND ts >= ? AND ts <= ? AND (ts, length(id), id) > (?, ?, ?)
      ORDER BY ts, length(id), id LIMIT ${EXPORT_PAGE}`,
   );
-  const stored = db.prepare("SELECT sha256 FROM archive_all_attachments WHERE id = ? AND status = 'stored'");
+  const stored = db.prepare("SELECT sha256, filename, stored_ext AS storedExt FROM archive_all_attachments WHERE id = ? AND status = 'stored'");
   const since = req.sinceTs ?? 0;
   const until = req.untilTs ?? Number.MAX_SAFE_INTEGER;
   // Each chosen channel with the threads exported for it; a thread reached twice is written once.
@@ -192,10 +192,10 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
     const filesDir = `${base}_files`;
     const attachmentUrl = (a: { id: string; filename: string; url: string }): string => {
       if (!req.includeMedia) return a.url;
-      const row = stored.get(a.id) as { sha256: string } | undefined;
+      const row = stored.get(a.id) as { sha256: string; filename: string; storedExt: string | null } | undefined;
       if (!row) return a.url;
-      const name = attachmentFileName(row.sha256, a.filename);
-      const src = storedAttachmentPath(attachmentsDir, row.sha256, a.filename);
+      const name = attachmentFileName(row);
+      const src = storedAttachmentPath(attachmentsDir, row);
       if (!existsSync(src)) return a.url;
       mkdirSync(join(req.dir, filesDir), { recursive: true });
       copyFileSync(src, join(req.dir, filesDir, name));

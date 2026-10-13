@@ -156,7 +156,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     db.prepare("UPDATE guilds SET name = 'Guild #1 100%'").run();
     const sha = 'c'.repeat(64);
     const attachmentsDir = tempDir();
-    const src = storedAttachmentPath(attachmentsDir, sha, 'a.txt');
+    const src = storedAttachmentPath(attachmentsDir, { sha256: sha, filename: 'a.txt', storedExt: null });
     mkdirSync(join(src, '..'), { recursive: true });
     writeFileSync(src, 'abc');
     attachmentStored(db, '500000000000000001', sha, 3);
@@ -166,6 +166,22 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     const href = /<a href="([^"]+)">a\.txt<\/a>/.exec(html)![1]!;
     const target = decodeURIComponent(new URL(href, 'file:///export/').pathname).slice('/export/'.length);
     expect(existsSync(join(req.dir, target))).toBe(true);
+  });
+
+  it('exports a compressed attachment from its stored extension', async () => {
+    const sha256 = 'd'.repeat(64);
+    const attachmentsDir = tempDir();
+    const src = storedAttachmentPath(attachmentsDir, { sha256, filename: 'a.txt', storedExt: 'webp' });
+    mkdirSync(join(src, '..'), { recursive: true });
+    writeFileSync(src, 'small');
+    attachmentStored(db, '500000000000000001', sha256, 5);
+    db.prepare("UPDATE attachments SET stored_ext = 'webp' WHERE id = '500000000000000001'").run();
+    const req = request({ format: 'json', includeMedia: true });
+    await exportChannels(db, attachmentsDir, req);
+    const doc = JSON.parse(readFileSync(join(req.dir, readdirSync(req.dir).find((f) => f.endsWith('.json'))!), 'utf8')) as DceExport;
+    const url = doc.messages.flatMap((m) => m.attachments ?? []).find((a) => a.id === '500000000000000001')!.url;
+    expect(url).toMatch(/\.webp$/);
+    expect(readFileSync(join(req.dir, url), 'utf8')).toBe('small');
   });
 
   it('writes JSON in pieces as JSON.stringify would write the whole document', async () => {
