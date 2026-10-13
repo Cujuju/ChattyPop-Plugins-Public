@@ -1,10 +1,10 @@
-// A message's right-click menu: Read image text, a submenu of the engines to read with this once.
+// A message's right-click menu: Transcribe, a submenu of the engines to read images with this once.
 import { openSettingsAt, type MenuGroup, type MenuItem } from '@plugin-sdk/renderer/kit';
 import { IMAGE_TEXT_TAB } from '../shared';
 import type { EnginePick } from '../shared/types';
 import { imageTextSettings, imageTextStatus, requestImageText } from './state';
 
-const READ_LABEL = 'Read image text';
+const READ_LABEL = 'Transcribe';
 /** Marks the submenu's engine that Settings → Image text uses. */
 const SETTINGS_DETAIL = 'Your setting';
 
@@ -42,7 +42,7 @@ function engineGroups(messageId: string): MenuGroup[] {
   return [...windows, ...vision];
 }
 
-/** The message's Read image text item; with no engine able to run, Settings' choice, whose failure opens Settings. */
+/** The message's Transcribe item; with no engine able to run, Settings' choice, whose failure opens Settings. */
 export function imageTextItem(messageId: string): MenuItem {
   const groups = engineGroups(messageId);
   return groups.length ? { label: READ_LABEL, icon: 'image', submenu: groups } : { label: READ_LABEL, icon: 'image', run: () => readImages(messageId, null) };

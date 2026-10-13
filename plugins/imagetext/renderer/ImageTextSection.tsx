@@ -111,7 +111,7 @@ export function ImageTextSection() {
             <Row
               label={r.label}
               for={`imagetext-${r.field}`}
-              hint="New messages’, and those of messages from the last day that Jev still judges. Others: right-click a message → Read image text."
+              hint="New messages’, and those of messages from the last day that Jev still judges. Others: right-click a message → Transcribe."
               control={<Switch id={`imagetext-${r.field}`} checked={s()[r.field]} onChange={(on) => patchImageTextSettings({ [r.field]: on } as Partial<ImageTextSettings>)} />}
             />
           )}
