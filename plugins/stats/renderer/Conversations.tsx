@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js';
-import { PersonName, look, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { look, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { CONVERSATION_GAP_MINUTES } from '../shared/conversations';
 import { GRAPH_PEOPLE_MAX } from './graphInputs';
 import { conversations } from './state';
@@ -7,6 +7,7 @@ import { TalkGraph } from './TalkGraph';
 import { CountRows, SHARE_ROW, Subheading, countLabel, formatCount, share } from './section';
 import styles from './Stats.module.css';
 import { ConversationRoles } from './ConversationRoles';
+import { PosterIdentity } from './PosterRow';
 
 export function Conversations() {
   const personChannel = () => conversations()?.query.scope === 'all' ? null : shownChannelId();
@@ -25,9 +26,9 @@ export function Conversations() {
         <For each={stats().pairs}>{(pair, index) => <li class={`${styles.row} ${look.shareBar} ${look.text}`} {...SHARE_ROW} style={share(pair.exchanges, stats().pairs[0]?.exchanges ?? 0)}>
           <span class={styles.rowLead}>
             <span class={styles.rowCount}>{formatCount(index() + 1)}.</span>
-            <PersonName userId={pair.first.userId} channelId={personChannel()} fallback={pair.first.name} />
+            <PosterIdentity poster={pair.first} channelId={personChannel()} />
             <span>and</span>
-            <PersonName userId={pair.second.userId} channelId={personChannel()} fallback={pair.second.name} />
+            <PosterIdentity poster={pair.second} channelId={personChannel()} />
           </span>
           <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{countLabel(pair.exchanges, 'exchange')}</span>
         </li>}</For>

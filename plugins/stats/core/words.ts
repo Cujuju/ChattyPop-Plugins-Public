@@ -7,7 +7,7 @@ import { tokenize } from './tokenize';
 import { createMessageLengths } from './messageLength';
 import { createWordTrends } from './wordTrends';
 import { bucketForSpan } from './histogram';
-import { scopeSql } from './stats';
+import { attachPosterIdentities, readPosterIdentities, scopeSql } from './stats';
 import { rankedTop } from './rankedTop';
 
 const STOP_WORDS = new Set(en);
@@ -38,6 +38,9 @@ export async function wordStats(db: PluginDb, query: ActivityQuery): Promise<Wor
   const words = rankedTop([...counts].filter(([word]) => eligibleWord(word)).map(([word, { count }]) => ({ word, count })), CLOUD_WORDS,
     (a, b) => b.count - a.count || a.word.localeCompare(b.word) || counts.get(a.word)!.seq - counts.get(b.word)!.seq
       || counts.get(a.word)!.position - counts.get(b.word)!.position);
+  const length = lengths.finish(textMessages);
+  const identities = readPosterIdentities(db, scope, [...length.people, ...length.longest].map((person) => person.userId));
   return { textMessages, totalWords, uniqueWords: counts.size, wordsPerMessage: textMessages ? totalWords / textMessages : 0,
-    words, length: lengths.finish(textMessages), trends: await trends.finish(words) };
+    words, length: { ...length, people: attachPosterIdentities(length.people, identities), longest: attachPosterIdentities(length.longest, identities) },
+    trends: await trends.finish(words) };
 }

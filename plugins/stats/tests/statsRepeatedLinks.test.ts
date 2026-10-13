@@ -30,7 +30,7 @@ describe('Analytics repeated links', () => {
         { url: A, host: 'one.example', shares: 3, people: 2 },
         { url: B, host: 'two.example', shares: 2, people: 1 },
       ],
-      reposts: [{ userId: 'u2', count: 2 }, { userId: 'u1', count: 1 }],
+      reposts: [{ userId: 'u2', name: 'u2', avatar: null, count: 2 }, { userId: 'u1', name: 'Alice', avatar: null, count: 1 }],
     });
   });
 
@@ -46,7 +46,7 @@ describe('Analytics repeated links', () => {
         { url: A, host: 'one.example', shares: 2, people: 2 },
         { url: B, host: 'two.example', shares: 2, people: 1 },
       ],
-      reposts: [{ userId: 'u1', count: 1 }, { userId: 'u2', count: 1 }],
+      reposts: [{ userId: 'u1', name: 'u1', avatar: null, count: 1 }, { userId: 'u2', name: 'u2', avatar: null, count: 1 }],
     });
   });
 
@@ -56,7 +56,7 @@ describe('Analytics repeated links', () => {
       { id: snowflakeFromMs(ts, 2), channelId: 'c1', ts, content: A, authorId: 'later' },
       { id: snowflakeFromMs(ts, 1), channelId: 'c1', ts, content: A, authorId: 'first' },
     ]);
-    expect((await core.repeatedLinks(CHANNEL)).reposts).toEqual([{ userId: 'later', count: 1 }]);
+    expect((await core.repeatedLinks(CHANNEL)).reposts).toEqual([{ userId: 'later', name: 'later', avatar: null, count: 1 }]);
   });
 
   it('determines the first share inside the visible scope and selected range', async () => {
@@ -68,14 +68,14 @@ describe('Analytics repeated links', () => {
       { channelId: 'c1', ts: 4, content: A, authorId: 'u3' },
     ]);
     t.archive.setPrivacyMode(true);
-    expect((await core.repeatedLinks(CHANNEL)).reposts).toEqual([{ userId: 'u3', count: 2 }]);
+    expect((await core.repeatedLinks(CHANNEL)).reposts).toEqual([{ userId: 'u3', name: 'u3', avatar: null, count: 2 }]);
     expect(await core.repeatedLinks({ ...CHANNEL, scope: 'all' })).toEqual({
       urls: [{ url: A, host: 'one.example', shares: 4, people: 3 }],
-      reposts: [{ userId: 'u3', count: 2 }, { userId: 'u1', count: 1 }],
+      reposts: [{ userId: 'u3', name: 'u3', avatar: null, count: 2 }, { userId: 'u1', name: 'u1', avatar: null, count: 1 }],
     });
     expect((await core.repeatedLinks({ ...CHANNEL, scope: 'server' })).urls[0]?.shares).toBe(4);
     expect(await core.repeatedLinks({ ...CHANNEL, sinceTs: 3 })).toEqual({
-      urls: [{ url: A, host: 'one.example', shares: 2, people: 1 }], reposts: [{ userId: 'u3', count: 1 }],
+      urls: [{ url: A, host: 'one.example', shares: 2, people: 1 }], reposts: [{ userId: 'u3', name: 'u3', avatar: null, count: 1 }],
     });
     expect((await core.repeatedLinks({ ...CHANNEL, sinceTs: 4 })).reposts).toEqual([]);
   });
@@ -88,7 +88,7 @@ describe('Analytics repeated links', () => {
     t.archive.setPrivacyMode(true);
     expect(await core.repeatedLinks({ ...CHANNEL, scope: 'all' })).toEqual({ urls: [], reposts: [] });
     t.archive.setPrivacyMode(false);
-    expect((await core.repeatedLinks({ ...CHANNEL, scope: 'all' })).reposts).toEqual([{ userId: 'u1', count: 1 }]);
+    expect((await core.repeatedLinks({ ...CHANNEL, scope: 'all' })).reposts).toEqual([{ userId: 'u1', name: 'Alice', avatar: null, count: 1 }]);
   });
 
   it('bounds both rankings to ten entries with stable URL and user-id ties', async () => {

@@ -50,6 +50,8 @@ export interface StatsPoster {
   count: number;
 }
 
+export type StatsIdentity = Omit<StatsPoster, 'count'>;
+
 export interface PostersQuery extends ActivityQuery {
   offset: number;
   limit: number;

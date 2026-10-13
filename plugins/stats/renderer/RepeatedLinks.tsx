@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js';
-import { BrandIcon, look, personName } from '@plugin-sdk/renderer/kit';
+import { BrandIcon, look } from '@plugin-sdk/renderer/kit';
 import { repeats } from './state';
 import { PosterRow } from './PosterRow';
 import { SHARE_ROW, Subheading, countLabel, share } from './section';
@@ -30,7 +30,7 @@ export function RepeatedLinks(props: { channelId: string | null }) {
         <Subheading>Most reposts</Subheading>
         <ol class={styles.list} aria-busy={repeats.loading}>
           <For each={stats().reposts}>{(person, index) => <PosterRow
-            poster={{ userId: person.userId, name: personName(person.userId, props.channelId)?.name ?? person.userId, avatar: null, count: person.count }}
+            poster={person}
             channelId={props.channelId} rank={index() + 1} max={stats().reposts[0]?.count ?? 0} value={countLabel(person.count, 'repost')} />}</For>
         </ol>
       </PeopleRanking>

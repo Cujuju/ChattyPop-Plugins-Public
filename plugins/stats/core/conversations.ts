@@ -1,8 +1,8 @@
 import type { PluginDb } from '@plugin-sdk/core';
-import { CONVERSATION_GAP_MS, CONVERSATION_PAIRS, type ConversationPerson, type ConversationStats } from '../shared/conversations';
+import { CONVERSATION_GAP_MS, CONVERSATION_PAIRS, type ConversationStats } from '../shared/conversations';
 import { everyoneQuery, type ActivityQuery } from '../shared/types';
 import { conversationMessages, type ConversationMessage } from './conversationScan';
-import { scopeSql } from './stats';
+import { readPosterIdentities, scopeSql } from './stats';
 import { createConversationRoles } from './conversationRoles';
 
 interface PairCount { firstId: string; secondId: string; exchanges: number }
@@ -66,10 +66,7 @@ export async function conversationStats(db: PluginDb, query: ActivityQuery): Pro
     ...(roleCounts.person ? { person: roleCounts.person } : {}),
   } };
   const scope = scopeSql(db, scopeQuery);
-  const identities = db.prepare(`SELECT m.author_id AS userId, MIN(m.author_plain_name) AS name, u.avatar AS avatar
-    FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id
-    WHERE ${scope.sql} AND m.author_id IN (${ids.map(() => '?').join(', ')}) GROUP BY m.author_id`)
-    .all(...scope.params, ...ids) as Omit<ConversationPerson, 'exchanges'>[];
+  const identities = readPosterIdentities(db, scope, ids);
   const known = new Map(identities.map((person) => [person.userId, { ...person, exchanges: exchangesByPerson.get(person.userId) ?? 0 }]));
   const identity = (userId: string) => {
     const { exchanges: _exchanges, ...person } = known.get(userId)!;

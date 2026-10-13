@@ -1,4 +1,4 @@
-import { MESSAGE_WORD_BUCKETS, WORDS_PERSON_MIN_MESSAGES, type LongMessage, type MessageLengthStats } from '../shared/messageLength';
+import { MESSAGE_WORD_BUCKETS, WORDS_PERSON_MIN_MESSAGES, type LongMessage } from '../shared/messageLength';
 import { STATS_TOP } from '../shared/types';
 import type { TextMessage } from './scan';
 import { median } from './median';
@@ -7,7 +7,7 @@ import { median } from './median';
 export function createMessageLengths() {
   const frequencies = new Map<number, number>();
   const people = new Map<string, { words: number; messages: number }>();
-  const longest: LongMessage[] = [];
+  const longest: Omit<LongMessage, 'name' | 'avatar'>[] = [];
   const distribution = MESSAGE_WORD_BUCKETS.map(({ id }) => ({ id, count: 0 }));
   let zeroWordMessages = 0;
   return {
@@ -26,7 +26,7 @@ export function createMessageLengths() {
       longest.sort((a, b) => b.words - a.words || a.ts - b.ts || a.messageId.localeCompare(b.messageId));
       if (longest.length > STATS_TOP) longest.pop();
     },
-    finish(textMessages: number): MessageLengthStats {
+    finish(textMessages: number) {
       return {
         medianWords: median(frequencies, textMessages), zeroWordMessages, distribution, longest,
         people: [...people].filter(([, person]) => person.messages >= WORDS_PERSON_MIN_MESSAGES)

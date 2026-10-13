@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js';
-import { look, personName } from '@plugin-sdk/renderer/kit';
+import { look } from '@plugin-sdk/renderer/kit';
 import type { DayRun, StreakStats } from '../shared/streaks';
 import { people } from './state';
 import { PosterRow } from './PosterRow';
@@ -31,7 +31,7 @@ export function PersonStreakRows(props: { channelId: string | null }) {
     <Show when={people.loading && !personRuns()}><p class={look.text} data-size="sm" data-tone="muted" role="status">Loading streaks…</p></Show>
     <ol class={styles.list} aria-busy={people.loading}>
       <For each={personRuns()}>{(person, index) => <PosterRow
-        poster={{ userId: person.userId, name: personName(person.userId, props.channelId)?.name ?? person.userId, avatar: null, count: person.days }}
+        poster={{ ...person, count: person.days }}
         channelId={props.channelId} rank={index() + 1} max={personRuns()?.[0]?.days ?? 0} value={runLabel(person)} />}</For>
     </ol>
     <Show when={personRuns() && !personRuns()!.length && !people.loading}>

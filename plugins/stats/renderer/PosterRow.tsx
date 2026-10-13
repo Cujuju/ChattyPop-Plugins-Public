@@ -1,11 +1,11 @@
 import { Avatar, PersonName, look } from '@plugin-sdk/renderer/kit';
-import type { StatsPoster } from '../shared/types';
+import type { StatsIdentity, StatsPoster } from '../shared/types';
 import type { JSX } from 'solid-js';
 import { SHARE_ROW, formatCount, share } from './section';
 import styles from './Stats.module.css';
 
 /** Shared identity markup keeps names and avatars on the kit's live identity path. */
-export function PosterIdentity(props: { poster: StatsPoster; channelId: string | null; rank?: number }) {
+export function PosterIdentity(props: { poster: StatsIdentity; channelId: string | null; rank?: number }) {
   return <span class={styles.posterIdentity}>
     {props.rank !== undefined && <span class={styles.rowCount}>{formatCount(props.rank)}.</span>}
     <Avatar author={{

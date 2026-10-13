@@ -1,6 +1,6 @@
 // Analytics counts over the visible archive; scope metadata and URL shares retain their existing read grants.
 import type { PluginDb } from '@plugin-sdk/core';
-import { POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster } from '../shared/types';
+import { POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsIdentity, type StatsPoster } from '../shared/types';
 import { type StatsSqlScope } from './query';
 import { totals } from './overview';
 import { hourlyHistogram, timeStats } from './histogram';
@@ -42,13 +42,37 @@ export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
   return { sql: parts.join(' AND '), params };
 }
 
-const POSTER_COLUMNS = 'm.author_id AS userId, MIN(m.author_plain_name) AS name, u.avatar AS avatar, COUNT(*) AS count';
+const POSTER_IDENTITY_COLUMNS = 'm.author_id AS userId, MIN(m.author_plain_name) AS name, u.avatar AS avatar';
+const POSTER_COLUMNS = `${POSTER_IDENTITY_COLUMNS}, COUNT(*) AS count`;
 const CHANNEL_COLUMNS = 'm.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS name, COUNT(*) AS count';
 /** URL shares join visible messages, even when the link's first share is hidden. */
 export const LINK_SHARES = `FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id
   JOIN archive_all_links l ON l.id = ml.link_id`;
 /** A link-bearing message counts once, regardless of how many URLs it contains. */
 export const LINKED_MESSAGE = 'EXISTS (SELECT 1 FROM archive_all_message_links ml WHERE ml.message_id = m.id)';
+
+/** One scoped read supplies archived identities for all requested users. */
+export function readPosterIdentities(db: PluginDb, scope: StatsSqlScope, userIds: readonly string[]): StatsIdentity[] {
+  const ids = [...new Set(userIds)];
+  if (!ids.length) return [];
+  return db.prepare(`SELECT ${POSTER_IDENTITY_COLUMNS}
+    FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id
+    WHERE ${scope.sql} AND m.author_id IN (${ids.map(() => '?').join(', ')}) GROUP BY m.author_id`)
+    .all(...scope.params, ...ids) as StatsIdentity[];
+}
+
+/** Existing grouped rows can supply identities without another SQL read. */
+export function attachPosterIdentities<T extends { userId: string }>(rows: readonly T[], identities: readonly StatsIdentity[]): (T & StatsIdentity)[] {
+  const known = new Map<string, StatsIdentity>();
+  for (const identity of identities) {
+    const previous = known.get(identity.userId);
+    if (!previous || identity.name < previous.name) known.set(identity.userId, identity);
+  }
+  return rows.map((row) => {
+    const identity = known.get(row.userId);
+    return { ...row, name: identity?.name ?? row.userId, avatar: identity?.avatar ?? null };
+  });
+}
 
 function posters(db: PluginDb, scope: StatsSqlScope, offset: number, limit: number): StatsPoster[] {
   return db.prepare(`SELECT ${POSTER_COLUMNS} FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id

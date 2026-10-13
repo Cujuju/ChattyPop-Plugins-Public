@@ -4,6 +4,7 @@ import statsCore from '../core';
 import { dayStreaks } from '../core/streaks';
 import { MS_PER_HOUR } from '@plugin-sdk/shared';
 import { STATS_TOP, type ActivityQuery } from '../shared/types';
+import { ALICE } from './statsFixture';
 
 const CHANNEL: ActivityQuery = { scope: 'channel', channelId: 'c1', sinceTs: null };
 const at = (month: number, day: number): number => new Date(2026, month - 1, day).getTime();
@@ -54,17 +55,20 @@ describe('Analytics streaks and silences', () => {
 
   it('ranks each person by longest distinct-day run, then earlier start and user id', async () => {
     const { core } = start([
-      ...['u2', 'u1'].flatMap((authorId) => [30, 31].map((day) => ({ channelId: 'c1', ts: at(1, day), authorId, content: 'day' }))),
-      { channelId: 't1', ts: at(2, 1), authorId: 'u1', content: 'third' },
+      ...['u2', 'u1'].flatMap((authorId) => [30, 31].map((day) => ({ channelId: 'c1', ts: at(1, day), authorId, content: 'day',
+        ...(authorId === ALICE.id ? { extra: { author: ALICE } } : {}) }))),
+      { channelId: 't1', ts: at(2, 1), authorId: 'u1', content: 'third', extra: { author: ALICE } },
       { channelId: 'c1', ts: at(2, 1), authorId: 'u2', content: 'third' },
-      { channelId: 'c1', ts: at(2, 1) + 1, authorId: 'u1', content: 'same day' },
+      { channelId: 'c1', ts: at(2, 1) + 1, authorId: 'u1', content: 'same day', extra: { author: ALICE } },
       ...[7, 8, 9].map((day) => ({ channelId: 'c1', ts: at(3, day), authorId: 'u0', content: 'later run' })),
     ]);
-    expect(await core.personStreaks(CHANNEL)).toEqual([
-      { userId: 'u1', days: 3, start: '2026-01-30', end: '2026-02-01' },
-      { userId: 'u2', days: 3, start: '2026-01-30', end: '2026-02-01' },
-      { userId: 'u0', days: 3, start: '2026-03-07', end: '2026-03-09' },
+    const streaks = await core.personStreaks(CHANNEL);
+    expect(streaks).toEqual([
+      { userId: 'u1', name: 'Alice', avatar: ALICE.avatar, days: 3, start: '2026-01-30', end: '2026-02-01' },
+      { userId: 'u2', name: 'u2', avatar: null, days: 3, start: '2026-01-30', end: '2026-02-01' },
+      { userId: 'u0', name: 'u0', avatar: null, days: 3, start: '2026-03-07', end: '2026-03-09' },
     ]);
+    expect(streaks[0]?.avatar).toBe(ALICE.avatar);
   });
 
   it('keeps the earliest tied streak and gap and treats one active day as a one-day run', async () => {
@@ -76,7 +80,7 @@ describe('Analytics streaks and silences', () => {
     const { core } = start([{ channelId: 'c1', ts: at(2, 1), content: '' }]);
     const run = { days: 1, start: '2026-02-01', end: '2026-02-01' };
     expect((await core.activityStats(CHANNEL)).streaks).toEqual({ longest: run, current: run, gap: null });
-    expect(await core.personStreaks(CHANNEL)).toEqual([{ userId: 'u1', ...run }]);
+    expect(await core.personStreaks(CHANNEL)).toEqual([{ userId: 'u1', name: 'Alice', avatar: null, ...run }]);
   });
 
   it('applies hidden channels, parent threads, server and range scope to distinct person/date pairs', async () => {
@@ -90,7 +94,7 @@ describe('Analytics streaks and silences', () => {
     expect((await core.personStreaks(CHANNEL))[0]?.days).toBe(2);
     expect((await core.personStreaks({ ...CHANNEL, scope: 'server' }))[0]?.days).toBe(3);
     expect(await core.personStreaks({ ...CHANNEL, scope: 'all', sinceTs: at(2, 2) })).toEqual([
-      { userId: 'u1', days: 2, start: '2026-02-02', end: '2026-02-03' },
+      { userId: 'u1', name: 'Alice', avatar: null, days: 2, start: '2026-02-02', end: '2026-02-03' },
     ]);
     expect((await core.activityStats({ ...CHANNEL, scope: 'all' })).streaks.longest?.days).toBe(3);
   });

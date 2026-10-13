@@ -52,8 +52,8 @@ describe('Analytics message length', () => {
       ...Array.from({ length: WORDS_PERSON_MIN_MESSAGES - 1 }, (_, ts) => ({ channelId: 'c1', ts, authorId: 'small', content: prose(50) })),
     ]);
     expect((await core.wordStats(CHANNEL)).length.people).toEqual([
-      { userId: 'u1', textMessages: WORDS_PERSON_MIN_MESSAGES, averageWords: 2 },
-      { userId: 'u2', textMessages: WORDS_PERSON_MIN_MESSAGES, averageWords: 2 },
+      { userId: 'u1', name: 'u1', avatar: null, textMessages: WORDS_PERSON_MIN_MESSAGES, averageWords: 2 },
+      { userId: 'u2', name: 'u2', avatar: null, textMessages: WORDS_PERSON_MIN_MESSAGES, averageWords: 2 },
     ]);
     expect((await core.wordStats({ ...CHANNEL, sinceTs: 1 })).length.people).toEqual([]);
   });

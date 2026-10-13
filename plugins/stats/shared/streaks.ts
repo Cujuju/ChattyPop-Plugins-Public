@@ -1,3 +1,5 @@
+import type { StatsIdentity } from './types';
+
 export interface DayRun {
   days: number;
   start: string;
@@ -12,6 +14,4 @@ export interface StreakStats {
   gap: DayRun | null;
 }
 
-export interface PersonStreak extends DayRun {
-  userId: string;
-}
+export interface PersonStreak extends DayRun, StatsIdentity {}

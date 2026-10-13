@@ -29,8 +29,8 @@ function fixture(count: number) {
 
 describe('Analytics section SQL reads', () => {
   it.each([
-    { count: 2, wordReads: 3, conversationReads: 3, batches: 1 },
-    { count: SCAN_BATCH_SIZE + 1, wordReads: 4, conversationReads: 4, batches: 2 },
+    { count: 2, wordReads: 4, conversationReads: 3, batches: 1 },
+    { count: SCAN_BATCH_SIZE + 1, wordReads: 5, conversationReads: 4, batches: 2 },
     { count: 0, wordReads: 2, conversationReads: 1, batches: 0 },
   ])('keeps one Words scan, one Conversations scan and one shared People read ($count messages)', async ({ count, wordReads, conversationReads, batches }) => {
     const { db, reads } = fixture(count);

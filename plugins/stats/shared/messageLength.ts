@@ -1,3 +1,5 @@
+import type { StatsIdentity } from './types';
+
 /** Ten text messages reduce single-message outliers in per-person averages. */
 export const WORDS_PERSON_MIN_MESSAGES = 10;
 /** These ranges separate short replies, sentences, paragraphs and longer posts. */
@@ -9,16 +11,14 @@ export const MESSAGE_WORD_BUCKETS = [
   { id: 'long', label: 'Over 50 words', max: null },
 ] as const;
 
-export interface LongMessage {
+export interface LongMessage extends StatsIdentity {
   messageId: string;
   channelId: string;
-  userId: string;
   ts: number;
   words: number;
 }
 
-export interface WordsPerson {
-  userId: string;
+export interface WordsPerson extends StatsIdentity {
   textMessages: number;
   averageWords: number;
 }

@@ -1,7 +1,7 @@
 import type { PluginDb } from '@plugin-sdk/core';
 import { REPEATED_LINK_MIN_SHARES, type RepeatedLink, type RepeatedLinksStats } from '../shared/repeatedLinks';
 import { STATS_TOP, type ActivityQuery } from '../shared/types';
-import { LINK_SHARES, scopeSql } from './stats';
+import { LINK_SHARES, attachPosterIdentities, readPosterIdentities, scopeSql } from './stats';
 import { urlHost } from './domains';
 
 /** Equal timestamps follow numeric snowflake order, as the Archive does. Only shares within the visible scope compete. */
@@ -24,10 +24,12 @@ export function repeatedLinks(db: PluginDb, query: ActivityQuery): RepeatedLinks
     urls.set(row.url, url);
     if (row.reposts) people.set(row.userId, (people.get(row.userId) ?? 0) + row.reposts);
   }
+  const reposts = [...people].map(([userId, count]) => ({ userId, count }))
+    .sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId)).slice(0, STATS_TOP);
+  const identities = readPosterIdentities(db, scope, reposts.map((person) => person.userId));
   return {
     urls: [...urls.values()].filter((url) => url.shares >= REPEATED_LINK_MIN_SHARES)
       .sort((a, b) => b.shares - a.shares || a.url.localeCompare(b.url)).slice(0, STATS_TOP),
-    reposts: [...people].map(([userId, count]) => ({ userId, count }))
-      .sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId)).slice(0, STATS_TOP),
+    reposts: attachPosterIdentities(reposts, identities),
   };
 }

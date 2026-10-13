@@ -88,7 +88,7 @@ describe('Analytics person comparisons', () => {
     expect(quiet.history.returned).toEqual([]);
     const returned = await core.peopleStats({ ...CHANNEL, authorId: 'returner' });
     expect(returned.history.returned.map((p) => [p.userId, p.silenceDays, p.returned])).toEqual([['returner', 58, '2026-03-01']]);
-    expect(returned.history.streaks).toEqual([{ userId: 'returner', days: 2, start: '2026-03-01', end: '2026-03-02' }]);
+    expect(returned.history.streaks).toEqual([{ userId: 'returner', name: 'returner', avatar: null, days: 2, start: '2026-03-01', end: '2026-03-02' }]);
   });
 
   it('keeps timeline archive bounds whole-scope while narrowing streaks to the selected range', async () => {

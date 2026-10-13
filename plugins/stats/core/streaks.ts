@@ -1,8 +1,9 @@
 import type { PluginDb } from '@plugin-sdk/core';
 import type { PersonStreak, StreakStats } from '../shared/streaks';
-import { STATS_TOP, type ActivityQuery } from '../shared/types';
+import { STATS_TOP, type ActivityQuery, type StatsIdentity } from '../shared/types';
 import { shiftLocalDay } from './query';
 import { personDays } from './personDays';
+import { attachPosterIdentities } from './stats';
 
 /** Local calendar increments count active runs and the inactive dates between them. Ties retain the earlier start. */
 export function dayStreaks(dates: Iterable<string>, includeSilences = true): StreakStats {
@@ -32,13 +33,14 @@ export function personStreaks(db: PluginDb, query: ActivityQuery): PersonStreak[
 }
 
 /** History feeds the same ranking after filtering days by their last message's exact timestamp. */
-export function personDayStreaks(rows: { userId: string; start: string }[]): PersonStreak[] {
+export function personDayStreaks(rows: (StatsIdentity & { start: string })[]): PersonStreak[] {
   const dates = new Map<string, string[]>();
   for (const row of rows) {
     const person = dates.get(row.userId) ?? [];
     person.push(row.start);
     dates.set(row.userId, person);
   }
-  return [...dates].map(([userId, dates]) => ({ userId, ...dayStreaks(dates, false).longest! }))
+  const ranked = [...dates].map(([userId, dates]) => ({ userId, ...dayStreaks(dates, false).longest! }))
     .sort((a, b) => b.days - a.days || a.start.localeCompare(b.start) || a.userId.localeCompare(b.userId)).slice(0, STATS_TOP);
+  return attachPosterIdentities(ranked, rows);
 }
