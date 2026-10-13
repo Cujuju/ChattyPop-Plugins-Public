@@ -6,8 +6,8 @@ import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const MIB = 1024 * 1024; // Heap units match Node's byte counters.
-const [hostArg, targetArg, sizeArg = '400000', section = 'all', profileDir = ''] = process.argv.slice(2);
-if (!hostArg || !targetArg) throw new Error('Usage: node bench/run.mjs <host> <stats plugin> [rows] [section|all] [profile directory]');
+const [hostArg, targetArg, sizeArg = '400000', section = 'all', profileDir = '', authorId = ''] = process.argv.slice(2);
+if (!hostArg || !targetArg) throw new Error('Usage: node bench/run.mjs <host> <stats plugin> [rows] [section|all] [profile directory] [author id]');
 const host = resolve(hostArg);
 const target = resolve(targetArg);
 if (!process.env.STATS_BENCH_WORKER) {
@@ -70,5 +70,5 @@ if (!process.env.STATS_BENCH_WORKER) {
     configFile: false, logLevel: 'silent', resolve: config.resolve, define: config.define,
     plugins: [...config.plugins, resolver, packages],
   });
-  await module.main(Number(sizeArg), section, profileDir);
+  await module.main(Number(sizeArg), section, profileDir, authorId || null);
 }

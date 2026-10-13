@@ -6,7 +6,7 @@ Run from `E:\Development\Projects\ChattyPop` in PowerShell. Neither normal tests
 node E:\Development\Projects\ChattyPop-Plugins-Public\plugins\stats\tests\bench\run.mjs E:\Development\Projects\ChattyPop E:\Development\Projects\ChattyPop-Plugins-Public\plugins\stats 400000
 ```
 
-The optional arguments after the row count are a function name (default `all`) and an absolute directory for V8 `.cpuprofile` files. Functions: `activityStats`, `peopleStats`, `repeatedLinks`, `emojiStats`, `wordStats`, `sentimentStats`, `conversationStats`. Repeat at `100000`, `200000`, `400000` to compare scaling. Run serially, with no competing benchmark. The target plugin path may be an older detached worktree; functions absent there are reported as unavailable.
+The optional arguments after the row count are a function name (default `all`), an absolute directory for V8 `.cpuprofile` files, and an author id (omitted or empty: Everyone). The fixture author `u0` exercises a person filter. Functions: `activityStats`, `peopleStats`, `repeatedLinks`, `emojiStats`, `wordStats`, `sentimentStats`, `conversationStats`. Repeat at `100000`, `200000`, `400000` to compare scaling. Run serially, with no competing benchmark. The target plugin path may be an older detached worktree; functions absent there are reported as unavailable.
 
 Each run creates and disposes a temporary **plugin test host** database with the current host's migrations, indexes, privacy-aware archive views, WAL mode, FTS triggers and `better-sqlite3-multiple-ciphers` driver. No profile or real archive is accessed. It inserts fixture rows directly through the test database adapter; it does not time ingestion or retain raw Discord payloads, attachments, derived text or link previews.
 
@@ -84,3 +84,11 @@ Progress can use the existing typed plugin events: declare a progress event, pas
 All 182 existing tests and 11 new tests pass. Existing fixture result assertions remain unchanged; prepared-SQL probes now expect two page statements. Added coverage checks indexed ranges, equal timestamps, reversed history, privacy changes, late arrivals, queued work, exact trend counts, multilingual tokenization and stable rankings/collation.
 
 The app was not driven, closed or restarted; its profile and real archive were not read. No CSS, dependencies or schema changed. The detached b60bc4c worktree was removed; pre-existing worktrees were preserved. The session usage command was unavailable on this machine.
+
+## Round C person filter — 2026-10-12
+
+At 400k, CPU profiling enabled, full recorded section sequence: `wordStats` Everyone **9.594s**, `u0` **0.440s**; `conversationStats` Everyone **1.666s**, `u0` **1.103s**. The person conversation read intentionally still scans everyone to retain runs and scope-wide medians.
+
+Standalone repeat comparisons on this session: Words **8.994s** versus an exact `8892072` source snapshot's **9.477s**; Conversations **1.421s** versus **1.535s**. Initial standalone measurements were Words **10.978s / 0.556s** and Conversations **1.552s / 1.127s** (Everyone / `u0`). Snapshot blobs were copied beneath the plugin's temporary benchmark directory; sibling shared descriptors retained registry anchors. The fixture databases were disposed; source snapshots, logs and profiles remain in the plugin's ignored cache.
+
+The historical absolute no-regression check is **not established**: the full-sequence Everyone times exceed the recorded **8.158s / 1.547s**. The current read-only host is `663662d4`, rather than recorded `7aa6004`; the cause of timing variation is unverified. The same-session standalone comparisons show no slowdown. Exact metrics for all runs: E:/Development/Projects/ChattyPop-Plugins-Public/plugins/stats/tests/bench/person-results.json. These synthetic, unencrypted measurements retain the limitations above.

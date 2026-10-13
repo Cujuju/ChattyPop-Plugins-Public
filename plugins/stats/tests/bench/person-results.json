@@ -1,0 +1,314 @@
+{
+  "date": "2026-10-12",
+  "hostRevision": "663662d469d3b85ab15a534575ac253ab0276f21",
+  "implementationRevision": "83a5b42",
+  "baselineRevision": "8892072",
+  "rows": 400000,
+  "cpuProfiling": true,
+  "encrypted": false,
+  "personAuthorId": "u0",
+  "baselineSource": "Exact git blobs of core/shared and sibling descriptors under a temporary benchmark directory; same current host and runner.",
+  "historicalWallMs": {
+    "wordStats": 8158,
+    "conversationStats": 1547
+  },
+  "strictHistoricalNoRegression": false,
+  "notes": [
+    "Historical absolute timings were not reproduced; host revision differs from the recorded 7aa6004. Cause of timing variation is unverified.",
+    "Standalone repeats: Words 8994ms versus same-session baseline 9477ms; Conversations 1421ms versus 1535ms.",
+    "Full-section runs preserve the recorded section sequence. All individual and repeated measurements are retained below.",
+    "No profile or real archive was read. Temporary fixture databases were disposed."
+  ],
+  "runs": [
+    {
+      "run": "baseline-conversations",
+      "targetRevision": "8892072",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "conversationStats",
+          "wallMs": 1534.6352000000043,
+          "sqlMs": 1248.0976999999693,
+          "peakHeapMiB": 89.22643280029297,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 293.64270000000397,
+          "yields": 800,
+          "resultBytes": 7526
+        }
+      ]
+    },
+    {
+      "run": "baseline-words",
+      "targetRevision": "8892072",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "wordStats",
+          "wallMs": 9476.526000000005,
+          "sqlMs": 1480.6200000000026,
+          "peakHeapMiB": 121.14188385009766,
+          "peakArrayBuffersMiB": 19.431509017944336,
+          "maxSliceMs": 444.0699999999997,
+          "yields": 2336,
+          "resultBytes": 27204
+        }
+      ]
+    },
+    {
+      "run": "conversations-everyone-repeat",
+      "targetRevision": "83a5b42",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "conversationStats",
+          "wallMs": 1420.9153000000006,
+          "sqlMs": 1157.009200000044,
+          "peakHeapMiB": 89.11259460449219,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 292.3293999999951,
+          "yields": 800,
+          "resultBytes": 7526
+        }
+      ]
+    },
+    {
+      "run": "conversations-everyone",
+      "targetRevision": "83a5b42",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "conversationStats",
+          "wallMs": 1552.3948000000019,
+          "sqlMs": 1276.1068000000014,
+          "peakHeapMiB": 89.15064239501953,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 334.70320000000356,
+          "yields": 800,
+          "resultBytes": 7526
+        }
+      ]
+    },
+    {
+      "run": "conversations-person",
+      "targetRevision": "83a5b42",
+      "authorId": "u0",
+      "measurements": [
+        {
+          "section": "conversationStats",
+          "wallMs": 1127.3783000000003,
+          "sqlMs": 962.0594999999885,
+          "peakHeapMiB": 89.16925811767578,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 254.78849999999875,
+          "yields": 800,
+          "resultBytes": 894
+        }
+      ]
+    },
+    {
+      "run": "recorded-sequence-everyone",
+      "targetRevision": "83a5b42",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "activityStats",
+          "wallMs": 20020.154300000002,
+          "sqlMs": 19946.920300000013,
+          "peakHeapMiB": 51.374908447265625,
+          "peakArrayBuffersMiB": 0.522730827331543,
+          "maxSliceMs": 20020.185300000005,
+          "yields": 0,
+          "resultBytes": 8282
+        },
+        {
+          "section": "peopleStats",
+          "wallMs": 992.9941000000108,
+          "sqlMs": 906.1699999999983,
+          "peakHeapMiB": 44.97314453125,
+          "peakArrayBuffersMiB": 0.5931148529052734,
+          "maxSliceMs": 993.0388000000094,
+          "yields": 0,
+          "resultBytes": 5341
+        },
+        {
+          "section": "repeatedLinks",
+          "wallMs": 464.26740000001155,
+          "sqlMs": 460.94869999999355,
+          "peakHeapMiB": 37.929290771484375,
+          "peakArrayBuffersMiB": 0.5234098434448242,
+          "maxSliceMs": 464.3161000000109,
+          "yields": 0,
+          "resultBytes": 1206
+        },
+        {
+          "section": "emojiStats",
+          "wallMs": 2281.244200000001,
+          "sqlMs": 1231.62990000016,
+          "peakHeapMiB": 44.538230895996094,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 303.19830000000366,
+          "yields": 800,
+          "resultBytes": 209
+        },
+        {
+          "section": "wordStats",
+          "wallMs": 9593.57100000001,
+          "sqlMs": 1504.381199999858,
+          "peakHeapMiB": 124.79220581054688,
+          "peakArrayBuffersMiB": 19.432527542114258,
+          "maxSliceMs": 453.82470000001194,
+          "yields": 2336,
+          "resultBytes": 27204
+        },
+        {
+          "section": "sentimentStats",
+          "wallMs": 7087.190400000007,
+          "sqlMs": 1547.9796000000933,
+          "peakHeapMiB": 88.80618286132812,
+          "peakArrayBuffersMiB": 14.279878616333008,
+          "maxSliceMs": 526.4691000000021,
+          "yields": 800,
+          "resultBytes": 4091
+        },
+        {
+          "section": "conversationStats",
+          "wallMs": 1666.3599000000104,
+          "sqlMs": 1364.7360000000335,
+          "peakHeapMiB": 86.81977081298828,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 354.4574999999895,
+          "yields": 800,
+          "resultBytes": 7526
+        }
+      ]
+    },
+    {
+      "run": "recorded-sequence-person",
+      "targetRevision": "83a5b42",
+      "authorId": "u0",
+      "measurements": [
+        {
+          "section": "activityStats",
+          "wallMs": 492.761599999998,
+          "sqlMs": 459.0225999999893,
+          "peakHeapMiB": 50.84949493408203,
+          "peakArrayBuffersMiB": 0.522730827331543,
+          "maxSliceMs": 492.7833000000028,
+          "yields": 0,
+          "resultBytes": 4829
+        },
+        {
+          "section": "peopleStats",
+          "wallMs": 711.0201000000015,
+          "sqlMs": 690.9618000000046,
+          "peakHeapMiB": 51.81465148925781,
+          "peakArrayBuffersMiB": 0.5937786102294922,
+          "maxSliceMs": 711.0597999999954,
+          "yields": 0,
+          "resultBytes": 2665
+        },
+        {
+          "section": "repeatedLinks",
+          "wallMs": 61.478399999999965,
+          "sqlMs": 59.75050000000192,
+          "peakHeapMiB": 37.177574157714844,
+          "peakArrayBuffersMiB": 0.5234098434448242,
+          "maxSliceMs": 61.497699999999895,
+          "yields": 0,
+          "resultBytes": 927
+        },
+        {
+          "section": "emojiStats",
+          "wallMs": 906.3347999999969,
+          "sqlMs": 226.6612000000241,
+          "peakHeapMiB": 57.516571044921875,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 56.10190000000148,
+          "yields": 27,
+          "resultBytes": 208
+        },
+        {
+          "section": "wordStats",
+          "wallMs": 440.4088000000047,
+          "sqlMs": 228.0470999999743,
+          "peakHeapMiB": 94.55146789550781,
+          "peakArrayBuffersMiB": 1.4764766693115234,
+          "maxSliceMs": 29.117899999997462,
+          "yields": 75,
+          "resultBytes": 25889
+        },
+        {
+          "section": "sentimentStats",
+          "wallMs": 379.6198000000004,
+          "sqlMs": 222.46450000000914,
+          "peakHeapMiB": 89.35041809082031,
+          "peakArrayBuffersMiB": 0.5234127044677734,
+          "maxSliceMs": 35.5260000000053,
+          "yields": 27,
+          "resultBytes": 3805
+        },
+        {
+          "section": "conversationStats",
+          "wallMs": 1103.2986999999994,
+          "sqlMs": 944.4422000001214,
+          "peakHeapMiB": 89.0669937133789,
+          "peakArrayBuffersMiB": 0.5233707427978516,
+          "maxSliceMs": 259.2922999999937,
+          "yields": 800,
+          "resultBytes": 894
+        }
+      ]
+    },
+    {
+      "run": "words-everyone-repeat",
+      "targetRevision": "83a5b42",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "wordStats",
+          "wallMs": 8993.636199999994,
+          "sqlMs": 1387.5091000000393,
+          "peakHeapMiB": 121.05193328857422,
+          "peakArrayBuffersMiB": 19.432527542114258,
+          "maxSliceMs": 395.25139999999374,
+          "yields": 2336,
+          "resultBytes": 27204
+        }
+      ]
+    },
+    {
+      "run": "words-everyone",
+      "targetRevision": "83a5b42",
+      "authorId": null,
+      "measurements": [
+        {
+          "section": "wordStats",
+          "wallMs": 10978.367599999998,
+          "sqlMs": 1655.4060999999783,
+          "peakHeapMiB": 128.3436737060547,
+          "peakArrayBuffersMiB": 19.432527542114258,
+          "maxSliceMs": 462.35729999998875,
+          "yields": 2336,
+          "resultBytes": 27204
+        }
+      ]
+    },
+    {
+      "run": "words-person",
+      "targetRevision": "83a5b42",
+      "authorId": "u0",
+      "measurements": [
+        {
+          "section": "wordStats",
+          "wallMs": 556.2355000000025,
+          "sqlMs": 276.13270000003104,
+          "peakHeapMiB": 94.29080200195312,
+          "peakArrayBuffersMiB": 1.4764766693115234,
+          "maxSliceMs": 38.12129999999888,
+          "yields": 75,
+          "resultBytes": 25889
+        }
+      ]
+    }
+  ]
+}
