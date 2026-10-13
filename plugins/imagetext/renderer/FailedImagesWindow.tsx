@@ -33,7 +33,7 @@ function FailedImageRow(props: { job: FailedImage }) {
   const job = () => props.job;
   const [unavailable, setUnavailable] = createSignal(false);
   const name = () => imageName(job());
-  const local = () => job().sha256 && job().filename ? attachmentUrl(job().sha256!, job().filename!) : null;
+  const local = () => job().sha256 && job().filename ? attachmentUrl({ ...job(), sha256: job().sha256!, filename: job().filename! }) : null;
   const preview = () => local() ?? thumbUrl(remoteSource(job()));
   createEffect(on(preview, () => setUnavailable(false), { defer: true }));
   const channel = () => {

@@ -1,9 +1,10 @@
 // #196, #325: chart cashtags and embed-image reading through main, producing derived text and an image note.
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
+import { storedAttachmentPath } from '@plugin-sdk/core';
 import type { CompletionRequest, LlmProvider } from '@core/ai/types';
 import { IS_WINDOWS } from '@core/ai/resolveCli';
 import { partNotes } from '@core/attachmentNotes';
@@ -115,6 +116,23 @@ describe('the Image text plugin', () => {
     expect(sent[0]).toMatchObject({ model: 'vl', images: [{ mediaType: 'image/png', data: PNG.toString('base64') }] });
     expect(await t.client('renderer').status()).toMatchObject({ vision: { ready: true }, providers: [{ id: 'eyes', models: [{ id: 'vl' }] }], counts: { done: 1 } });
   }, OCR_START_TIMEOUT_MS);
+
+  it('reads a compressed attachment at its stored extension without downloading it', async () => {
+    const { t, sent } = start(true, undefined, { autoEmbeds: false });
+    const sha256 = 'b'.repeat(64);
+    const filename = 'chart.png';
+    const storedExt = 'webp';
+    const webp = Buffer.from('RIFF....WEBP');
+    const path = storedAttachmentPath(join(t.mediaDir, 'attachments'), { sha256, filename, storedExt });
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, webp);
+    const [id] = t.archive.arrive([{ channelId: 'c1', content: '', extra: { attachments: [{ id: 'compressed', filename, content_type: 'image/png', url: 'https://cdn.example/chart.png' }] } }]);
+    t.db.prepare("UPDATE attachments SET sha256 = ?, stored_ext = ?, status = 'stored' WHERE id = 'compressed'").run(sha256, storedExt);
+    await t.client('renderer').request(id!, { engine: 'vision', provider: 'eyes', model: 'vl' });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]!.images).toEqual([{ mediaType: 'image/webp', data: webp.toString('base64') }]);
+    expect(t.events('fetchImage')).toEqual([]);
+  });
 
   it('a hosted provider reads images only once the owner allows sending them', async () => {
     const off = start(true, undefined, { local: false }).t;

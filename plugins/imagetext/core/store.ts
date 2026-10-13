@@ -152,7 +152,7 @@ export function counts(db: PluginDb): Record<ImageJobState, number> {
 export function failedImages(db: PluginDb): FailedImage[] {
   return db.prepare(
     `SELECT j.seq, j.message_id AS messageId, j.channel_id AS channelId, j.image_key AS imageKey,
-            j.url, a.filename, a.sha256, j.error, j.requested_at AS requestedAt
+            j.url, a.filename, a.sha256, a.stored_ext AS storedExt, j.error, j.requested_at AS requestedAt
      FROM ${JOBS_TABLE} j JOIN archive_messages m ON m.id = j.message_id
      LEFT JOIN archive_attachments a ON a.id = j.attachment_id AND a.message_id = j.message_id
      WHERE j.state = 'failed' ORDER BY j.requested_at DESC, j.seq DESC`,

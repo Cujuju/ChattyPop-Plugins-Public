@@ -281,8 +281,8 @@ export class ImageReader {
   /** The image's file: in the store, or downloaded by main earlier; null when main must fetch it. */
   private input(job: ImageJob): string | null {
     if (job.attachmentId) {
-      const a = this.d.db.prepare('SELECT sha256, filename, status FROM archive_all_attachments WHERE id = ?').get(job.attachmentId) as { sha256: string | null; filename: string; status: string } | undefined;
-      const stored = a?.status === STORED && a.sha256 ? storedAttachmentPath(this.d.attachmentsDir, a.sha256, a.filename) : null;
+      const a = this.d.db.prepare('SELECT sha256, filename, stored_ext AS storedExt, status FROM archive_all_attachments WHERE id = ?').get(job.attachmentId) as { sha256: string | null; filename: string; storedExt: string | null; status: string } | undefined;
+      const stored = a?.status === STORED && a.sha256 ? storedAttachmentPath(this.d.attachmentsDir, { ...a, sha256: a.sha256 }) : null;
       if (stored && existsSync(stored)) return stored;
     }
     const fetched = this.d.session.fetched.get(job.seq);

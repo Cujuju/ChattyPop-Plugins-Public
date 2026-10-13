@@ -78,6 +78,7 @@ export interface FailedImage {
   url: string;
   filename: string | null;
   sha256: string | null;
+  storedExt: string | null;
   error: string | null;
   requestedAt: number;
 }

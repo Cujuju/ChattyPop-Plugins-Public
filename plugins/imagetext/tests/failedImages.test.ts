@@ -30,11 +30,19 @@ describe('failed image readings', () => {
   it('lists failures newest first with stable ties and source metadata; excludes other states and missing sources', async () => {
     const { t, visible, hidden } = fixture();
     expect(await t.client('renderer').failedImages()).toEqual([
-      { seq: 3, messageId: hidden, channelId: 'private', imageKey: 'link:1', url: 'https://pbs.twimg.com/media/private.png', filename: null, sha256: null, error: 'Private failure', requestedAt: 20 },
-      { seq: 2, messageId: visible, channelId: 'visible', imageKey: 'embed:1', url: 'https://media.discordapp.net/preview.png', filename: null, sha256: null, error: 'Image download failed', requestedAt: 20 },
-      { seq: 1, messageId: visible, channelId: 'visible', imageKey: 'attachment:a1', url: 'https://cdn.discordapp.com/chart.png', filename: 'chart.png', sha256: null, error: 'OCR timed out', requestedAt: 10 },
+      { seq: 3, messageId: hidden, channelId: 'private', imageKey: 'link:1', url: 'https://pbs.twimg.com/media/private.png', filename: null, sha256: null, storedExt: null, error: 'Private failure', requestedAt: 20 },
+      { seq: 2, messageId: visible, channelId: 'visible', imageKey: 'embed:1', url: 'https://media.discordapp.net/preview.png', filename: null, sha256: null, storedExt: null, error: 'Image download failed', requestedAt: 20 },
+      { seq: 1, messageId: visible, channelId: 'visible', imageKey: 'attachment:a1', url: 'https://cdn.discordapp.com/chart.png', filename: 'chart.png', sha256: null, storedExt: null, error: 'OCR timed out', requestedAt: 10 },
     ]);
     expect(await t.client('phone').failedImages()).toHaveLength(3);
+  });
+
+  it('exposes the stored extension for compressed image previews', async () => {
+    const { t } = fixture();
+    const sha256 = 'a'.repeat(64);
+    t.db.prepare("UPDATE attachments SET sha256 = ?, stored_ext = 'webp', status = 'stored' WHERE id = 'a1'").run(sha256);
+    expect((await t.client('renderer').failedImages()).find((j) => j.imageKey === 'attachment:a1'))
+      .toMatchObject({ filename: 'chart.png', sha256, storedExt: 'webp' });
   });
 
   it('follows live archive privacy and does not expose hidden messages or image URLs', async () => {
