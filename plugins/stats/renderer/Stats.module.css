@@ -51,6 +51,37 @@
   justify-content: space-between;
 }
 
+/* Small multiples: one short bar strip per person or word, each under its label. */
+.multiples {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.multiple {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+}
+
+/* A strip's bars are `.bar`; it stands a third of the main chart's height. */
+.strip {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--cp-border-w);
+  height: var(--cp-btn-h);
+}
+
+/* Choices laid in a wrapping line (words to pick a trend for). */
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+}
+
 /* Weekday × hour: a label column, then 24 cells whose tint follows --v. */
 .heatmap {
   display: grid;
