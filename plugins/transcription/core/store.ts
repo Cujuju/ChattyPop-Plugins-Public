@@ -28,6 +28,7 @@ export interface TranscriptJob {
   /** An attachment's stored file; null otherwise and until stored. */
   sha256: string | null;
   filename: string | null;
+  storedExt: string | null;
   requestedAt: number;
 }
 
@@ -54,7 +55,7 @@ export function nextJob(db: PluginDb): TranscriptJob | undefined {
   return db
     .prepare(
       `SELECT t.seq, t.message_id AS messageId, m.channel_id AS channelId, t.part_key AS partKey, t.attachment_id AS attachmentId,
-         COALESCE(a.url, t.url) AS url, a.sha256, a.filename, t.requested_at AS requestedAt
+         COALESCE(a.url, t.url) AS url, a.sha256, a.filename, a.stored_ext AS storedExt, t.requested_at AS requestedAt
        FROM ${JOBS_TABLE} t JOIN archive_all_messages m ON m.id = t.message_id LEFT JOIN archive_all_attachments a ON a.id = t.attachment_id
        WHERE t.state = 'queued' AND COALESCE(a.url, t.url) IS NOT NULL ORDER BY t.priority DESC, t.requested_at LIMIT 1`,
     )

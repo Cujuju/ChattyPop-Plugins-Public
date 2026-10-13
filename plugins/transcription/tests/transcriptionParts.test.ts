@@ -82,7 +82,7 @@ beforeEach(() => {
 });
 
 /** A message with one attachment of `contentType`, stored on disk with `speech` unless `store` is false. */
-function withAttachment(contentType: string, filename: string, speech: string, o: { voice?: boolean; store?: boolean } = {}): { messageId: string; attachmentId: string } {
+function withAttachment(contentType: string, filename: string, speech: string, o: { voice?: boolean; store?: boolean; storedExt?: string } = {}): { messageId: string; attachmentId: string } {
   const ts = nextTs();
   const attachmentId = `a${ts}`;
   const m = rawMessage('c1', ts, '', { flags: o.voice ? VOICE_MESSAGE_FLAG : 0, attachments: [{ id: attachmentId, filename, content_type: contentType, url: `https://cdn.example/${attachmentId}` }] });
@@ -90,10 +90,11 @@ function withAttachment(contentType: string, filename: string, speech: string, o
   if (o.store !== false) {
     const hash = `${'b'.repeat(64)}${m.id}`.slice(-64);
     mkdirSync(join(attachmentsDir, hash.slice(0, 2)), { recursive: true });
-    const path = join(attachmentsDir, hash.slice(0, 2), attachmentFileName(hash, filename));
+    const path = join(attachmentsDir, hash.slice(0, 2), attachmentFileName({ sha256: hash, filename, storedExt: o.storedExt ?? null }));
     writeFileSync(path, '');
     spoken.set(path, speech);
     attachmentStored(db, attachmentId, hash, 0);
+    if (o.storedExt) db.prepare('UPDATE attachments SET stored_ext = ? WHERE id = ?').run(o.storedExt, attachmentId);
   }
   return { messageId: m.id, attachmentId };
 }
@@ -156,6 +157,14 @@ describe("an embed's video", () => {
 });
 
 describe('a video attachment', () => {
+  it('transcribes a compressed video using the stored extension', async () => {
+    settings = autoFor('video');
+    const { messageId, attachmentId } = withAttachment('video/quicktime', 'clip.mov', 'compressed clip', { storedExt: 'mp4' });
+    transcriber.attachmentStored(attachmentId);
+    await settle();
+    expect(job(messageId)).toMatchObject({ state: 'done', text: 'compressed clip' });
+    expect(fetches).toEqual([]);
+  });
   it('is transcribed automatically once stored while video files are on', async () => {
     settings = autoFor('video');
     const { messageId, attachmentId } = withAttachment('video/mp4', 'clip.mp4', 'from the clip');

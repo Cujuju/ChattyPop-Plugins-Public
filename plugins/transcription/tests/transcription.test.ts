@@ -133,7 +133,7 @@ function voiceMessage(
   if (o.store !== false) {
     const hash = sha(m.id);
     mkdirSync(join(attachmentsDir, hash.slice(0, 2)), { recursive: true });
-    const path = join(attachmentsDir, hash.slice(0, 2), attachmentFileName(hash, 'voice-message.ogg'));
+    const path = join(attachmentsDir, hash.slice(0, 2), attachmentFileName({ sha256: hash, filename: 'voice-message.ogg', storedExt: null }));
     writeFileSync(path, '');
     if (speech !== null) spoken.set(path, speech);
     attachmentStored(db, attachmentId, hash, 0);

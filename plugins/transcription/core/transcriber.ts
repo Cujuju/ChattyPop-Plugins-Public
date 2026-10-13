@@ -202,7 +202,7 @@ export class Transcriber {
 
   /** Runs `job`, or asks main for its media; false when that would pass AUDIO_FETCHES_MAX, leaving it queued. */
   private async run(job: TranscriptJob, ready: { tools: ToolPaths; model: string; id: string }): Promise<boolean> {
-    const stored = job.sha256 && job.filename ? storedAttachmentPath(this.attachmentsDir, job.sha256, job.filename) : null;
+    const stored = job.sha256 && job.filename ? storedAttachmentPath(this.attachmentsDir, { sha256: job.sha256, filename: job.filename, storedExt: job.storedExt }) : null;
     const fetched = this.fetchedPath(job.seq);
     const input = stored && existsSync(stored) ? stored : existsSync(fetched) ? fetched : null;
     if (!input) {
