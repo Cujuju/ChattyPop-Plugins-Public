@@ -138,7 +138,7 @@ function RunRange(props: { span: Span }) {
 const runAside = (span: Span, parts: (string | false | null | undefined)[]): string =>
   [...new Set([spansDays(span) ? null : weekdayDate(span.sinceTs), ...parts].filter(Boolean))].join(' · ');
 
-/** One run: a heading card with the time it covers, which folds its body; folded, the card adds the headline. */
+/** One run: a heading card with the time it covers; a click on it or its body folds the body. Folded, the card adds the headline. */
 function SummaryRun(props: { summary: Summary }) {
   const s = () => props.summary;
   const open = () => isSummaryOpen(s().id);
@@ -146,14 +146,27 @@ function SummaryRun(props: { summary: Summary }) {
   const latest = () => latestSummary()?.id === s().id;
   const title = () =>
     [`Ran ${weekdayDateTime(s().createdAt)}`, overlap() !== null && `Covers time earlier summaries cover, until ${shortDateTime(overlap()!)}`].filter(Boolean).join('. ');
+  let run!: HTMLElement;
+  let heading!: HTMLButtonElement;
+  // A click anywhere in the run folds or unfolds it: its heading, or its body outside the controls there.
+  const onClick = (e: MouseEvent): void => {
+    const control = (e.target as Element).closest('button, a');
+    if (control && control !== heading) return;
+    // A drag that selected text in it ends in a click too: that keeps it open.
+    const picked = window.getSelection();
+    if (picked && !picked.isCollapsed && run.contains(picked.anchorNode)) return;
+    toggleSummary(s().id);
+    // Folded from far down its body, its heading is above the view: it comes back in.
+    if (!open()) heading.scrollIntoView({ block: 'nearest' });
+  };
   return (
-    <article class={styles.summary}>
+    <article ref={run} class={styles.summary} onClick={onClick}>
       <button
+        ref={heading}
         type="button"
         class={`${styles.runToggle} ${look.disclosure} ${look.card} ${look.row}`}
         aria-expanded={open()}
         title={title()}
-        onClick={() => toggleSummary(s().id)}
       >
         <span class="cp-chevron" aria-hidden="true" />
         <span class={styles.rowHead}>
