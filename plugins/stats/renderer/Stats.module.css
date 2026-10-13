@@ -40,6 +40,11 @@
   height: calc(var(--cp-btn-h) * 3);
 }
 
+/* The lower half of a chart about a baseline: its bars hang from the top. */
+.hanging {
+  align-items: flex-start;
+}
+
 .bar {
   flex: 1 1 0;
   min-width: var(--cp-border-w);

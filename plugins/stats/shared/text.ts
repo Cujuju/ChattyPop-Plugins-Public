@@ -42,18 +42,22 @@ export interface WordStats extends TextCoverage {
 
 export const SENTIMENT_CLASSES = ['positive', 'negative', 'neutral'] as const;
 export type SentimentClass = typeof SENTIMENT_CLASSES[number];
-/** Fifty text messages limit each message's influence to two percentage points, suppressing near-empty bucket noise. */
-export const SENTIMENT_MIN_SAMPLE = 50;
+export interface SentimentBucket {
+  start: string;
+  positive: number;
+  negative: number;
+  messages: number;
+}
 
 export interface SentimentStats extends TextCoverage {
   classes: Record<SentimentClass, number>;
   bucket: 'day' | 'week';
-  buckets: { start: string; positive: number; negative: number; messages: number }[];
+  buckets: SentimentBucket[];
 }
 
-/** Unrated buckets never set the scale; rated zero shares stay zero even when the entire strip is zero. */
-export function sentimentFractions(buckets: readonly SentimentStats['buckets'][number][], key: 'positive' | 'negative'): (number | 'unrated')[] {
-  const shares = buckets.map((bucket) => bucket.messages < SENTIMENT_MIN_SAMPLE ? 'unrated' as const : bucket[key] / bucket.messages);
-  const max = shares.reduce<number>((highest, value) => value === 'unrated' ? highest : Math.max(highest, value), 0);
-  return shares.map((value) => value === 'unrated' ? value : max ? value / max : 0);
-}
+/** Positive and negative bars share one scale, the longest bar either way, so their lengths compare across the baseline. */
+export const sentimentScale = (buckets: readonly SentimentBucket[]): number =>
+  buckets.reduce((longest, bucket) => Math.max(longest, bucket.positive, bucket.negative), 0);
+
+/** The share of a bar its opposite doesn't cancel: the bucket's balance. Zero for the shorter bar and for a tie. */
+export const uncancelledShare = (count: number, opposite: number): number => count > opposite ? (count - opposite) / count : 0;

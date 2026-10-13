@@ -2,34 +2,33 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import statsCore from '../core';
-import { SENTIMENT_MIN_SAMPLE, sentimentFractions, type SentimentStats } from '../shared/text';
+import { sentimentScale, uncancelledShare, type SentimentBucket } from '../shared/text';
 
 const START = new Date(2026, 8, 7).getTime();
 const LONG_SPAN_DAYS = 200;
 const CHANNEL = { scope: 'channel', channelId: 'c1', sinceTs: null } as const;
-const bucket = (messages: number, positive: number, negative = 0): SentimentStats['buckets'][number] => ({ start: '2026-09-07', messages, positive, negative });
+const bucket = (positive: number, negative: number): SentimentBucket => ({ start: '2026-09-07', messages: positive + negative, positive, negative });
 
-describe('Analytics sentiment strips', () => {
-  it('scales shares only against rated buckets, keeping order and leaving the source untouched', () => {
-    const buckets = [bucket(1, 1, 1), bucket(100, 17, 9), bucket(100, 19, 3), bucket(SENTIMENT_MIN_SAMPLE - 1, 30, 20), bucket(0, 0)];
-    const copy = structuredClone(buckets);
-    expect(sentimentFractions(buckets, 'positive')).toEqual(['unrated', 17 / 19, 1, 'unrated', 'unrated']);
-    expect(sentimentFractions(buckets, 'negative')).toEqual(['unrated', 1, 1 / 3, 'unrated', 'unrated']);
-    expect(buckets).toEqual(copy);
+describe('Analytics sentiment chart', () => {
+  it('scales both directions by the longest bar either way', () => {
+    expect(sentimentScale([bucket(17, 9), bucket(3, 19), bucket(0, 0)])).toBe(19);
+    expect(sentimentScale([bucket(17, 9), bucket(3, 4)])).toBe(17);
   });
 
-  it('handles all unrated buckets and an empty strip', () => {
-    expect(sentimentFractions([bucket(0, 0), bucket(SENTIMENT_MIN_SAMPLE - 1, 1)], 'positive')).toEqual(['unrated', 'unrated']);
-    expect(sentimentFractions([], 'positive')).toEqual([]);
+  it('has no scale without counted messages', () => {
+    expect(sentimentScale([bucket(0, 0)])).toBe(0);
+    expect(sentimentScale([])).toBe(0);
   });
 
-  it('rates the minimum sample inclusively and makes a single nonzero share full height', () => {
-    expect(sentimentFractions([bucket(1, 1), bucket(SENTIMENT_MIN_SAMPLE, 1)], 'positive')).toEqual(['unrated', 1]);
+  it('fills only the longer bar, by the share its opposite leaves', () => {
+    expect(uncancelledShare(20, 5)).toBe(15 / 20);
+    expect(uncancelledShare(5, 20)).toBe(0);
+    expect(uncancelledShare(8, 0)).toBe(1);
   });
 
-  it('keeps rated zero shares finite and distinct from unrated buckets', () => {
-    expect(sentimentFractions([bucket(0, 0), bucket(SENTIMENT_MIN_SAMPLE, 0), bucket(100, 0)], 'positive')).toEqual(['unrated', 0, 0]);
-    expect(sentimentFractions([bucket(100, 0), bucket(100, 10)], 'positive')).toEqual([0, 1]);
+  it('fills neither bar of a tie or an empty bucket', () => {
+    expect(uncancelledShare(7, 7)).toBe(0);
+    expect(uncancelledShare(0, 0)).toBe(0);
   });
 });
 
