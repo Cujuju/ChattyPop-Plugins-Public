@@ -15,7 +15,6 @@ export default defineRendererPlugin(
     personSections: { tags: { Component: PersonTags } },
     messageMenu: {
       tags: {
-        heading: 'Tags',
         // Toggles and New tag… change tags: desktop windows only.
         calls: ['setMessageTag', 'createTag'],
         menu: (m) => {
@@ -34,7 +33,7 @@ export default defineRendererPlugin(
             icon: 'plus',
             run: startNewTag,
           });
-          return items;
+          return [{ label: 'Tags', icon: 'tag', submenu: [{ items }] }];
         },
       },
     },
