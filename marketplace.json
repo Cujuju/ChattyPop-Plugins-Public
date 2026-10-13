@@ -903,6 +903,20 @@
           "sdk": "2.4.0"
         }
       ]
+    },
+    {
+      "id": "attachments",
+      "name": "Attachments",
+      "description": "Browse archived files, see what uses disk space, compress media and delete local copies.",
+      "releases": [
+        {
+          "version": "1.0.0",
+          "tag": "attachments-v1.0.0",
+          "asset": "attachments-1.0.0.tar.gz",
+          "sha256": "c0794a23c0cdac118dde2573e30d3b27e042d9a0aeb165bfc7430a442f8e9a88",
+          "sdk": "3.0.0"
+        }
+      ]
     }
   ]
 }
