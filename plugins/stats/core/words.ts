@@ -8,6 +8,7 @@ import { createMessageLengths } from './messageLength';
 import { createWordTrends } from './wordTrends';
 import { bucketForSpan } from './histogram';
 import { scopeSql } from './stats';
+import { rankedTop } from './rankedTop';
 
 const STOP_WORDS = new Set(en);
 const eligibleWord = (word: string): boolean => Array.from(word).length >= MIN_WORD_LENGTH && !STOP_WORDS.has(word);
@@ -18,20 +19,25 @@ export async function wordStats(db: PluginDb, query: ActivityQuery): Promise<Wor
     .get(...scope.params) as { firstTs: number | null; lastTs: number | null };
   const bucket = bucketForSpan(extent.firstTs === null ? null : query.sinceTs ?? extent.firstTs, extent.lastTs);
   const trends = createWordTrends(bucket, eligibleWord);
-  const counts = new Map<string, number>();
+  const counts = new Map<string, { count: number; seq: number; position: number }>();
   const lengths = createMessageLengths();
   let totalWords = 0;
   const textMessages = await scanText(db, query, (message) => {
     const tokens = tokenize(message.content);
     lengths.read(message, tokens.length);
-    trends.read(message.ts, tokens);
-    for (const word of tokens) {
+    trends.read(message.ts, tokens, message.seq);
+    for (let position = 0; position < tokens.length; position++) {
+      const word = tokens[position]!;
       totalWords++;
-      counts.set(word, (counts.get(word) ?? 0) + 1);
+      const count = counts.get(word) ?? { count: 0, seq: message.seq, position };
+      count.count++;
+      if (message.seq < count.seq) { count.seq = message.seq; count.position = position; }
+      counts.set(word, count);
     }
   });
-  const words = [...counts].filter(([word]) => eligibleWord(word))
-    .map(([word, count]) => ({ word, count })).sort((a, b) => b.count - a.count || a.word.localeCompare(b.word)).slice(0, CLOUD_WORDS);
+  const words = rankedTop([...counts].filter(([word]) => eligibleWord(word)).map(([word, { count }]) => ({ word, count })), CLOUD_WORDS,
+    (a, b) => b.count - a.count || a.word.localeCompare(b.word) || counts.get(a.word)!.seq - counts.get(b.word)!.seq
+      || counts.get(a.word)!.position - counts.get(b.word)!.position);
   return { textMessages, totalWords, uniqueWords: counts.size, wordsPerMessage: textMessages ? totalWords / textMessages : 0,
-    words, length: lengths.finish(textMessages), trends: trends.finish(words) };
+    words, length: lengths.finish(textMessages), trends: await trends.finish(words) };
 }

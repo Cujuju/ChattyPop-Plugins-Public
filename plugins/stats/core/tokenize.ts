@@ -8,5 +8,7 @@ export const CUSTOM_EMOJI = /<(a?):([a-zA-Z0-9_]+):(\d+)>/g;
 export function tokenize(content: string): string[] {
   const prose = content.replace(CODE_BLOCK, ' ').replace(MASKED_LINK, ' ').replace(URL, ' ')
     .replace(MENTION, ' ').replace(CUSTOM_EMOJI, ' ').replace(/[\u2018\u2019]/g, "'");
-  return [...WORDS.segment(prose)].filter((segment) => segment.isWordLike).map((segment) => segment.segment.toLowerCase());
+  const words: string[] = [];
+  for (const segment of WORDS.segment(prose)) if (segment.isWordLike) words.push(segment.segment.toLowerCase());
+  return words;
 }
