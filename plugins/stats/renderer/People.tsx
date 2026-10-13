@@ -7,6 +7,7 @@ import { Subheading, countLabel, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
 import { PersonStreakRows } from './StreakRows';
 import { Voice } from './Voice';
+import { PersonHistory } from './PersonHistory';
 
 export function People(props: StatsSectionProps) {
   const pages = createPosterList();
@@ -38,6 +39,7 @@ export function People(props: StatsSectionProps) {
       </Show>
       <PersonStreakRows channelId={personChannel()} />
       <Voice channelId={personChannel()} />
+      <PersonHistory channelId={personChannel()} />
     </section>
   );
 }

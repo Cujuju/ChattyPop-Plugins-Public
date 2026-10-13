@@ -45,10 +45,9 @@ export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('em
 export const words = pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null);
 export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null);
 export const conversations = pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null);
-export const personRuns = pluginResource(plugin, 'personStreaks', () => sectionQuery('people'), null);
-export const voice = pluginResource(plugin, 'voiceStats', () => sectionQuery('people'), null);
+export const people = pluginResource(plugin, 'peopleStats', () => sectionQuery('people'), null);
 export const repeats = pluginResource(plugin, 'repeatedLinks', () => sectionQuery('links'), null);
-const resources = [stats, emoji, words, sentiment, conversations, personRuns, voice, repeats];
+const resources = [stats, emoji, words, sentiment, conversations, people, repeats];
 export const statsLoading = (): boolean => resources.some((resource) => resource.loading);
 export const refreshStats = async (): Promise<void> => {
   await Promise.all(resources.map((resource) => resource.refetch()));

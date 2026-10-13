@@ -6,6 +6,7 @@ import type { ConversationStats } from './conversations';
 import type { PersonStreak } from './streaks';
 import type { RepeatedLinksStats } from './repeatedLinks';
 import type { VoiceStats } from './voice';
+import type { PeopleStats, PersonHistory } from './personHistory';
 
 export const manifest = {
   id: 'stats',
@@ -22,6 +23,8 @@ export interface StatsCoreCalls {
   activityStats(q: ActivityQuery): ActivityStats;
   postersPage(q: PostersQuery): StatsPoster[];
   personStreaks(q: ActivityQuery): PersonStreak[];
+  personHistory(q: ActivityQuery): PersonHistory;
+  peopleStats(q: ActivityQuery): PeopleStats;
   voiceStats(q: ActivityQuery): VoiceStats;
   repeatedLinks(q: ActivityQuery): RepeatedLinksStats;
   emojiStats(q: ActivityQuery): Promise<EmojiStats>;
@@ -33,7 +36,7 @@ export interface StatsCoreCalls {
 export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: StatsCoreCalls }>()({ core: {
-    activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'], voiceStats: ['renderer'], repeatedLinks: ['renderer'],
+    activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'], personHistory: ['renderer'], peopleStats: ['renderer'], voiceStats: ['renderer'], repeatedLinks: ['renderer'],
     emojiStats: ['renderer'], wordStats: ['renderer'], sentimentStats: ['renderer'], conversationStats: ['renderer'],
   } }),
   // The panel's scope, range and open section.

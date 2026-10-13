@@ -11,6 +11,7 @@ import { voiceStats } from '../core/voice';
 import { VOICE_PEOPLE } from '../shared/voice';
 import { wordStats } from '../core/words';
 import { conversationStats } from '../core/conversations';
+import { peopleStats, personHistory } from '../core/personHistory';
 import type { ActivityQuery } from '../shared/types';
 import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP } from '../shared/types';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
@@ -109,6 +110,24 @@ function expectCounts(db: Db): void {
 }
 
 describe('activity stats under privacy mode', () => {
+  it.each([false, true])('shares one privacy-aware author/day history read (hiding: %s)', (hiding) => {
+    const db = tempDb();
+    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    if (hiding) hideSome(db, fixture);
+    const stats = personHistory(db, ALL_TIME);
+    const visible = visibleMessages(db);
+    expect(stats.archivedSince).toBe(Math.min(...visible.map((m) => m.ts)));
+    expect(stats.lastDay).toBe(localStart(Math.max(...visible.map((m) => m.ts)), 'day'));
+    const prepare = vi.spyOn(db, 'prepare');
+    peopleStats(db, { ...ALL_TIME, sinceTs: Math.max(...visible.map((m) => m.ts)) });
+    expect(prepare.mock.calls.filter(([sql]) => /FROM archive_messages/.test(sql))).toHaveLength(1);
+    prepare.mockRestore();
+    const details = statementPlans(db, () => peopleStats(db, ALL_TIME)).join('\n');
+    expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
+    expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
+    expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
+  });
+
   it.each([false, true])('keeps conversation-role identities on visible messages (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);

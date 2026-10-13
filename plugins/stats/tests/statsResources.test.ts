@@ -98,10 +98,12 @@ describe('Analytics section resources', () => {
     expect(env.calls.slice(beforeConversationsRefresh).map((call) => call.member)).toEqual(['activityStats', 'conversationStats']);
     env.choices.get('section')!('people');
     await settle();
-    expect(env.calls.filter((call) => call.member === 'personStreaks')).toHaveLength(1);
+    expect(env.calls.filter((call) => call.member === 'peopleStats')).toHaveLength(1);
+    expect(env.calls.filter((call) => call.member === 'personHistory' || call.member === 'voiceStats')).toHaveLength(0);
+    expect(env.calls.filter((call) => call.member === 'personStreaks')).toHaveLength(0);
     const beforeStreaksRefresh = env.calls.length;
     await state.refreshStats();
-    expect(env.calls.slice(beforeStreaksRefresh).map((call) => call.member)).toEqual(['activityStats', 'personStreaks', 'voiceStats']);
+    expect(env.calls.slice(beforeStreaksRefresh).map((call) => call.member)).toEqual(['activityStats', 'peopleStats']);
     env.choices.get('section')!('links');
     await settle();
     expect(env.calls.filter((call) => call.member === 'repeatedLinks')).toHaveLength(1);
