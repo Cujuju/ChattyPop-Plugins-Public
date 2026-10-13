@@ -1,12 +1,12 @@
 import type { PluginDb } from '@plugin-sdk/core';
-import type { ActivityQuery, StatsPoster } from '../shared/types';
+import { everyoneQuery, type ActivityQuery, type StatsPoster } from '../shared/types';
 import { VOICE_PEOPLE, voiceShare, type VoiceStats } from '../shared/voice';
 import { bucketForSpan, bucketStart, filledBuckets } from './histogram';
 import { localDate } from './query';
 import { personDays } from './personDays';
 
 /** One author/day grouping supplies scope totals and poster counts without reading message text. */
-export function voiceStats(db: PluginDb, query: ActivityQuery, days = personDays(db, query)): VoiceStats {
+export function voiceStats(db: PluginDb, query: ActivityQuery, days = personDays(db, everyoneQuery(query))): VoiceStats {
   const rows = days.filter((row) => row.rangeCount > 0);
   let firstTs: number | null = null;
   let lastTs: number | null = null;
@@ -20,7 +20,8 @@ export function voiceStats(db: PluginDb, query: ActivityQuery, days = personDays
     posters.set(row.userId, poster);
   }
   const bucket = bucketForSpan(firstTs === null ? null : query.sinceTs ?? firstTs, lastTs);
-  const shown = [...posters.values()].sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId)).slice(0, VOICE_PEOPLE);
+  const shown = query.authorId != null ? [...posters.values()].filter((p) => p.userId === query.authorId)
+    : [...posters.values()].sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId)).slice(0, VOICE_PEOPLE);
   const totals = new Map<string, number>();
   const byPerson = new Map(shown.map((poster) => [poster.userId, new Map<string, number>()]));
   for (const row of rows) {

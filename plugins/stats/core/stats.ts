@@ -35,6 +35,10 @@ export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
     parts.push('m.ts >= ?');
     params.push(q.sinceTs);
   }
+  if (q.authorId != null) {
+    parts.push('m.author_id = ?');
+    params.push(q.authorId);
+  }
   return { sql: parts.join(' AND '), params };
 }
 

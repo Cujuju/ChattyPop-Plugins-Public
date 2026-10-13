@@ -8,10 +8,10 @@ import { emojiStats } from '../core/emoji';
 const CHANNEL = { scope: 'channel', channelId: 'c1', sinceTs: null } as const;
 
 describe('Analytics bounded channel/time pages', () => {
-  it.each([false, true])('seeks both timestamp and sequence ranges without sorting batches (equal timestamps: %s)', async (equal) => {
+  it.each([false, true].flatMap((equal) => [null, 'author'].map((authorId) => ({ equal, authorId }))))('seeks bounded ranges without sorting (equal: $equal, author: $authorId)', async ({ equal, authorId }) => {
     const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }], messages:
       Array.from({ length: SCAN_BATCH_SIZE * 2 + 1 }, (_, index) => ({
-        channelId: 'c1', ts: equal ? 0 : SCAN_BATCH_SIZE * 2 - index, content: 'word',
+        channelId: 'c1', ts: equal ? 0 : SCAN_BATCH_SIZE * 2 - index, content: 'word', authorId: 'author',
       })) } });
     onTestFinished(() => t.dispose());
     const prepare = t.db.prepare.bind(t.db);
@@ -29,7 +29,7 @@ describe('Analytics bounded channel/time pages', () => {
     }) as typeof t.db.prepare);
     try {
       const seen: number[] = [];
-      const total = await scanText(t.db, CHANNEL, (message) => seen.push(message.seq));
+      const total = await scanText(t.db, { ...CHANNEL, authorId }, (message) => seen.push(message.seq));
       expect(total).toBe(SCAN_BATCH_SIZE * 2 + 1);
       expect(new Set(seen).size).toBe(total);
       expect(plans.join('\n')).toMatch(/messages_channel_ts \(channel_id=\? AND ts=\? AND rowid>\? AND rowid<\?\)/);

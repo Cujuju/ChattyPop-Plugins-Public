@@ -35,7 +35,12 @@ export interface ActivityQuery {
   channelId: string | null;
   /** Count messages from this time on; null for the whole archive. */
   sinceTs: number | null;
+  /** Absent or null counts everyone; an id narrows ordinary section reads. */
+  authorId?: string | null;
 }
+
+/** Comparisons and conversation runs keep their scope-wide context. */
+export const everyoneQuery = (query: ActivityQuery): ActivityQuery => ({ ...query, authorId: null });
 
 /** One ranked person, including the avatar hash exposed by the archive. */
 export interface StatsPoster {
@@ -89,6 +94,8 @@ export interface ActivityStats {
   query: ActivityQuery;
   /** First visible archived message in the whole scope, independent of the selected range. */
   archivedSince: number | null;
+  /** Last visible archived message in the whole scope, independent of the selected range. */
+  archivedUntil: number | null;
   comparison: PeriodComparison | null;
   messages: number;
   authors: number;

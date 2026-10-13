@@ -3,13 +3,14 @@ import type { ActivityStats } from '../shared/types';
 import { local, type StatsSqlScope } from './query';
 
 /** First messages use the entire visible scope; the range only selects the months being reported. */
-export function timeline(db: PluginDb, scope: StatsSqlScope, wholeScope: StatsSqlScope, start: number | null, last: number | null): Pick<ActivityStats, 'timeline' | 'archivedSince'> {
+export function timeline(db: PluginDb, scope: StatsSqlScope, wholeScope: StatsSqlScope, start: number | null, last: number | null): Pick<ActivityStats, 'timeline' | 'archivedSince' | 'archivedUntil'> {
   const first = db.prepare(`SELECT date(${local('firstTs')}, 'start of month') AS start,
-    SUM(CASE WHEN firstTs >= ? THEN 1 ELSE 0 END) AS count, MIN(firstTs) AS archivedSince
-    FROM (SELECT MIN(m.ts) AS firstTs FROM archive_messages m WHERE ${wholeScope.sql} GROUP BY m.author_id)
-    GROUP BY start`).all(start, ...wholeScope.params) as { start: string; count: number; archivedSince: number }[];
+    SUM(CASE WHEN firstTs >= ? THEN 1 ELSE 0 END) AS count, MIN(firstTs) AS archivedSince, MAX(lastTs) AS archivedUntil
+    FROM (SELECT MIN(m.ts) AS firstTs, MAX(m.ts) AS lastTs FROM archive_messages m WHERE ${wholeScope.sql} GROUP BY m.author_id)
+    GROUP BY start`).all(start, ...wholeScope.params) as { start: string; count: number; archivedSince: number; archivedUntil: number }[];
   const archivedSince = first.length ? Math.min(...first.map((r) => r.archivedSince)) : null;
-  if (start === null || last === null) return { timeline: [], archivedSince };
+  const archivedUntil = first.length ? Math.max(...first.map((r) => r.archivedUntil)) : null;
+  if (start === null || last === null) return { timeline: [], archivedSince, archivedUntil };
   const active = db.prepare(`SELECT date(${local('m.ts')}, 'start of month') AS start,
     COUNT(DISTINCT m.author_id) AS count FROM archive_messages m WHERE ${scope.sql}
     GROUP BY start ORDER BY start`).all(...scope.params) as { start: string; count: number }[];
@@ -19,5 +20,5 @@ export function timeline(db: PluginDb, scope: StatsSqlScope, wholeScope: StatsSq
   ) SELECT start FROM months`).pluck().all(start, last) as string[];
   const activeByMonth = new Map(active.map((r) => [r.start, r.count]));
   const newByMonth = new Map(first.map((r) => [r.start, r.count]));
-  return { archivedSince, timeline: months.map((month) => ({ start: month, activePosters: activeByMonth.get(month) ?? 0, newPosters: newByMonth.get(month) ?? 0 })) };
+  return { archivedSince, archivedUntil, timeline: months.map((month) => ({ start: month, activePosters: activeByMonth.get(month) ?? 0, newPosters: newByMonth.get(month) ?? 0 })) };
 }

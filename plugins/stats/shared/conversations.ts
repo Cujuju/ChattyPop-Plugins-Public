@@ -14,6 +14,15 @@ export interface ConversationRoles {
   closes: StatsPoster[];
   medianReplyMs: number | null;
   fastest: (StatsPoster & { medianReplyMs: number })[];
+  /** Counts compare with all scope/range authors (including zeros); reply median compares with all replied-to runs. */
+  person?: {
+    starts: number;
+    closes: number;
+    replyCount: number;
+    medianReplyMs: number | null;
+    scopeMedianStarts: number;
+    scopeMedianCloses: number;
+  };
 }
 
 export interface ConversationPerson extends Omit<StatsPoster, 'count'> {

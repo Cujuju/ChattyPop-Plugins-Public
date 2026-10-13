@@ -17,4 +17,9 @@ export interface PersonHistory {
 }
 
 /** People fetches both independent computations together to share their author/day SQL read. */
-export interface PeopleStats { history: PersonHistory; voice: VoiceStats }
+export interface PeopleStats {
+  history: PersonHistory;
+  voice: VoiceStats;
+  /** Competition rank in the selected scope/range; ties share a rank. Present only for a person query. */
+  person?: { poster: StatsPoster; rank: number } | null;
+}
