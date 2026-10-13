@@ -3,7 +3,7 @@ import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync,
 import { join } from 'node:path';
 import { attachmentFileName, DM_GROUP_NAME, DM_GUILD_ID, errorMessage, type RawMessage } from '@plugin-sdk/shared';
 import { ARRIVAL, type Importer, type PluginDb, parseRawJson, storedAttachmentPath } from '@plugin-sdk/core';
-import type { ExchangeResult, ExportProgress, ExportRequest, ExportResult } from '../shared/types';
+import type { ExchangeResult, ExportProgress, ExportRequest, ExportWritten, SelectionExportRequest, SelectionExportResult } from '../shared/types';
 import { dceToRaw, isDceExport, rawToDce, type DceExport } from './dce';
 import { FORMAT_WRITERS, type ExportHead } from './formats';
 
@@ -110,16 +110,65 @@ class ExportStopped extends Error {}
 const safeName = (s: string): string => s.replace(UNSAFE_FILE_CHARS, '_').slice(0, FILE_NAME_TEXT_MAX).trim() || 'channel';
 const coreTurn = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
+const CHANNEL_SQL = `SELECT c.id, c.name, c.kind, c.parent_id AS parentId, CASE WHEN c.is_thread THEN p.name END AS parentName, c.guild_id AS guildId, g.name AS guildName
+  FROM archive_all_channels c LEFT JOIN archive_all_guilds g ON g.id = c.guild_id LEFT JOIN archive_all_channels p ON p.id = c.parent_id WHERE c.id = ?`;
+/** A channel's file name without its extension: `server - channel [id]`, a thread's with its channel between. */
+const fileBase = (c: ChannelRow): string => `${safeName([c.guildName ?? 'Discord', c.parentName, c.name].filter(Boolean).join(' - '))} [${c.id}]`;
+const headOf = (c: ChannelRow): ExportHead => ({
+  guild: c.guildId === DM_GUILD_ID ? { id: DCE_DM_GUILD_ID, name: 'Direct Messages' } : { id: c.guildId ?? DCE_DM_GUILD_ID, name: c.guildName ?? '' },
+  channel: { id: c.id, type: DCE_TYPE_NAMES[c.kind] ?? 'GuildTextChat', categoryId: c.parentId, name: c.name },
+  exportedAt: new Date().toISOString(),
+});
+
+/** Writes `file` through a partial file that becomes it only once `fill` has returned; a failed one leaves nothing. */
+async function writeWhole<T>(file: string, fill: (fd: number) => T | Promise<T>): Promise<T> {
+  const partial = `${file}${PARTIAL_SUFFIX}`;
+  const fd = openSync(partial, 'w');
+  let filled: T;
+  try {
+    filled = await fill(fd);
+  } catch (err) {
+    closeSync(fd);
+    rmSync(partial, { force: true });
+    throw err;
+  }
+  closeSync(fd);
+  renameSync(partial, file);
+  return filled;
+}
+
+/**
+ * Writes the selected messages of req.channelId still stored with their content to one file in req.dir, oldest first:
+ * `server - channel [id] selected <time>`. Attachments link to Discord.
+ */
+export async function exportMessages(db: PluginDb, req: SelectionExportRequest): Promise<SelectionExportResult> {
+  const c = db.prepare(CHANNEL_SQL).get(req.channelId) as ChannelRow | undefined;
+  const rows = db
+    .prepare(
+      `SELECT id, ts, raw_json AS raw FROM archive_all_messages
+       WHERE channel_id = ? AND raw_json IS NOT NULL AND id IN (SELECT value FROM json_each(?)) ORDER BY ts, length(id), id`,
+    )
+    .all(req.channelId, JSON.stringify(req.messageIds)) as MessageRow[];
+  if (!c || !rows.length) return { file: null, messages: 0 };
+  const head = headOf(c);
+  const writer = FORMAT_WRITERS[req.format](head);
+  mkdirSync(req.dir, { recursive: true });
+  const file = join(req.dir, `${fileBase(c)} selected ${head.exportedAt.replace(UNSAFE_FILE_CHARS, '-')}.${req.format}`);
+  await writeWhole(file, (fd) => {
+    writeSync(fd, writer.head);
+    writeSync(fd, rows.map((r) => writer.message(rawToDce(parseRawJson<RawMessage>(r.raw)!, (a) => a.url))).join(''));
+    writeSync(fd, writer.foot(rows.length));
+  });
+  return { file, messages: rows.length };
+}
+
 /**
  * Writes each channel with a message in range to req.dir as `server - channel [id]` (a thread as `server - channel - thread [id]`),
  * with an optional attachment folder. A message stored behind a page already written is left out.
  */
-export async function exportChannels(db: PluginDb, attachmentsDir: string, req: ExportRequest, run: ExportRun = UNWATCHED): Promise<ExportResult> {
-  const result: ExportResult = { channelIds: [], messages: 0, emptyChannelIds: [], failedChannelIds: [], cancelled: false };
-  const channel = db.prepare(
-    `SELECT c.id, c.name, c.kind, c.parent_id AS parentId, CASE WHEN c.is_thread THEN p.name END AS parentName, c.guild_id AS guildId, g.name AS guildName
-     FROM archive_all_channels c LEFT JOIN archive_all_guilds g ON g.id = c.guild_id LEFT JOIN archive_all_channels p ON p.id = c.parent_id WHERE c.id = ?`,
-  );
+export async function exportChannels(db: PluginDb, attachmentsDir: string, req: ExportRequest, run: ExportRun = UNWATCHED): Promise<ExportWritten> {
+  const result: ExportWritten = { channelIds: [], messages: 0, emptyChannelIds: [], failedChannelIds: [], cancelled: false };
+  const channel = db.prepare(CHANNEL_SQL);
   const threadsOf = db.prepare('SELECT id FROM archive_all_channels WHERE parent_id = ? AND is_thread ORDER BY length(id), id');
   const page = db.prepare(
     `SELECT id, ts, raw_json AS raw FROM archive_all_messages
@@ -139,7 +188,7 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
 
   /** Writes one channel's file; resolves with its message count, 0 when nothing is in range (no file). */
   const exportOne = async (c: ChannelRow): Promise<number> => {
-    const base = `${safeName([c.guildName ?? 'Discord', c.parentName, c.name].filter(Boolean).join(' - '))} [${c.id}]`;
+    const base = fileBase(c);
     const filesDir = `${base}_files`;
     const attachmentUrl = (a: { id: string; filename: string; url: string }): string => {
       if (!req.includeMedia) return a.url;
@@ -156,17 +205,9 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
     const read = (after: PagePlace): MessageRow[] => page.all(c.id, since, until, after.ts, after.idLength, after.id) as MessageRow[];
     let rows = read(BEFORE_FIRST);
     if (!rows.length) return 0;
-    const head: ExportHead = {
-      guild: c.guildId === DM_GUILD_ID ? { id: DCE_DM_GUILD_ID, name: 'Direct Messages' } : { id: c.guildId ?? DCE_DM_GUILD_ID, name: c.guildName ?? '' },
-      channel: { id: c.id, type: DCE_TYPE_NAMES[c.kind] ?? 'GuildTextChat', categoryId: c.parentId, name: c.name },
-      exportedAt: new Date().toISOString(),
-    };
-    const writer = FORMAT_WRITERS[req.format](head);
-    const file = join(req.dir, `${base}.${req.format}`);
-    const partial = `${file}${PARTIAL_SUFFIX}`;
-    const fd = openSync(partial, 'w');
-    let written = 0;
-    try {
+    const writer = FORMAT_WRITERS[req.format](headOf(c));
+    return writeWhole(join(req.dir, `${base}.${req.format}`), async (fd) => {
+      let written = 0;
       writeSync(fd, writer.head);
       for (;;) {
         writeSync(fd, rows.map((r) => writer.message(rawToDce(parseRawJson<RawMessage>(r.raw)!, attachmentUrl))).join(''));
@@ -180,14 +221,8 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
         if (!rows.length) break;
       }
       writeSync(fd, writer.foot(written));
-    } catch (err) {
-      closeSync(fd);
-      rmSync(partial, { force: true });
-      throw err;
-    }
-    closeSync(fd);
-    renameSync(partial, file);
-    return written;
+      return written;
+    });
   };
 
   for (const id of targets) {

@@ -1,9 +1,19 @@
-// The exchange plugin's main side: the file and folder dialogs, then core does the work; imports are brought up to date.
-import { defineMainPlugin } from '@plugin-sdk/main';
+// The exchange plugin's main side: the file and folder dialogs and the wait for history, then core does the work; imports are brought up to date.
+import { defineMainPlugin, type HistoryResult } from '@plugin-sdk/main';
 import { plugin } from '../shared';
 
 export default defineMainPlugin(plugin, (ctx) => {
   const { core } = ctx.channels;
+  /** Ends the running export's wait for history; null while none waits. */
+  let stopWaiting: (() => void) | null = null;
+  /** The channels' history back to `sinceMs`; null when the owner stopped waiting (sync goes on fetching what it was asked). */
+  const historyTo = (channelIds: string[], sinceMs: number): Promise<HistoryResult[] | null> =>
+    new Promise<HistoryResult[] | null>((resolve, reject) => {
+      stopWaiting = () => resolve(null);
+      ctx.syncBackTo(channelIds, sinceMs).then(resolve, reject);
+    }).finally(() => {
+      stopWaiting = null;
+    });
   ctx.channels.serve({
     importDce: async () => {
       const paths = await ctx.dialogs.pickFiles('Import DiscordChatExporter JSON', [{ name: 'DCE JSON export', extensions: ['json'] }]);
@@ -12,11 +22,23 @@ export default defineMainPlugin(plugin, (ctx) => {
       ctx.sync(r.channelIds); // imported channels are archived: bring them up to date
       return r;
     },
-    exportChannels: async (opts) => {
+    exportChannels: async ({ fetchFirst, ...opts }) => {
+      if (stopWaiting) throw new Error('An export is already running.');
       const dir = await ctx.dialogs.pickFolder('Export to folder');
       if (!dir) return null;
+      const fetched = fetchFirst && opts.sinceTs !== undefined ? await historyTo(opts.channelIds, opts.sinceTs) : [];
+      if (!fetched) return { channelIds: [], messages: 0, emptyChannelIds: [], failedChannelIds: [], unfetchedChannelIds: [], cancelled: true };
       // Resolves when the last file is written, however long that takes.
-      return core.exportChannels({ ...opts, dir });
+      const written = await core.exportChannels({ ...opts, dir });
+      return { ...written, unfetchedChannelIds: fetched.filter((r) => r.outcome !== 'reached').map((r) => r.channelId) };
+    },
+    cancelExport: async () => {
+      stopWaiting?.();
+      await core.cancelExport();
+    },
+    exportMessages: async (opts) => {
+      const dir = await ctx.dialogs.pickFolder('Export selected messages to folder');
+      return dir ? core.exportMessages({ ...opts, dir }) : null;
     },
   });
 });

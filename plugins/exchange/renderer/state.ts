@@ -1,11 +1,10 @@
 // Import and export from Settings → Archive: main asks for files or a folder, then core does the work.
 import { createSignal } from 'solid-js';
-import { desktopCoreClient, mainClient, onEvent } from '@plugin-sdk/renderer';
+import { mainClient, onEvent } from '@plugin-sdk/renderer';
 import { EXPORT_PROGRESS, plugin } from '../shared';
 import type { ExportOptions, ExportProgress, ExportResult } from '../shared/types';
 
 const main = mainClient(plugin);
-const core = desktopCoreClient(plugin);
 
 /** Asks for DCE JSON files and imports them; null when cancelled. */
 export const importDce = main.importDce;
@@ -25,5 +24,8 @@ export async function exportChannels(opts: ExportOptions): Promise<ExportResult 
   }
 }
 
-/** Stops the running export after the page it is writing. */
-export const cancelExport = core.cancelExport;
+/** Stops the running export: its wait for history at once, its writing after the page under way. */
+export const cancelExport = main.cancelExport;
+
+/** Asks for a folder and writes the Archive's selected messages there as one file; null when no folder was picked. */
+export const exportMessages = main.exportMessages;

@@ -1,5 +1,6 @@
 import { Show, createSignal } from 'solid-js';
-import type { ExchangeResult, ExportFormat, ExportResult } from '../shared/types';
+import type { ExchangeResult, ExportResult } from '../shared/types';
+import { FORMATS, type ExportFormat } from './formats';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import {
   AddPicker,
@@ -30,13 +31,6 @@ const SCOPES = [
   { value: ALL, label: 'All archived channels' },
   { value: CHOSEN, label: 'Chosen channels' },
 ];
-const FORMATS: { value: ExportFormat; label: string }[] = [
-  { value: 'html', label: 'HTML page' },
-  { value: 'json', label: 'JSON (DiscordChatExporter)' },
-  { value: 'txt', label: 'Plain text' },
-  { value: 'md', label: 'Markdown' },
-  { value: 'csv', label: 'CSV (spreadsheet)' },
-];
 
 const rangeLabel = (d: number): string => (d === 0 ? 'Everything archived' : d === 1 ? 'Last day' : `Last ${d} days`);
 const RANGES = [...RANGE_DAYS.map((d) => ({ value: String(d), label: rangeLabel(d) })), { value: BETWEEN, label: 'Between two dates' }];
@@ -53,6 +47,9 @@ const exported = (r: ExportResult): string =>
     `${r.cancelled ? 'Stopped after' : 'Exported'} ${r.messages} messages in ${countText(r.channelIds.length, 'file')}.`,
     r.emptyChannelIds.length ? `${countText(r.emptyChannelIds.length, 'chosen channel')} had no messages in that range.` : '',
     r.failedChannelIds.length ? `${countText(r.failedChannelIds.length, 'channel')} couldn't be written.` : '',
+    r.unfetchedChannelIds.length
+      ? `History didn't reach the start of the range for ${countText(r.unfetchedChannelIds.length, 'channel')} (sync is paused, or Discord refused): what is stored was exported.`
+      : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -76,6 +73,7 @@ function DesktopExchangeControls() {
   const [to, setTo] = createSignal('');
   const [format, setFormat] = createSignal<ExportFormat>('html');
   const [media, setMedia] = createSignal(false);
+  const [fetchFirst, setFetchFirst] = createSignal(false);
   const [status, setStatus] = createSignal<string | null>(null);
   const [exporting, setExporting] = createSignal(false);
 
@@ -94,8 +92,12 @@ function DesktopExchangeControls() {
   };
   const running = (): string => {
     const p = exportProgress();
-    return p ? `Exporting… ${p.channelsDone} of ${countText(p.channelsTotal, 'channel')}, ${p.messages} messages.` : 'Exporting…';
+    if (p) return `Exporting… ${p.channelsDone} of ${countText(p.channelsTotal, 'channel')}, ${p.messages} messages.`;
+    return fetching() ? 'Fetching history back to the start of the range, at the sync pace; the export follows…' : 'Exporting…';
   };
+  /** The range has a start, so history can be fetched back to it. */
+  const startsAt = (): boolean => times()?.sinceTs !== undefined;
+  const fetching = (): boolean => fetchFirst() && startsAt();
 
   const run = <T,>(started: string, job: () => Promise<T | null>, done: (r: T) => string): Promise<void> => {
     setStatus(started);
@@ -108,7 +110,7 @@ function DesktopExchangeControls() {
     const span = times();
     if (!span) return;
     setExporting(true);
-    void run('Exporting…', () => exportChannels({ channelIds: channelIds(), includeThreads: threads(), ...span, format: format(), includeMedia: media() }), exported).finally(() =>
+    void run('Exporting…', () => exportChannels({ channelIds: channelIds(), includeThreads: threads(), ...span, format: format(), includeMedia: media(), fetchFirst: fetching() }), exported).finally(() =>
       setExporting(false),
     );
   };
@@ -157,6 +159,14 @@ function DesktopExchangeControls() {
           <Show when={!times()}>
             <Note kind="error">From must be before To.</Note>
           </Show>
+        </Show>
+        <Show when={startsAt()}>
+          <Row
+            label="Fetch missing history first"
+            for="export-fetch"
+            hint="Fetches each chosen channel back to the start of the range at the sync pace, then exports. What is fetched stays in the archive; your history settings don't change."
+            control={<Switch id="export-fetch" checked={fetchFirst()} onChange={setFetchFirst} />}
+          />
         </Show>
         <Row
           label="Format"

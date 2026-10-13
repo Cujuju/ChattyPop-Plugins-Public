@@ -13,9 +13,12 @@ export interface ExportOptions {
   format: ExportFormat;
   /** Copy stored attachment files next to the export (otherwise they link to Discord). */
   includeMedia: boolean;
+  /** Fetch each chosen channel's history back to sinceTs before writing; without a sinceTs nothing is fetched. */
+  fetchFirst: boolean;
 }
 
-export interface ExportRequest extends ExportOptions {
+/** What core writes: the fetch is main's, before it. */
+export interface ExportRequest extends Omit<ExportOptions, 'fetchFirst'> {
   /** Folder the files are written to. */
   dir: string;
 }
@@ -27,7 +30,7 @@ export interface ExchangeResult {
   skippedFiles: string[];
 }
 
-export interface ExportResult {
+export interface ExportWritten {
   /** Channels and threads a file was written for. */
   channelIds: string[];
   messages: number;
@@ -37,6 +40,29 @@ export interface ExportResult {
   failedChannelIds: string[];
   /** Stopped before every channel was written; finished files stay. */
   cancelled: boolean;
+}
+
+export interface ExportResult extends ExportWritten {
+  /** Chosen channels whose history didn't reach the range's start (sync paused, or a request failed); what is stored is exported. */
+  unfetchedChannelIds: string[];
+}
+
+/** Messages selected in the Archive, all of one channel. */
+export interface SelectionExportOptions {
+  channelId: string;
+  messageIds: string[];
+  format: ExportFormat;
+}
+
+export interface SelectionExportRequest extends SelectionExportOptions {
+  /** Folder the file is written to. */
+  dir: string;
+}
+
+export interface SelectionExportResult {
+  /** The file written; null when none of the messages is still stored with its content. */
+  file: string | null;
+  messages: number;
 }
 
 /** An export under way: channels finished of those it covers, and messages written so far. */
