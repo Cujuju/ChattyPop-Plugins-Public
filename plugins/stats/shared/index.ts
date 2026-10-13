@@ -4,6 +4,7 @@ import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, isKey, type ActivityQuery, 
 import type { EmojiStats, WordStats, SentimentStats } from './text';
 import type { ConversationStats } from './conversations';
 import type { PersonStreak } from './streaks';
+import type { RepeatedLinksStats } from './repeatedLinks';
 
 export const manifest = {
   id: 'stats',
@@ -20,6 +21,7 @@ export interface StatsCoreCalls {
   activityStats(q: ActivityQuery): ActivityStats;
   postersPage(q: PostersQuery): StatsPoster[];
   personStreaks(q: ActivityQuery): PersonStreak[];
+  repeatedLinks(q: ActivityQuery): RepeatedLinksStats;
   emojiStats(q: ActivityQuery): Promise<EmojiStats>;
   wordStats(q: ActivityQuery): Promise<WordStats>;
   sentimentStats(q: ActivityQuery): Promise<SentimentStats>;
@@ -29,7 +31,7 @@ export interface StatsCoreCalls {
 export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: StatsCoreCalls }>()({ core: {
-    activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'],
+    activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'], repeatedLinks: ['renderer'],
     emojiStats: ['renderer'], wordStats: ['renderer'], sentimentStats: ['renderer'], conversationStats: ['renderer'],
   } }),
   // The panel's scope, range and open section.

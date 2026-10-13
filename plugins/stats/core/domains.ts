@@ -1,12 +1,15 @@
 import { getDomain } from 'tldts';
 import { STATS_TOP, type ActivityStats } from '../shared/types';
 
+export function urlHost(url: string): string | null {
+  try { return new URL(url).hostname.replace(/^www\./, '').replace(/\.$/, '') || null; } catch { return null; }
+}
+
 /** Private suffixes keep independently hosted sites, such as github.io projects, separate. */
 export function domainTree(urls: { url: string; n: number }[]): ActivityStats['domains'] {
   const sites = new Map<string, Map<string, number>>();
   for (const { url, n } of urls) {
-    let host: string;
-    try { host = new URL(url).hostname.replace(/^www\./, '').replace(/\.$/, ''); } catch { continue; }
+    const host = urlHost(url);
     if (!host) continue;
     const domain = getDomain(host, { allowPrivateDomains: true }) ?? host;
     const hosts = sites.get(domain) ?? new Map<string, number>();

@@ -5,6 +5,7 @@ import { PosterRow } from './PosterRow';
 import { DomainRows } from './DomainRows';
 import { Subheading, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
+import { RepeatedLinks } from './RepeatedLinks';
 
 export function Links(props: StatsSectionProps) {
   const personChannel = () => props.stats().query.scope === 'all' ? null : shownChannelId();
@@ -20,6 +21,7 @@ export function Links(props: StatsSectionProps) {
         <Subheading>Links by channel</Subheading>
         <ChannelRows channels={props.stats().linksByChannel} scope={props.stats().query.scope} />
       </Show>
+      <RepeatedLinks channelId={personChannel()} />
     </section>
   );
 }
