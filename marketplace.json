@@ -63,6 +63,13 @@
       "description": "Claude as an AI provider, through your own Claude Code install, sign-in or API key.",
       "releases": [
         {
+          "version": "1.5.0",
+          "tag": "claude-v1.5.0",
+          "asset": "claude-1.5.0.tar.gz",
+          "sha256": "80078533a28ea56208fba6e69c4e15a66d44f817662e8e9347fff4a8448f5ddf",
+          "sdk": "2.43.0"
+        },
+        {
           "version": "1.2.1",
           "tag": "claude-v1.2.1",
           "asset": "claude-1.2.1.tar.gz",
@@ -105,6 +112,13 @@
       "description": "ChatGPT as an AI provider, through your own Codex CLI install, sign-in or API key.",
       "releases": [
         {
+          "version": "1.3.0",
+          "tag": "codex-v1.3.0",
+          "asset": "codex-1.3.0.tar.gz",
+          "sha256": "c319c61fe4cf09637436496758928366309c38b3445dc4665949e9c936ced608",
+          "sdk": "2.43.0"
+        },
+        {
           "version": "1.2.1",
           "tag": "codex-v1.2.1",
           "asset": "codex-1.2.1.tar.gz",
@@ -146,6 +160,13 @@
       "name": "Import and export",
       "description": "Imports DiscordChatExporter JSON exports; exports channels as JSON or a standalone HTML page (Settings → Archive).",
       "releases": [
+        {
+          "version": "1.1.1",
+          "tag": "exchange-v1.1.1",
+          "asset": "exchange-1.1.1.tar.gz",
+          "sha256": "13e95a737f875de958422f64d15dc525afa87ac3a38e3280be282de117637871",
+          "sdk": "2.43.0"
+        },
         {
           "version": "1.1.0",
           "tag": "exchange-v1.1.0",
@@ -329,6 +350,13 @@
       "description": "Local models through Ollama, for channels set to local AI only and anything else you point at it.",
       "releases": [
         {
+          "version": "1.4.4",
+          "tag": "ollama-v1.4.4",
+          "asset": "ollama-1.4.4.tar.gz",
+          "sha256": "614a5459a3704b54f6c0052e3749548b380a2acc3780117240f528912ae85cc2",
+          "sdk": "2.43.0"
+        },
+        {
           "version": "1.4.3",
           "tag": "ollama-v1.4.3",
           "asset": "ollama-1.4.3.tar.gz",
@@ -392,6 +420,13 @@
       "description": "Any OpenRouter model as an AI provider, paid by the OpenRouter key that lists it.",
       "releases": [
         {
+          "version": "1.1.3",
+          "tag": "openrouter-v1.1.3",
+          "asset": "openrouter-1.1.3.tar.gz",
+          "sha256": "86facfe51919d244f12ce815658049325f48324270302a9b4fba551d44be4604",
+          "sdk": "2.43.0"
+        },
+        {
           "version": "1.1.2",
           "tag": "openrouter-v1.1.2",
           "asset": "openrouter-1.1.2.tar.gz",
@@ -426,6 +461,13 @@
       "name": "Plans & decisions",
       "description": "Jev spots plans and decisions in messages; your AI provider extracts the details for the Plans & decisions panel.",
       "releases": [
+        {
+          "version": "1.2.3",
+          "tag": "plans-v1.2.3",
+          "asset": "plans-1.2.3.tar.gz",
+          "sha256": "6963d1da040f322fa845cee20125b35e8e34ae2fc9c3e6ac35a31509a18a4529",
+          "sdk": "2.43.0"
+        },
         {
           "version": "1.2.1",
           "tag": "plans-v1.2.1",
@@ -493,9 +535,16 @@
     },
     {
       "id": "stats",
-      "name": "Activity",
-      "description": "The Activity panel: message counts by person, day, hour and channel.",
+      "name": "Analytics",
+      "description": "The Analytics panel: message counts by person, day, hour and channel.",
       "releases": [
+        {
+          "version": "1.21.2",
+          "tag": "stats-v1.21.2",
+          "asset": "stats-1.21.2.tar.gz",
+          "sha256": "f40893091493209a01032070c02e1e8bbd349f58fc94e3171ecea393f0ad7634",
+          "sdk": "2.43.0"
+        },
         {
           "version": "1.0.3",
           "tag": "stats-v1.0.3",
@@ -531,6 +580,13 @@
       "name": "Summaries",
       "description": "Cited recaps of archived conversations, on demand or on a schedule.",
       "releases": [
+        {
+          "version": "1.41.0",
+          "tag": "summaries-v1.41.0",
+          "asset": "summaries-1.41.0.tar.gz",
+          "sha256": "faccf725ebdf011abab167c9d9943eb8efec5fb3330b1ad69dcd191ced69c04c",
+          "sdk": "2.43.0"
+        },
         {
           "version": "1.35.0",
           "tag": "summaries-v1.35.0",
@@ -742,6 +798,13 @@
       "description": "Every enabled AI provider's plan limits side by side, and what ChattyPop used of them.",
       "releases": [
         {
+          "version": "1.2.1",
+          "tag": "usage-v1.2.1",
+          "asset": "usage-1.2.1.tar.gz",
+          "sha256": "292f368c2af69cadeab5456aea6bb67b9f699b3d5a2dd4993df5e01740670385",
+          "sdk": "2.43.0"
+        },
+        {
           "version": "1.1.2",
           "tag": "usage-v1.1.2",
           "asset": "usage-1.1.2.tar.gz",
@@ -776,6 +839,13 @@
       "name": "Translation",
       "description": "Translates image text, transcripts and link previews into your language with an AI model, so rules, Jev and search see it.",
       "releases": [
+        {
+          "version": "1.1.2",
+          "tag": "translation-v1.1.2",
+          "asset": "translation-1.1.2.tar.gz",
+          "sha256": "ee1eaf62a44ecc0376d13e1ace554ab0ebcf7f096ffcff725c3e4f4f6ad8fd73",
+          "sdk": "2.43.0"
+        },
         {
           "version": "1.1.1",
           "tag": "translation-v1.1.1",
