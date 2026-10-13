@@ -7,6 +7,7 @@ export const SCAN_BATCH_SIZE = 500;
 export const yieldToQueue = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
 
 export interface TextMessage {
+  id: string;
   content: string;
   author_id: string;
   channel_id: string;
@@ -19,7 +20,7 @@ export async function scanText(db: PluginDb, query: ActivityQuery, read: (messag
   const scope = scopeSql(db, query);
   const ceiling = db.prepare(`SELECT MAX(m.seq) FROM archive_messages m WHERE ${scope.sql}`).pluck().get(...scope.params) as number | null;
   if (ceiling === null) return 0;
-  const pick = db.prepare(`SELECT m.content, m.author_id, m.channel_id, m.ts, m.seq FROM archive_messages m
+  const pick = db.prepare(`SELECT m.id, m.content, m.author_id, m.channel_id, m.ts, m.seq FROM archive_messages m
     WHERE ${scope.sql} AND m.seq > ? AND m.seq <= ? ORDER BY m.seq LIMIT ?`);
   let cursor = 0;
   let textMessages = 0;

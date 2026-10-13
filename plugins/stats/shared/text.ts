@@ -1,3 +1,5 @@
+import type { MessageLengthStats } from './messageLength';
+
 export interface TextCoverage {
   /** Visible messages with nonempty retained content read by this call. */
   textMessages: number;
@@ -33,6 +35,7 @@ export interface WordStats extends TextCoverage {
   uniqueWords: number;
   wordsPerMessage: number;
   words: WordCount[];
+  length: MessageLengthStats;
 }
 
 export const SENTIMENT_CLASSES = ['positive', 'negative', 'neutral'] as const;

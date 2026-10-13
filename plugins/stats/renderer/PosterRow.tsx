@@ -1,9 +1,10 @@
 import { Avatar, PersonName, look } from '@plugin-sdk/renderer/kit';
 import type { StatsPoster } from '../shared/types';
+import type { JSX } from 'solid-js';
 import { SHARE_ROW, formatCount, share } from './section';
 import styles from './Stats.module.css';
 
-export function PosterRow(props: { poster: StatsPoster; channelId: string | null; rank: number; max: number }) {
+export function PosterRow(props: { poster: StatsPoster; channelId: string | null; rank: number; max: number; value?: JSX.Element; title?: string }) {
   return (
     <li class={`${styles.row} ${look.shareBar} ${look.text}`} {...SHARE_ROW} style={share(props.poster.count, props.max)}>
       <span class={styles.posterIdentity}>
@@ -14,7 +15,7 @@ export function PosterRow(props: { poster: StatsPoster; channelId: string | null
         }} />
         <PersonName userId={props.poster.userId} channelId={props.channelId} fallback={props.poster.name} class={styles.rowName} />
       </span>
-      <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted">{formatCount(props.poster.count)}</span>
+      <span class={`${styles.rowCount} ${look.text}`} data-size="xs" data-tone="muted" title={props.title}>{props.value ?? formatCount(props.poster.count)}</span>
     </li>
   );
 }
