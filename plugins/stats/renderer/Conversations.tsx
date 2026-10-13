@@ -6,6 +6,7 @@ import { conversations } from './state';
 import { TalkGraph } from './TalkGraph';
 import { CountRows, SHARE_ROW, Subheading, countLabel, formatCount, share } from './section';
 import styles from './Stats.module.css';
+import { ConversationRoles } from './ConversationRoles';
 
 export function Conversations() {
   const personChannel = () => conversations()?.query.scope === 'all' ? null : shownChannelId();
@@ -15,6 +16,7 @@ export function Conversations() {
     <Show when={conversations()}>{(stats) => <>
       <p class={look.text} data-size="xs" data-tone="muted">Read {countLabel(stats().messages, 'archived message')}. A conversation run ends after a {CONVERSATION_GAP_MINUTES}-minute lull within a channel.</p>
       <CountRows rows={[{ name: 'Conversation runs', count: stats().conversations }, { name: 'Runs with two or more people', count: stats().pairedConversations }]} />
+      <ConversationRoles stats={stats().roles} channelId={personChannel()} />
       <Subheading>Talk graph</Subheading>
       <p class={look.text} data-size="xs" data-tone="muted">Up to {GRAPH_PEOPLE_MAX} people from the strongest pairs. A tie counts one person posting right after another in the same channel within {CONVERSATION_GAP_MINUTES} minutes.</p>
       <TalkGraph stats={stats()} channelId={personChannel()} />

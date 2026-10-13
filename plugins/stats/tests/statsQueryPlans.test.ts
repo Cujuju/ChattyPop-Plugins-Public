@@ -10,6 +10,7 @@ import { hourlyHistogram } from '../core/histogram';
 import { voiceStats } from '../core/voice';
 import { VOICE_PEOPLE } from '../shared/voice';
 import { wordStats } from '../core/words';
+import { conversationStats } from '../core/conversations';
 import type { ActivityQuery } from '../shared/types';
 import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP } from '../shared/types';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
@@ -108,6 +109,28 @@ function expectCounts(db: Db): void {
 }
 
 describe('activity stats under privacy mode', () => {
+  it.each([false, true])('keeps conversation-role identities on visible messages (hiding: %s)', async (hiding) => {
+    const db = tempDb();
+    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
+    if (hiding) hideSome(db, fixture);
+    const visible = visibleMessages(db);
+    const first = visible[0]!;
+    const second = visible.find((m) => m.channel_id === first.channel_id && m.id !== first.id)!;
+    db.prepare('UPDATE messages SET ts = ?, author_id = ? WHERE id = ?').run(first.ts, 'role-replier', second.id);
+    const prepare = vi.spyOn(db, 'prepare');
+    try {
+      const stats = await conversationStats(db, ALL_TIME);
+      expect(stats.messages).toBe(visibleMessages(db).length);
+      expect(stats.roles.starts.length).toBeGreaterThan(0);
+      const sql = prepare.mock.calls.map(([sql]) => sql).find((sql) => sql.startsWith('SELECT m.author_id AS userId'))!;
+      prepare.mockRestore();
+      const ids = [...new Set([...stats.people, ...stats.roles.starts, ...stats.roles.closes, ...stats.roles.fastest].map((p) => p.userId))];
+      const details = statementPlans(db, () => db.prepare(sql).all(...ids)).join('\n');
+      expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
+      expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
+    } finally { prepare.mockRestore(); }
+  });
+
   it.each([false, true])('keeps word-trend extent and token counts private (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);

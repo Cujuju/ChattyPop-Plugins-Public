@@ -1,23 +1,7 @@
 import { MESSAGE_WORD_BUCKETS, WORDS_PERSON_MIN_MESSAGES, type LongMessage, type MessageLengthStats } from '../shared/messageLength';
 import { STATS_TOP } from '../shared/types';
 import type { TextMessage } from './scan';
-
-/** An even sample's median averages its two central observations. */
-const MEDIAN_HALVES = 2;
-
-function median(frequencies: Map<number, number>, messages: number): number {
-  if (!messages) return 0;
-  const lower = Math.floor((messages - 1) / MEDIAN_HALVES);
-  const upper = Math.floor(messages / MEDIAN_HALVES);
-  let seen = 0;
-  let lowerValue = 0;
-  for (const [words, count] of [...frequencies].sort(([a], [b]) => a - b)) {
-    if (seen <= lower && seen + count > lower) lowerValue = words;
-    if (seen + count > upper) return (lowerValue + words) / MEDIAN_HALVES;
-    seen += count;
-  }
-  return 0;
-}
+import { median } from './median';
 
 /** Frequencies and a bounded ranking accumulate during the section's existing text scan. */
 export function createMessageLengths() {
