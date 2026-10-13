@@ -22,7 +22,7 @@ describe('Analytics word trends', () => {
     ]);
     const prepare = vi.spyOn(t.db, 'prepare');
     const stats = await wordStats(t.db, CHANNEL);
-    expect(prepare.mock.calls.filter(([sql]) => /SELECT m.id, m.content/.test(sql))).toHaveLength(1);
+    expect(prepare.mock.calls.filter(([sql]) => /^SELECT m.id, m.content/.test(sql))).toHaveLength(2);
     expect(stats.trends.midpointTs).toBe(at(2));
     expect([stats.trends.earlierWords, stats.trends.laterWords]).toEqual([24, 24]);
     expect(stats.trends.rising).toEqual([{ word: 'bagel', earlierRate: 0, laterRate: 10000 / 24 }]);
@@ -33,7 +33,7 @@ describe('Analytics word trends', () => {
     expect(wordStrip(stats.trends.buckets, 'bagel')).toEqual([0, 0, 10000 / 24]);
     expect(wordStrip(stats.trends.buckets, 'toast')).toEqual([5000 / 24, 0, 0]);
     expect(wordStrip(stats.trends.buckets, 'pizza')).toEqual([5000 / 24, 0, 5000 / 24]);
-    expect(prepare.mock.calls.filter(([sql]) => /SELECT m.id, m.content/.test(sql))).toHaveLength(1);
+    expect(prepare.mock.calls.filter(([sql]) => /^SELECT m.id, m.content/.test(sql))).toHaveLength(2);
   });
 
   it('assigns midpoint messages to the later half and handles an empty half without infinite rates', async () => {

@@ -14,7 +14,8 @@ export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
   const parts = ['1'];
   const params: (string | number)[] = [];
   if (q.scope === 'channel' && q.channelId) {
-    parts.push('(m.channel_id = ? OR m.channel_id IN (SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?))');
+    // One membership range lets SQLite retain channel index order instead of merging two index scans.
+    parts.push('m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)');
     params.push(q.channelId, q.channelId);
   } else if (q.scope === 'server' && q.channelId) {
     const guildId = db.prepare('SELECT guild_id FROM archive_all_channels WHERE id = ?').pluck().get(q.channelId) as string | null | undefined;
