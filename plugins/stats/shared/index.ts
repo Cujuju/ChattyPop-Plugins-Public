@@ -3,6 +3,7 @@ import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shar
 import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, isKey, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster, type StatsRange, type StatsScope, type StatsSection } from './types';
 import type { EmojiStats, WordStats, SentimentStats } from './text';
 import type { ConversationStats } from './conversations';
+import type { PersonStreak } from './streaks';
 
 export const manifest = {
   id: 'stats',
@@ -18,6 +19,7 @@ export const STATS_PANEL = 'stats' as const;
 export interface StatsCoreCalls {
   activityStats(q: ActivityQuery): ActivityStats;
   postersPage(q: PostersQuery): StatsPoster[];
+  personStreaks(q: ActivityQuery): PersonStreak[];
   emojiStats(q: ActivityQuery): Promise<EmojiStats>;
   wordStats(q: ActivityQuery): Promise<WordStats>;
   sentimentStats(q: ActivityQuery): Promise<SentimentStats>;
@@ -27,7 +29,8 @@ export interface StatsCoreCalls {
 export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: StatsCoreCalls }>()({ core: {
-    activityStats: ['renderer'], postersPage: ['renderer'], emojiStats: ['renderer'], wordStats: ['renderer'], sentimentStats: ['renderer'], conversationStats: ['renderer'],
+    activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'],
+    emojiStats: ['renderer'], wordStats: ['renderer'], sentimentStats: ['renderer'], conversationStats: ['renderer'],
   } }),
   // The panel's scope, range and open section.
   preferences: {

@@ -45,9 +45,10 @@ export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('em
 export const words = pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null);
 export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null);
 export const conversations = pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null);
-export const statsLoading = (): boolean => stats.loading || emoji.loading || words.loading || sentiment.loading || conversations.loading;
+export const personRuns = pluginResource(plugin, 'personStreaks', () => sectionQuery('people'), null);
+export const statsLoading = (): boolean => stats.loading || emoji.loading || words.loading || sentiment.loading || conversations.loading || personRuns.loading;
 export const refreshStats = async (): Promise<void> => {
-  await Promise.all([stats.refetch(), emoji.refetch(), words.refetch(), sentiment.refetch(), conversations.refetch()]);
+  await Promise.all([stats.refetch(), emoji.refetch(), words.refetch(), sentiment.refetch(), conversations.refetch(), personRuns.refetch()]);
 };
 
 const [privacyChanges, setPrivacyChanges] = createSignal(0);

@@ -1,5 +1,6 @@
 import { MS_PER_MIN, MS_PER_HOUR, MS_PER_DAY } from '@plugin-sdk/shared';
 import type { PeriodComparison } from './comparison';
+import type { StreakStats } from './streaks';
 
 /** The panel's scope choices and their labels. */
 export const STATS_SCOPES = { channel: 'This channel', server: 'This server', all: 'Everything' } as const;
@@ -92,6 +93,7 @@ export interface ActivityStats {
   messages: number;
   authors: number;
   activeDays: number;
+  streaks: StreakStats;
   editedMessages: number;
   textMessages: number;
   linkedMessages: number;
