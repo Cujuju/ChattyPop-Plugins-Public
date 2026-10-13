@@ -1,0 +1,52 @@
+{
+  "machine": "AMD Ryzen 9 5950X, Windows, Node v24.21.0",
+  "hostRevision": "7aa6004b030ca0cbbbb41ef5e3f297adb564d28a",
+  "fixedRevision": "37f88af",
+  "encrypted": false,
+  "fixture": {"textMessages":384000,"rows":400000,"authors":30,"linkMessages":64000,"spanDays":390,"meanCharacters":83.97233,"vocabulary":40000},
+  "measurements": {
+    "b60bc4c": [
+      {"section":"activityStats","wallMs":14368.7756,"peakHeapMiB":51.66956329345703,"baseHeapMiB":36.441307067871094,"peakArrayBuffersMiB":null,"sqlMs":14328.120099999993,"maxSliceMs":14368.797300000006,"yields":0,"resultBytes":8069},
+      {"section":"emojiStats","wallMs":117399.61130000002,"peakHeapMiB":50.35198211669922,"baseHeapMiB":37.643035888671875,"peakArrayBuffersMiB":null,"sqlMs":116341.67850000045,"maxSliceMs":373.01520000000164,"yields":800,"resultBytes":209},
+      {"section":"wordStats","wallMs":121333.69099999999,"peakHeapMiB":57.04509735107422,"baseHeapMiB":38.32415771484375,"peakArrayBuffersMiB":null,"sqlMs":116083.19799999925,"maxSliceMs":384.88790000000154,"yields":800,"resultBytes":1938},
+      {"section":"sentimentStats","wallMs":125663.13760000002,"peakHeapMiB":51.76957702636719,"baseHeapMiB":35.93389892578125,"peakArrayBuffersMiB":null,"sqlMs":120396.3528999993,"maxSliceMs":550.8680000000168,"yields":800,"resultBytes":4091},
+      {"section":"conversationStats","wallMs":110748.9021,"peakHeapMiB":49.32637023925781,"baseHeapMiB":35.97857666015625,"peakArrayBuffersMiB":null,"sqlMs":110391.91650000022,"maxSliceMs":465.9777999999933,"yields":800,"resultBytes":7327}
+    ],
+    "736c869": [
+      {"section":"activityStats","wallMs":17470.6976,"peakHeapMiB":48.77796936035156,"baseHeapMiB":33.17119598388672,"peakArrayBuffersMiB":null,"sqlMs":17433.005099999988,"maxSliceMs":17470.7396,"yields":0,"resultBytes":8236},
+      {"section":"peopleStats","wallMs":882.3195000000051,"peakHeapMiB":42.25811767578125,"baseHeapMiB":34.34545135498047,"peakArrayBuffersMiB":null,"sqlMs":784.3197,"maxSliceMs":882.3634999999995,"yields":0,"resultBytes":5341},
+      {"section":"repeatedLinks","wallMs":2500.5290999999997,"peakHeapMiB":35.22355651855469,"baseHeapMiB":34.411766052246094,"peakArrayBuffersMiB":null,"sqlMs":2497.0449999999983,"maxSliceMs":2500.5524000000005,"yields":0,"resultBytes":1206},
+      {"section":"emojiStats","wallMs":134859.6242,"peakHeapMiB":37.199424743652344,"baseHeapMiB":34.41081237792969,"peakArrayBuffersMiB":null,"sqlMs":133741.94049999997,"maxSliceMs":424.6371999999974,"yields":800,"resultBytes":209},
+      {"section":"wordStats","wallMs":135418.20130000002,"peakHeapMiB":345.5659942626953,"baseHeapMiB":35.13794708251953,"peakArrayBuffersMiB":null,"sqlMs":127841.86400000096,"maxSliceMs":788.3497999999672,"yields":800,"resultBytes":27204},
+      {"section":"sentimentStats","wallMs":134373.85069999995,"peakHeapMiB":85.88924407958984,"baseHeapMiB":32.245750427246094,"peakArrayBuffersMiB":null,"sqlMs":128931.20239999931,"maxSliceMs":584.4799999999814,"yields":800,"resultBytes":4091},
+      {"section":"conversationStats","wallMs":124543.24500000005,"peakHeapMiB":45.617431640625,"baseHeapMiB":32.29472351074219,"peakArrayBuffersMiB":null,"sqlMs":124138.38460000034,"maxSliceMs":458.905199999921,"yields":800,"resultBytes":7510}
+    ],
+    "after-100k": [
+      {"section":"activityStats","wallMs":1107.2014999999992,"peakHeapMiB":51.37872314453125,"baseHeapMiB":35.77849578857422,"peakArrayBuffersMiB":0.5226268768310547,"sqlMs":1066.9808999999987,"maxSliceMs":1107.2224000000006,"yields":0,"resultBytes":8004},
+      {"section":"peopleStats","wallMs":200.9460999999992,"peakHeapMiB":67.25054168701172,"baseHeapMiB":36.99872589111328,"peakArrayBuffersMiB":0.5928878784179688,"sqlMs":155.17449999999917,"maxSliceMs":200.98469999999907,"yields":0,"resultBytes":4886},
+      {"section":"repeatedLinks","wallMs":82.29340000000047,"peakHeapMiB":37.877685546875,"baseHeapMiB":37.066261291503906,"peakArrayBuffersMiB":0.5234098434448242,"sqlMs":79.42799999999988,"maxSliceMs":82.45370000000003,"yields":0,"resultBytes":1186},
+      {"section":"emojiStats","wallMs":475.85189999999966,"peakHeapMiB":89.04654693603516,"baseHeapMiB":37.06523132324219,"peakArrayBuffersMiB":0.522430419921875,"sqlMs":240.39720000001762,"maxSliceMs":65.99119999999857,"yields":200,"resultBytes":204},
+      {"section":"wordStats","wallMs":2041.8363000000008,"peakHeapMiB":118.43534851074219,"baseHeapMiB":37.72156524658203,"peakArrayBuffersMiB":5.707143783569336,"sqlMs":304.34239999999045,"maxSliceMs":98.64140000000043,"yields":584,"resultBytes":27116},
+      {"section":"sentimentStats","wallMs":1461.9135999999999,"peakHeapMiB":94.13796997070312,"baseHeapMiB":40.594688415527344,"peakArrayBuffersMiB":5.097871780395508,"sqlMs":291.9285999999902,"maxSliceMs":97.39600000000064,"yields":200,"resultBytes":3976},
+      {"section":"conversationStats","wallMs":341.66849999999977,"peakHeapMiB":89.07341003417969,"baseHeapMiB":37.401893615722656,"peakArrayBuffersMiB":0.5224370956420898,"sqlMs":279.30699999999706,"maxSliceMs":69.6173000000017,"yields":200,"resultBytes":7391}
+    ],
+    "after-200k": [
+      {"section":"activityStats","wallMs":5464.845499999999,"peakHeapMiB":51.272857666015625,"baseHeapMiB":35.776939392089844,"peakArrayBuffersMiB":0.5226278305053711,"sqlMs":5428.271100000005,"maxSliceMs":5464.877499999999,"yields":0,"resultBytes":8203},
+      {"section":"peopleStats","wallMs":405.22780000000057,"peakHeapMiB":67.2310562133789,"baseHeapMiB":36.994239807128906,"peakArrayBuffersMiB":0.5929460525512695,"sqlMs":357.5030999999981,"maxSliceMs":405.28749999999854,"yields":0,"resultBytes":5338},
+      {"section":"repeatedLinks","wallMs":209.57359999999971,"peakHeapMiB":37.878990173339844,"baseHeapMiB":37.065155029296875,"peakArrayBuffersMiB":0.5234098434448242,"sqlMs":206.706299999998,"maxSliceMs":209.59779999999955,"yields":0,"resultBytes":1195},
+      {"section":"emojiStats","wallMs":1004.4919000000009,"peakHeapMiB":89.13468170166016,"baseHeapMiB":37.065093994140625,"peakArrayBuffersMiB":0.5234127044677734,"sqlMs":531.8469999999506,"maxSliceMs":147.16389999999956,"yields":400,"resultBytes":205},
+      {"section":"wordStats","wallMs":4821.225699999999,"peakHeapMiB":111.734130859375,"baseHeapMiB":37.76355743408203,"peakArrayBuffersMiB":10.27845573425293,"sqlMs":721.7093000000204,"maxSliceMs":195.8716999999997,"yields":1168,"resultBytes":27285},
+      {"section":"sentimentStats","wallMs":3242.981599999999,"peakHeapMiB":90.81830596923828,"baseHeapMiB":37.36077117919922,"peakArrayBuffersMiB":3.2709827423095703,"sqlMs":669.6550000000316,"maxSliceMs":215.86379999999917,"yields":400,"resultBytes":4033},
+      {"section":"conversationStats","wallMs":796.2073999999993,"peakHeapMiB":89.06433868408203,"baseHeapMiB":37.36888885498047,"peakArrayBuffersMiB":0.5234127044677734,"sqlMs":649.4529999999722,"maxSliceMs":153.6336999999985,"yields":400,"resultBytes":7483}
+    ],
+    "after-400k": [
+      {"section":"activityStats","wallMs":11059.744700000003,"peakHeapMiB":51.38915252685547,"baseHeapMiB":35.77855682373047,"peakArrayBuffersMiB":0.5226278305053711,"sqlMs":11021.65620000002,"maxSliceMs":11059.7673,"yields":0,"resultBytes":8236},
+      {"section":"peopleStats","wallMs":737.9948999999979,"peakHeapMiB":67.23883056640625,"baseHeapMiB":36.99659729003906,"peakArrayBuffersMiB":0.5929059982299805,"sqlMs":690.1990000000005,"maxSliceMs":738.0337999999974,"yields":0,"resultBytes":5341},
+      {"section":"repeatedLinks","wallMs":377.6764999999941,"peakHeapMiB":37.870811462402344,"baseHeapMiB":37.06756591796875,"peakArrayBuffersMiB":0.5234098434448242,"sqlMs":375.00100000000384,"maxSliceMs":377.7153999999937,"yields":0,"resultBytes":1206},
+      {"section":"emojiStats","wallMs":1907.708900000005,"peakHeapMiB":89.23900604248047,"baseHeapMiB":37.066566467285156,"peakArrayBuffersMiB":0.5234127044677734,"sqlMs":987.4459999999672,"maxSliceMs":253.340200000006,"yields":800,"resultBytes":209},
+      {"section":"wordStats","wallMs":8157.994300000006,"peakHeapMiB":122.32742309570312,"baseHeapMiB":37.7725830078125,"peakArrayBuffersMiB":19.432527542114258,"sqlMs":1294.8486000000848,"maxSliceMs":396.8367999999973,"yields":2336,"resultBytes":27204},
+      {"section":"sentimentStats","wallMs":5770.886100000003,"peakHeapMiB":91.0479965209961,"baseHeapMiB":37.352516174316406,"peakArrayBuffersMiB":8.732778549194336,"sqlMs":1203.2413999997661,"maxSliceMs":390.24860000000626,"yields":800,"resultBytes":4091},
+      {"section":"conversationStats","wallMs":1547.2325999999885,"peakHeapMiB":89.07302856445312,"baseHeapMiB":37.35804748535156,"peakArrayBuffersMiB":0.5234127044677734,"sqlMs":1289.1975999999122,"maxSliceMs":362.51190000001225,"yields":800,"resultBytes":7510}
+    ]
+  }
+}
