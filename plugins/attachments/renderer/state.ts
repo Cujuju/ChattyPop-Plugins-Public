@@ -2,13 +2,13 @@ import { batch, createEffect, createSignal, on } from 'solid-js';
 import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { createPagedList } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
-import { emptyTotals, type AttachmentCursor, type AttachmentItem, type BreakdownRow } from '../shared/types';
+import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentPlaces, type BreakdownRow } from '../shared/types';
 import { selection } from './selection';
 import { ATTACHMENT_PAGE_SIZE, WHO_OPTIONS_MAX, createAttachmentFilters } from './filterState';
 export * from './filterState';
 
 export const { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
-  uncompressed, setUncompressed, name, setName, sort, setSort, filter, filterCount, resetFilters, queryName } = createAttachmentFilters();
+  uncompressed, setUncompressed, name, setName, sort, setSort, filter, unplaced, filterCount, resetFilters, queryName } = createAttachmentFilters();
 export const [view, setView] = pluginPreference(plugin, 'view');
 export const [breakdownShown, setBreakdownShown] = pluginPreference(plugin, 'breakdown');
 export const [breakdownBy, setBreakdownBy] = createSignal<'guild' | 'channel' | 'author'>('guild');
@@ -31,6 +31,11 @@ export const people = pluginResource(plugin, 'breakdown', () => {
   revision();
   return [{ ...filter(), authorId: undefined, by: 'author' as const, limit: WHO_OPTIONS_MAX }];
 }, [] as BreakdownRow[]);
+/** The rail's counts, under every filter but the place. */
+export const places = pluginResource(plugin, 'places', () => {
+  revision();
+  return [unplaced()];
+}, { guilds: {}, channels: {} } as AttachmentPlaces);
 let reloadGeneration = 0;
 
 /** Filter changes open at the newest; archive changes reread the loaded span without requesting a scroll jump. */

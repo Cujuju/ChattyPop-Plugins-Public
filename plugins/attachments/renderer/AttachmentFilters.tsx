@@ -1,9 +1,9 @@
 import { For, Show } from 'solid-js';
-import { Icon, SearchSelect, SegButton, SegGroup, Select, Switch, archivedChannels, canCompressHere, channelLabel, directory, look } from '@plugin-sdk/renderer/kit';
+import { Icon, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, look } from '@plugin-sdk/renderer/kit';
 import { ATTACHMENT_KINDS, type AttachmentPresence } from '../shared/types';
 import {
   ATTACHMENT_RANGES, MIN_SIZE_OPTIONS, kinds, minBytes, name, people, presence, range, setKinds, setMinBytes, setName,
-  setPresence, setRange, setSort, setUncompressed, setWhere, setWho, sort, totals, uncompressed, where, who, type AttachmentRange,
+  setPresence, setRange, setSort, setUncompressed, setWho, sort, totals, uncompressed, who, type AttachmentRange,
 } from './state';
 import { KIND_ICON } from './AttachmentPicture';
 import styles from './AttachmentFilters.module.css';
@@ -11,21 +11,10 @@ import styles from './AttachmentFilters.module.css';
 const KIND_LABEL = { image: 'Images', video: 'Video', audio: 'Audio', file: 'Files' } as const;
 const PRESENCE_OPTIONS = [{ value: 'stored', label: 'On this PC' }, { value: 'gone', label: 'Not on this PC' }, { value: 'any', label: 'All' }];
 
-const scopeOptions = () => [{ value: '', label: 'All servers' },
-  ...directory().map((g) => ({ value: `guild:${g.id}`, label: g.name })),
-  ...archivedChannels().map((c) => ({ value: `channel:${c.id}`, label: channelLabel(c, c.guildName) })),
-];
-
+/** The place is the rail's (PlaceRail); these narrow within it. */
 export function AttachmentFilters() {
-  const scopeValue = (): string => { const value = where(); return value ? `${value.by}:${value.id}` : ''; };
-  const pickScope = (value: string): void => {
-    if (!value) return void setWhere(null);
-    const separator = value.indexOf(':');
-    setWhere({ by: value.slice(0, separator) === 'guild' ? 'guild' : 'channel', id: value.slice(separator + 1) });
-  };
   return (
     <div class={styles.filters}>
-      <SearchSelect class={styles.scope} label="Where" value={scopeValue()} options={scopeOptions()} onChange={pickScope} />
       <SearchSelect class={styles.who} label="Who" value={who() ?? ''}
         options={[{ value: '', label: 'Anyone' }, ...people().filter((p) => p.id).map((p) => ({ value: p.id, label: p.name }))]}
         onChange={(value) => setWho(value || null)} />

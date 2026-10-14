@@ -57,6 +57,22 @@ describe('breakdown', () => {
   });
 });
 
+describe('places', () => {
+  it('counts by server and channel, a thread in its channel, ignoring the place filter', async () => {
+    const { client } = fixture();
+    expect(await client.places({ guildId: '100000000000000002', channelId: '200000000000000003' })).toEqual({
+      guilds: { '100000000000000001': 7, '100000000000000002': 1 },
+      channels: { '200000000000000001': 5, '200000000000000002': 2, '200000000000000003': 1 },
+    });
+  });
+  it('keeps the other filters', async () => {
+    const { client } = fixture();
+    expect(await client.places({ kinds: ['image'] })).toEqual({
+      guilds: { '100000000000000001': 3 }, channels: { '200000000000000001': 2, '200000000000000002': 1 },
+    });
+  });
+});
+
 describe('person files', () => {
   it('lists their shares newest first and respects the requested limit', async () => {
     const { client } = fixture();

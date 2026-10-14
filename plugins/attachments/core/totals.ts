@@ -1,5 +1,5 @@
 import type { PluginDb } from '@plugin-sdk/core';
-import { emptyTotals, type AttachmentFilter, type AttachmentKind, type AttachmentTotals, type BreakdownBy, type BreakdownQuery, type BreakdownRow } from '../shared/types';
+import { emptyTotals, type AttachmentFilter, type AttachmentKind, type AttachmentPlaces, type AttachmentTotals, type BreakdownBy, type BreakdownQuery, type BreakdownRow } from '../shared/types';
 import { ATTACHMENT_FROM, DISK_BYTES, attachmentWhere } from './filters';
 
 /** Counts attachments and deduplicates each stored file's bytes by SHA, globally and within each kind. */
@@ -16,6 +16,20 @@ export function attachmentTotals(db: PluginDb, f: AttachmentFilter): AttachmentT
   const out = emptyTotals();
   for (const row of kinds) { out.byKind[row.kind] = { count: row.count, bytes: row.bytes }; out.count += row.count; }
   out.bytes = disk.bytes;
+  return out;
+}
+
+/** Counts by server and channel, a thread's under its channel as the channel filter scopes it; the place filter is ignored. */
+export function attachmentPlaces(db: PluginDb, f: AttachmentFilter): AttachmentPlaces {
+  const w = attachmentWhere({ ...f, guildId: undefined, channelId: undefined });
+  const rows = db.prepare(`SELECT COALESCE(c.guild_id, '') AS guildId,
+      CASE WHEN c.is_thread = 1 AND c.parent_id IS NOT NULL THEN c.parent_id ELSE a.channel_id END AS channelId, COUNT(*) AS count
+    ${ATTACHMENT_FROM} WHERE ${w.sql} GROUP BY 1, 2`).all(...w.params) as { guildId: string; channelId: string; count: number }[];
+  const out: AttachmentPlaces = { guilds: {}, channels: {} };
+  for (const r of rows) {
+    out.guilds[r.guildId] = (out.guilds[r.guildId] ?? 0) + r.count;
+    out.channels[r.channelId] = (out.channels[r.channelId] ?? 0) + r.count;
+  }
   return out;
 }
 

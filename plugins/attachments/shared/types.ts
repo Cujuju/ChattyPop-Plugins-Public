@@ -42,11 +42,14 @@ export type BreakdownBy = 'guild' | 'channel' | 'author';
 export interface BreakdownRow { id: string; name: string; /** A channel's server; else ''. */ detail: string; count: number; bytes: number }
 export interface BreakdownQuery extends AttachmentFilter { by: BreakdownBy; limit: number }
 export interface PersonFilesQuery { userId: string; limit: number }
+/** Matching attachments per server and per channel id (a thread's counted in its channel), whatever the place filter. */
+export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number> }
 
 export interface AttachmentsCoreCalls {
   page(q: AttachmentPageQuery): AttachmentItem[];
   totals(f: AttachmentFilter): AttachmentTotals;
   breakdown(q: BreakdownQuery): BreakdownRow[];
+  places(f: AttachmentFilter): AttachmentPlaces;
   sharedBy(q: PersonFilesQuery): AttachmentItem[];
 }
 

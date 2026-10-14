@@ -47,17 +47,20 @@ export function createAttachmentFilters() {
       setUncompressed(false); setName(''); setQueryName(''); setSort('newest');
     });
   };
-  const filter = (): AttachmentFilter => {
-    const scope = where();
+  /** Every filter but the place (where): what the rail counts under. */
+  const unplaced = (): AttachmentFilter => {
     const days = ATTACHMENT_RANGES[range()].days;
     return {
-      ...(scope ? { [scope.by === 'guild' ? 'guildId' : 'channelId']: scope.id } : {}),
       ...(who() ? { authorId: who()! } : {}), ...(kinds().length ? { kinds: kinds() } : {}),
       ...(days !== null ? { sinceTs: Date.now() - days * MS_PER_DAY } : {}),
       ...(minBytes() ? { minBytes: minBytes() } : {}), presence: presence(), uncompressed: uncompressed(),
       ...(queryName() ? { name: queryName() } : {}),
     };
   };
+  const filter = (): AttachmentFilter => {
+    const scope = where();
+    return { ...(scope ? { [scope.by === 'guild' ? 'guildId' : 'channelId']: scope.id } : {}), ...unplaced() };
+  };
   return { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
-    uncompressed, setUncompressed, name, setName, queryName, sort, setSort, filter, filterCount, resetFilters };
+    uncompressed, setUncompressed, name, setName, queryName, sort, setSort, filter, unplaced, filterCount, resetFilters };
 }

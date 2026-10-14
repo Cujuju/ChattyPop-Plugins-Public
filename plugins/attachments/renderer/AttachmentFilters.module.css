@@ -10,7 +10,6 @@
 }
 
 /* Where and who: they share a line's spare width, and shrink before the bar wraps. Field look is theme/forms.css. */
-.scope,
 .who {
   flex: 1 1 0;
   min-width: var(--cp-attachment-picker-min);

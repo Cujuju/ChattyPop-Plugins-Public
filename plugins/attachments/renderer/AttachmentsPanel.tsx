@@ -8,6 +8,7 @@ import { AttachmentFilters } from './AttachmentFilters';
 import { AttachmentGrid } from './AttachmentGrid';
 import { AttachmentList } from './AttachmentList';
 import { Breakdown } from './Breakdown';
+import { PlaceRail } from './PlaceRail';
 import { SelectionBar } from './SelectionBar';
 import styles from './Attachments.module.css';
 
@@ -69,26 +70,29 @@ export function AttachmentsPanel() {
         </HeaderActions>
       </PanelHeader>
       <div class={styles.body} hidden={isPanelCollapsed(ATTACHMENTS_PANEL)} style={{ display: isPanelCollapsed(ATTACHMENTS_PANEL) ? 'none' : undefined }} data-selecting={selectedIds().size > 0}>
-        <AttachmentFilters />
-        <Show when={breakdownShown()}><Breakdown /></Show>
-        <Show when={selectedIds().size > 0 || compressionJob()}><SelectionBar /></Show>
-        <Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>
-        <div class={styles.scroller} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
-          <div class={styles.measure} ref={measure} aria-hidden="true" />
-          <VirtualRows log={vlog}>{(row) => (
-            <Switch>
-              <Match when={row().kind === 'day' && row() as Extract<Row, { kind: 'day' }>}>
-                {(day) => <DayDivider label={day().label} />}
-              </Match>
-              <Match when={row().kind === 'items' && row() as Extract<Row, { kind: 'items' }>}>
-                {(group) => <Show when={view() === 'grid'} fallback={<AttachmentList item={group().items[0]!} loaded={attachments.items} />}>
-                  <div class={styles.gridRow} style={{ '--cols': cols() }}><For each={group().items}>{(item) => <AttachmentGrid item={item} loaded={attachments.items} />}</For></div>
-                </Show>}
-              </Match>
-            </Switch>
-          )}</VirtualRows>
+        <PlaceRail />
+        <div class={styles.main}>
+          <AttachmentFilters />
+          <Show when={breakdownShown()}><Breakdown /></Show>
+          <Show when={selectedIds().size > 0 || compressionJob()}><SelectionBar /></Show>
+          <Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>
+          <div class={styles.scroller} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
+            <div class={styles.measure} ref={measure} aria-hidden="true" />
+            <VirtualRows log={vlog}>{(row) => (
+              <Switch>
+                <Match when={row().kind === 'day' && row() as Extract<Row, { kind: 'day' }>}>
+                  {(day) => <DayDivider label={day().label} />}
+                </Match>
+                <Match when={row().kind === 'items' && row() as Extract<Row, { kind: 'items' }>}>
+                  {(group) => <Show when={view() === 'grid'} fallback={<AttachmentList item={group().items[0]!} loaded={attachments.items} />}>
+                    <div class={styles.gridRow} style={{ '--cols': cols() }}><For each={group().items}>{(item) => <AttachmentGrid item={item} loaded={attachments.items} />}</For></div>
+                  </Show>}
+                </Match>
+              </Switch>
+            )}</VirtualRows>
+          </div>
+          <Show when={!log.following()}><JumpToNewest label="Jump to newest attachment" onClick={() => { vlog.holdRow(null); log.scrollToNewest(); }} /></Show>
         </div>
-        <Show when={!log.following()}><JumpToNewest label="Jump to newest attachment" onClick={() => { vlog.holdRow(null); log.scrollToNewest(); }} /></Show>
       </div>
     </section>
   );

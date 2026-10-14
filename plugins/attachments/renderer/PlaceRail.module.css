@@ -1,0 +1,64 @@
+/* The place rail: server marks in a narrow column, then the picked server's channels. Structure only; TSX applies look roles. */
+
+.servers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cp-space-2);
+  flex: 0 0 auto;
+  width: var(--cp-rail-w);
+  min-height: 0;
+  padding: var(--cp-space-3) 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* A server's mark; its GuildIcon fills the tile. */
+.server {
+  --guild-icon-size: var(--cp-rail-tile);
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-content: center;
+  width: var(--cp-rail-tile);
+  height: var(--cp-rail-tile);
+  padding: 0;
+}
+
+/* Discord's channel list width. */
+.channels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cp-space-1);
+  flex: 0 0 auto;
+  width: var(--cp-sidebar-w);
+  min-height: 0;
+  padding: var(--cp-space-3) var(--cp-space-2);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.heading {
+  margin: 0;
+  padding: 0 var(--cp-space-2) var(--cp-space-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.place {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: var(--cp-space-1) var(--cp-space-2);
+  text-align: start;
+}
+
+.placeName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

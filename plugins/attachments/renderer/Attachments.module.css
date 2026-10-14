@@ -1,11 +1,19 @@
 /* Attachments panel: breakdown, selection bar and a virtualised grid or list. Structure only; TSX applies the theme's look roles. */
 
-/* Under the header: the bars stacked over the scroller, which takes what is left. Relative for the jump button. */
+/* Under the header: the place rail, then the main column. */
 .body {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The bars stacked over the scroller, which takes what is left. Relative for the jump button. */
+.main {
   position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
 }
 
