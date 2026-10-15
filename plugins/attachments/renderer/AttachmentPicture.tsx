@@ -31,7 +31,7 @@ export function AttachmentPicture(props: { item: AttachmentItem; list?: boolean 
       </span>
     }>
       <img class={`${props.list ? styles.listThumbImg : styles.thumb} ${look.mediaThumb}`} src={src()} alt="" loading="lazy" decoding="async"
-        data-loaded={loaded() ? true : undefined} onLoad={() => setLoaded(true)}
+        data-loaded={loaded() ? true : undefined} data-zoom={props.list ? undefined : true} onLoad={() => setLoaded(true)}
         onError={() => { setLoaded(false); setAttempt((n) => n + 1); }} />
     </Show>
   );
