@@ -23,6 +23,7 @@ export const loadOlderAttachments = (): Promise<number> => list.loadOlder().catc
 export const [totals, setTotals] = createSignal(emptyTotals());
 export const [loads, setLoads] = createSignal(0);
 export const [failure, setFailure] = createSignal<string | null>(null);
+/** Raised when the archive or privacy changes what the counts read; a filter change refetches through the filter. */
 const [revision, setRevision] = createSignal(0);
 
 /** The Who picker's people within the other filters, most bytes on this PC first. */
@@ -48,7 +49,7 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
   let counts = emptyTotals();
   try {
     if (!await load((r) => { counts = r.counts; })) return;
-    batch(() => { setTotals(counts); setFailure(null); setRevision((n) => n + 1); if (opened) setLoads((n) => n + 1); });
+    batch(() => { setTotals(counts); setFailure(null); if (opened) setLoads((n) => n + 1); });
   } catch (error) { if (generation === readGeneration) setFailure(String(error)); }
 }
 
@@ -63,11 +64,12 @@ export const rereadAttachments = (): Promise<void> =>
 createEffect(() => selection.retain(attachments.items));
 createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, queryName, sort, () => callable(plugin, 'page')],
   () => void reloadAttachments(), { defer: true }));
-onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, () => void rereadAttachments());
+onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, () => { setRevision((n) => n + 1); void rereadAttachments(); });
 // Hidden files leave at once, before the reread returns.
 onAppEvent('privacy-changed', () => {
   selection.clear();
   list.setItems([]);
   setTotals(emptyTotals());
+  setRevision((n) => n + 1);
   void reloadAttachments();
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PluginDb } from '@plugin-sdk/core';
 import { attachmentRows } from '../core/feed';
+import { attachmentPeople, attachmentPlaces, attachmentTotals } from '../core/totals';
 import { at, seedMessage, start } from './attachmentsHarness';
 
 const ARCHIVE_ROWS = 1000;
@@ -36,5 +37,21 @@ describe('newest attachment query plan', () => {
     expect(first).toHaveLength(PAGE_SIZE);
     expect(next).toHaveLength(PAGE_SIZE);
     expect(new Set([...first, ...next].map((i) => i.id)).size).toBe(PAGE_SIZE * 2);
+  });
+});
+
+describe('message author lookups', () => {
+  it('never materialize the archive_messages view, in any read', () => {
+    const t = start({ archive: { channels: [{ id: '200000000000000001' }], messages: Array.from({ length: PAGE_SIZE }, (_, n) =>
+      seedMessage({ id: String(n), channelId: '200000000000000001', ts: at(n), filename: 'image.png', contentType: 'image/png', size: 100 })) } });
+    const plans: string[] = [];
+    const db = planDb(t.db, plans);
+    const scoped = { channelId: '200000000000000001', authorId: 'alice' };
+    attachmentRows(db, { ...scoped, limit: PAGE_SIZE });
+    attachmentTotals(db, scoped);
+    attachmentPeople(db, { ...scoped, limit: PAGE_SIZE });
+    attachmentPlaces(db, scoped);
+    expect(plans.length).toBeGreaterThan(0);
+    expect(plans.join('\n')).not.toMatch(/MATERIALIZE archive_messages/);
   });
 });

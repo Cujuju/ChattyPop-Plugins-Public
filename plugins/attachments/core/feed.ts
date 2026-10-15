@@ -1,7 +1,7 @@
 import type { ArchiveMessage } from '@plugin-sdk/shared';
 import type { PluginDb } from '@plugin-sdk/core';
 import type { AttachmentCursor, AttachmentItem, AttachmentPageQuery, PersonFilesQuery } from '../shared/types';
-import { ATTACHMENT_FROM, DISK_BYTES, SIZE_KEY, attachmentWhere } from './filters';
+import { ATTACHMENT_FROM, AUTHOR_ID, AUTHOR_NAME, DISK_BYTES, SIZE_KEY, attachmentWhere } from './filters';
 
 type AttachmentRow = Omit<AttachmentItem, 'compressed' | 'animated' | 'spoiler' | 'removed' | 'message'> & {
   compressedAt: number | null;
@@ -20,7 +20,7 @@ export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): Attachment
   const dir = q.before ? 'ASC' : 'DESC';
   const rows = db.prepare(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
       COALESCE(c.name, a.channel_id) AS channelName, c.guild_id AS guildId, COALESCE(g.name, '') AS guildName,
-      m.author_id AS authorId, COALESCE(m.author_name, '') AS authorName, a.ts,
+      ${AUTHOR_ID} AS authorId, COALESCE(${AUTHOR_NAME}, '') AS authorName, a.ts,
       a.filename, a.content_type AS contentType, a.kind, a.size, ${DISK_BYTES} AS bytes, ${SIZE_KEY} AS sortBytes,
       a.width, a.height, a.sha256, a.stored_ext AS storedExt, a.status,
       a.compressed_at AS compressedAt, a.removed_at AS removedAt

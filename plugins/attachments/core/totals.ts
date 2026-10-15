@@ -1,21 +1,22 @@
 import type { PluginDb } from '@plugin-sdk/core';
 import { emptyTotals, type AttachmentFilter, type AttachmentKind, type AttachmentPlaces, type AttachmentTotals, type PeopleQuery, type PersonRow } from '../shared/types';
-import { ATTACHMENT_FROM, DISK_BYTES, attachmentWhere } from './filters';
+import { ATTACHMENT_FROM, AUTHOR_ID, DISK_BYTES, attachmentWhere, messageColumn } from './filters';
 
-/** Counts attachments and deduplicates each stored file's bytes by SHA, globally and within each kind. */
+/**
+ * Counts attachments and deduplicates each stored file's bytes by SHA, globally and within each kind. One pass over the
+ * matched rows (MATERIALIZED: an author filter's per-row lookup runs once).
+ */
 export function attachmentTotals(db: PluginDb, f: AttachmentFilter): AttachmentTotals {
   const w = attachmentWhere({ ...f, kinds: undefined });
-  const matched = `SELECT a.kind, a.sha256, ${DISK_BYTES} AS bytes ${ATTACHMENT_FROM} WHERE ${w.sql}`;
-  const kinds = db.prepare(`WITH matched AS (${matched}),
-    files AS (SELECT kind, sha256, MAX(bytes) AS bytes FROM matched WHERE bytes > 0 GROUP BY kind, sha256),
+  const kinds = db.prepare(`WITH matched AS MATERIALIZED (SELECT a.kind, a.sha256, ${DISK_BYTES} AS bytes ${ATTACHMENT_FROM} WHERE ${w.sql}),
+    files AS MATERIALIZED (SELECT kind, sha256, MAX(bytes) AS bytes FROM matched WHERE bytes > 0 GROUP BY kind, sha256),
     sizes AS (SELECT kind, SUM(bytes) AS bytes FROM files GROUP BY kind)
-    SELECT m.kind, COUNT(*) AS count, COALESCE(s.bytes, 0) AS bytes FROM matched m
-    LEFT JOIN sizes s ON s.kind = m.kind GROUP BY m.kind`).all(...w.params) as { kind: AttachmentKind; count: number; bytes: number }[];
-  const disk = db.prepare(`WITH matched AS (${matched}) SELECT COALESCE(SUM(bytes), 0) AS bytes
-    FROM (SELECT MAX(bytes) AS bytes FROM matched WHERE bytes > 0 GROUP BY sha256)`).get(...w.params) as { bytes: number };
+    SELECT m.kind, COUNT(*) AS count, COALESCE(s.bytes, 0) AS bytes,
+      (SELECT COALESCE(SUM(bytes), 0) FROM (SELECT MAX(bytes) AS bytes FROM files GROUP BY sha256)) AS disk
+    FROM matched m LEFT JOIN sizes s ON s.kind = m.kind GROUP BY m.kind`)
+    .all(...w.params) as { kind: AttachmentKind; count: number; bytes: number; disk: number }[];
   const out = emptyTotals();
-  for (const row of kinds) { out.byKind[row.kind] = { count: row.count, bytes: row.bytes }; out.count += row.count; }
-  out.bytes = disk.bytes;
+  for (const row of kinds) { out.byKind[row.kind] = { count: row.count, bytes: row.bytes }; out.count += row.count; out.bytes = row.disk; }
   return out;
 }
 
@@ -33,15 +34,20 @@ export function attachmentPlaces(db: PluginDb, f: AttachmentFilter): AttachmentP
   return out;
 }
 
-/** People ranked by bytes on this PC (each stored file once per person), then count; their own filter is ignored. */
+/**
+ * People ranked by bytes on this PC (each stored file once per person), then count; their own filter is ignored. A name is
+ * the one on the person's newest file, looked up for the listed people only.
+ */
 export function attachmentPeople(db: PluginDb, q: PeopleQuery): PersonRow[] {
   const w = attachmentWhere({ ...q, authorId: undefined });
-  return db.prepare(`WITH matched AS (
-      SELECT COALESCE(m.author_id, '') AS id, COALESCE(m.author_name, 'Unknown person') AS name, a.sha256, ${DISK_BYTES} AS bytes
+  return db.prepare(`WITH matched AS MATERIALIZED (
+      SELECT COALESCE(${AUTHOR_ID}, '') AS id, a.message_id AS messageId, a.ts, a.sha256, ${DISK_BYTES} AS bytes
       ${ATTACHMENT_FROM} WHERE ${w.sql}
     ), files AS (SELECT id, sha256, MAX(bytes) AS bytes FROM matched WHERE bytes > 0 GROUP BY id, sha256),
-    sizes AS (SELECT id, SUM(bytes) AS bytes FROM files GROUP BY id)
-    SELECT m.id, MIN(m.name) AS name, COUNT(*) AS count, COALESCE(s.bytes, 0) AS bytes
-    FROM matched m LEFT JOIN sizes s ON s.id = m.id GROUP BY m.id
-    ORDER BY bytes DESC, count DESC, m.id LIMIT ?`).all(...w.params, q.limit) as PersonRow[];
+    sizes AS (SELECT id, SUM(bytes) AS bytes FROM files GROUP BY id),
+    -- SQLite takes a bare column (messageId) from the row MAX(ts) picks.
+    ranked AS (SELECT m.id, m.messageId, MAX(m.ts), COUNT(*) AS count, COALESCE(s.bytes, 0) AS bytes
+      FROM matched m LEFT JOIN sizes s ON s.id = m.id GROUP BY m.id ORDER BY bytes DESC, count DESC, m.id LIMIT ?)
+    SELECT id, COALESCE(${messageColumn('author_name', 'ranked.messageId')}, 'Unknown person') AS name, count, bytes
+    FROM ranked ORDER BY bytes DESC, count DESC, id`).all(...w.params, q.limit) as PersonRow[];
 }
