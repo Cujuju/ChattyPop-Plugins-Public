@@ -1,4 +1,4 @@
-import type { ArchiveAttachment } from '@plugin-sdk/shared';
+import { DM_GUILD_ID, type ArchiveAttachment } from '@plugin-sdk/shared';
 import {
   attachmentUrl, canCompressHere, canSaveAttachment, compressibleAs, compressStored, confirmDialog, failureNotice, formatBytes,
   freeStored, noticeDialog, openArchive, openMenuAt, saveAttachmentFile, setLightbox, type MenuGroup, type MenuItem, type StoredAttachmentRef,
@@ -22,7 +22,7 @@ export const itemMarks = (item: AttachmentItem): string[] =>
 export function placeText(item: AttachmentItem): string | null {
   const w = where();
   if (w?.by === 'channel') return null;
-  const channel = `#${item.channelName}`;
+  const channel = `${item.guildId === DM_GUILD_ID ? '@' : '#'}${item.channelName}`;
   return w?.by === 'guild' || !item.guildName ? channel : `${channel} · ${item.guildName}`;
 }
 

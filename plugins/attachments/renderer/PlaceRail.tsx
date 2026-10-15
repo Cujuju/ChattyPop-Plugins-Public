@@ -1,6 +1,6 @@
 import { For, Show, type JSX } from 'solid-js';
 import { DM_GUILD_ID } from '@plugin-sdk/shared';
-import { GuildIcon, Icon, channelById, channelSigil, directory, isThread, look } from '@plugin-sdk/renderer/kit';
+import { DmFace, GuildIcon, Icon, channelById, channelSigil, directory, isDmChannel, isThread, look } from '@plugin-sdk/renderer/kit';
 import { filesCount } from './actions';
 import { places, setWhere, where } from './state';
 import styles from './PlaceRail.module.css';
@@ -23,10 +23,11 @@ function ServerButton(props: { label: string; current: boolean; onClick: () => v
   );
 }
 
-/** `count`: undefined for a picked thread, whose files the rail counts in its channel's. */
-function PlaceButton(props: { label: string; count: number | undefined; current: boolean; onClick: () => void }) {
+/** `count`: undefined for a picked thread, whose files the rail counts in its channel's. `children`: a face before the name (a DM's). */
+function PlaceButton(props: { label: string; count: number | undefined; current: boolean; onClick: () => void; children?: JSX.Element }) {
   return (
     <button type="button" class={`${styles.place} ${look.navItem}`} aria-current={props.current ? 'page' : undefined} onClick={() => props.onClick()}>
+      {props.children}
       <span class={`${styles.placeName} ${look.text}`} data-size="sm">{props.label}</span>
       <Show when={props.count !== undefined}>
         <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">{props.count}</span>
@@ -55,10 +56,13 @@ export function PlaceRail() {
       <Show when={guild()}>{(g) => (
         <nav class={`${styles.channels} ${look.ruleEnd}`} aria-label={`Channels in ${g().name}`}>
           <h3 class={`${styles.heading} ${look.text}`} data-size="xs" data-weight="semibold" data-tone="secondary">{g().name}</h3>
-          <PlaceButton label="All channels" count={places().guilds[g().id] ?? 0} current={where()?.by === 'guild'} onClick={() => setWhere({ by: 'guild', id: g().id })} />
+          <PlaceButton label={g().id === DM_GUILD_ID ? 'All conversations' : 'All channels'} count={places().guilds[g().id] ?? 0} current={where()?.by === 'guild'} onClick={() => setWhere({ by: 'guild', id: g().id })} />
+          {/* A DM reads as the DM list shows it: its face and name, no sigil. */}
           <For each={channels()}>{(c) => (
-            <PlaceButton label={`${channelSigil(c)}${c.name}`} count={isThread(c) ? undefined : places().channels[c.id] ?? 0}
-              current={pickedChannel() === c.id} onClick={() => setWhere({ by: 'channel', id: c.id })} />
+            <PlaceButton label={isDmChannel(c) ? c.name : `${channelSigil(c)}${c.name}`} count={isThread(c) ? undefined : places().channels[c.id] ?? 0}
+              current={pickedChannel() === c.id} onClick={() => setWhere({ by: 'channel', id: c.id })}>
+              <Show when={isDmChannel(c) ? c : null}>{(dm) => <DmFace channel={dm()} />}</Show>
+            </PlaceButton>
           )}</For>
         </nav>
       )}</Show>
