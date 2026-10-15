@@ -5,9 +5,9 @@ import {
 } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem } from '../shared/types';
 import { compression, compressionJob, freeSelection, selection, type AttachmentSelection } from './selection';
-import { setWhere, setWho } from './state';
+import { setWhere, setWho, where } from './state';
 
-const filesCount = (count: number): string => count === 1 ? '1 file' : `${count} files`;
+export const filesCount = (count: number): string => count === 1 ? '1 file' : `${count} files`;
 export const deleteLabel = (count: number): string => count === 1 ? 'Delete local copy' : 'Delete local copies';
 const COMPRESS_EFFECT = "Video becomes 720p H.264 mp4, images WebP. Originals on this PC are replaced. A file that wouldn't shrink by a third is left alone.";
 const KEPT_IN_ARCHIVE = "The messages stay in the archive. The files can't be restored here.";
@@ -18,7 +18,15 @@ const STATUS_MARK: Record<AttachmentItem['status'], string | null> = { stored: n
 export const itemMarks = (item: AttachmentItem): string[] =>
   [item.compressed ? 'compressed' : null, STATUS_MARK[item.status], item.removed ? 'removed' : null].filter((mark): mark is string => mark !== null);
 
-type Storable = Pick<AttachmentItem, 'id' | 'sha256' | 'filename' | 'storedExt' | 'contentType' | 'status' | 'animated' | 'compressed' | 'removed'>;
+/** Where a file was shared, less what the rail's place already says. */
+export function placeText(item: AttachmentItem): string | null {
+  const w = where();
+  if (w?.by === 'channel') return null;
+  const channel = `#${item.channelName}`;
+  return w?.by === 'guild' || !item.guildName ? channel : `${channel} · ${item.guildName}`;
+}
+
+type Storable =Pick<AttachmentItem, 'id' | 'sha256' | 'filename' | 'storedExt' | 'contentType' | 'status' | 'animated' | 'compressed' | 'removed'>;
 export const storedRef = (item: Storable): StoredAttachmentRef | null => item.sha256 === null ? null : { ...item, sha256: item.sha256 };
 const compressibleRef = (item: Storable): StoredAttachmentRef | null => {
   const ref = storedRef(item);
@@ -72,14 +80,12 @@ export const compressFiles = async (items: readonly AttachmentItem[]): Promise<v
   void await compressRefs(items.flatMap((item) => compressibleRef(item) ?? []));
 
 /** Modifiers select before opening; after the first pick every plain click toggles. */
-export function clickAttachment(event: MouseEvent, item: AttachmentItem, loaded: readonly AttachmentItem[], pick = false, scope: AttachmentSelection = selection): void {
-  scope.retain(loaded);
+export function clickAttachment(event: MouseEvent, item: AttachmentItem, pick = false, scope: AttachmentSelection = selection): void {
   if (pick || event.ctrlKey || event.metaKey || event.shiftKey || scope.ids().size > 0) scope.toggle(item.id, event.shiftKey);
   else openAttachment(item);
 }
 
-export function showItemMenu(anchor: Element, item: AttachmentItem, loaded: readonly AttachmentItem[], scopeSelection: AttachmentSelection = selection): void {
-  scopeSelection.retain(loaded);
+export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelection: AttachmentSelection = selection): void {
   const targets = scopeSelection.ids().has(item.id) && scopeSelection.ids().size > 1 ? scopeSelection.selected() : [item];
   const attachment = archiveAttachment(item);
   const open: MenuItem[] = [

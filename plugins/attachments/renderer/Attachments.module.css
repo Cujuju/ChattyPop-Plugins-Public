@@ -1,4 +1,4 @@
-/* Attachments panel: breakdown, selection bar and a virtualised grid or list. Structure only; TSX applies the theme's look roles. */
+/* Attachments panel: the place rail beside a selection bar over a virtualised grid or list. Structure only; TSX applies the theme's look roles. */
 
 /* Under the header: the place rail, then the main column. */
 .body {
@@ -263,58 +263,6 @@
   content: '';
   position: absolute;
   inset: 0;
-}
-
-/* Where the bytes are: a heading line over ranked rows. */
-.breakdown {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: var(--cp-space-3);
-  padding: var(--cp-space-4) var(--cp-panel-pad-x);
-}
-
-.breakdownHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-3) var(--cp-space-4);
-}
-
-.breakdownRows {
-  display: grid;
-  gap: var(--cp-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* name (and its server) | bytes and count; look.shareBar draws its share behind it. */
-.breakdownRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  column-gap: var(--cp-space-4);
-  width: 100%;
-  padding: var(--cp-space-2) var(--cp-space-4);
-  text-align: left;
-}
-
-.breakdownName {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.breakdownDetail {
-  margin-left: var(--cp-space-3);
-}
-
-.breakdownFigure {
-  text-align: right;
-  white-space: nowrap;
 }
 
 /* A person's files in the Person window: the same tiles, not virtualised. */

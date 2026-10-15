@@ -2,12 +2,12 @@ import { For, Match, Show, Switch, createEffect, createMemo, createSignal, on, o
 import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest, PanelHeader, VirtualRows, createFollowBottom, createVirtualLog, dayLabel, formatBytes, isPanelCollapsed } from '@plugin-sdk/renderer/kit';
 import { ATTACHMENTS_PANEL } from '../shared';
 import type { AttachmentItem } from '../shared/types';
-import { attachments, breakdownShown, filterCount, loadOlderAttachments, loads, reloadAttachments, resetFilters, setBreakdownShown, setView, sort, totals, view } from './state';
+import { attachments, failure, filterCount, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, totals, view } from './state';
 import { compressionJob, selectedIds, selection } from './selection';
-import { AttachmentFilters } from './AttachmentFilters';
+import { filesCount } from './actions';
+import { FilterBar, HeaderTools } from './AttachmentFilters';
 import { AttachmentGrid } from './AttachmentGrid';
 import { AttachmentList } from './AttachmentList';
-import { Breakdown } from './Breakdown';
 import { PlaceRail } from './PlaceRail';
 import { SelectionBar } from './SelectionBar';
 import styles from './Attachments.module.css';
@@ -61,21 +61,22 @@ export function AttachmentsPanel() {
   return (
     <section class="cp-panel" aria-label="Attachments" on:keydown={(e) => { if (e.key === 'Escape') selection.clear(); }}>
       <PanelHeader section={ATTACHMENTS_PANEL} collapsible title="Attachments">
-        <HeaderMeta>{totals().count} files · {formatBytes(totals().bytes)}</HeaderMeta>
+        <HeaderMeta>{filesCount(totals().count)} · {formatBytes(totals().bytes)}</HeaderMeta>
+        <HeaderTools />
         <HeaderActions>
           <HeaderButton variant="icon" aria-label="Grid view" aria-pressed={view() === 'grid'} onClick={() => setView('grid')}><Icon name="apps" /></HeaderButton>
           <HeaderButton variant="icon" aria-label="List view" aria-pressed={view() === 'list'} onClick={() => setView('list')}><Icon name="text" /></HeaderButton>
-          <HeaderButton aria-pressed={breakdownShown()} title="What takes the space, by server, channel or person" onClick={() => setBreakdownShown(!breakdownShown())}>Disk use</HeaderButton>
           <Show when={filterCount() > 0}><HeaderButton onClick={resetFilters}>Reset</HeaderButton></Show>
         </HeaderActions>
       </PanelHeader>
       <div class={styles.body} hidden={isPanelCollapsed(ATTACHMENTS_PANEL)} style={{ display: isPanelCollapsed(ATTACHMENTS_PANEL) ? 'none' : undefined }} data-selecting={selectedIds().size > 0}>
         <PlaceRail />
         <div class={styles.main}>
-          <AttachmentFilters />
-          <Show when={breakdownShown()}><Breakdown /></Show>
+          <FilterBar />
           <Show when={selectedIds().size > 0 || compressionJob()}><SelectionBar /></Show>
-          <Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>
+          <Show when={failure()} fallback={<Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>}>
+            <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
+          </Show>
           <div class={styles.scroller} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
             <div class={styles.measure} ref={measure} aria-hidden="true" />
             <VirtualRows log={vlog}>{(row) => (
@@ -84,8 +85,8 @@ export function AttachmentsPanel() {
                   {(day) => <DayDivider label={day().label} />}
                 </Match>
                 <Match when={row().kind === 'items' && row() as Extract<Row, { kind: 'items' }>}>
-                  {(group) => <Show when={view() === 'grid'} fallback={<AttachmentList item={group().items[0]!} loaded={attachments.items} />}>
-                    <div class={styles.gridRow} style={{ '--cols': cols() }}><For each={group().items}>{(item) => <AttachmentGrid item={item} loaded={attachments.items} />}</For></div>
+                  {(group) => <Show when={view() === 'grid'} fallback={<AttachmentList item={group().items[0]!} />}>
+                    <div class={styles.gridRow} style={{ '--cols': cols() }}><For each={group().items}>{(item) => <AttachmentGrid item={item} />}</For></div>
                   </Show>}
                 </Match>
               </Switch>

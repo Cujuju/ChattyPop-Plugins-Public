@@ -1,13 +1,11 @@
 import { batch, createEffect, createSignal, on, onCleanup } from 'solid-js';
-import { MS_PER_DAY } from '@plugin-sdk/shared';
+import { BYTES_PER_MB, MS_PER_DAY } from '@plugin-sdk/shared';
 import type { AttachmentFilter, AttachmentKind, AttachmentPresence, AttachmentSort } from '../shared/types';
 
 export const ATTACHMENT_PAGE_SIZE = 100;
 export const WHO_OPTIONS_MAX = 200;
-export const BREAKDOWN_ROWS = 10;
 export const PERSON_FILES_PAGE = 40;
 export const FILENAME_DEBOUNCE_MS = 250;
-const BYTES_PER_MB = 1_000_000;
 const DAYS_PER_YEAR = 365;
 export const ATTACHMENT_RANGES = {
   all: { brief: 'Any', days: null }, '1d': { brief: '24h', days: 1 }, '7d': { brief: '7d', days: 7 },

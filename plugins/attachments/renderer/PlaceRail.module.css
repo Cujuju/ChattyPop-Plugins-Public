@@ -13,15 +13,21 @@
   overflow-y: auto;
 }
 
-/* A server's mark; its GuildIcon fills the tile. */
+/* A server's mark: its GuildIcon at the rail's tile size, inset so the current one's raised ground shows around it. */
 .server {
   --guild-icon-size: var(--cp-rail-tile);
   display: inline-grid;
   flex: 0 0 auto;
   place-content: center;
-  width: var(--cp-rail-tile);
-  height: var(--cp-rail-tile);
+  width: calc(var(--cp-rail-tile) + 2 * var(--cp-space-2));
+  height: calc(var(--cp-rail-tile) + 2 * var(--cp-space-2));
   padding: 0;
+}
+
+/* The glyph for all servers or for direct messages. */
+.glyph {
+  width: var(--cp-icon-lg);
+  height: var(--cp-icon-lg);
 }
 
 /* Discord's channel list width. */

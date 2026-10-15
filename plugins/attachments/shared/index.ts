@@ -9,7 +9,7 @@ export const plugin = definePlugin({
     core: {
       page: { audiences: ['renderer'], writes: false },
       totals: { audiences: ['renderer'], writes: false },
-      breakdown: { audiences: ['renderer'], writes: false },
+      people: { audiences: ['renderer'], writes: false },
       places: { audiences: ['renderer'], writes: false },
       sharedBy: { audiences: ['renderer'], writes: false },
     },
@@ -25,7 +25,6 @@ export const plugin = definePlugin({
   },
   preferences: {
     view: definePreference<'grid' | 'list'>({ default: 'grid', normalize: (v) => v === 'list' ? 'list' : 'grid' }),
-    breakdown: definePreference<boolean>({ default: false, normalize: (v) => v === true }),
   },
 });
 export default plugin;

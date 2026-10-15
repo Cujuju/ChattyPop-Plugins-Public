@@ -38,9 +38,10 @@ export interface AttachmentItem {
 export interface AttachmentCursor { ts: number; id: string; bytes?: number }
 export interface AttachmentPageQuery extends AttachmentFilter { limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor }
 export interface AttachmentTotals { byKind: Record<AttachmentKind, { count: number; bytes: number }>; count: number; /** Bytes on disk, each stored file once. */ bytes: number }
-export type BreakdownBy = 'guild' | 'channel' | 'author';
-export interface BreakdownRow { id: string; name: string; /** A channel's server; else ''. */ detail: string; count: number; bytes: number }
-export interface BreakdownQuery extends AttachmentFilter { by: BreakdownBy; limit: number }
+/** A person who shared matching files: `bytes` on this PC, each stored file once. */
+export interface PersonRow { id: string; name: string; count: number; bytes: number }
+/** People within the filter, whatever its own person. */
+export interface PeopleQuery extends AttachmentFilter { limit: number }
 export interface PersonFilesQuery { userId: string; limit: number }
 /** Matching attachments per server and per channel id (a thread's counted in its channel), whatever the place filter. */
 export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number> }
@@ -48,7 +49,7 @@ export interface AttachmentPlaces { guilds: Record<string, number>; channels: Re
 export interface AttachmentsCoreCalls {
   page(q: AttachmentPageQuery): AttachmentItem[];
   totals(f: AttachmentFilter): AttachmentTotals;
-  breakdown(q: BreakdownQuery): BreakdownRow[];
+  people(q: PeopleQuery): PersonRow[];
   places(f: AttachmentFilter): AttachmentPlaces;
   sharedBy(q: PersonFilesQuery): AttachmentItem[];
 }

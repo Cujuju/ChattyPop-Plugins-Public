@@ -1,5 +1,54 @@
-/* The Attachments panel's filter bar, under its header: it wraps, since the panel is often a narrow side panel. Structure only. */
+/* The Attachments filters: compact tools on the header line, as the Links header's, and a bar of fields over the files.
+   Structure only; TSX applies look roles. */
 
+/* Zero flex basis keeps the tools on the header line; high grow takes the spare width, aligning them to the end. */
+.tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--cp-space-2);
+  flex: 100 1 0;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* The chips, the segments and the order keep their size. */
+.tool {
+  flex: none;
+}
+
+/* The kinds: one tight row of icon squares, read as one control. */
+.kinds {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-1);
+}
+
+/* A kind chip: a square at the header's control height, its icon centred; name and count are its tooltip. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cp-btn-h-sm);
+  height: var(--cp-btn-h-sm);
+  padding: 0;
+}
+
+.chipIcon {
+  width: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+  height: calc(var(--cp-icon-md) + var(--cp-header-icon-grow));
+}
+
+/* The order: its name at the header's control height. */
+.orderButton {
+  display: inline-flex;
+  align-items: center;
+  height: var(--cp-btn-h-sm);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
+/* Fields over the files: it wraps when the window is narrow. */
 .filters {
   display: flex;
   flex: none;
@@ -9,72 +58,18 @@
   padding: var(--cp-space-3) var(--cp-panel-pad-x);
 }
 
-/* Where and who: they share a line's spare width, and shrink before the bar wraps. Field look is theme/forms.css. */
-.who {
-  flex: 1 1 0;
-  min-width: var(--cp-attachment-picker-min);
-  max-width: var(--cp-filter-select-max-w);
-  height: var(--cp-btn-h-sm);
-}
-
-/* The kinds: one tight row, read as one control. */
-.kinds {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--cp-space-2);
-}
-
-/* icon | name | count, at the header's control height. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cp-space-2);
-  height: var(--cp-btn-h-sm);
-  padding: 0 var(--cp-space-4);
-  white-space: nowrap;
-}
-
-.chipIcon {
-  flex: none;
-  width: var(--cp-icon-md);
-  height: var(--cp-icon-md);
-}
-
-.chipLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* The range segments keep their size. */
-.tool {
-  flex: none;
-}
-
-.size,
-.state {
-  flex: none;
-  min-width: 0;
-  max-width: var(--cp-filter-select-max-w);
-  height: var(--cp-btn-h-sm);
-}
-
-/* The order: one button naming it. */
-.sortButton {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  height: var(--cp-btn-h-sm);
-  padding: 0 var(--cp-space-4);
-  white-space: nowrap;
-}
-
-/* The file-name field: takes spare width as the pickers do. */
-.search {
+/* Who and file name share the spare width and shrink first. Field look is theme/forms.css. */
+.field {
   box-sizing: border-box;
   flex: 1 1 0;
   min-width: var(--cp-attachment-picker-min);
+  max-width: var(--cp-filter-select-max-w);
+  height: var(--cp-btn-h-sm);
+}
+
+.select {
+  flex: none;
+  min-width: 0;
   max-width: var(--cp-filter-select-max-w);
   height: var(--cp-btn-h-sm);
 }

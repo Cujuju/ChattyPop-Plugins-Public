@@ -1,6 +1,7 @@
 import { For, Show, type JSX } from 'solid-js';
 import { DM_GUILD_ID } from '@plugin-sdk/shared';
 import { GuildIcon, Icon, channelById, channelSigil, directory, isThread, look } from '@plugin-sdk/renderer/kit';
+import { filesCount } from './actions';
 import { places, setWhere, where } from './state';
 import styles from './PlaceRail.module.css';
 
@@ -14,11 +15,10 @@ const pickedChannel = (): string | null => {
   const w = where();
   return w?.by === 'channel' ? w.id : null;
 };
-const files = (count: number): string => `${count} ${count === 1 ? 'file' : 'files'}`;
 
-function ServerButton(props: { label: string; active: boolean; onClick: () => void; children: JSX.Element }) {
+function ServerButton(props: { label: string; current: boolean; onClick: () => void; children: JSX.Element }) {
   return (
-    <button type="button" class={`${styles.server} ${look.railButton}`} data-active={props.active} aria-pressed={props.active}
+    <button type="button" class={`${styles.server} ${look.navItem}`} aria-current={props.current ? 'page' : undefined}
       aria-label={props.label} title={props.label} onClick={() => props.onClick()}>{props.children}</button>
   );
 }
@@ -45,10 +45,10 @@ export function PlaceRail() {
     <>
       {/* The last column before the pane carries its rule: the channels when a server is picked, else the servers. */}
       <nav class={`${styles.servers} ${look.chrome} ${guild() ? '' : look.ruleEnd}`} aria-label="Servers">
-        <ServerButton label={`All servers · ${files(total())}`} active={!where()} onClick={() => setWhere(null)}><Icon name="apps" /></ServerButton>
+        <ServerButton label={`All servers · ${filesCount(total())}`} current={!where()} onClick={() => setWhere(null)}><Icon name="archive" class={styles.glyph} /></ServerButton>
         <For each={servers()}>{(g) => (
-          <ServerButton label={`${g.name} · ${files(places().guilds[g.id] ?? 0)}`} active={placeGuild() === g.id} onClick={() => setWhere({ by: 'guild', id: g.id })}>
-            <Show when={g.id !== DM_GUILD_ID} fallback={<Icon name="conversation" />}><GuildIcon id={g.id} name={g.name} icon={g.icon} /></Show>
+          <ServerButton label={`${g.name} · ${filesCount(places().guilds[g.id] ?? 0)}`} current={placeGuild() === g.id} onClick={() => setWhere({ by: 'guild', id: g.id })}>
+            <Show when={g.id !== DM_GUILD_ID} fallback={<Icon name="conversation" class={styles.glyph} />}><GuildIcon id={g.id} name={g.name} icon={g.icon} /></Show>
           </ServerButton>
         )}</For>
       </nav>

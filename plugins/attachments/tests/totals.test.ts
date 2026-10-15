@@ -32,28 +32,16 @@ describe('disk totals', () => {
   });
 });
 
-describe('breakdown', () => {
-  it('ranks servers by stored bytes and ignores its own server filter', async () => {
+describe('people', () => {
+  it('ignores its own person filter, keeps the other filters and limits by rank', async () => {
     const { client } = fixture();
-    expect(await client.breakdown({ by: 'guild', guildId: '100000000000000002', limit: LIMIT })).toEqual([
-      { id: '100000000000000001', name: 'North', detail: '', count: 7, bytes: 2160 }, { id: '100000000000000002', name: 'South', detail: '', count: 1, bytes: 1000 },
-    ]);
-  });
-  it('ignores its own channel filter and deduplicates files within each channel', async () => {
-    const { client, t } = fixture();
-    t.db.prepare('UPDATE attachments SET channel_id = ? WHERE id = ?').run('200000000000000001', 'a5');
-    const rows = await client.breakdown({ by: 'channel', channelId: '200000000000000002', limit: LIMIT });
-    expect(rows[0]).toEqual({ id: '200000000000000001', name: 'general', detail: 'North', count: 5, bytes: 2160 });
-    expect(rows.map((r) => r.id)).toEqual(['200000000000000001', '200000000000000003', '200000000000000002', '300000000000000001']);
-  });
-  it('ignores its own author filter, keeps the other filters and limits by rank', async () => {
-    const { client } = fixture();
-    const rows = await client.breakdown({ by: 'author', authorId: 'carol', guildId: '100000000000000001', limit: 2 });
+    const rows = await client.people({ authorId: 'carol', guildId: '100000000000000001', limit: 2 });
     expect(rows.map((r) => [r.id, r.count, r.bytes])).toEqual([['bob', 3, 2100], ['alice', 3, 160]]);
   });
-  it('breakdown retains kind filters', async () => {
-    const { client } = fixture();
-    expect((await client.breakdown({ by: 'channel', kinds: ['audio'], limit: LIMIT })).map((r) => [r.id, r.count, r.bytes])).toEqual([['200000000000000002', 1, 0]]);
+  it('counts a shared file once per person', async () => {
+    const { client, t } = fixture();
+    t.db.prepare("UPDATE messages SET author_id = 'alice' WHERE id = (SELECT message_id FROM attachments WHERE id = ?)").run('a5');
+    expect((await client.people({ kinds: ['image'], limit: LIMIT })).map((r) => [r.id, r.count, r.bytes])).toEqual([['alice', 3, 160]]);
   });
 });
 

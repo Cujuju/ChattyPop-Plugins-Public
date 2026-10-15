@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, createMemo } from 'solid-js';
 import { HeaderButton, formatBytes, look } from '@plugin-sdk/renderer/kit';
 import { canCompress, compressFiles, deleteFiles, deleteLabel, diskBytes } from './actions';
 import { compression, compressionJob, selection, type AttachmentSelection } from './selection';
@@ -6,9 +6,10 @@ import styles from './Attachments.module.css';
 
 export function SelectionBar(props: { selection?: AttachmentSelection }) {
   const scope = () => props.selection ?? selection;
-  const selectedItems = () => scope().selected();
-  const compressible = () => selectedItems().filter(canCompress);
-  const stored = () => selectedItems().filter((i) => i.status === 'stored').length;
+  // Memos: the count, size, compressible and stored figures each read the selection.
+  const selectedItems = createMemo(() => scope().selected());
+  const compressible = createMemo(() => selectedItems().filter(canCompress));
+  const stored = createMemo(() => selectedItems().filter((i) => i.status === 'stored').length);
   return (
     <div class={`${styles.selectionBar} ${look.band}`}>
       <Show when={compressionJob()?.running} fallback={

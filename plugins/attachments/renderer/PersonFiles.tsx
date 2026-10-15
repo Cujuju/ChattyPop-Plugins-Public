@@ -26,7 +26,7 @@ export function PersonFiles(props: { userId: string }) {
           {files.loading ? 'Loading…' : files.failure ? 'Their files couldn’t be read.' : 'They haven’t shared files in the archive.'}
         </p>
       }>
-        <div class={styles.personGrid} data-selecting={selection.ids().size > 0} on:keydown={(e) => { if (e.key === 'Escape') selection.clear(); }}><For each={files()}>{(item) => <AttachmentGrid item={item} loaded={files()} selection={selection} />}</For></div>
+        <div class={styles.personGrid} data-selecting={selection.ids().size > 0} on:keydown={(e) => { if (e.key === 'Escape') selection.clear(); }}><For each={files()}>{(item) => <AttachmentGrid item={item} selection={selection} />}</For></div>
         <Show when={files().length >= limit()}><button type="button" class={`cp-button ${styles.older}`} disabled={files.loading}
           onClick={() => setLimit((n) => n + PERSON_FILES_PAGE)}>Show older</button></Show>
       </Show>

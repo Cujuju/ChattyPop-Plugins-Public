@@ -6,7 +6,7 @@ import { AttachmentPicture } from './AttachmentPicture';
 import { compressionJob, selection, type AttachmentSelection } from './selection';
 import styles from './Attachments.module.css';
 
-export function AttachmentGrid(props: { item: AttachmentItem; loaded: readonly AttachmentItem[]; selection?: AttachmentSelection }) {
+export function AttachmentGrid(props: { item: AttachmentItem; selection?: AttachmentSelection }) {
   const selected = (): boolean => (props.selection ?? selection).ids().has(props.item.id);
   const size = (): string => formatBytes(props.item.sortBytes);
   const title = (): string => `${props.item.filename} · ${size()} · ${props.item.authorName || 'Unknown person'} · #${props.item.channelName}${props.item.guildName ? ` · ${props.item.guildName}` : ''}`;
@@ -14,8 +14,8 @@ export function AttachmentGrid(props: { item: AttachmentItem; loaded: readonly A
     <button type="button" class={`${styles.cell} ${look.mediaCell}`} aria-pressed={selected()} aria-label={title()}
       data-kind={props.item.kind} data-state={compressionJob()?.current === props.item.id ? 'busy' : undefined}
       data-attachment-id={props.item.id} title={title()}
-      onClick={(e) => clickAttachment(e, props.item, props.loaded, !!(e.target as Element).closest('[data-pick]'), props.selection)}
-      onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item, props.loaded, props.selection); }}>
+      onClick={(e) => clickAttachment(e, props.item, !!(e.target as Element).closest('[data-pick]'), props.selection)}
+      onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item, props.selection); }}>
       <AttachmentPicture item={props.item} />
       <span class={`${styles.pick} ${selected() ? look.pickMark : look.dot}`} data-fill={selected() ? undefined : 'ring'} data-pick title={`Select ${props.item.filename}`} aria-hidden="true">
         <Show when={selected()}><Icon name="check" /></Show>
