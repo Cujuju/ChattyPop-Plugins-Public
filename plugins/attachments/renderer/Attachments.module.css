@@ -72,11 +72,12 @@
   pointer-events: none;
 }
 
+/* The whole picture at its own proportions, on the cell's ground: a crop can hide what it shows. */
 .thumb {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 /* No picture (a spoiler, audio, another file, a file not on this PC): an icon over the name. */
@@ -183,7 +184,7 @@
 .listThumbImg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .listMain {
