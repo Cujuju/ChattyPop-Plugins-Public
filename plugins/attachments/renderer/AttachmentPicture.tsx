@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal, on } from 'solid-js';
+import { Show, createEffect, createMemo, createSignal, on } from 'solid-js';
 import { Icon, attachmentPosterUrl, attachmentThumbUrl, attachmentUrl, look, type IconName } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem, AttachmentKind } from '../shared/types';
 import { storedRef } from './actions';
@@ -13,7 +13,9 @@ const PLACEHOLDER = 2;
 export function AttachmentPicture(props: { item: AttachmentItem; list?: boolean }) {
   const [attempt, setAttempt] = createSignal(THUMB);
   const [loaded, setLoaded] = createSignal(false);
-  createEffect(on(() => `${props.item.id}:${props.item.sha256}:${props.item.storedExt}`, () => { setAttempt(THUMB); setLoaded(false); }));
+  // A memo, so a reread's new item object for the same file keeps the loaded picture: its img fires no second load.
+  const file = createMemo(() => `${props.item.id}:${props.item.sha256}:${props.item.storedExt}`);
+  createEffect(on(file, () => { setAttempt(THUMB); setLoaded(false); }, { defer: true }));
   const picture = (): boolean => !props.item.spoiler && props.item.status === 'stored' && !!props.item.sha256
     && (props.item.kind === 'image' || props.item.kind === 'video') && attempt() < PLACEHOLDER;
   const src = (): string => {
