@@ -58,6 +58,20 @@ it('stops waiting for history when told to, writing nothing', async () => {
   expect(await x.calls.exportChannels(options({ fetchFirst: false }))).toMatchObject({ messages: 4 });
 });
 
+it('refuses a second export while the first is still at its folder dialog, so Stop always reaches the running one', async () => {
+  let pick = (_dir: string | null): void => undefined;
+  const dir = tempDir();
+  const core = testPlugin(exchangeCore, { archive: { channels: [{ id: CH }] } });
+  onTestFinished(() => core.dispose());
+  const main = await testMainPlugin(exchangeMain, core, { dialogs: { pickFolder: () => new Promise((r) => (pick = r)) } });
+  onTestFinished(() => main.stop());
+  const calls = main.client();
+  const first = calls.exportChannels(options({ channelIds: [CH], fetchFirst: false }));
+  await expect(calls.exportChannels(options({ channelIds: [CH], fetchFirst: false }))).rejects.toThrow('already running');
+  pick(dir);
+  expect(await first).toMatchObject({ cancelled: false });
+});
+
 it("writes the selected messages of a channel to one file, oldest first, whatever order they're given in", async () => {
   const x = await exchange();
   const [first, , third, elsewhere] = x.ids;
