@@ -21,13 +21,15 @@ export function AttachmentListHeader() {
   const order = (key: AttachmentSortKey, first: AttachmentSort['dir']): void =>
     void setSort(sort().key === key ? { key, dir: sort().dir === 'asc' ? 'desc' : 'asc' } : { key, dir: first });
   return (
-    <div class={`${styles.listColumns} ${styles.listHeader} ${look.ruleBelow}`} data-rule="subtle" role="row">
+    // Not table roles: the rows under it are a virtual list, not a table, so each control says its own state.
+    <div class={`${styles.listColumns} ${styles.listHeader} ${look.ruleBelow}`} data-rule="subtle" role="group" aria-label="Sort files">
       <input type="checkbox" class={styles.listPick} aria-label="Select all loaded" checked={all()}
         onClick={() => all() ? selection.clear() : selection.selectAll()} />
       <span aria-hidden="true" />
       <For each={COLUMNS}>{(c) => (
-        <span class={c.class} role="columnheader" aria-sort={sort().key === c.key ? (sort().dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+        <span class={c.class}>
           <button type="button" class={`${styles.sortButton} ${look.quietButton} ${look.text}`} data-size="xs" data-weight="semibold"
+            aria-label={sort().key === c.key ? `${c.label}, sorted ${sort().dir === 'asc' ? 'ascending' : 'descending'}` : `Sort by ${c.label.toLowerCase()}`}
             onClick={() => order(c.key, c.first)}>
             {c.label}
             <Show when={sort().key === c.key}><Icon name={sort().dir === 'asc' ? 'arrowUp' : 'arrowDown'} class={styles.sortIcon} /></Show>
