@@ -1,11 +1,11 @@
 import { For, Show } from 'solid-js';
-import { Icon, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, formatBytes, look } from '@plugin-sdk/renderer/kit';
-import { HOVER_ZOOMS, type HoverZoom } from '../shared';
+import { Icon, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, formatBytes, look, personOption } from '@plugin-sdk/renderer/kit';
+import { HOVER_ZOOM, hoverZoomOf } from '../shared';
 import { ATTACHMENT_KINDS, LARGEST, NEWEST, type AttachmentKind, type AttachmentPresence, type AttachmentSort } from '../shared/types';
 import {
   ATTACHMENT_RANGES, MIN_SIZE_OPTIONS, kinds, minBytes, name, people, presence, range, setKinds, setMinBytes, setName,
   setPresence, setRange, setSort, setUncompressed, setWho, sort, totals, uncompressed, who, type AttachmentRange,
-  hoverZoom, setHoverZoom, view,
+  hoverZoom, setHoverZoom, view, where,
 } from './state';
 import { filesCount } from './actions';
 import { KIND_ICON } from './AttachmentPicture';
@@ -18,7 +18,6 @@ const orderLabel = (s: AttachmentSort): string => ({
   date: s.dir === 'desc' ? 'Newest' : 'Oldest', size: s.dir === 'desc' ? 'Largest' : 'Smallest',
   name: s.dir === 'asc' ? 'Name A–Z' : 'Name Z–A', kind: s.dir === 'asc' ? 'Kind A–Z' : 'Kind Z–A',
 })[s.key];
-const ZOOM_OPTIONS = HOVER_ZOOMS.map((z) => ({ value: String(z), label: z === 1 ? 'No hover zoom' : `Hover zoom ${z}×` }));
 
 const toggleKind = (kind: AttachmentKind): void => void setKinds((old) => old.includes(kind) ? old.filter((k) => k !== kind) : [...old, kind]);
 
@@ -49,8 +48,10 @@ export function HeaderTools() {
 
 /** The rest, under the header beside the rail: who, name, size, storage and compressibility. */
 export function FilterBar() {
-  const whoOptions = () => [{ value: '', label: 'Anyone' },
-    ...people().filter((p) => p.id).map((p) => ({ value: p.id, label: p.name, note: `${filesCount(p.count)} · ${formatBytes(p.bytes)}` }))];
+  // Names as they show in the channel the rail picked; else outside any server.
+  const place = (): string | null => where()?.by === 'channel' ? where()!.id : null;
+  const whoOptions = () => [{ value: '', label: 'Anyone', lead: () => <Icon name="group" /> },
+    ...people().filter((p) => p.id).map((p) => personOption({ userId: p.id, channelId: place(), fallback: p.name, note: `${filesCount(p.count)} · ${formatBytes(p.bytes)}` }))];
   return (
     <div class={`${styles.filters} ${look.ruleBelow}`} data-rule="subtle">
       <SearchSelect class={styles.field} label="Who" value={who() ?? ''} options={whoOptions()} onChange={(value) => setWho(value || null)} />
@@ -65,8 +66,12 @@ export function FilterBar() {
       </Show>
       {/* A view setting, not a filter: Reset leaves it. */}
       <Show when={view() === 'grid'}>
-        <Select class={styles.select} label="Hover zoom" value={String(hoverZoom())} options={ZOOM_OPTIONS}
-          onChange={(value) => setHoverZoom(Number(value) as HoverZoom)} />
+        <label class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans"
+          title="How much a picture grows under the pointer; 1 is off">
+          Hover zoom
+          <input type="number" class={styles.zoomField} min={HOVER_ZOOM.min} max={HOVER_ZOOM.max} step={HOVER_ZOOM.step} value={hoverZoom()}
+            onChange={(e) => { const z = hoverZoomOf(e.currentTarget.valueAsNumber); e.currentTarget.valueAsNumber = z; void setHoverZoom(z); }} />×
+        </label>
       </Show>
     </div>
   );

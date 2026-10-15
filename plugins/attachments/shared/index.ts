@@ -2,10 +2,16 @@ import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shar
 import type { AttachmentsCoreCalls } from './types';
 
 export const ATTACHMENTS_PANEL = 'attachments';
-/** How much a tile's picture grows under the pointer; 1 is off. Past 2 a 128px tile outgrows its 256px thumbnail. */
-export const HOVER_ZOOMS = [1, 1.25, 1.5, 1.75, 2] as const;
-export type HoverZoom = (typeof HOVER_ZOOMS)[number];
-const DEFAULT_HOVER_ZOOM: HoverZoom = 1.5;
+/**
+ * How much a tile's picture grows under the pointer; 1 is off. The most: a 128px tile at 512px, half a wide dialog; the
+ * grid holds each zoom inside itself anyway. A quarter step reads as a change on a tile.
+ */
+export const HOVER_ZOOM = { min: 1, max: 4, step: 0.25 } as const;
+const DEFAULT_HOVER_ZOOM = 1.5;
+/** A typed or stored zoom on the field's steps and within its range; anything else is the default. */
+export const hoverZoomOf = (v: unknown): number => typeof v === 'number' && Number.isFinite(v)
+  ? Math.min(HOVER_ZOOM.max, Math.max(HOVER_ZOOM.min, Math.round(v / HOVER_ZOOM.step) * HOVER_ZOOM.step))
+  : DEFAULT_HOVER_ZOOM;
 
 export const plugin = definePlugin({
   manifest: { id: 'attachments', name: 'Attachments', version: '1.0.0', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
@@ -29,7 +35,7 @@ export const plugin = definePlugin({
   },
   preferences: {
     view: definePreference<'grid' | 'list'>({ default: 'grid', normalize: (v) => v === 'list' ? 'list' : 'grid' }),
-    hoverZoom: definePreference<HoverZoom>({ default: DEFAULT_HOVER_ZOOM, normalize: (v) => HOVER_ZOOMS.find((z) => z === v) ?? DEFAULT_HOVER_ZOOM }),
+    hoverZoom: definePreference<number>({ default: DEFAULT_HOVER_ZOOM, normalize: hoverZoomOf }),
   },
 });
 export default plugin;
