@@ -1,9 +1,11 @@
 import { For, Show } from 'solid-js';
 import { Icon, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, formatBytes, look } from '@plugin-sdk/renderer/kit';
+import { HOVER_ZOOMS, type HoverZoom } from '../shared';
 import { ATTACHMENT_KINDS, type AttachmentKind, type AttachmentPresence } from '../shared/types';
 import {
   ATTACHMENT_RANGES, MIN_SIZE_OPTIONS, kinds, minBytes, name, people, presence, range, setKinds, setMinBytes, setName,
   setPresence, setRange, setSort, setUncompressed, setWho, sort, totals, uncompressed, who, type AttachmentRange,
+  hoverZoom, setHoverZoom, view,
 } from './state';
 import { filesCount } from './actions';
 import { KIND_ICON } from './AttachmentPicture';
@@ -12,6 +14,7 @@ import styles from './AttachmentFilters.module.css';
 const KIND_LABEL: Record<AttachmentKind, string> = { image: 'Images', video: 'Video', audio: 'Audio', file: 'Files' };
 const PRESENCE_OPTIONS = [{ value: 'stored', label: 'On this PC' }, { value: 'gone', label: 'Not on this PC' }, { value: 'any', label: 'All' }];
 const ORDER_LABEL = { newest: 'Newest', largest: 'Largest' } as const;
+const ZOOM_OPTIONS = HOVER_ZOOMS.map((z) => ({ value: String(z), label: z === 1 ? 'No hover zoom' : `Hover zoom ${z}×` }));
 
 const toggleKind = (kind: AttachmentKind): void => void setKinds((old) => old.includes(kind) ? old.filter((k) => k !== kind) : [...old, kind]);
 
@@ -55,6 +58,11 @@ export function FilterBar() {
         <label class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
           <Switch checked={uncompressed()} onChange={setUncompressed} />Can compress
         </label>
+      </Show>
+      {/* A view setting, not a filter: Reset leaves it. */}
+      <Show when={view() === 'grid'}>
+        <Select class={styles.select} label="Hover zoom" value={String(hoverZoom())} options={ZOOM_OPTIONS}
+          onChange={(value) => setHoverZoom(Number(value) as HoverZoom)} />
       </Show>
     </div>
   );

@@ -10,6 +10,7 @@ export * from './filterState';
 export const { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
   uncompressed, setUncompressed, name, setName, sort, setSort, filter, unplaced, filterCount, resetFilters, queryName } = createAttachmentFilters();
 export const [view, setView] = pluginPreference(plugin, 'view');
+export const [hoverZoom, setHoverZoom] = pluginPreference(plugin, 'hoverZoom');
 
 const client = desktopCoreClient(plugin);
 const page = (q: Parameters<typeof client.page>[0]) => pluginData(() => client.page(q), []);

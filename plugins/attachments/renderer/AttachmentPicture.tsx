@@ -2,6 +2,7 @@ import { Show, createEffect, createMemo, createSignal, on } from 'solid-js';
 import { Icon, attachmentPosterUrl, attachmentThumbUrl, attachmentUrl, look, type IconName } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem, AttachmentKind } from '../shared/types';
 import { storedRef } from './actions';
+import { hoverZoom } from './state';
 import styles from './Attachments.module.css';
 
 export const KIND_ICON: Record<AttachmentKind, IconName> = { image: 'image', video: 'play', audio: 'waveform', file: 'text' };
@@ -31,7 +32,7 @@ export function AttachmentPicture(props: { item: AttachmentItem; list?: boolean 
       </span>
     }>
       <img class={`${props.list ? styles.listThumbImg : styles.thumb} ${look.mediaThumb}`} src={src()} alt="" loading="lazy" decoding="async"
-        data-loaded={loaded() ? true : undefined} data-zoom={props.list ? undefined : true} onLoad={() => setLoaded(true)}
+        data-loaded={loaded() ? true : undefined} data-zoom={props.list || hoverZoom() === 1 ? undefined : true} style={{ '--zoom': hoverZoom() }} onLoad={() => setLoaded(true)}
         onError={() => { setLoaded(false); setAttempt((n) => n + 1); }} />
     </Show>
   );

@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js';
-import { Icon, formatBytes, look } from '@plugin-sdk/renderer/kit';
+import { formatBytes, look } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem } from '../shared/types';
 import { clickAttachment, itemMarks, showItemMenu } from './actions';
 import { AttachmentPicture } from './AttachmentPicture';
@@ -14,12 +14,9 @@ export function AttachmentGrid(props: { item: AttachmentItem; selection?: Attach
     <button type="button" class={`${styles.cell} ${look.mediaCell}`} aria-pressed={selected()} aria-label={title()}
       data-kind={props.item.kind} data-state={compressionJob()?.current === props.item.id ? 'busy' : undefined}
       data-attachment-id={props.item.id} title={title()}
-      onClick={(e) => clickAttachment(e, props.item, !!(e.target as Element).closest('[data-pick]'), props.selection)}
+      onClick={(e) => clickAttachment(e, props.item, false, props.selection)}
       onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item, props.selection); }}>
       <AttachmentPicture item={props.item} />
-      <span class={`${styles.pick} ${selected() ? look.pickMark : look.dot}`} data-fill={selected() ? undefined : 'ring'} data-pick title={`Select ${props.item.filename}`} aria-hidden="true">
-        <Show when={selected()}><Icon name="check" /></Show>
-      </span>
       <span class={styles.cornerEnd}><span class={`${look.durationBadge} ${look.text}`} data-size="2xs" data-figures="tabular">{size()}</span></span>
       <span class={styles.cornerStart}>
         <Show when={props.item.kind === 'video' || props.item.kind === 'audio'}><span class={`${look.tag} ${look.text}`} data-size="2xs">{props.item.kind}</span></Show>

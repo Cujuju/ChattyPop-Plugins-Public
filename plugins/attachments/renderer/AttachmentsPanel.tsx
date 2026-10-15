@@ -3,7 +3,7 @@ import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest
 import { ATTACHMENTS_PANEL } from '../shared';
 import type { AttachmentItem } from '../shared/types';
 import { attachments, failure, filterCount, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, totals, view } from './state';
-import { compressionJob, selectedIds, selection } from './selection';
+import { compressionJob, selection } from './selection';
 import { filesCount } from './actions';
 import { FilterBar, HeaderTools } from './AttachmentFilters';
 import { AttachmentGrid } from './AttachmentGrid';
@@ -59,21 +59,22 @@ export function AttachmentsPanel() {
   });
   createEffect(on(loads, () => queueMicrotask(() => log.scrollToNewest())));
   return (
-    <section class="cp-panel" aria-label="Attachments" on:keydown={(e) => { if (e.key === 'Escape') selection.clear(); }}>
+    <section class="cp-panel" aria-label="Attachments" on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}>
       <PanelHeader section={ATTACHMENTS_PANEL} collapsible title="Attachments">
         <HeaderMeta>{filesCount(totals().count)} · {formatBytes(totals().bytes)}</HeaderMeta>
         <HeaderTools />
         <HeaderActions>
+          <HeaderButton aria-pressed={selection.selecting()} title="Pick files to compress or delete" onClick={() => selection.selecting() ? selection.done() : selection.start()}>Select</HeaderButton>
           <HeaderButton variant="icon" aria-label="Grid view" aria-pressed={view() === 'grid'} onClick={() => setView('grid')}><Icon name="apps" /></HeaderButton>
           <HeaderButton variant="icon" aria-label="List view" aria-pressed={view() === 'list'} onClick={() => setView('list')}><Icon name="text" /></HeaderButton>
           <Show when={filterCount() > 0}><HeaderButton onClick={resetFilters}>Reset</HeaderButton></Show>
         </HeaderActions>
       </PanelHeader>
-      <div class={styles.body} hidden={isPanelCollapsed(ATTACHMENTS_PANEL)} style={{ display: isPanelCollapsed(ATTACHMENTS_PANEL) ? 'none' : undefined }} data-selecting={selectedIds().size > 0}>
+      <div class={styles.body} hidden={isPanelCollapsed(ATTACHMENTS_PANEL)} style={{ display: isPanelCollapsed(ATTACHMENTS_PANEL) ? 'none' : undefined }}>
         <PlaceRail />
         <div class={styles.main}>
           <FilterBar />
-          <Show when={selectedIds().size > 0 || compressionJob()}><SelectionBar /></Show>
+          <Show when={selection.selecting() || compressionJob()}><SelectionBar /></Show>
           <Show when={failure()} fallback={<Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>}>
             <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
           </Show>

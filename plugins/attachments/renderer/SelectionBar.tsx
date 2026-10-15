@@ -26,7 +26,8 @@ export function SelectionBar(props: { selection?: AttachmentSelection }) {
               <HeaderButton title={`Compress ${compressible().length} files`} onClick={() => void compressFiles(selectedItems())}>Compress</HeaderButton>
             </Show>
             <HeaderButton disabled={!stored()} onClick={() => void deleteFiles(selectedItems(), scope())}>{deleteLabel(stored())}</HeaderButton>
-            <HeaderButton onClick={() => scope().clear()}>Clear</HeaderButton>
+            <Show when={selectedItems().length > 0}><HeaderButton onClick={() => scope().clear()}>Clear</HeaderButton></Show>
+            <HeaderButton onClick={() => scope().done()}>Done</HeaderButton>
           </div>
         </>
       }>

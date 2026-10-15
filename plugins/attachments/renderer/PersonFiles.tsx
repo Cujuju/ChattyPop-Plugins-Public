@@ -12,7 +12,7 @@ import styles from './Attachments.module.css';
 export function PersonFiles(props: { userId: string }) {
   const selection = createSelection<AttachmentItem>();
   const [limit, setLimit] = createSignal(PERSON_FILES_PAGE);
-  createEffect(on(() => props.userId, () => { setLimit(PERSON_FILES_PAGE); selection.clear(); }, { defer: true }));
+  createEffect(on(() => props.userId, () => { setLimit(PERSON_FILES_PAGE); selection.done(); }, { defer: true }));
   const files = pluginResource(plugin, 'sharedBy', () => [{ userId: props.userId, limit: limit() }], [] as AttachmentItem[], { storage: keyedById });
   createEffect(() => selection.retain(files()));
   const refresh = (): void => void files.refetch();
@@ -20,13 +20,13 @@ export function PersonFiles(props: { userId: string }) {
   onCleanup(() => offs.forEach((off) => off()));
   return (
     <>
-      <Show when={selection.ids().size > 0 || compressionJob()}><SelectionBar selection={selection} /></Show>
+      <Show when={selection.selecting() || compressionJob()}><SelectionBar selection={selection} /></Show>
       <Show when={files().length} fallback={
         <p class={`cp-hint ${styles.personNote}`} title={files.failure ?? undefined}>
           {files.loading ? 'Loading…' : files.failure ? 'Their files couldn’t be read.' : 'They haven’t shared files in the archive.'}
         </p>
       }>
-        <div class={styles.personGrid} data-selecting={selection.ids().size > 0} on:keydown={(e) => { if (e.key === 'Escape') selection.clear(); }}><For each={files()}>{(item) => <AttachmentGrid item={item} selection={selection} />}</For></div>
+        <div class={styles.personGrid} on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}><For each={files()}>{(item) => <AttachmentGrid item={item} selection={selection} />}</For></div>
         <Show when={files().length >= limit()}><button type="button" class={`cp-button ${styles.older}`} disabled={files.loading}
           onClick={() => setLimit((n) => n + PERSON_FILES_PAGE)}>Show older</button></Show>
       </Show>

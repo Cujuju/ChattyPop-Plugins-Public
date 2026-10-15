@@ -79,17 +79,19 @@ async function compressRefs(refs: readonly StoredAttachmentRef[]): Promise<boole
 export const compressFiles = async (items: readonly AttachmentItem[]): Promise<void> =>
   void await compressRefs(items.flatMap((item) => compressibleRef(item) ?? []));
 
-/** Modifiers select before opening; after the first pick every plain click toggles. */
+/** In select mode a click picks; outside it a modifier click picks (entering the mode) and a plain click opens. */
 export function clickAttachment(event: MouseEvent, item: AttachmentItem, pick = false, scope: AttachmentSelection = selection): void {
-  if (pick || event.ctrlKey || event.metaKey || event.shiftKey || scope.ids().size > 0) scope.toggle(item.id, event.shiftKey);
+  if (pick || event.ctrlKey || event.metaKey || event.shiftKey || scope.selecting()) scope.toggle(item.id, event.shiftKey);
   else openAttachment(item);
 }
 
 export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelection: AttachmentSelection = selection): void {
   const targets = scopeSelection.ids().has(item.id) && scopeSelection.ids().size > 1 ? scopeSelection.selected() : [item];
   const attachment = archiveAttachment(item);
+  const picked = scopeSelection.ids().has(item.id);
   const open: MenuItem[] = [
     { label: 'Open', icon: 'eye', run: () => openAttachment(item) },
+    { label: picked ? 'Deselect' : 'Select', icon: 'check', run: () => scopeSelection.toggle(item.id) },
     { label: 'Show in Archive', icon: 'archive', run: () => { void openArchive(item.channelId, item.messageId); } },
   ];
   if (canSaveAttachment(attachment)) open.push({ label: 'Download', icon: 'download', run: () => saveAttachmentFile(attachment) });
