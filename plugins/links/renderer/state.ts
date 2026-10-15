@@ -1,14 +1,17 @@
 // The Links panel's state: its filter, the paged feed, and the "new since you looked" watermark.
-import { batch, createEffect, createSignal, on, onCleanup } from 'solid-js';
+import { createEffect, createSignal, on } from 'solid-js';
 import { MS_PER_DAY, pluginSetting, type Platform } from '@plugin-sdk/shared';
 import {
   ARCHIVE_REFRESH_DEBOUNCE_MS,
+  batchWrites,
   callable,
+  containedRoot,
   coreClient,
   pluginData,
   lastSeenAt,
   onAppEvent,
   onAppEventDebounced,
+  onCleanup,
   onEvent,
   onMessagePartsChanged,
   pluginPreference,
@@ -63,7 +66,7 @@ export const linkFilterCount = (): number =>
 
 /** Puts every filter back; one reload follows. */
 export function resetLinkFilters(): void {
-  batch(() => {
+  batchWrites(() => {
     setLinkPlatforms([]);
     setLinkChannelId(null);
     setLinkRange('all');
@@ -128,7 +131,7 @@ void watermarkLoaded.then(() => {
 });
 
 // Turned on while the app runs: count what's new.
-createEffect(on(feedOn, (isOn) => isOn && void refreshNewCount(), { defer: true }));
+containedRoot(() => createEffect(on(feedOn, (isOn) => isOn && void refreshNewCount(), { defer: true })));
 
 // --- History -----------------------------------------------------------------
 
@@ -184,7 +187,7 @@ export async function reloadLinks(place: LinkPlace | null = null): Promise<void>
   });
   if (!done || !loaded) return;
   const { reachesNewest, anchorId } = loaded;
-  batch(() => {
+  batchWrites(() => {
     setLinkCounts(counts);
     setLinkAtNewest(reachesNewest);
     setLinkOpening(place && { place, anchorId });

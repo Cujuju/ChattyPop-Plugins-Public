@@ -17,6 +17,7 @@ const env = vi.hoisted(() => ({
 
 vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList }));
 vi.mock('@plugin-sdk/renderer', async () => ({
+  ...(await import('@plugin-sdk/renderer/containment')),
   ARCHIVE_REFRESH_DEBOUNCE_MS: 0,
   callable: () => true,
   coreClient: () => ({

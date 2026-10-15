@@ -1,5 +1,6 @@
 // The Links panel (F2): the feed, oldest at the top, with its filter bar.
-import { Match, Show, Switch, createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
+import { Match, Show, Switch, createEffect, createMemo, createSignal, on, onMount } from 'solid-js';
+import { onCleanup } from '@plugin-sdk/renderer';
 import {
   DayDivider,
   JumpToNewest,

@@ -1,6 +1,6 @@
 // A person's links in the Person window: each link's preview card as the Links panel draws it, smaller, newest first.
-import { For, Show, createEffect, createSignal, on, onCleanup } from 'solid-js';
-import { ARCHIVE_REFRESH_DEBOUNCE_MS, onAppEvent, onAppEventDebounced, onEvent, pluginResource } from '@plugin-sdk/renderer';
+import { For, Show, createEffect, createSignal, on } from 'solid-js';
+import { ARCHIVE_REFRESH_DEBOUNCE_MS, onAppEvent, onAppEventDebounced, onEvent, pluginResource, onCleanup } from '@plugin-sdk/renderer';
 import { keyedById } from '@plugin-sdk/renderer/kit';
 import { UPDATED_EVENT, plugin } from '../shared';
 import type { LinkCard } from '../shared/types';
