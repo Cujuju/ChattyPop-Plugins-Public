@@ -39,6 +39,7 @@ vi.mock('@plugin-sdk/renderer/kit', async () => ({
   aiSettings: () => ({ providers: { claude: { enabled: true } } }),
 }));
 vi.mock('@plugin-sdk/renderer', async () => ({
+  ...(await import('@plugin-sdk/renderer/containment')),
   aiUsageSince: async () => usage(env.runs),
   isActive: () => true,
 }));
