@@ -1,5 +1,5 @@
 import { Show, onCleanup } from 'solid-js';
-import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, personName, SectionSplit, Select, shownChannelId, type SectionDef } from '@plugin-sdk/renderer/kit';
+import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, personOption, SearchSelect, SectionSplit, Select, shownChannelId, type SectionDef } from '@plugin-sdk/renderer/kit';
 import { personOptions, refreshStats, setStatsAuthor, setStatsRange, setStatsScope, setStatsSection, stats, statsAuthor, statsLoading, statsPanelMounted, statsRange, statsScope, statsSection } from './state';
 import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
 import { STATS_PANEL } from '../shared';
@@ -42,9 +42,9 @@ export function StatsPanel() {
         <div class={`${styles.filters} ${look.ruleBelow}`}>
           <Select class={styles.select} label="Scope" value={statsScope()} options={Object.entries(STATS_SCOPES).map(([value, label]) => ({ value, label }))} onChange={(v) => setStatsScope(v as StatsScope)} />
           <Select class={styles.select} label="Date range" value={statsRange()} options={Object.entries(STATS_RANGES).map(([value, range]) => ({ value, label: range.label }))} onChange={(v) => setStatsRange(v as StatsRange)} />
-          <Select class={styles.select} label="Person" value={statsAuthor() ?? ''} options={[
-            { value: '', label: 'Everyone' },
-            ...(personOptions() ?? []).map((poster) => ({ value: poster.userId, label: personName(poster.userId, statsScope() === 'all' ? null : shownChannelId())?.name ?? poster.name })),
+          <SearchSelect class={styles.select} label="Person" value={statsAuthor() ?? ''} options={[
+            { value: '', label: 'Everyone', lead: () => <Icon name="group" /> },
+            ...(personOptions() ?? []).map((poster) => personOption({ userId: poster.userId, channelId: statsScope() === 'all' ? null : shownChannelId(), fallback: poster.name })),
           ]} onChange={(v) => setStatsAuthor(v || null)} />
         </div>
         <div class="cp-panel-body cp-settings-page" aria-busy={stats.loading}>
