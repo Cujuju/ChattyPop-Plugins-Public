@@ -2,7 +2,7 @@
 import { createEffect, createMemo, createSignal } from 'solid-js';
 import type { AlertItem } from '../shared/types';
 import { plugin } from '../shared';
-import { pluginsLoaded, coreClient, pluginPreference, sameIds, onAppEvent, onEvent, pluginResource } from '@plugin-sdk/renderer';
+import { containedRoot, pluginsLoaded, coreClient, pluginPreference, sameIds, onAppEvent, onEvent, pluginResource } from '@plugin-sdk/renderer';
 import { keyedById, openArchive, rules } from '@plugin-sdk/renderer/kit';
 
 /** Alerts listed in the Alerts panel. */
@@ -24,20 +24,20 @@ const [chosenRuleIds, setChosenRuleIds, filterSetting] = pluginPreference(plugin
 export { setChosenRuleIds as setAlertRuleIds };
 const [filterLoaded, setFilterLoaded] = createSignal(false);
 void filterSetting.loaded.then(() => setFilterLoaded(true));
-createEffect(() => {
+containedRoot(() => createEffect(() => {
   if (!filterLoaded() || rules.state !== 'ready') return;
   const kept = chosenRuleIds().filter((id) => rules().some((rule) => rule.id === id));
   if (!sameIds(kept, chosenRuleIds())) setChosenRuleIds(kept);
-});
+}));
 /** The chosen rules that still exist (all chosen ones while the rule list loads). */
-export const alertRuleIds = createMemo(
+export const alertRuleIds = containedRoot(() => createMemo(
   (): number[] => {
     const known = rules();
     return known.length ? chosenRuleIds().filter((id) => known.some((r) => r.id === id)) : chosenRuleIds();
   },
   [],
   { equals: sameIds },
-);
+));
 
 /** Read once the plugin list has loaded, so a plugin that is off is never asked. */
 export const alerts = pluginResource(
