@@ -1,6 +1,6 @@
 import { createRoot } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
-import type { AttachmentItem } from '../shared/types';
+import { LARGEST, NEWEST, type AttachmentItem } from '../shared/types';
 import { FILENAME_DEBOUNCE_MS, MIN_SIZE_OPTIONS, createAttachmentFilters } from '../renderer/filterState';
 import { createCompressionQueue, createSelection, freeSelection, selection, type CompressionResult } from '../renderer/selection';
 
@@ -16,14 +16,14 @@ describe('attachment filters', () => {
       const { f } = root;
       expect(f.filterCount()).toBe(0);
       f.setWhere({ by: 'guild', id: 'g1' }); f.setWho('alice'); f.setKinds(['image', 'video']); f.setRange('1y');
-      f.setMinBytes(MIN_SIZE_OPTIONS[1]!.value); f.setPresence('gone'); f.setUncompressed(true); f.setName('budget'); f.setSort('largest');
+      f.setMinBytes(MIN_SIZE_OPTIONS[1]!.value); f.setPresence('gone'); f.setUncompressed(true); f.setName('budget'); f.setSort(LARGEST);
       expect(f.filterCount()).toBe(9);
       await vi.advanceTimersByTimeAsync(FILENAME_DEBOUNCE_MS);
       expect(f.filter()).toMatchObject({ guildId: 'g1', authorId: 'alice', kinds: ['image', 'video'], minBytes: MIN_SIZE_OPTIONS[1]!.value, name: 'budget', presence: 'gone', uncompressed: true });
       f.resetFilters();
       expect(f.filterCount()).toBe(0);
       expect(f.filter()).toEqual({ presence: 'stored', uncompressed: false });
-      expect(f.sort()).toBe('newest');
+      expect(f.sort()).toEqual(NEWEST);
       await vi.runAllTimersAsync();
       expect(f.filter()).toEqual({ presence: 'stored', uncompressed: false });
     } finally { root.dispose(); vi.useRealTimers(); }

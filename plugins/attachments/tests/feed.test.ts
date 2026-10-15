@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { AttachmentFilter, AttachmentItem } from '../shared/types';
+import { LARGEST, type AttachmentFilter, type AttachmentItem } from '../shared/types';
 import { at, files, fixture, ids, seedMessage, start } from './attachmentsHarness';
 
 const PAGE_LIMIT = 100;
 /** Below every stored file's size, so ordering by it would move the freed file last. */
 const FREED_STORED_BYTES = 1;
-const cursor = (item: AttachmentItem) => ({ ts: item.ts, id: item.id, bytes: item.sortBytes });
+const cursor = (item: AttachmentItem) => ({ ts: item.ts, id: item.id, key: item.sortBytes });
 
 describe('attachment page', () => {
   it('pages newest and tied timestamps both directions, returning nearest before rows', async () => {
@@ -25,15 +25,29 @@ describe('attachment page', () => {
     t.db.prepare('UPDATE attachments SET ts = ? WHERE id = ?').run(at(8), 'a4');
     // A freed file keeps its old stored size in the row; it orders by Discord's size.
     t.db.prepare('UPDATE attachments SET stored_bytes = ? WHERE id = ?').run(FREED_STORED_BYTES, 'a3');
-    const all = await client.page({ limit: PAGE_LIMIT, sort: 'largest' });
+    const all = await client.page({ limit: PAGE_LIMIT, sort: LARGEST });
     expect(ids(all)).toEqual(['a2', 'a6', 'a3', 'a8', 'a4', 'a5', 'a1', 'a7']);
-    const first = await client.page({ limit: 3, sort: 'largest' });
-    const older = await client.page({ limit: 3, sort: 'largest', after: cursor(first.at(-1)!) });
+    const first = await client.page({ limit: 3, sort: LARGEST });
+    const older = await client.page({ limit: 3, sort: LARGEST, after: cursor(first.at(-1)!) });
     expect(ids(older)).toEqual(['a8', 'a4', 'a5']);
-    expect(ids(await client.page({ limit: 2, sort: 'largest', before: cursor(older.at(-1)!) }))).toEqual(['a8', 'a4']);
-    expect(ids(await client.page({ limit: 3, sort: 'largest', before: cursor(older[0]!) }))).toEqual(ids(first));
-    const tied = await client.page({ limit: 4, sort: 'largest' });
-    expect(ids(await client.page({ limit: 1, sort: 'largest', after: cursor(tied.at(-1)!) }))).toEqual(['a4']);
+    expect(ids(await client.page({ limit: 2, sort: LARGEST, before: cursor(older.at(-1)!) }))).toEqual(['a8', 'a4']);
+    expect(ids(await client.page({ limit: 3, sort: LARGEST, before: cursor(older[0]!) }))).toEqual(ids(first));
+    const tied = await client.page({ limit: 4, sort: LARGEST });
+    expect(ids(await client.page({ limit: 1, sort: LARGEST, after: cursor(tied.at(-1)!) }))).toEqual(['a4']);
+  });
+
+  it.each([
+    { sort: { key: 'name', dir: 'asc' }, key: (i: AttachmentItem) => i.filename, expected: ['a4', 'a2', 'a8', 'a1', 'a6', 'a7', 'a3', 'a5'] },
+    { sort: { key: 'kind', dir: 'asc' }, key: (i: AttachmentItem) => i.kind, expected: ['a3', 'a4', 'a8', 'a1', 'a5', 'a7', 'a2', 'a6'] },
+    { sort: { key: 'date', dir: 'asc' }, key: () => undefined, expected: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8'] },
+  ] as const)('pages $sort.key $sort.dir both directions, names ignoring case', async ({ sort, key, expected }) => {
+    const { client } = fixture();
+    const at = (i: AttachmentItem) => ({ ts: i.ts, id: i.id, key: key(i) });
+    expect(ids(await client.page({ limit: PAGE_LIMIT, sort }))).toEqual(expected);
+    const first = await client.page({ limit: 3, sort });
+    const second = await client.page({ limit: 3, sort, after: at(first.at(-1)!) });
+    expect(ids(second)).toEqual(expected.slice(3, 6));
+    expect(ids(await client.page({ limit: 3, sort, before: at(second[0]!) }))).toEqual(expected.slice(0, 3));
   });
 
   const cases: { name: string; filter: AttachmentFilter; expected: string[] }[] = [

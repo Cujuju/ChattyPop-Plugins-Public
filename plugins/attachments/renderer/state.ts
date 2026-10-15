@@ -2,7 +2,7 @@ import { batch, createEffect, createSignal, on } from 'solid-js';
 import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { createPagedList } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
-import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentPlaces, type AttachmentTotals, type PersonRow } from '../shared/types';
+import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
 import { selection } from './selection';
 import { ATTACHMENT_PAGE_SIZE, WHO_OPTIONS_MAX, createAttachmentFilters } from './filterState';
 export * from './filterState';
@@ -15,7 +15,13 @@ export const [hoverZoom, setHoverZoom] = pluginPreference(plugin, 'hoverZoom');
 const client = desktopCoreClient(plugin);
 const page = (q: Parameters<typeof client.page>[0]) => pluginData(() => client.page(q), []);
 const oldestFirst = (items: AttachmentItem[]): AttachmentItem[] => [...items].reverse();
-export const cursorAt = (item: AttachmentItem): AttachmentCursor => ({ ts: item.ts, id: item.id, ...(sort() === 'largest' ? { bytes: item.sortBytes } : {}) });
+const SORT_VALUE: Record<AttachmentSortKey, ((item: AttachmentItem) => string | number) | null> = {
+  date: null, size: (i) => i.sortBytes, name: (i) => i.filename, kind: (i) => i.kind,
+};
+export const cursorAt = (item: AttachmentItem): AttachmentCursor => {
+  const value = SORT_VALUE[sort().key];
+  return { ts: item.ts, id: item.id, ...(value ? { key: value(item) } : {}) };
+};
 const list = createPagedList<AttachmentItem>(ATTACHMENT_PAGE_SIZE,
   async (oldest) => oldestFirst(await page({ ...filter(), sort: sort(), limit: ATTACHMENT_PAGE_SIZE, after: cursorAt(oldest) })),
 );

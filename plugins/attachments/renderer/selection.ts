@@ -35,7 +35,7 @@ export function createSelection<T extends { id: string }>() {
     ids, clear, done, retain, toggle, selecting,
     start: () => setSelecting(true),
     selected: () => items().filter((i) => ids().has(i.id)),
-    selectAll: () => setIds(new Set(items().map((i) => i.id))),
+    selectAll: () => batch(() => { setIds(new Set(items().map((i) => i.id))); setSelecting(true); }),
     drop: (gone: readonly string[]) => { const dropping = new Set(gone); setIds((old) => new Set([...old].filter((id) => !dropping.has(id)))); },
   };
 }

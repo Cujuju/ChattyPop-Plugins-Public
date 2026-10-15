@@ -1,6 +1,6 @@
 import type { ArchiveMessage } from '@plugin-sdk/shared';
 import type { PluginDb } from '@plugin-sdk/core';
-import type { AttachmentCursor, AttachmentItem, AttachmentPageQuery, PersonFilesQuery } from '../shared/types';
+import { NEWEST, type AttachmentCursor, type AttachmentItem, type AttachmentPageQuery, type AttachmentSortKey, type PersonFilesQuery } from '../shared/types';
 import { ATTACHMENT_FROM, AUTHOR_ID, AUTHOR_NAME, DISK_BYTES, SIZE_KEY, attachmentWhere } from './filters';
 
 type AttachmentRow = Omit<AttachmentItem, 'compressed' | 'animated' | 'spoiler' | 'removed' | 'message'> & {
@@ -9,15 +9,20 @@ type AttachmentRow = Omit<AttachmentItem, 'compressed' | 'animated' | 'spoiler' 
 };
 type MessageReader = (ids: string[]) => ArchiveMessage[];
 
-/** Row-value cursors match every descending sort key; before reads ascend, then reverse to return the nearest rows. */
+/** The column an order sorts by ahead of time and id; a date order is time alone. */
+const SORT_COLUMN: Record<AttachmentSortKey, string | null> = { date: null, size: SIZE_KEY, name: 'a.filename COLLATE NOCASE', kind: 'a.kind' };
+
+/** Row-value cursors over (key, time, id), all one direction; before reads run backwards, then reverse to return the nearest rows. */
 export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): AttachmentRow[] {
   const w = attachmentWhere(q);
-  const largest = q.sort === 'largest';
+  const sort = q.sort ?? NEWEST;
+  const column = SORT_COLUMN[sort.key];
   const cursor: AttachmentCursor | undefined = q.before ?? q.after;
-  const op = q.before ? '>' : '<';
-  const past = cursor ? ` AND (${largest ? `${SIZE_KEY}, ` : ''}a.ts, a.id) ${op} (${largest ? '?, ' : ''}?, ?)` : '';
-  const args = !cursor ? [] : largest ? [cursor.bytes ?? 0, cursor.ts, cursor.id] : [cursor.ts, cursor.id];
-  const dir = q.before ? 'ASC' : 'DESC';
+  const ascending = (sort.dir === 'asc') !== !!q.before;
+  const op = ascending ? '>' : '<';
+  const past = cursor ? ` AND (${column ? `${column}, ` : ''}a.ts, a.id) ${op} (${column ? '?, ' : ''}?, ?)` : '';
+  const args = !cursor ? [] : column ? [cursor.key ?? null, cursor.ts, cursor.id] : [cursor.ts, cursor.id];
+  const dir = ascending ? 'ASC' : 'DESC';
   const rows = db.prepare(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
       COALESCE(c.name, a.channel_id) AS channelName, c.guild_id AS guildId, COALESCE(g.name, '') AS guildName,
       ${AUTHOR_ID} AS authorId, COALESCE(${AUTHOR_NAME}, '') AS authorName, a.ts,
@@ -25,7 +30,7 @@ export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): Attachment
       a.width, a.height, a.sha256, a.stored_ext AS storedExt, a.status,
       a.compressed_at AS compressedAt, a.removed_at AS removedAt
     ${ATTACHMENT_FROM} WHERE ${w.sql}${past}
-    ORDER BY ${largest ? `${SIZE_KEY} ${dir}, ` : ''}a.ts ${dir}, a.id ${dir} LIMIT ?`)
+    ORDER BY ${column ? `${column} ${dir}, ` : ''}a.ts ${dir}, a.id ${dir} LIMIT ?`)
     .all(...w.params, ...args, q.limit) as AttachmentRow[];
   return q.before ? rows.reverse() : rows;
 }

@@ -1,6 +1,6 @@
 import { batch, createEffect, createSignal, on, onCleanup } from 'solid-js';
 import { BYTES_PER_MB, MS_PER_DAY } from '@plugin-sdk/shared';
-import type { AttachmentFilter, AttachmentKind, AttachmentPresence, AttachmentSort } from '../shared/types';
+import { NEWEST, type AttachmentFilter, type AttachmentKind, type AttachmentPresence, type AttachmentSort } from '../shared/types';
 
 export const ATTACHMENT_PAGE_SIZE = 100;
 export const WHO_OPTIONS_MAX = 200;
@@ -29,9 +29,9 @@ export function createAttachmentFilters() {
   const [uncompressed, setUncompressed] = createSignal(false);
   const [name, setName] = createSignal('');
   const [queryName, setQueryName] = createSignal('');
-  const [sort, setSort] = createSignal<AttachmentSort>('newest');
+  const [sort, setSort] = createSignal<AttachmentSort>(NEWEST);
   const filterCount = (): number => [where() !== null, who() !== null, kinds().length > 0, range() !== 'all', minBytes() > 0,
-    presence() !== 'stored', uncompressed(), name().trim().length > 0, sort() !== 'newest'].filter(Boolean).length;
+    presence() !== 'stored', uncompressed(), name().trim().length > 0, sort().key !== NEWEST.key || sort().dir !== NEWEST.dir].filter(Boolean).length;
   let timer: ReturnType<typeof setTimeout> | undefined;
   createEffect(on(name, (value) => {
     clearTimeout(timer);
@@ -42,7 +42,7 @@ export function createAttachmentFilters() {
     clearTimeout(timer);
     batch(() => {
       setWhere(null); setWho(null); setKinds([]); setRange('all'); setMinBytes(0); setPresence('stored');
-      setUncompressed(false); setName(''); setQueryName(''); setSort('newest');
+      setUncompressed(false); setName(''); setQueryName(''); setSort(NEWEST);
     });
   };
   /** Every filter but the place (where): what the rail counts under. */

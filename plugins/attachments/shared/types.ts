@@ -2,8 +2,11 @@ import type { ArchiveMessage } from '@plugin-sdk/shared';
 
 export const ATTACHMENT_KINDS = ['image', 'video', 'audio', 'file'] as const;
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
-/** newest: by message time. largest: most sortBytes first, then newest. */
-export type AttachmentSort = 'newest' | 'largest';
+/** date: message time. size: sortBytes. name: filename, ignoring case. kind: image, video, audio, file by name. Ties go by time, then id. */
+export type AttachmentSortKey = 'date' | 'size' | 'name' | 'kind';
+export interface AttachmentSort { key: AttachmentSortKey; dir: 'asc' | 'desc' }
+export const NEWEST: AttachmentSort = { key: 'date', dir: 'desc' };
+export const LARGEST: AttachmentSort = { key: 'size', dir: 'desc' };
 /** stored: its file is on this PC. gone: evicted, failed or not yet downloaded. */
 export type AttachmentPresence = 'stored' | 'gone' | 'any';
 export interface AttachmentFilter {
@@ -34,8 +37,8 @@ export interface AttachmentItem {
   compressed: boolean; animated: boolean; spoiler: boolean; removed: boolean;
   /** Its message as the Archive shows it; null when it left the archive. */ message: ArchiveMessage | null;
 }
-/** `bytes`: the row's sortBytes, for the largest order. */
-export interface AttachmentCursor { ts: number; id: string; bytes?: number }
+/** `key`: the row's value of the order's key (sortBytes, filename or kind); date orders need none. */
+export interface AttachmentCursor { ts: number; id: string; key?: string | number }
 export interface AttachmentPageQuery extends AttachmentFilter { limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor }
 export interface AttachmentTotals { byKind: Record<AttachmentKind, { count: number; bytes: number }>; count: number; /** Bytes on disk, each stored file once. */ bytes: number }
 /** A person who shared matching files: `bytes` on this PC, each stored file once. */

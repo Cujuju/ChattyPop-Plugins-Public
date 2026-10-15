@@ -7,7 +7,7 @@ import { compressionJob, selection } from './selection';
 import { filesCount } from './actions';
 import { FilterBar, HeaderTools } from './AttachmentFilters';
 import { AttachmentGrid } from './AttachmentGrid';
-import { AttachmentList } from './AttachmentList';
+import { AttachmentList, AttachmentListHeader } from './AttachmentList';
 import { PlaceRail } from './PlaceRail';
 import { SelectionBar } from './SelectionBar';
 import styles from './Attachments.module.css';
@@ -29,7 +29,7 @@ export function AttachmentsPanel() {
     const flush = (): void => { if (chunk.length) out.push({ kind: 'items', key: chunk[0]!.id, items: chunk }); chunk = []; };
     for (const item of attachments.items) {
       const nextDay = dayLabel(item.ts);
-      if (sort() === 'newest' && nextDay !== day) { flush(); out.push({ kind: 'day', key: `day-${item.id}`, label: nextDay }); }
+      if (sort().key === 'date' && nextDay !== day) { flush(); out.push({ kind: 'day', key: `day-${item.id}`, label: nextDay }); }
       day = nextDay;
       chunk.push(item);
       if (chunk.length === count) flush();
@@ -78,6 +78,7 @@ export function AttachmentsPanel() {
           <Show when={failure()} fallback={<Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>}>
             <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
           </Show>
+          <Show when={view() === 'list'}><AttachmentListHeader /></Show>
           <div class={styles.scroller} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
             <div class={styles.measure} ref={measure} aria-hidden="true" />
             <VirtualRows log={vlog}>{(row) => (
