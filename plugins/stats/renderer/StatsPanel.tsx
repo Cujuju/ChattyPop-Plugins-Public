@@ -1,4 +1,5 @@
-import { Show, onCleanup } from 'solid-js';
+import { Show } from 'solid-js';
+import { onCleanup } from '@plugin-sdk/renderer';
 import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, personOption, SearchSelect, SectionSplit, Select, shownChannelId, type SectionDef } from '@plugin-sdk/renderer/kit';
 import { personOptions, refreshStats, setStatsAuthor, setStatsRange, setStatsScope, setStatsSection, stats, statsAuthor, statsLoading, statsPanelMounted, statsRange, statsScope, statsSection } from './state';
 import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';

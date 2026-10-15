@@ -22,6 +22,7 @@ vi.mock('@plugin-sdk/renderer', async () => {
   const resourcePath = '@plugin-sdk/renderer/resource';
   const { createSignal } = await import('solid-js');
   return {
+    ...(await import('@plugin-sdk/renderer/containment')),
     pluginResource: (await import(resourcePath)).pluginResource,
     pluginData: (await import('@plugin-sdk/renderer/data')).pluginData,
     callable: () => true,

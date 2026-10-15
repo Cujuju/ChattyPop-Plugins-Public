@@ -1,4 +1,5 @@
-import { For, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { For, createEffect, createSignal, onMount } from 'solid-js';
+import { onCleanup } from '@plugin-sdk/renderer';
 import cloud from 'd3-cloud';
 import { look } from '@plugin-sdk/renderer/kit';
 import type { WordCount } from '../shared/text';

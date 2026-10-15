@@ -1,4 +1,5 @@
-import { batch, createSignal } from 'solid-js';
+import { createSignal } from 'solid-js';
+import { batchWrites } from '@plugin-sdk/renderer';
 import { POSTERS_PAGE_SIZE, type ActivityQuery, type PostersQuery, type StatsPoster } from '../shared/types';
 
 /** Offset pages append rank order; resets invalidate reads already in flight. */
@@ -12,7 +13,7 @@ export function createPosterPages(readPage: (q: PostersQuery) => Promise<StatsPo
 
   function reset(): void {
     generation++;
-    batch(() => {
+    batchWrites(() => {
       setExpanded(false);
       setItems([]);
       setLoading(false);
@@ -25,11 +26,11 @@ export function createPosterPages(readPage: (q: PostersQuery) => Promise<StatsPo
     if (!expanded() || loading() || reachedEnd()) return;
     const mine = generation;
     const offset = items().length;
-    batch(() => { setLoading(true); setFailure(null); });
+    batchWrites(() => { setLoading(true); setFailure(null); });
     try {
       const page = await readPage({ ...q, offset, limit: POSTERS_PAGE_SIZE });
       if (mine !== generation) return;
-      batch(() => {
+      batchWrites(() => {
         setItems((old) => [...old, ...page]);
         setReachedEnd(page.length < POSTERS_PAGE_SIZE);
       });

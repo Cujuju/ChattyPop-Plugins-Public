@@ -1,9 +1,9 @@
 // #85 Analytics panel: what it counts (scope follows the shown channel) and the counts from core.
-import { createEffect, createSignal, on, onCleanup } from 'solid-js';
+import { createEffect, createSignal, on } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
 import { POSTERS_PAGE_MAX, STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
-import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
+import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource, containedRoot, onCleanup } from '@plugin-sdk/renderer';
 import { isPanelCollapsed, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { createPosterPages } from './posterPages';
 import { listedPerson, resetPerson } from './personSelection';
@@ -13,9 +13,9 @@ export const [statsRange, setStatsRange] = pluginPreference(plugin, 'range');
 export const [statsSection, setStatsSection] = pluginPreference(plugin, 'section');
 /** A person choice lasts only for this renderer session, never a stored preference. */
 export const [statsAuthor, setStatsAuthor] = createSignal<string | null>(null);
-createEffect(on(() => ({ scope: statsScope(), channelId: shownChannelId() }), (next, previous) => {
+containedRoot(() => createEffect(on(() => ({ scope: statsScope(), channelId: shownChannelId() }), (next, previous) => {
   setStatsAuthor((authorId) => resetPerson(authorId, previous, next));
-}));
+})));
 
 /** Open Analytics panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
 const [mounted, setMounted] = createSignal(0);
@@ -41,10 +41,10 @@ export const personOptions = pluginResource(plugin, 'postersPage', () => {
   const c = choices();
   return c && [{ ...queryOf(c), offset: 0, limit: POSTERS_PAGE_MAX }];
 }, null);
-createEffect(() => {
+containedRoot(() => createEffect(() => {
   const posters = personOptions();
   if (!personOptions.loading && !personOptions.failure && posters) setStatsAuthor((authorId) => listedPerson(authorId, posters));
-});
+}));
 
 export const stats = pluginResource(plugin, 'activityStats', () => {
   const c = choices();
