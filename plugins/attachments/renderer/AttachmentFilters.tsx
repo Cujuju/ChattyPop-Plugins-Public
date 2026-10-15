@@ -1,5 +1,5 @@
 import { For, Show } from 'solid-js';
-import { Icon, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, formatBytes, look, personOption } from '@plugin-sdk/renderer/kit';
+import { Icon, PillNumberPicker, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, formatBytes, look, personOption } from '@plugin-sdk/renderer/kit';
 import { HOVER_ZOOM, hoverZoomOf } from '../shared';
 import { ATTACHMENT_KINDS, LARGEST, NEWEST, type AttachmentKind, type AttachmentPresence, type AttachmentSort } from '../shared/types';
 import {
@@ -66,12 +66,13 @@ export function FilterBar() {
       </Show>
       {/* A view setting, not a filter: Reset leaves it. */}
       <Show when={view() === 'grid'}>
-        <label class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans"
+        {/* Not a label: a click on its words would press the picker's first button. */}
+        <span class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans"
           title="How much a picture grows under the pointer; 1 is off">
           Hover zoom
-          <input type="number" class={styles.zoomField} min={HOVER_ZOOM.min} max={HOVER_ZOOM.max} step={HOVER_ZOOM.step} value={hoverZoom()}
-            onChange={(e) => { const z = hoverZoomOf(e.currentTarget.valueAsNumber); e.currentTarget.valueAsNumber = z; void setHoverZoom(z); }} />×
-        </label>
+          <PillNumberPicker ariaLabel="Hover zoom" min={HOVER_ZOOM.min} max={HOVER_ZOOM.max} step={HOVER_ZOOM.step} suffix="×" requireFocus
+            value={hoverZoom()} onChange={(z) => void setHoverZoom(hoverZoomOf(z))} />
+        </span>
       </Show>
     </div>
   );

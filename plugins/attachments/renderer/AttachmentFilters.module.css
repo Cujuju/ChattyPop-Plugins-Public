@@ -74,14 +74,6 @@
   height: var(--cp-btn-h-sm);
 }
 
-/* The hover zoom's number, its arrows inside. Field look is theme/forms.css. */
-.zoomField {
-  box-sizing: border-box;
-  width: var(--cp-settings-number-w);
-  height: var(--cp-btn-h-sm);
-  text-align: right;
-}
-
 /* "Can compress": a switch and its name. */
 .toggle {
   display: inline-flex;
