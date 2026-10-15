@@ -1,10 +1,55 @@
 import { createRoot } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
-import { LARGEST, NEWEST, type AttachmentItem } from '../shared/types';
-import { FILENAME_DEBOUNCE_MS, MIN_SIZE_OPTIONS, createAttachmentFilters } from '../renderer/filterState';
-import { createCompressionQueue, createSelection, freeSelection, selection, type CompressionResult } from '../renderer/selection';
+import { LARGEST, NEWEST, type AttachmentFilter, type AttachmentItem, type AttachmentKind, type AttachmentPresence, type AttachmentSort } from '../shared/types';
 
 vi.mock('solid-js', async () => { const clientBuild = 'solid-js/dist/solid.cjs'; return import(clientBuild); });
+vi.mock('@plugin-sdk/renderer', async () => ({ ...(await import('@plugin-sdk/renderer/containment')) }));
+
+/** The members of the renderer modules these tests use; the modules are imported by path so the node type-check doesn't follow the SDK. */
+interface Filters {
+  filterCount(): number;
+  filter(): AttachmentFilter;
+  sort(): AttachmentSort;
+  resetFilters(): void;
+  setWhere(where: { by: 'guild' | 'channel'; id: string } | null): void;
+  setWho(id: string | null): void;
+  setKinds(kinds: AttachmentKind[]): void;
+  setRange(range: '1y'): void;
+  setMinBytes(bytes: number): void;
+  setPresence(presence: AttachmentPresence): void;
+  setUncompressed(on: boolean): void;
+  setName(name: string): void;
+  setSort(sort: AttachmentSort): void;
+}
+interface Selection<T> {
+  ids(): ReadonlySet<string>;
+  selected(): T[];
+  retain(loaded: readonly T[]): void;
+  toggle(id: string, range?: boolean): void;
+  selectAll(): void;
+  clear(): void;
+  drop(ids: readonly string[]): void;
+}
+type CompressionResult = { kind: 'compressed'; savedBytes: number } | { kind: 'skipped'; reason: 'not-smaller' | 'unsupported' };
+interface Queue<T> {
+  job(): { running: boolean } | null;
+  cancel(): void;
+  dismiss(): void;
+  run(items: readonly T[], compress: (item: T, options: { signal: AbortSignal; onProgress(fraction: number): void }) => Promise<CompressionResult>): Promise<void>;
+}
+const filterPath = '../renderer/filterState.ts';
+const { FILENAME_DEBOUNCE_MS, MIN_SIZE_OPTIONS, createAttachmentFilters } = (await import(filterPath)) as {
+  FILENAME_DEBOUNCE_MS: number;
+  MIN_SIZE_OPTIONS: { value: number }[];
+  createAttachmentFilters(): Filters;
+};
+const selectionPath = '../renderer/selection.ts';
+const { createCompressionQueue, createSelection, freeSelection, selection } = (await import(selectionPath)) as {
+  createCompressionQueue<T extends { id: string }>(): Queue<T>;
+  createSelection<T extends { id: string }>(): Selection<T>;
+  freeSelection(items: readonly AttachmentItem[], free: (ids: readonly string[]) => Promise<{ freed: number; bytes: number }>): Promise<void>;
+  selection: Selection<AttachmentItem>;
+};
 
 const settle = async (): Promise<void> => { await Promise.resolve(); await Promise.resolve(); };
 

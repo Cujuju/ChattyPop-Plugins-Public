@@ -1,4 +1,5 @@
-import { For, Match, Show, Switch, createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
+import { For, Match, Show, Switch, createEffect, createMemo, createSignal, on, onMount } from 'solid-js';
+import { onCleanup } from '@plugin-sdk/renderer';
 import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest, PanelHeader, VirtualRows, createFollowBottom, createVirtualLog, dayLabel, formatBytes, isPanelCollapsed } from '@plugin-sdk/renderer/kit';
 import { ATTACHMENTS_PANEL } from '../shared';
 import type { AttachmentItem } from '../shared/types';

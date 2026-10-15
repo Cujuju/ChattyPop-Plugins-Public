@@ -1,5 +1,5 @@
-import { batch, createEffect, createSignal, on } from 'solid-js';
-import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
+import { createEffect, createSignal, on } from 'solid-js';
+import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource, batchWrites, containedRoot } from '@plugin-sdk/renderer';
 import { createPagedList } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
@@ -56,7 +56,7 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
   let counts = emptyTotals();
   try {
     if (!await load((r) => { counts = r.counts; })) return;
-    batch(() => { setTotals(counts); setFailure(null); if (opened) setLoads((n) => n + 1); });
+    batchWrites(() => { setTotals(counts); setFailure(null); if (opened) setLoads((n) => n + 1); });
   } catch (error) { if (generation === readGeneration) setFailure(String(error)); }
 }
 
@@ -68,9 +68,11 @@ export const reloadAttachments = (): Promise<void> =>
 export const rereadAttachments = (): Promise<void> =>
   apply((keep) => list.update(() => readNewest(Math.max(ATTACHMENT_PAGE_SIZE, attachments.items.length)), (r) => { keep(r); return r.items; }), false);
 
-createEffect(() => selection.retain(attachments.items));
-createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, queryName, sort, () => callable(plugin, 'page')],
-  () => void reloadAttachments(), { defer: true }));
+containedRoot(() => {
+  createEffect(() => selection.retain(attachments.items));
+  createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, queryName, sort, () => callable(plugin, 'page')],
+    () => void reloadAttachments(), { defer: true }));
+});
 onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, () => { setRevision((n) => n + 1); void rereadAttachments(); });
 // Hidden files leave at once, before the reread returns.
 onAppEvent('privacy-changed', () => {

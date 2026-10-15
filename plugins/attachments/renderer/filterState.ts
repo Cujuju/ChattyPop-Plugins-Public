@@ -1,4 +1,5 @@
-import { batch, createEffect, createSignal, on, onCleanup } from 'solid-js';
+import { createEffect, createSignal, on } from 'solid-js';
+import { batchWrites, onCleanup, ownedOrContained } from '@plugin-sdk/renderer';
 import { BYTES_PER_MB, MS_PER_DAY } from '@plugin-sdk/shared';
 import { NEWEST, type AttachmentFilter, type AttachmentKind, type AttachmentPresence, type AttachmentSort } from '../shared/types';
 
@@ -18,47 +19,49 @@ export const MIN_SIZE_OPTIONS = [
 ];
 export type Where = { by: 'guild' | 'channel'; id: string } | null;
 
-/** Filter signals and debounce are independent of host UI, so tests exercise the same state the panel uses. */
+/** Filter signals and debounce are independent of host UI, so tests exercise the same state the panel uses. Contained when called without an owner. */
 export function createAttachmentFilters() {
-  const [where, setWhere] = createSignal<Where>(null);
-  const [who, setWho] = createSignal<string | null>(null);
-  const [kinds, setKinds] = createSignal<AttachmentKind[]>([]);
-  const [range, setRange] = createSignal<AttachmentRange>('all');
-  const [minBytes, setMinBytes] = createSignal(0);
-  const [presence, setPresence] = createSignal<AttachmentPresence>('stored');
-  const [uncompressed, setUncompressed] = createSignal(false);
-  const [name, setName] = createSignal('');
-  const [queryName, setQueryName] = createSignal('');
-  const [sort, setSort] = createSignal<AttachmentSort>(NEWEST);
-  const filterCount = (): number => [where() !== null, who() !== null, kinds().length > 0, range() !== 'all', minBytes() > 0,
-    presence() !== 'stored', uncompressed(), name().trim().length > 0, sort().key !== NEWEST.key || sort().dir !== NEWEST.dir].filter(Boolean).length;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  createEffect(on(name, (value) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => setQueryName(value.trim()), FILENAME_DEBOUNCE_MS);
-  }));
-  onCleanup(() => clearTimeout(timer));
-  const resetFilters = (): void => {
-    clearTimeout(timer);
-    batch(() => {
-      setWhere(null); setWho(null); setKinds([]); setRange('all'); setMinBytes(0); setPresence('stored');
-      setUncompressed(false); setName(''); setQueryName(''); setSort(NEWEST);
-    });
-  };
-  /** Every filter but the place (where): what the rail counts under. */
-  const unplaced = (): AttachmentFilter => {
-    const days = ATTACHMENT_RANGES[range()].days;
-    return {
-      ...(who() ? { authorId: who()! } : {}), ...(kinds().length ? { kinds: kinds() } : {}),
-      ...(days !== null ? { sinceTs: Date.now() - days * MS_PER_DAY } : {}),
-      ...(minBytes() ? { minBytes: minBytes() } : {}), presence: presence(), uncompressed: uncompressed(),
-      ...(queryName() ? { name: queryName() } : {}),
+  return ownedOrContained(() => {
+    const [where, setWhere] = createSignal<Where>(null);
+    const [who, setWho] = createSignal<string | null>(null);
+    const [kinds, setKinds] = createSignal<AttachmentKind[]>([]);
+    const [range, setRange] = createSignal<AttachmentRange>('all');
+    const [minBytes, setMinBytes] = createSignal(0);
+    const [presence, setPresence] = createSignal<AttachmentPresence>('stored');
+    const [uncompressed, setUncompressed] = createSignal(false);
+    const [name, setName] = createSignal('');
+    const [queryName, setQueryName] = createSignal('');
+    const [sort, setSort] = createSignal<AttachmentSort>(NEWEST);
+    const filterCount = (): number => [where() !== null, who() !== null, kinds().length > 0, range() !== 'all', minBytes() > 0,
+      presence() !== 'stored', uncompressed(), name().trim().length > 0, sort().key !== NEWEST.key || sort().dir !== NEWEST.dir].filter(Boolean).length;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    createEffect(on(name, (value) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setQueryName(value.trim()), FILENAME_DEBOUNCE_MS);
+    }));
+    onCleanup(() => clearTimeout(timer));
+    const resetFilters = (): void => {
+      clearTimeout(timer);
+      batchWrites(() => {
+        setWhere(null); setWho(null); setKinds([]); setRange('all'); setMinBytes(0); setPresence('stored');
+        setUncompressed(false); setName(''); setQueryName(''); setSort(NEWEST);
+      });
     };
-  };
-  const filter = (): AttachmentFilter => {
-    const scope = where();
-    return { ...(scope ? { [scope.by === 'guild' ? 'guildId' : 'channelId']: scope.id } : {}), ...unplaced() };
-  };
-  return { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
-    uncompressed, setUncompressed, name, setName, queryName, sort, setSort, filter, unplaced, filterCount, resetFilters };
+    /** Every filter but the place (where): what the rail counts under. */
+    const unplaced = (): AttachmentFilter => {
+      const days = ATTACHMENT_RANGES[range()].days;
+      return {
+        ...(who() ? { authorId: who()! } : {}), ...(kinds().length ? { kinds: kinds() } : {}),
+        ...(days !== null ? { sinceTs: Date.now() - days * MS_PER_DAY } : {}),
+        ...(minBytes() ? { minBytes: minBytes() } : {}), presence: presence(), uncompressed: uncompressed(),
+        ...(queryName() ? { name: queryName() } : {}),
+      };
+    };
+    const filter = (): AttachmentFilter => {
+      const scope = where();
+      return { ...(scope ? { [scope.by === 'guild' ? 'guildId' : 'channelId']: scope.id } : {}), ...unplaced() };
+    };
+    return { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
+      uncompressed, setUncompressed, name, setName, queryName, sort, setSort, filter, unplaced, filterCount, resetFilters };
+  });
 }

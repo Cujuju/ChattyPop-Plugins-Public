@@ -1,4 +1,5 @@
-import { batch, createSignal } from 'solid-js';
+import { createSignal } from 'solid-js';
+import { batchWrites } from '@plugin-sdk/renderer';
 import type { AttachmentItem } from '../shared/types';
 
 /** Selection is window-local; a reread replaces snapshots and drops rows no longer loaded. While `selecting`, a click picks. */
@@ -9,8 +10,8 @@ export function createSelection<T extends { id: string }>() {
   let anchor: string | null = null;
   const clear = (): void => { anchor = null; setIds(new Set<string>()); };
   /** Leaves select mode, dropping the picks. */
-  const done = (): void => batch(() => { clear(); setSelecting(false); });
-  const retain = (loaded: readonly T[]): void => batch(() => {
+  const done = (): void => batchWrites(() => { clear(); setSelecting(false); });
+  const retain = (loaded: readonly T[]): void => batchWrites(() => {
     setItems([...loaded]);
     const have = new Set(loaded.map((i) => i.id));
     setIds((old) => new Set([...old].filter((id) => have.has(id))));
@@ -35,7 +36,7 @@ export function createSelection<T extends { id: string }>() {
     ids, clear, done, retain, toggle, selecting,
     start: () => setSelecting(true),
     selected: () => items().filter((i) => ids().has(i.id)),
-    selectAll: () => batch(() => { setIds(new Set(items().map((i) => i.id))); setSelecting(true); }),
+    selectAll: () => batchWrites(() => { setIds(new Set(items().map((i) => i.id))); setSelecting(true); }),
     drop: (gone: readonly string[]) => { const dropping = new Set(gone); setIds((old) => new Set([...old].filter((id) => !dropping.has(id)))); },
   };
 }

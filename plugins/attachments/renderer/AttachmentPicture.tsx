@@ -1,4 +1,5 @@
-import { Show, batch, createEffect, createMemo, createSignal, on } from 'solid-js';
+import { Show, createEffect, createMemo, createSignal, on } from 'solid-js';
+import { batchWrites } from '@plugin-sdk/renderer';
 import { Icon, attachmentPosterUrl, attachmentThumbUrl, attachmentUrl, look, type IconName } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem, AttachmentKind } from '../shared/types';
 import { storedRef } from './actions';
@@ -31,7 +32,7 @@ export function AttachmentPicture(props: { item: AttachmentItem; list?: boolean;
   });
   // A memo, so a reread's new item object for the same file keeps the loaded picture: its img fires no second load.
   const file = createMemo(() => `${props.item.id}:${props.item.sha256}:${props.item.storedExt}`);
-  createEffect(on(file, () => batch(() => { setAttempt(THUMB); setLoaded(false); setSharp(false); }), { defer: true }));
+  createEffect(on(file, () => batchWrites(() => { setAttempt(THUMB); setLoaded(false); setSharp(false); }), { defer: true }));
   const picture = (): boolean => !props.item.spoiler && props.item.status === 'stored' && !!props.item.sha256
     && (props.item.kind === 'image' || props.item.kind === 'video') && attempt() < PLACEHOLDER;
   const src = (full: boolean): string => {
@@ -42,7 +43,7 @@ export function AttachmentPicture(props: { item: AttachmentItem; list?: boolean;
   // A thumbnail that loaded stays on show if the full picture fails: only a failed thumbnail falls back.
   const failed = (): void => {
     if (sharp()) setSharp(false);
-    else batch(() => { setLoaded(false); setAttempt((n) => n + 1); });
+    else batchWrites(() => { setLoaded(false); setAttempt((n) => n + 1); });
   };
   return (
     <Show when={picture()} fallback={

@@ -1,5 +1,5 @@
-import { For, Show, createEffect, createSignal, on, onCleanup } from 'solid-js';
-import { ARCHIVE_REFRESH_DEBOUNCE_MS, onAppEvent, onAppEventDebounced, pluginResource } from '@plugin-sdk/renderer';
+import { For, Show, createEffect, createSignal, on } from 'solid-js';
+import { ARCHIVE_REFRESH_DEBOUNCE_MS, onAppEvent, onAppEventDebounced, pluginResource, onCleanup } from '@plugin-sdk/renderer';
 import { keyedById } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { AttachmentItem } from '../shared/types';
