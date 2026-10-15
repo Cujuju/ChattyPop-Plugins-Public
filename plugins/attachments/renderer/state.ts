@@ -26,10 +26,16 @@ const list = createPagedList<AttachmentItem>(ATTACHMENT_PAGE_SIZE,
   async (oldest) => oldestFirst(await page({ ...filter(), sort: sort(), limit: ATTACHMENT_PAGE_SIZE, after: cursorAt(oldest) })),
 );
 export const attachments = list.state;
-export const loadOlderAttachments = (): Promise<number> => list.loadOlder().catch((e: unknown) => { setFailure(String(e)); return 0; });
+/** A page's failure shows only while its read is current: a filter change since has its own outcome. */
+export const loadOlderAttachments = (): Promise<number> => {
+  const generation = readGeneration;
+  return list.loadOlder().catch((e: unknown) => { if (generation === readGeneration) setFailure(String(e)); return 0; });
+};
 export const [totals, setTotals] = createSignal(emptyTotals());
 export const [loads, setLoads] = createSignal(0);
 export const [failure, setFailure] = createSignal<string | null>(null);
+/** Raised by every read of the rows: a failure reported after a later read began is stale. */
+let readGeneration = 0;
 /** Raised when the archive or privacy changes what the counts read; a filter change refetches through the filter. */
 const [revision, setRevision] = createSignal(0);
 
@@ -50,7 +56,6 @@ const readNewest = async (limit: number): Promise<Read> => {
   const [items, counts] = await Promise.all([page({ ...f, sort: sort(), limit }), pluginData(() => client.totals(f), emptyTotals())]);
   return { items: oldestFirst(items), reachedStart: items.length < limit, counts };
 };
-let readGeneration = 0;
 async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened: boolean): Promise<void> {
   const generation = ++readGeneration;
   let counts = emptyTotals();
@@ -64,9 +69,22 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
 export const reloadAttachments = (): Promise<void> =>
   apply((keep) => list.reload(async () => { const r = await readNewest(ATTACHMENT_PAGE_SIZE); keep(r); return r; }), true);
 
-/** An archive change: the loaded span reread in place; rows keep their objects by id, so tiles and pictures stay. */
-export const rereadAttachments = (): Promise<void> =>
-  apply((keep) => list.update(() => readNewest(Math.max(ATTACHMENT_PAGE_SIZE, attachments.items.length)), (r) => { keep(r); return r.items; }), false);
+/**
+ * An archive change: the loaded span reread in place; rows keep their objects by id, so tiles and pictures stay. A page
+ * loaded during the read widens the span: it is read again over that, rather than dropping the page.
+ */
+export const rereadAttachments = (): Promise<void> => {
+  const span = attachments.items.length;
+  return apply((keep) => list.update(() => readNewest(Math.max(ATTACHMENT_PAGE_SIZE, span)), (r, items) => {
+    // The counts hold whatever the span.
+    keep(r);
+    if (items.length !== span) {
+      queueMicrotask(() => void rereadAttachments());
+      return [...items];
+    }
+    return { items: r.items, reachedStart: r.reachedStart };
+  }), false);
+};
 
 createEffect(() => selection.retain(attachments.items));
 createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, queryName, sort, () => callable(plugin, 'page')],
