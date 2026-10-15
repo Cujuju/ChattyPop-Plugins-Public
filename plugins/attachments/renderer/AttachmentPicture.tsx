@@ -25,9 +25,10 @@ export function AttachmentPicture(props: { item: AttachmentItem; list?: boolean;
   /** Showing the full picture in the thumbnail's place; kept once loaded, so a second hover is instant. */
   const [sharp, setSharp] = createSignal(false);
   let img: HTMLImageElement | undefined;
+  // Read again once the thumbnail loads: a hover that began before it had no size to measure.
   createEffect(() => {
     const z = props.zoom;
-    if (z && img && attempt() === THUMB && outgrows(img, z.scale)) setSharp(true);
+    if (z && img && loaded() && attempt() === THUMB && outgrows(img, z.scale)) setSharp(true);
   });
   // A memo, so a reread's new item object for the same file keeps the loaded picture: its img fires no second load.
   const file = createMemo(() => `${props.item.id}:${props.item.sha256}:${props.item.storedExt}`);
