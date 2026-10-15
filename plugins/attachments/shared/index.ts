@@ -8,6 +8,8 @@ export const ATTACHMENTS_PANEL = 'attachments';
  */
 export const HOVER_ZOOM = { min: 1, max: 4, step: 0.25 } as const;
 const DEFAULT_HOVER_ZOOM = 1.5;
+/** Where the order starts: the top, running down as a file browser's; or the bottom, running up as a chat's. */
+export type AttachmentAnchor = 'top' | 'bottom';
 /** A typed or stored zoom on the field's steps and within its range; anything else is the default. */
 export const hoverZoomOf = (v: unknown): number => typeof v === 'number' && Number.isFinite(v)
   ? Math.min(HOVER_ZOOM.max, Math.max(HOVER_ZOOM.min, Math.round(v / HOVER_ZOOM.step) * HOVER_ZOOM.step))
@@ -36,6 +38,7 @@ export const plugin = definePlugin({
   preferences: {
     view: definePreference<'grid' | 'list'>({ default: 'grid', normalize: (v) => v === 'list' ? 'list' : 'grid' }),
     hoverZoom: definePreference<number>({ default: DEFAULT_HOVER_ZOOM, normalize: hoverZoomOf }),
+    anchor: definePreference<AttachmentAnchor>({ default: 'bottom', normalize: (v) => v === 'top' ? 'top' : 'bottom' }),
   },
 });
 export default plugin;
