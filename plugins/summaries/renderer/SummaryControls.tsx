@@ -1,6 +1,7 @@
 // Summary run controls shared by the desktop popover and phone sheet.
-import { Show, createSignal, createUniqueId, onCleanup, onMount } from 'solid-js';
+import { Show, createSignal, createUniqueId, onMount } from 'solid-js';
 import { Portal } from 'solid-js/web';
+import { onCleanup } from '@plugin-sdk/renderer';
 import {
   HeaderButton,
   Icon,

@@ -3,7 +3,7 @@ import { createEffect, createMemo, createResource, createSignal } from 'solid-js
 import type { Summary, SummaryProgress, SummaryRunFailure, SummaryScope } from '../shared/types';
 import { scopeKey } from './scope';
 import { plugin } from '../shared';
-import { callable, pluginsLoaded, coreClient, pluginData, pluginResource, onEvent, lastSeenAt, pluginPreference, onAppEvent } from '@plugin-sdk/renderer';
+import { callable, pluginsLoaded, coreClient, pluginData, pluginResource, onEvent, lastSeenAt, pluginPreference, onAppEvent, containedRoot } from '@plugin-sdk/renderer';
 import { refetchPlanUsage, createAction, createPagedList, aiSettings } from '@plugin-sdk/renderer/kit';
 import { MS_PER_DAY, type ProviderId } from '@plugin-sdk/shared';
 import { SUMMARY_RANGES, type SummaryRange, type SummaryRuleOptions } from '../shared/settings';
@@ -22,7 +22,7 @@ export const [summaryScope, setSummaryScope] = createSignal<SummaryScope | null>
 /** Summary runs fetched per page of the history. */
 const SUMMARY_PAGE_SIZE = 20;
 const core = coreClient(plugin);
-const active = createMemo(() => pluginsLoaded() && callable(plugin, 'page'));
+const active = containedRoot(() => createMemo(() => pluginsLoaded() && callable(plugin, 'page')));
 
 /** Core pages newest first; the history lists oldest first (newest at the bottom). */
 const oldestFirst = (page: Summary[]): Summary[] => [...page].reverse();
@@ -75,14 +75,14 @@ onAppEvent('privacy-changed', () => {
 /** Run ids begin at one; zero records that no run existed when first seen. */
 const NO_RUN_SEEN = 0;
 const [seenSummaryId, setSeenSummaryId, seenSetting] = pluginPreference(plugin, 'seenId');
-createEffect(() => {
+containedRoot(() => createEffect(() => {
   const on = active();
   firstPage = reload();
   void firstPage.then(async () => {
     await seenSetting.loaded;
     if (on && active() && seenSummaryId() === null) setSeenSummaryId(latestSummary()?.id ?? NO_RUN_SEEN);
   }).catch(() => undefined);
-});
+}));
 
 /** Runs added since the Summary panel was last on screen. */
 export const unseenSummaryCount = (): number => {
@@ -109,10 +109,10 @@ const readFailures = async (): Promise<void> => {
   // A core from before failures were listed serves none.
   setFailures(callable(plugin, 'failures') ? await pluginData(() => core.failures(), []) : []);
 };
-createEffect(() => {
+containedRoot(() => createEffect(() => {
   active();
   void readFailures();
-});
+}));
 onAppEvent('rules-changed', () => void readFailures());
 
 /** Failed runs being retried, by rule run and action: one run can owe more than one summary. */

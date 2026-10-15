@@ -1,6 +1,6 @@
 // Model comparisons: the stored list, which are open, and a run's progress.
 import { createMemo, createSignal } from 'solid-js';
-import { callable, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
+import { callable, containedRoot, coreClient, onAppEvent, onEvent, pluginResource, pluginsLoaded } from '@plugin-sdk/renderer';
 import {
   clockTime,
   closePluginWindow,
@@ -25,7 +25,7 @@ import { rangeOf } from './state';
 import { spansDays } from './order';
 
 const core = coreClient(plugin);
-const active = createMemo(() => pluginsLoaded() && callable(plugin, 'comparisons'));
+const active = containedRoot(() => createMemo(() => pluginsLoaded() && callable(plugin, 'comparisons')));
 
 /** Bumped when the stored comparisons change, so their reads run again. */
 const [version, setVersion] = createSignal(0);
