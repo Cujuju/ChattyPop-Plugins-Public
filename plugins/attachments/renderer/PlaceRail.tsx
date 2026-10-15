@@ -43,7 +43,8 @@ export function PlaceRail() {
   const total = () => Object.values(places().guilds).reduce((sum, n) => sum + n, 0);
   return (
     <>
-      <nav class={`${styles.servers} ${look.chrome}`} aria-label="Servers">
+      {/* The last column before the pane carries its rule: the channels when a server is picked, else the servers. */}
+      <nav class={`${styles.servers} ${look.chrome} ${guild() ? '' : look.ruleEnd}`} aria-label="Servers">
         <ServerButton label={`All servers · ${files(total())}`} active={!where()} onClick={() => setWhere(null)}><Icon name="apps" /></ServerButton>
         <For each={servers()}>{(g) => (
           <ServerButton label={`${g.name} · ${files(places().guilds[g.id] ?? 0)}`} active={placeGuild() === g.id} onClick={() => setWhere({ by: 'guild', id: g.id })}>
@@ -52,7 +53,7 @@ export function PlaceRail() {
         )}</For>
       </nav>
       <Show when={guild()}>{(g) => (
-        <nav class={styles.channels} aria-label={`Channels in ${g().name}`}>
+        <nav class={`${styles.channels} ${look.ruleEnd}`} aria-label={`Channels in ${g().name}`}>
           <h3 class={`${styles.heading} ${look.text}`} data-size="xs" data-weight="semibold" data-tone="secondary">{g().name}</h3>
           <PlaceButton label="All channels" count={places().guilds[g().id] ?? 0} current={where()?.by === 'guild'} onClick={() => setWhere({ by: 'guild', id: g().id })} />
           <For each={channels()}>{(c) => (
