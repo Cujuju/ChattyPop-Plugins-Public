@@ -1,19 +1,25 @@
 import { For, Show, createSignal, onCleanup } from 'solid-js';
 import { Icon, channelById, confirmDialog, directory, formatBytes, listen, look, onPointerDownOutside, openMenuAt, type MenuGroup } from '@plugin-sdk/renderer/kit';
-import { equalFilterSnapshots, filterNameKey, type AttachmentFilterSnapshot, type SavedAttachmentFilter } from '../shared/savedFilters';
+import { equalFilterSnapshots, filterNameKey, type AttachmentFilterSnapshot, type AttachmentRange, type SavedAttachmentFilter } from '../shared/savedFilters';
+import type { AttachmentSort, AttachmentSortKey } from '../shared/types';
 import { applySnapshot, people, savedFilters, setSavedFilters, snapshot } from './state';
 import styles from './SavedFilters.module.css';
 
+const RANGE_NAME: Record<Exclude<AttachmentRange, 'all'>, string> = { '1d': 'Past day', '7d': 'Past week', '30d': 'Past month', '1y': 'Past year' };
+const SORT_NAME: Record<AttachmentSortKey, Record<AttachmentSort['dir'], string>> = {
+  date: { desc: 'Newest first', asc: 'Oldest first' }, size: { desc: 'Largest first', asc: 'Smallest first' },
+  name: { asc: 'A to Z', desc: 'Z to A' }, kind: { asc: 'By kind', desc: 'By kind, reversed' },
+};
 const defaultName = (s: AttachmentFilterSnapshot): string => {
   const parts: string[] = s.kinds.map((k) => ({ image: 'Images', video: 'Videos', audio: 'Audio', file: 'Files' })[k]);
   if (s.place) parts.push(s.place.by === 'channel' ? `#${channelById(s.place.id)?.name ?? s.place.id}` : directory().find((g) => g.id === s.place!.id)?.name ?? s.place.id);
   if (s.who) parts.push(people().find((p) => p.id === s.who)?.name || s.who);
-  if (s.range !== 'all') parts.push(`Last ${s.range}`);
+  if (s.range !== 'all') parts.push(RANGE_NAME[s.range]);
   if (s.minBytes) parts.push(`At least ${formatBytes(s.minBytes)}`);
   if (s.presence !== 'stored') parts.push(s.presence === 'gone' ? 'Not on this PC' : 'All storage');
   if (s.uncompressed) parts.push('Can compress');
   if (s.name) parts.push(s.name);
-  if (s.sort.key !== 'date' || s.sort.dir !== 'desc') parts.push(`${s.sort.key} ${s.sort.dir}`);
+  if (s.sort.key !== 'date' || s.sort.dir !== 'desc') parts.push(SORT_NAME[s.sort.key][s.sort.dir]);
   return parts.join(' · ') || 'All stored files';
 };
 
@@ -107,7 +113,7 @@ export function SavedFilters() {
   </div>;
   return <span ref={root} class={styles.root}>
     <button ref={trigger} type="button" class={`${styles.trigger} ${look.filterChip} ${look.text}`} data-size="xs" aria-haspopup="menu"
-      aria-expanded={mode() ? true : undefined} onClick={menu}><Icon name="bookmark" />Saved<Icon name="chevronRight" /></button>
+      aria-expanded={mode() ? true : undefined} onClick={menu}><Icon name="bookmark" />Saved<span class="cp-chevron" aria-hidden="true" /></button>
     <Show when={mode()}>
       <div ref={pop} popover="manual" role="dialog" aria-label={mode() === 'save' ? 'Save current filters' : 'Manage saved filters'}
         class={`${styles.popover} ${look.popover}`} onKeyDown={(e) => {

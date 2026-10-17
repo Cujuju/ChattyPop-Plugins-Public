@@ -12,7 +12,7 @@ export function DateJump() {
       if (group?.heading !== year) { group = { heading: year, items: [] }; groups.push(group); }
       const bounds = monthBounds(row.month);
       if (bounds) group!.items.push({ label: new Date(bounds.start).toLocaleDateString(undefined, { month: 'long' }),
-        detail: row.count.toLocaleString(), icon: 'calendar', run: () => jumpToMonth(row.month) });
+        detail: row.count.toLocaleString(), run: () => jumpToMonth(row.month) });
     }
     openMenuAt(button, groups);
   };
