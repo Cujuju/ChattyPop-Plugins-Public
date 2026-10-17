@@ -1,4 +1,5 @@
-import { For, Show, batch } from 'solid-js';
+import { For, Show } from 'solid-js';
+import { batchWrites } from '@plugin-sdk/renderer';
 import { AuthorName, GuildIcon, Icon, PersonFace, SegButton, SegGroup, channelById, channelSigil, directory, formatBytes, look, personName } from '@plugin-sdk/renderer/kit';
 import type { AttachmentBreakdown, AttachmentKind, BreakdownBy } from '../shared/types';
 import { breakdown, breakdownBy, setBreakdownBy, setKinds, setSpaceView, setWhere, setWho, where } from './state';
@@ -16,7 +17,7 @@ export function SpaceView() {
   const guild = (key: string) => directory().find((g) => g.id === key);
   const pick = (row: AttachmentBreakdown): void => {
     if (row.key === null) return;
-    batch(() => {
+    batchWrites(() => {
       if (breakdownBy() === 'person') setWho(row.key);
       else if (breakdownBy() === 'kind') setKinds([row.key as AttachmentKind]);
       else setWhere({ by: breakdownBy() as 'guild' | 'channel', id: row.key! });

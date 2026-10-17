@@ -1,4 +1,5 @@
-import { For, Show, createSignal, onCleanup } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
+import { onCleanup } from '@plugin-sdk/renderer';
 import { Icon, channelById, confirmDialog, directory, formatBytes, listen, look, onPointerDownOutside, openMenuAt, type MenuGroup } from '@plugin-sdk/renderer/kit';
 import { equalFilterSnapshots, filterNameKey, type AttachmentFilterSnapshot, type AttachmentRange, type SavedAttachmentFilter } from '../shared/savedFilters';
 import type { AttachmentSort, AttachmentSortKey } from '../shared/types';

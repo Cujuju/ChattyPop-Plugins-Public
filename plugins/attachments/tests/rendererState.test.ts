@@ -18,6 +18,7 @@ interface Filters {
   setMinBytes(bytes: number): void;
   setPresence(presence: AttachmentPresence): void;
   setUncompressed(on: boolean): void;
+  setRepeated(on: boolean): void;
   setName(name: string): void;
   setSort(sort: AttachmentSort): void;
 }

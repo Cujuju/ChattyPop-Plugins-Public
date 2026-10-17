@@ -132,7 +132,7 @@ export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelecti
   if (canSaveAttachment(attachment)) open.push({ label: 'Download', icon: 'download', run: () => saveAttachmentFile(attachment) });
   if (item.postings > 1) {
     const tile = anchor.closest('[data-attachment-id]') ?? anchor;
-    open.push({ label: `Other postings (${item.postings - 1})`, icon: 'copy', run: () => setPostingsTarget({ item, anchor: tile }) });
+    open.push({ label: `Other postings (${item.postings - 1})`, icon: 'copy', run: () => { setPostingsTarget({ item, anchor: tile }); } });
   }
   const scope: MenuItem[] = [{ label: 'Only this channel', icon: 'filter', run: () => { setWhere({ by: 'channel', id: item.channelId }); } }];
   if (item.authorId) scope.push({ label: 'Only this person', icon: 'person', run: () => { setWho(item.authorId); } });

@@ -1,15 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createSelection } from '../renderer/selection';
 import type { AttachmentItem } from '../shared/types';
 
 vi.mock('solid-js', async () => { const clientBuild = 'solid-js/dist/solid.cjs'; return import(clientBuild); });
+vi.mock('@plugin-sdk/renderer', async () => ({ ...(await import('@plugin-sdk/renderer/containment')) }));
+/** The selection members these tests and the keyboard use; renderer modules are imported by path so the node type-check doesn't follow the SDK. */
+interface Selection {
+  ids(): ReadonlySet<string>; selecting(): boolean; start(): void; done(): void; clear(): void;
+  retain(loaded: readonly AttachmentItem[]): void; toggle(id: string, range?: boolean): void; extend(firstId: string, lastId: string): void; selectAll(): void;
+}
+const selectionPath = '../renderer/selection.ts';
+const { createSelection } = await import(selectionPath) as { createSelection(): Selection };
 type Key = { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean; preventDefault(): void; stopPropagation(): void };
 const keyboardPath = '../renderer/keyboard.ts';
 const { createAttachmentKeyboard } = await import(keyboardPath) as {
   createAttachmentKeyboard(source: {
     rows(): string[][]; visible(): string[]; pageRows(): number; grid(): boolean; scroll(id: string): void;
     more(direction: -1 | 1): boolean; load(direction: -1 | 1): Promise<number>; open(item: AttachmentItem): void;
-    selection: ReturnType<typeof createSelection<AttachmentItem>>;
+    selection: Selection;
   }): { tabId(): string | undefined; preview(): string | null; focused(id: string): void; clearPreview(): void;
     keydown(e: Key, item: AttachmentItem): void; dispose(): void };
 };
@@ -18,7 +25,7 @@ const settle = async (): Promise<void> => { await Promise.resolve(); await Promi
 function harness() {
   let rows = [['a', 'b'], ['c', 'd'], ['e', 'f']];
   let visible = ['a', 'b', 'c', 'd'];
-  const selection = createSelection<AttachmentItem>(); selection.retain(items);
+  const selection = createSelection(); selection.retain(items);
   const scroll = vi.fn(); const open = vi.fn(); const load = vi.fn(async (_direction: -1 | 1) => 0);
   const more = new Set<-1 | 1>();
   const k = createAttachmentKeyboard({ rows: () => rows, visible: () => visible, pageRows: () => 2, grid: () => true,
