@@ -88,6 +88,7 @@ export class ClaudeProvider implements LlmProvider {
     const onEvent: CompletionRequest['onEvent'] = req.onEvent ? (event) => {
       if (!abortController.signal.aborted) req.onEvent?.(event);
     } : undefined;
+    const joined = req.tools !== undefined || onEvent !== undefined || (!req.schema && req.history !== undefined);
     const answer = completionAnswer(onEvent);
     let q: ReturnType<typeof query> | undefined;
     try {
@@ -116,9 +117,12 @@ export class ClaudeProvider implements LlmProvider {
           if (msg.apiKeySource !== API_KEY_SOURCE) throw new Error('Claude did not select your API key. The request was stopped.');
           verifiedKeySource = true;
         }
-        if (req.tools || onEvent) answer.accept(msg);
+        if (joined) answer.accept(msg);
         if (msg.type !== 'result') continue;
         if (!verifiedKeySource) throw new Error('Claude did not confirm your API key. The request was stopped.');
+        if (req.tools && msg.subtype === 'error_max_turns') {
+          throw new Error(`Claude kept looking things up past its limit of ${req.maxToolCalls} lookups.`);
+        }
         if (msg.subtype !== 'success') throw new Error(`Claude run failed: ${msg.subtype}`);
         // Anthropic reports cache reads/writes apart from input_tokens; all three are prompt tokens.
         const u = msg.usage;
@@ -128,7 +132,7 @@ export class ClaudeProvider implements LlmProvider {
           outputTokens: u.output_tokens,
         };
         // Priced by Claude Code at API list rates, cache writes and reads included, whatever the plan.
-        return { text: req.tools || onEvent ? answer.text : msg.result, usage, apiCostUsd: msg.total_cost_usd, ...(req.schema ? { json: msg.structured_output } : {}) };
+        return { text: joined ? answer.text : msg.result, usage, apiCostUsd: msg.total_cost_usd, ...(req.schema ? { json: msg.structured_output } : {}) };
       }
       throw new Error('Claude run ended without a result.');
     } catch (err) {

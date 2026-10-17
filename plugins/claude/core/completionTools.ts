@@ -5,12 +5,11 @@ import { toolRunner, type CompletionRequest } from '@plugin-sdk/core';
 
 /** One extra turn lets Claude answer after the last permitted tool call. */
 export const FINAL_ANSWER_TURN = 1;
+/** One rejected lookup turn preserves the final answer turn without allowing an unbounded retry loop. */
+const SPENT_CALL_GRACE_TURNS = 1;
 
 /** Only request tools enter this server; built-in and user-configured tools stay disabled. */
 export function completionTools(req: CompletionRequest, signal: AbortSignal): Pick<Options, 'mcpServers' | 'allowedTools' | 'maxTurns'> {
-  if (req.schema) throw new TypeError('Claude tools cannot be combined with a response schema.');
-  const limit = req.maxToolCalls;
-  if (limit === undefined || !Number.isInteger(limit) || limit <= 0) throw new TypeError('Claude tools require a positive integer maxToolCalls.');
   const runner = toolRunner(req, signal);
   const tools = (req.tools ?? []).map((t) => {
     let schema: z.ZodType;
@@ -29,6 +28,6 @@ export function completionTools(req: CompletionRequest, signal: AbortSignal): Pi
   return {
     mcpServers: { chattypop: createSdkMcpServer({ name: 'chattypop', tools }) },
     allowedTools: tools.map((t) => `mcp__chattypop__${t.name}`),
-    maxTurns: limit + FINAL_ANSWER_TURN,
+    maxTurns: req.maxToolCalls! + FINAL_ANSWER_TURN + SPENT_CALL_GRACE_TURNS,
   };
 }

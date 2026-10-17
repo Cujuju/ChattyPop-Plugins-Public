@@ -47,7 +47,7 @@ afterEach(() => { requests.length = 0; servers.length = 0; messages = []; close.
 
 describe('Claude conversation completions', () => {
   it('keeps plain requests and aggregate usage unchanged', async () => {
-    messages = [RESULT];
+    messages = [assistant('one', 'First'), assistant('two', 'Last'), RESULT];
     const result = await provider().complete(REQUEST);
     expect(result).toEqual({ text: RESULT.result, usage: { inputTokens: 20, cachedInputTokens: 5, outputTokens: 8 }, apiCostUsd: 0.25 });
     expect(requests[0]!.prompt).toBe(REQUEST.prompt);
@@ -57,12 +57,19 @@ describe('Claude conversation completions', () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it('keeps structured output and its corrective-turn allowance', async () => {
-    messages = [{ ...RESULT, structured_output: { answer: 'yes' } }];
+  it.each([undefined, [], [{ role: 'user' as const, text: 'Earlier question' }]].map((history) => ({ history })))('keeps structured output and its corrective-turn allowance with history $history', async ({ history }) => {
+    messages = [assistant('one', 'First'), assistant('two', 'Last'), { ...RESULT, structured_output: { answer: 'yes' } }];
     const schema = { type: 'object', properties: { answer: { type: 'string' } } };
-    const result = await provider().complete({ ...REQUEST, schema });
+    const result = await provider().complete({ ...REQUEST, schema, history });
     expect(result).toMatchObject({ text: RESULT.result, json: { answer: 'yes' } });
     expect(requests[0]!.options).toMatchObject({ maxTurns: 3, outputFormat: { type: 'json_schema', schema } });
+  });
+
+  it.each([[], [{ role: 'user' as const, text: 'Earlier question' }]].map((history) => ({ history })))('joins every answer round for history-only requests with history $history', async ({ history }) => {
+    messages = [assistant('one', 'First'), assistant('two', 'Last'), RESULT];
+    const result = await provider().complete({ ...REQUEST, history });
+    expect(result.text).toBe(`First${ROUND_SEPARATOR}Last`);
+    expect(requests[0]!.options).not.toHaveProperty('includePartialMessages');
   });
 
   it('sends history as a transcript with and without images', async () => {
@@ -88,7 +95,7 @@ describe('Claude conversation completions', () => {
     const result = await provider().complete({ ...toolRequest, model: 'test-model', effort: 'high', onEvent: (e) => events.push(e) });
     expect(requests[0]!.options).toMatchObject({
       tools: [], mcpServers: { chattypop: { type: 'sdk', name: 'chattypop' } }, allowedTools: ['mcp__chattypop__lookup'],
-      maxTurns: 3, includePartialMessages: true, strictMcpConfig: true, settingSources: [], permissionMode: 'dontAsk',
+      maxTurns: 4, includePartialMessages: true, strictMcpConfig: true, settingSources: [], permissionMode: 'dontAsk',
       model: 'test-model', effort: 'high',
     });
     expect(servers[0]!.name).toBe('chattypop');
@@ -156,14 +163,47 @@ describe('Claude conversation completions', () => {
     expect(requests).toEqual([]);
   });
 
-  it.each([undefined, 0, -1, 1.5])('refuses an invalid tool budget: %s', async (maxToolCalls) => {
-    await expect(provider().complete({ ...toolRequest, maxToolCalls })).rejects.toThrow('positive integer maxToolCalls');
-    expect(requests).toEqual([]);
+  it.each([false, true])('allows a spent lookup and then a final answer (streaming: %s)', async (streaming) => {
+    const events: CompletionEvent[] = [];
+    const run = vi.fn(async () => 'found');
+    const round = (id: string, text: string): unknown[] => streaming
+      ? [delta(text), { type: 'stream_event', parent_tool_use_id: null, event: { type: 'message_stop' } }]
+      : [assistant(id, text)];
+    messages = [
+      ...round('one', 'Looking.'),
+      async () => { expect(await handler()({ query: 'one' }, {})).toMatchObject({ isError: false }); },
+      ...round('two', 'Checking again.'),
+      async () => { expect(await handler()({ query: 'two' }, {})).toEqual({ content: [{ type: 'text', text: TOOL_CALLS_SPENT }], isError: true }); },
+      ...round('three', 'Found it.'), RESULT,
+    ];
+    const result = await provider().complete({ ...toolRequest, tools: [{ ...TOOL, run }], maxToolCalls: 1,
+      ...(streaming ? { onEvent: (e: CompletionEvent) => events.push(e) } : {}),
+    });
+    expect(requests[0]!.options.maxTurns).toBe(3);
+    expect(run).toHaveBeenCalledOnce();
+    expect(result.text).toBe(['Looking.', 'Checking again.', 'Found it.'].join(ROUND_SEPARATOR));
+    if (streaming) expect(events.flatMap((e) => e.type === 'text' ? [e.delta] : []).join('')).toBe(result.text);
   });
 
-  it('refuses tools combined with structured output', async () => {
-    await expect(provider().complete({ ...toolRequest, schema: { type: 'object' } })).rejects.toThrow(TypeError);
-    expect(requests).toEqual([]);
+  it.each([false, true])('rejects when Claude keeps calling past the grace turn, preserving streamed text (streaming: %s)', async (streaming) => {
+    const events: CompletionEvent[] = [];
+    const run = vi.fn(async () => 'found');
+    messages = [
+      streaming ? delta('Partial answer.') : assistant('one', 'Partial answer.'),
+      async () => {
+        await handler()({ query: 'one' }, {});
+        for (const query of ['two', 'three']) {
+          expect(await handler()({ query }, {})).toEqual({ content: [{ type: 'text', text: TOOL_CALLS_SPENT }], isError: true });
+        }
+      },
+      { ...RESULT, subtype: 'error_max_turns' }, delta('late'), RESULT,
+    ];
+    await expect(provider().complete({ ...toolRequest, tools: [{ ...TOOL, run }], maxToolCalls: 1,
+      ...(streaming ? { onEvent: (e: CompletionEvent) => events.push(e) } : {}),
+    })).rejects.toThrow('Claude kept looking things up past its limit of 1 lookups.');
+    expect(run).toHaveBeenCalledOnce();
+    expect(events.flatMap((e) => e.type === 'text' ? [e.delta] : []).join('')).toBe(streaming ? 'Partial answer.' : '');
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it('fences tools and events after the request settles', async () => {
