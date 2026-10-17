@@ -10,6 +10,8 @@ interface Selection {
 }
 const selectionPath = '../renderer/selection.ts';
 const { createSelection } = await import(selectionPath) as { createSelection(): Selection };
+/** The members of a tile element the keyboard reads; tests run without a DOM. */
+type FakeElement = { ownerDocument: { body: unknown; activeElement: unknown }; isConnected: boolean; focus(): void; contains(other: unknown): boolean };
 type Key = { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean; preventDefault(): void; stopPropagation(): void };
 const keyboardPath = '../renderer/keyboard.ts';
 const { createAttachmentKeyboard } = await import(keyboardPath) as {
@@ -18,6 +20,7 @@ const { createAttachmentKeyboard } = await import(keyboardPath) as {
     more(direction: -1 | 1): boolean; load(direction: -1 | 1): Promise<number>; open(item: AttachmentItem): void;
     selection: Selection;
   }): { tabId(): string | undefined; preview(): string | null; focused(id: string): void; clearPreview(): void;
+    register(id: string, el: FakeElement): () => void;
     keydown(e: Key, item: AttachmentItem): void; dispose(): void };
 };
 const items = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id } as AttachmentItem));
@@ -38,6 +41,39 @@ function harness() {
 }
 
 describe('attachment roving focus and shortcuts', () => {
+  it('drops a move whose page load finishes after focus moved on', async () => {
+    const h = harness();
+    let finish!: (added: number) => void;
+    h.load.mockImplementationOnce(() => new Promise<number>((resolve) => { finish = resolve; }));
+    h.more.add(-1);
+    h.k.focused('a');
+    h.key('ArrowUp', 'a');
+    h.k.focused('d');
+    h.rows([['prior'], ['a', 'b'], ['c', 'd'], ['e', 'f']]);
+    finish(1); await settle();
+    expect(h.k.tabId()).toBe('d');
+  });
+  it('gives focus back to a focused tile that remounts, but never takes it from another element', async () => {
+    const h = harness();
+    const doc = { body: {}, activeElement: null as unknown };
+    const element = () => { const el = { ownerDocument: doc, isConnected: true, focus: vi.fn<() => void>(), contains: (o: unknown): boolean => o === el }; return el; };
+    const first = element();
+    const unregister = h.k.register('a', first);
+    doc.activeElement = first;
+    unregister();
+    doc.activeElement = doc.body;
+    const second = element();
+    const unregisterSecond = h.k.register('a', second);
+    await settle();
+    expect(second.focus).toHaveBeenCalledTimes(1);
+    doc.activeElement = second;
+    unregisterSecond();
+    doc.activeElement = { elsewhere: true };
+    const fourth = element();
+    h.k.register('a', fourth);
+    await settle();
+    expect(fourth.focus).not.toHaveBeenCalled();
+  });
   it('has a single visible Tab stop, follows moves, and falls back when a row is virtualized away', () => {
     const h = harness();
     expect(h.k.tabId()).toBe('a');

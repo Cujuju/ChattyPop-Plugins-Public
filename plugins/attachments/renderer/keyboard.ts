@@ -21,7 +21,8 @@ export function createAttachmentKeyboard(source: AttachmentKeyboardSource) {
   const [current, setCurrent] = createSignal<string | null>(null);
   const [preview, setPreview] = createSignal<string | null>(null);
   const elements = new Map<string, HTMLElement>();
-  let pending: string | null = null;
+  /** Where focus goes once that element registers: `claim` for a keyboard move; else a remount, which only takes lost focus. */
+  let pending: { id: string; claim: boolean } | null = null;
   let rangeAnchor: string | null = null;
   let moving = false;
   let disposed = false;
@@ -32,19 +33,31 @@ export function createAttachmentKeyboard(source: AttachmentKeyboardSource) {
   const focus = (id: string): void => {
     setCurrent(id);
     source.scroll(id);
-    pending = id;
+    pending = { id, claim: true };
     const el = elements.get(id);
     if (el) { pending = null; el.focus({ preventScroll: true }); }
   };
+  const holdsFocus = (el: HTMLElement): boolean => { const active = el.ownerDocument.activeElement; return !!active && (active === el || el.contains(active)); };
+  const restore = (id: string): void => queueMicrotask(() => {
+    const el = elements.get(id);
+    if (pending?.id !== id || !el?.isConnected) return;
+    const active = el.ownerDocument.activeElement;
+    // A remount never takes focus from another element, only while focus is lost to the page body.
+    if (!pending.claim && active && active !== el.ownerDocument.body) return;
+    pending = null;
+    el.focus({ preventScroll: true });
+  });
   const move = async (id: string, key: MovementKey, shift: boolean): Promise<void> => {
     if (moving || disposed) return;
     moving = true;
     setPreview(null);
+    const chosen = current();
     try {
       const next = (): string => moveTo(source.rows(), id, key, source.pageRows(), source.grid());
       const direction: Direction = key === 'ArrowUp' || key === 'ArrowLeft' || key === 'PageUp' ? -1 : 1;
       if (next() === id && key !== 'Home' && key !== 'End' && source.more(direction)) await source.load(direction);
-      if (disposed || !source.rows().flat().includes(id)) return;
+      // Focus moved on while the page loaded: the reader's newer choice stands.
+      if (disposed || current() !== chosen || !source.rows().flat().includes(id)) return;
       const target = next();
       if (shift && key.startsWith('Arrow')) {
         if (!source.selection.selecting()) rangeAnchor = id;
@@ -60,11 +73,20 @@ export function createAttachmentKeyboard(source: AttachmentKeyboardSource) {
   return {
     tabId, preview, focus,
     clearPreview: (): void => { setPreview(null); },
-    focused: (id: string): void => { if (current() !== id) { rangeAnchor = null; setPreview(null); } setCurrent(id); },
+    focused: (id: string): void => {
+      if (current() !== id) { rangeAnchor = null; setPreview(null); }
+      if (pending?.id !== id) pending = null;
+      setCurrent(id);
+    },
+    /** A focused tile or row that remounts (regrouped rows, virtualization) takes focus back once its replacement registers. */
     register(id: string, el: HTMLElement): () => void {
       elements.set(id, el);
-      if (pending === id) queueMicrotask(() => { if (pending === id && el.isConnected) { pending = null; el.focus({ preventScroll: true }); } });
-      return () => { if (elements.get(id) === el) elements.delete(id); };
+      if (pending?.id === id) restore(id);
+      return () => {
+        const held = holdsFocus(el);
+        if (elements.get(id) === el) elements.delete(id);
+        if (held && !disposed && !pending?.claim) { pending = { id, claim: false }; restore(id); }
+      };
     },
     keydown(event: KeyboardEvent, item: AttachmentItem): void {
       if (event.altKey) return;
