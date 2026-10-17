@@ -4,6 +4,8 @@ import { cutText, errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { clipMessage, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, } from '@plugin-sdk/core';
 import { PLAN_QUERY, PLAN_SUBJECT } from '../shared';
 import { PENDING_TABLE, PLANS_TABLE } from './schema';
+import type { ArchiveToolScope } from '@plugin-sdk/core';
+import { messageScope } from './toolSupport';
 
 /** Longest title kept; the panel shows one line. */
 const MAX_TITLE_CHARS = 120;
@@ -141,17 +143,20 @@ async function extract(deps: PlanDeps, m: TextMessage, kind: PlanKind): Promise<
 }
 
 /** Plans soonest first (undated after dated), then decisions newest first. */
-export function planList(db: PluginDb, limit: number): PlanItem[] {
+export function planList(db: PluginDb, limit: number, scope?: ArchiveToolScope, upcoming = false, now = Date.now()): PlanItem[] {
+  const scoped = scope ? messageScope(scope) : { sql: '1', params: [] };
+  const future = upcoming ? " AND (p.kind = 'decision' OR p.when_ts IS NULL OR p.when_ts >= ?)" : '';
   // CROSS JOIN forces plan-driven archive lookups.
   const rows = db
     .prepare(
       `SELECT p.message_id AS messageId, p.channel_id AS channelId, COALESCE(c.name, p.channel_id) AS channelName, p.kind, p.title,
               p.when_ts AS whenTs, p.who_json AS whoJson, p.details, m.ts
        FROM ${PLANS_TABLE} p CROSS JOIN archive_messages m ON m.id = p.message_id LEFT JOIN archive_all_channels c ON c.id = p.channel_id
+       WHERE ${scoped.sql}${future}
        ORDER BY p.kind = 'decision', CASE WHEN p.kind = 'plan' THEN p.when_ts IS NULL END, CASE WHEN p.kind = 'plan' THEN p.when_ts END, m.ts DESC
        LIMIT ?`,
     )
-    .all(limit) as (Omit<PlanItem, 'who'> & { whoJson: string })[];
+    .all(...scoped.params, ...(upcoming ? [now] : []), limit) as (Omit<PlanItem, 'who'> & { whoJson: string })[];
   const { redact } = privacy(db);
   return rows.map(({ whoJson, ...r }) => ({ ...r, title: redact(r.title), details: redact(r.details), who: JSON.parse(whoJson) as string[] }));
 }

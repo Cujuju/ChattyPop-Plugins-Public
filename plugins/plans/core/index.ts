@@ -24,6 +24,7 @@ function planProvider(ctx: CoreContext<typeof plugin>): PlanProvider | string {
 export default defineCorePlugin(plugin, (ctx) => {
   // Hits still to extract are stored, so turning Plans off and on, or quitting, resumes them.
   ctx.storage.migrate(PLANS_MIGRATIONS);
+  ctx.ai.tools.provide(archiveTools(ctx.storage.db));
   ctx.jev.questions.register(
     planQuestion({
       db: ctx.storage.db,
@@ -33,3 +34,4 @@ export default defineCorePlugin(plugin, (ctx) => {
   );
   ctx.channels.serve({ list: (limit) => planList(ctx.storage.db, limit) });
 });
+import { archiveTools } from './aiTools';
