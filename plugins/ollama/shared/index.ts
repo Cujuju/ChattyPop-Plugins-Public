@@ -44,6 +44,7 @@ export const plugin = definePlugin({
     local: true,
     // Vision models (Ollama's `vision` capability) read images sent with a prompt.
     images: true,
+    tools: true,
     site: OLLAMA_SITE,
   }],
   channels: defineChannels<{ core: OllamaCoreCalls; events: OllamaEvents }>()({

@@ -4,7 +4,6 @@ import { MS_PER_MIN, MS_PER_S } from '@plugin-sdk/shared';
 import {
   HOSTED_MAX_INPUT_CHARS,
   type CliSpec,
-  type CompletionImage,
   type CompletionRequest,
   type CompletionResult,
   type LlmProvider,
@@ -14,6 +13,7 @@ import {
   type ProviderAccount,
 } from '@plugin-sdk/core';
 import { API_KEY_PROVIDER, CodexConnection } from './connection';
+import { completeTurn } from './turn';
 
 /** The CLI it drives. */
 export const CODEX_CLI: CliSpec = { bin: 'codex', npm: '@openai/codex', name: 'Codex CLI' };
@@ -77,8 +77,6 @@ interface ListedModel {
 }
 /** A model's input type for images (model/list inputModalities). */
 const IMAGE_INPUT = 'image';
-/** An image as app-server's `image` input takes it. */
-const dataUrl = (i: CompletionImage): string => `data:${i.mediaType};base64,${i.data}`;
 
 interface RateLimitWindow {
   usedPercent: number;
@@ -88,23 +86,6 @@ interface RateLimitWindow {
 interface RateLimitSnapshot {
   primary: RateLimitWindow | null;
   secondary: RateLimitWindow | null;
-}
-interface Turn {
-  id: string;
-  status: string;
-  error: { message?: string } | null;
-}
-interface ThreadItem {
-  type: string;
-  text?: string;
-}
-/** `inputTokens` includes cached and cache-written ones; `outputTokens` includes reasoning. */
-interface TokenUsageBreakdown {
-  inputTokens: number;
-  cachedInputTokens: number;
-  /** Absent before codex-cli reported cache writes. */
-  cacheWriteInputTokens?: number;
-  outputTokens: number;
 }
 /** Codex models are OpenAI's, listed on OpenRouter under this prefix. */
 const OPENROUTER_OPENAI_PREFIX = 'openai/';
@@ -120,8 +101,10 @@ export class CodexProvider implements LlmProvider {
   }
 
   async complete(req: CompletionRequest): Promise<CompletionResult> {
+    req.signal?.throwIfAborted();
     const connection = await this.connection.connect();
     this.connection.assertCurrent(connection);
+    req.signal?.throwIfAborted();
     // Ephemeral, read-only, never asks for approval; our system prompt replaces the coding-agent one.
     const { thread, model, modelProvider } = await this.connection.request<{ thread: { id: string }; model: string; modelProvider: string }>(connection, 'thread/start', {
       cwd: tmpdir(),
@@ -131,55 +114,16 @@ export class CodexProvider implements LlmProvider {
       baseInstructions: req.system,
       config: READ_ONLY_THREAD_CONFIG,
       ...(req.model ? { model: req.model } : {}),
+      ...(req.tools ? { dynamicTools: req.tools.map((tool) => ({
+        type: 'function', name: tool.name, description: tool.description, inputSchema: tool.parameters,
+      })) } : {}),
     });
 
     this.connection.assertCurrent(connection);
     if (connection.key && modelProvider !== API_KEY_PROVIDER) throw new Error('Codex did not select your API key provider. The request was stopped.');
-
-    let text = '';
-    let total: TokenUsageBreakdown | undefined;
-    let largestPromptTokens = 0;
-    let stopListening = (): void => undefined;
-    const done = new Promise<Turn>((resolve) => {
-      // Cumulative for this (single-turn, ephemeral) thread, so the last update is the whole call.
-      const offUsage = connection.rpc.on('thread/tokenUsage/updated', (p) => {
-        const { threadId, tokenUsage } = p as { threadId: string; tokenUsage: { total: TokenUsageBreakdown; last: TokenUsageBreakdown } };
-        if (threadId !== thread.id) return;
-        total = tokenUsage.total;
-        largestPromptTokens = Math.max(largestPromptTokens, tokenUsage.last.inputTokens);
-      });
-      const offItem = connection.rpc.on('item/completed', (p) => {
-        const { item, threadId } = p as { item: ThreadItem; threadId: string };
-        if (threadId === thread.id && item.type === 'agentMessage' && item.text !== undefined) text = item.text;
-      });
-      const offDone = connection.rpc.on('turn/completed', (p) => {
-        const { turn, threadId } = p as { turn: Turn; threadId: string };
-        if (threadId !== thread.id) return;
-        stopListening();
-        resolve(turn);
-      });
-      stopListening = () => {
-        offItem();
-        offUsage();
-        offDone();
-      };
-    });
-
-    let turn: Turn;
-    try {
-      this.connection.assertCurrent(connection);
-      await this.connection.request(connection, 'turn/start', {
-        threadId: thread.id,
-        input: [...(req.images ?? []).map((i) => ({ type: 'image', url: dataUrl(i) })), { type: 'text', text: req.prompt, text_elements: [] }],
-        ...(req.schema ? { outputSchema: req.schema } : {}),
-        ...(req.effort ? { effort: req.effort } : {}),
-      });
-      // An app-server that exits mid-turn never sends turn/completed.
-      turn = await Promise.race([done, this.connection.closed(connection).then((err) => Promise.reject(err))]);
-    } finally {
-      stopListening();
-    }
-    if (turn.status !== 'completed') throw this.connection.error(connection, new Error(`Codex turn ${turn.status}: ${turn.error?.message ?? 'no detail'}`));
+    const { text, total, largestPromptTokens } = await completeTurn(this.connection, connection, thread.id, req);
+    this.connection.assertCurrent(connection);
+    req.signal?.throwIfAborted();
     const json = req.schema ? { json: JSON.parse(text) } : {};
     if (!total) return { text, ...json };
     const usage = { inputTokens: total.inputTokens, cachedInputTokens: total.cachedInputTokens, outputTokens: total.outputTokens };
@@ -189,6 +133,8 @@ export class CodexProvider implements LlmProvider {
       cacheWriteInputTokens: total.cacheWriteInputTokens ?? 0,
       largestPromptTokens,
     });
+    this.connection.assertCurrent(connection);
+    req.signal?.throwIfAborted();
     return { text, usage, ...(apiCostUsd !== undefined ? { apiCostUsd } : {}), ...json };
   }
 
@@ -205,6 +151,7 @@ export class CodexProvider implements LlmProvider {
         out.push({
           id: m.model,
           label: m.displayName,
+          tools: true,
           ...(efforts.length ? { efforts } : {}),
           ...(m.isDefault ? { isDefault: true } : {}),
           ...(m.inputModalities?.includes(IMAGE_INPUT) ? { images: true } : {}),

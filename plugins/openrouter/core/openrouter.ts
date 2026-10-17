@@ -15,6 +15,7 @@ import {
   type PlanUsageWindow,
   type PluginFetch,
 } from '@plugin-sdk/core';
+import { streamCompletion, type ChatMessage } from './stream';
 
 /** Public catalogue; no key needed to list models. */
 const LIST_TIMEOUT_MS = 5000;
@@ -58,7 +59,13 @@ export async function listOpenRouterModels(net: PluginFetch): Promise<ModelOptio
     .filter((m) => m.id !== DEFAULT_MODEL && m.supported_parameters?.includes(STRUCTURED_OUTPUTS))
     .map((m): ModelOption => {
       const efforts = effortsOf(m);
-      return { id: m.id, label: m.name, ...(efforts?.length ? { efforts } : {}), ...(m.architecture?.input_modalities?.includes(IMAGE_INPUT) ? { images: true } : {}) };
+      return {
+        id: m.id,
+        label: m.name,
+        ...(efforts?.length ? { efforts } : {}),
+        ...(m.architecture?.input_modalities?.includes(IMAGE_INPUT) ? { images: true } : {}),
+        ...(m.supported_parameters?.includes('tools') ? { tools: true } : {}),
+      };
     })
     .sort((a, b) => a.label.localeCompare(b.label));
   return [{ id: DEFAULT_MODEL, label: 'Auto (OpenRouter chooses)', isDefault: true }, ...models];
@@ -99,22 +106,26 @@ export class OpenRouterProvider implements LlmProvider {
   async complete(req: CompletionRequest): Promise<CompletionResult> {
     const model = req.model ?? this.model;
     const key = this.keyFor(model);
+    const messages: ChatMessage[] = [
+      { role: 'system', content: req.system },
+      ...(req.history ?? []).map(({ role, text }) => ({ role, content: text })),
+      { role: 'user', content: userContent(req) },
+    ];
+    const requestBody = {
+      model,
+      messages,
+      ...(req.effort ? { reasoning: { effort: req.effort } } : {}),
+      // require_parameters: route only to hosts that honor response_format.
+      ...(req.schema
+        ? { response_format: { type: 'json_schema', json_schema: { name: 'answer', strict: true, schema: req.schema } }, provider: { require_parameters: true } }
+        : {}),
+    };
+    if (!req.schema && (req.onEvent || req.tools)) return streamCompletion(this.net, req, key, requestBody);
     const res = await this.net(`${OPENROUTER_API}/chat/completions`, {
       method: 'POST',
       headers: { authorization: `Bearer ${key.key}`, 'content-type': 'application/json', ...OPENROUTER_APP_HEADERS },
       signal: req.signal ?? null,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: req.system },
-          { role: 'user', content: userContent(req) },
-        ],
-        // require_parameters: route only to hosts that honor response_format, else a host may ignore it and return prose.
-        ...(req.effort ? { reasoning: { effort: req.effort } } : {}),
-        ...(req.schema
-          ? { response_format: { type: 'json_schema', json_schema: { name: 'answer', strict: true, schema: req.schema } }, provider: { require_parameters: true } }
-          : {}),
-      }),
+      body: JSON.stringify(requestBody),
     });
     // A non-JSON error page (an HTML 502, say) still reports its status.
     const body = (await res.json().catch(() => ({}))) as Partial<ChatResponse>;

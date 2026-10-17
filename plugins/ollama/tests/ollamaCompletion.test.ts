@@ -14,7 +14,7 @@ function provider(response: Response) {
 }
 
 /** A response streamed as Ollama does, one JSON line per piece; `closed`: called when its reader closes it before the last. */
-function streamed(lines: readonly object[]) {
+function streamed(lines: readonly (object | null)[]) {
   const closed = vi.fn();
   const body = new ReadableStream<Uint8Array>({
     start(c) {
@@ -80,9 +80,14 @@ describe('Ollama completion responses', () => {
     expect(await p.complete({ system: 's', prompt: 'p' })).toEqual({ text: 'An ordinary answer', usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 4 } });
   });
 
-  it('keeps compatibility with responses that omit stop metadata', async () => {
-    const { p } = provider(Response.json({ message: { content: '{"text":"hello"}' } }));
+  it('accepts completed responses that omit the stop reason and usage', async () => {
+    const { p } = provider(Response.json({ message: { content: '{"text":"hello"}' }, done: true }));
     expect(await p.complete(REQUEST)).toMatchObject({ json: { text: 'hello' } });
+  });
+
+  it('rejects a response without done even when its JSON parses', async () => {
+    const { p } = provider(Response.json({ message: { content: '{"text":"partial"}' } }));
+    await expect(p.complete(REQUEST)).rejects.toThrow('returned an unfinished response (stop reason not reported).');
   });
 
   it('rejects an explicitly unfinished response even when its JSON parses', async () => {
@@ -96,7 +101,7 @@ describe('Ollama completion responses', () => {
   });
 
   it.each([null, {}, { message: {} }, { message: { content: 42 } }])('reports missing response text instead of throwing a property-access error: %j', async (body) => {
-    const { p } = provider(Response.json(body));
+    const { p } = provider(streamed([body, { done: true }]).response);
     await expect(p.complete(REQUEST)).rejects.toThrow('returned no response text (stop reason not reported).');
   });
 

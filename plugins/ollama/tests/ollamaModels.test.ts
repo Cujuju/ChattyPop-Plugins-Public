@@ -159,7 +159,7 @@ describe('unload time', () => {
     const bodies: Record<string, unknown>[] = [];
     const net = async (_url: string, init?: RequestInit): Promise<Response> => {
       bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-      return Response.json({ message: { content: 'ok' } });
+      return Response.json({ message: { content: 'ok' }, done: true });
     };
     await new OllamaProvider(net, OLLAMA_DEFAULT_URL, 'm', 0).complete({ system: 's', prompt: 'p' });
     await new OllamaProvider(net, OLLAMA_DEFAULT_URL, 'm', null).complete({ system: 's', prompt: 'p' });

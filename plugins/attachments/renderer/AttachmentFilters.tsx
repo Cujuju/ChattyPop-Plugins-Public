@@ -1,11 +1,11 @@
 import { For, Show } from 'solid-js';
 import { Icon, PillNumberPicker, SearchSelect, SegButton, SegGroup, Select, Switch, canCompressHere, formatBytes, look, personOption } from '@plugin-sdk/renderer/kit';
-import { HOVER_ZOOM, hoverZoomOf } from '../shared';
+import { HOVER_ZOOM, hoverZoomOf, type AttachmentAnchor } from '../shared';
 import { ATTACHMENT_KINDS, LARGEST, NEWEST, type AttachmentKind, type AttachmentPresence, type AttachmentSort } from '../shared/types';
 import {
   ATTACHMENT_RANGES, MIN_SIZE_OPTIONS, kinds, minBytes, name, people, presence, range, setKinds, setMinBytes, setName,
   setPresence, setRange, setSort, setUncompressed, setWho, sort, totals, uncompressed, who, type AttachmentRange,
-  hoverZoom, setHoverZoom, view, where,
+  anchor, hoverZoom, setAnchor, setHoverZoom, view, where,
 } from './state';
 import { filesCount } from './actions';
 import { KIND_ICON } from './AttachmentPicture';
@@ -64,7 +64,14 @@ export function FilterBar() {
           <Switch checked={uncompressed()} onChange={setUncompressed} />Can compress
         </label>
       </Show>
-      {/* A view setting, not a filter: Reset leaves it. */}
+      {/* View settings, not filters: Reset leaves them. */}
+      <span class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans">
+        Start at
+        <SegGroup role="radiogroup" ariaLabel="Start the order at" value={anchor()} onChange={(value: AttachmentAnchor) => setAnchor(value)}>
+          <SegButton value="top" label="Top" size="sm" ariaLabel="Top, as a file browser: the order runs down" />
+          <SegButton value="bottom" label="Bottom" size="sm" ariaLabel="Bottom, as a chat: the order runs up" />
+        </SegGroup>
+      </span>
       <Show when={view() === 'grid'}>
         {/* Not a label: a click on its words would press the picker's first button. */}
         <span class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans"

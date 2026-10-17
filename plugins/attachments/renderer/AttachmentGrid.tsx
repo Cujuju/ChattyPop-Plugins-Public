@@ -8,14 +8,21 @@ import { hoverZoom } from './state';
 import { zoomWithin, type Box, type TileZoom } from './zoom';
 import styles from './Attachments.module.css';
 
-/** The inside (scrollbars excluded) of `el`'s nearest ancestor that clips: a zoomed picture is cut at its edges. */
+/**
+ * What of the window every ancestor of `el` leaves showing, each clipping only on the axes it clips (insides, scrollbars
+ * excluded): a zoomed picture is cut at any of their edges. A virtual list's canvas clips one axis but spans the whole
+ * scroll height, so the first clipping ancestor alone is not enough.
+ */
 function clipBox(el: HTMLElement): Box {
+  let [left, top, right, bottom] = [0, 0, innerWidth, innerHeight];
   for (let p = el.parentElement; p; p = p.parentElement) {
-    if (getComputedStyle(p).overflow === 'visible') continue;
+    const style = getComputedStyle(p);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
     const r = p.getBoundingClientRect();
-    return { left: r.left + p.clientLeft, top: r.top + p.clientTop, width: p.clientWidth, height: p.clientHeight };
+    if (style.overflowX !== 'visible') [left, right] = [Math.max(left, r.left + p.clientLeft), Math.min(right, r.left + p.clientLeft + p.clientWidth)];
+    if (style.overflowY !== 'visible') [top, bottom] = [Math.max(top, r.top + p.clientTop), Math.min(bottom, r.top + p.clientTop + p.clientHeight)];
   }
-  return { left: 0, top: 0, width: innerWidth, height: innerHeight };
+  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
 export function AttachmentGrid(props: { item: AttachmentItem; selection?: AttachmentSelection }) {

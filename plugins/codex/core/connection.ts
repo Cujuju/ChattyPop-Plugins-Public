@@ -89,7 +89,8 @@ export class CodexConnection {
     const rpc = new JsonRpcStdio(launch, [...config, APP_SERVER], env);
     const connection: Connection = { rpc, key, owner: this.owner, accountId: this.account.id, home: this.account.dir, ready: Promise.resolve() };
     this.current = connection;
-    connection.ready = rpc.request('initialize', { clientInfo: this.clientInfo, capabilities: null }).then(
+    // One warm connection serves plain requests and experimental dynamic tools.
+    connection.ready = rpc.request('initialize', { clientInfo: this.clientInfo, capabilities: { experimentalApi: true } }).then(
       () => { rpc.notify('initialized'); },
       (err: unknown) => { this.drop(connection); throw safeError(err, key); },
     );
