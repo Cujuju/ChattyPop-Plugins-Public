@@ -60,7 +60,7 @@ export function createAttachmentKeyboard(source: AttachmentKeyboardSource) {
   return {
     tabId, preview, focus,
     clearPreview: (): void => { setPreview(null); },
-    focused: (id: string): void => { if (current() !== id) setPreview(null); setCurrent(id); },
+    focused: (id: string): void => { if (current() !== id) { rangeAnchor = null; setPreview(null); } setCurrent(id); },
     register(id: string, el: HTMLElement): () => void {
       elements.set(id, el);
       if (pending === id) queueMicrotask(() => { if (pending === id && el.isConnected) { pending = null; el.focus({ preventScroll: true }); } });

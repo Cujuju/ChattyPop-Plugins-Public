@@ -142,4 +142,3 @@ describe('keyboard movement math', () => {
     expect(moveTo([], 'c', 'End', 3, false)).toBe('c');
   });
 });
-

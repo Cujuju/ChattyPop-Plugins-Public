@@ -68,4 +68,11 @@ describe('attachment roving focus and shortcuts', () => {
     expect(h.load).toHaveBeenCalledWith(-1);
     expect(h.scroll).toHaveBeenLastCalledWith('before');
   });
+  it('starts a new keyboard range after focus moves independently', () => {
+    const h = harness();
+    h.key('ArrowRight', 'a', { shiftKey: true });
+    h.k.focused('e');
+    h.key('ArrowRight', 'e', { shiftKey: true });
+    expect([...h.selection.ids()]).toEqual(['a', 'b', 'e', 'f']);
+  });
 });
