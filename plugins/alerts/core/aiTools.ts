@@ -22,7 +22,9 @@ export function archiveTools(db: PluginDb, payloads: ArchivePayloadReader): Arch
       const limit = args.limit ?? ALERTS_DEFAULT;
       const rows = alertItems(db, payloads, { limit: limit + 1 }, undefined, { scope, ...args });
       signal.throwIfAborted();
-      return toolResult(rows.map((row) => ({ text: `${row.sourceName} | ${toolTime(row.ts)} | ${row.snippet}`, messageId: row.messageId })), limit);
+      const included = rows.slice(0, limit);
+      return toolResult(included.map((row) => ({ text: `${row.sourceName} | ${toolTime(row.ts)} | ${row.snippet}`, messageId: row.messageId })),
+        limit, [...new Set(included.map((row) => row.channelId))], rows.length > limit);
     },
   }];
 }

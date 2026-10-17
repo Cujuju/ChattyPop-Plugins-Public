@@ -13,7 +13,7 @@ const fields = {
   ...toolTimeFields, limit: toolLimitField(FILES_MAX),
 };
 interface Args { name?: string; kind?: AttachmentKind; author?: string; since?: string; until?: string; limit?: number }
-interface FileRow { messageId: string; filename: string; kind: string; size: number | null; author: string | null; ts: number }
+interface FileRow { messageId: string; channelId: string; filename: string; kind: string; size: number | null; author: string | null; ts: number }
 
 export function archiveTools(db: PluginDb): ArchiveTool[] {
   return [{
@@ -32,11 +32,13 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
         params.push(args.author, args.author);
       }
       const limit = args.limit ?? FILES_DEFAULT;
-      const rows = db.prepare(`SELECT a.message_id AS messageId, a.filename, a.kind, a.size, ${AUTHOR_NAME} AS author, a.ts
+      const rows = db.prepare(`SELECT a.message_id AS messageId, a.channel_id AS channelId, a.filename, a.kind, a.size, ${AUTHOR_NAME} AS author, a.ts
         ${ATTACHMENT_FROM} WHERE ${parts.join(' AND ')} ORDER BY a.ts DESC, a.id DESC LIMIT ?`)
         .all(...params, limit + 1) as FileRow[];
       signal.throwIfAborted();
-      return toolResult(rows.map((row) => ({ text: `${row.filename} | ${row.kind} | ${row.size === null ? 'unknown size' : `${row.size} bytes`} | ${row.author ?? 'Unknown author'} | ${toolTime(row.ts)}`, messageId: row.messageId })), limit);
+      const included = rows.slice(0, limit);
+      return toolResult(included.map((row) => ({ text: `${row.filename} | ${row.kind} | ${row.size === null ? 'unknown size' : `${row.size} bytes`} | ${row.author ?? 'Unknown author'} | ${toolTime(row.ts)}`, messageId: row.messageId })),
+        limit, [...new Set(included.map((row) => row.channelId))], rows.length > limit);
     },
   }];
 }

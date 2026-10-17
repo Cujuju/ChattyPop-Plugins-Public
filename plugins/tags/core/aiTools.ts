@@ -32,7 +32,9 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
       const limit = args.limit ?? MESSAGES_DEFAULT;
       const rows = tag ? store.tagged(tag.id, limit + 1, scope) : [];
       signal.throwIfAborted();
-      return toolResult(rows.map((row) => ({ text: `${row.author} | ${toolTime(row.ts)} | ${row.content}`, messageId: row.messageId })), limit);
+      const included = rows.slice(0, limit);
+      return toolResult(included.map((row) => ({ text: `${row.author} | ${toolTime(row.ts)} | ${row.content}`, messageId: row.messageId })),
+        limit, [...new Set(included.map((row) => row.channelId))], rows.length > limit);
     },
   }];
 }

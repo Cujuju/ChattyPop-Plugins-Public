@@ -48,6 +48,7 @@ describe('Plans archive list', () => {
     const expected = rows.filter((row) => row.channelId === 'c1' && row.ts >= scope.since! && row.ts <= scope.until!).reverse();
     const read = await run('list');
     expect(read.lines.map((line) => line.messageId)).toEqual(expected.map((row) => row.id));
+    expect(read.readChannels).toEqual(['c1']);
     expect(read.lines[0]!.text).toContain('plan: Plan 2 | Undated | Participant');
     expect((await run('list', {}, { ...scope, channelIds: [] })).lines).toEqual([]);
     expect((await consumer.ai.tools.run('plans_list', {}, scope, new AbortController().signal)).lines).toEqual(read.lines);
@@ -72,8 +73,8 @@ describe('Plans archive list', () => {
     const read = await run('list', { limit: ARCHIVE_TOOL_LINES_MAX }, unbounded);
     expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
     expect(read.lines.every((line) => line.messageId)).toBe(true);
-    expect(read.note).toMatch(/more/i);
-    expect((await run('list', { limit: 1 }, unbounded)).note).toMatch(/more/i);
+    expect(read.more).toBe(true);
+    expect((await run('list', { limit: 1 }, unbounded)).more).toBe(true);
   });
 
   it('validates object schemas, rejects unknown or invalid arguments and observes cancellation', async () => {

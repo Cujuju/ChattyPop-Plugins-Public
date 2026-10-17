@@ -11,7 +11,7 @@ const fields = {
   ...toolTimeFields, limit: toolLimitField(SEARCH_MAX),
 };
 interface Args { query?: string; platform?: string; author?: string; since?: string; until?: string; limit?: number }
-interface Share { messageId: string; title: string | null; url: string; site: string | null; author: string; ts: number }
+interface Share { messageId: string; channelId: string; title: string | null; url: string; site: string | null; author: string; ts: number }
 
 export function archiveTools(db: PluginDb): ArchiveTool[] {
   return [{
@@ -34,12 +34,14 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
         params.push(args.author, args.author);
       }
       const limit = args.limit ?? SEARCH_DEFAULT;
-      const rows = db.prepare(`SELECT m.id AS messageId, l.title, l.url, l.site, m.author_name AS author, m.ts
+      const rows = db.prepare(`SELECT m.id AS messageId, m.channel_id AS channelId, l.title, l.url, l.site, m.author_name AS author, m.ts
         FROM archive_message_links ml JOIN archive_messages m ON m.id = ml.message_id
         JOIN archive_links l ON l.id = ml.link_id WHERE ${parts.join(' AND ')}
         ORDER BY m.ts DESC, m.id DESC, l.id DESC LIMIT ?`).all(...params, limit + 1) as Share[];
       signal.throwIfAborted();
-      return toolResult(rows.map((row) => ({ text: `${row.title ?? 'Untitled'} | ${row.url} | ${row.site ?? ''} | ${row.author} | ${toolTime(row.ts)}`, messageId: row.messageId })), limit);
+      const included = rows.slice(0, limit);
+      return toolResult(included.map((row) => ({ text: `${row.title ?? 'Untitled'} | ${row.url} | ${row.site ?? ''} | ${row.author} | ${toolTime(row.ts)}`, messageId: row.messageId })),
+        limit, [...new Set(included.map((row) => row.channelId))], rows.length > limit);
     },
   }];
 }

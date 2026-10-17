@@ -86,14 +86,52 @@ describe('Summaries archive read', () => {
     const read = await h.run('read');
     expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
     expect(read.lines.slice(1).every((line) => line.messageId === citation(h, 1).messageId)).toBe(true);
-    expect(read.note).toMatch(/more/i);
+    expect(read.more).toBe(true);
     const maximum = 10;
     for (let i = 0; i < maximum + 1; i++) add(h, `Short recap ${i}`, ['c1'], 1, 2, [], i + 1);
     const capped = await h.run('read', { limit: maximum });
     expect(capped.lines).toHaveLength(maximum);
-    expect(capped.note).toMatch(/more/i);
+    expect(capped.more).toBe(true);
     expect((await h.run('read')).lines).toHaveLength(3);
     await expect(h.run('read', { limit: maximum + 1 })).rejects.toThrow(/limit/);
+  });
+
+  it('declares every included item citation channel as well as the summary channels', async () => {
+    const h = start();
+    add(h, 'Recap', ['c1'], 1, 2, [item('Combined point', [citation(h, 1), citation(h, 2, 'c2')])]);
+    const read = await h.run('read', {}, { ...scope, channelIds: ['c1', 'c2', 'thread'] });
+    expect(read.lines.map((line) => line.text.split(' | ')[0])).toEqual(['Recap', 'Combined point']);
+    expect(read.readChannels).toEqual(['c1', 'c2']);
+  });
+
+  it('includes actual message channels when stored citation channel metadata differs', async () => {
+    const h = start();
+    add(h, 'Recap', ['c1'], 1, 2, [item('Combined point', [citation(h, 1), { ...citation(h, 2, 'c2'), channelId: 'c1' }])]);
+    const read = await h.run('read', {}, { ...scope, channelIds: ['c1', 'c2'] });
+    expect(read.readChannels).toEqual(['c1', 'c2']);
+  });
+
+  it('rejects a summary through the host when an extra citation channel becomes hidden mid-run', async () => {
+    const h = start();
+    h.t.archive.setPrivacyMode(true);
+    add(h, 'Recap', ['c1'], 1, 2, [item('Combined point', [citation(h, 1), citation(h, 2, 'c2')])]);
+    const window = { ...scope, channelIds: ['c1', 'c2'] };
+    expect((await h.run('read', {}, window)).lines).toHaveLength(2);
+    const pending = h.consumer.ai.tools.run('summaries_read', {}, window, new AbortController().signal);
+    h.t.archive.setChannel('c2', { hidden: true });
+    expect(await pending).toEqual({ lines: [], note: "This lookup's results are unavailable." });
+  });
+
+  it('does not declare channels from items or summaries beyond the returned line cap', async () => {
+    const h = start();
+    add(h, 'Earlier recap', ['c2'], 1, 2, [], 0);
+    add(h, 'Newest recap', ['c1'], 1, 2,
+      [...Array.from({ length: ARCHIVE_TOOL_LINES_MAX }, () => item('Point', [citation(h, 1)])),
+        item('Omitted point', [citation(h, 2, 'c2')])], 1);
+    const read = await h.run('read', {}, { ...scope, channelIds: ['c1', 'c2'] });
+    expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
+    expect(read.readChannels).toEqual(['c1']);
+    expect(read.more).toBe(true);
   });
 
   it('validates object schemas, rejects unknown or invalid arguments and observes cancellation', async () => {

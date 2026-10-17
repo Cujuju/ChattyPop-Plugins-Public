@@ -23,19 +23,23 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
       const selected = summaries.slice(0, limit);
       const ids = selected.flatMap((summary) => summary.items.flatMap(pointCitations).map((citation) => citation.messageId));
       const scoped = toolScopeSql(window);
-      const visible = new Set(db.prepare(`SELECT m.id FROM archive_messages m WHERE ${scoped.sql}
-        AND m.id IN (SELECT value FROM json_each(?))`).pluck().all(...scoped.params, JSON.stringify(ids)) as string[]);
+      const rows = db.prepare(`SELECT m.id, m.channel_id AS channelId FROM archive_messages m WHERE ${scoped.sql}
+        AND m.id IN (SELECT value FROM json_each(?))`).all(...scoped.params, JSON.stringify(ids)) as { id: string; channelId: string }[];
+      const visible = new Map(rows.map((row) => [row.id, row.channelId]));
       signal.throwIfAborted();
-      const lines: ArchiveToolLine[] = [];
+      const entries: { line: ArchiveToolLine; channels: readonly string[] }[] = [];
       for (const summary of selected) {
-        lines.push({ text: `${summary.headline} | ${toolTime(summary.sinceTs)} – ${toolTime(summary.untilTs)}` });
+        entries.push({ line: { text: `${summary.headline} | ${toolTime(summary.sinceTs)} – ${toolTime(summary.untilTs)}` }, channels: summary.channelIds });
         for (const item of summary.items) {
           const citations = pointCitations(item);
           if (citations.some((citation) => !visible.has(citation.messageId))) continue;
-          lines.push({ text: item.parts.map((part) => part.text).join(' '), ...(citations[0] ? { messageId: citations[0].messageId } : {}) });
+          entries.push({ line: { text: item.parts.map((part) => part.text).join(' '), ...(citations[0] ? { messageId: citations[0].messageId } : {}) },
+            channels: [...summary.channelIds, ...citations.flatMap((citation) => [citation.channelId, visible.get(citation.messageId)!])] });
         }
       }
-      return toolResult(lines, ARCHIVE_TOOL_LINES_MAX, [...new Set(selected.flatMap((summary) => summary.channelIds))], summaries.length > limit);
+      const included = entries.slice(0, ARCHIVE_TOOL_LINES_MAX);
+      return toolResult(included.map((entry) => entry.line), ARCHIVE_TOOL_LINES_MAX,
+        [...new Set(included.flatMap((entry) => entry.channels))], summaries.length > limit || entries.length > included.length);
     },
   }];
 }

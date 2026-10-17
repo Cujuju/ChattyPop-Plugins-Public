@@ -47,6 +47,7 @@ describe('Attachments archive files', () => {
       .pluck().all(scope.since!, scope.until!) as string[];
     const read = await run('files', { since: toolTime(START - MS_PER_MIN), until: toolTime(START + 9 * MS_PER_MIN) });
     expect(read.lines.map((line) => line.messageId)).toEqual(rows);
+    expect(read.readChannels).toEqual(['c1']);
     expect(read.lines[0]!.text).toContain('report2.data | image | 3 bytes | Writer');
     expect((await run('files', { since: toolTime(START + 2 * MS_PER_MIN) })).lines.map((line) => line.messageId)).toEqual(rows.slice(0, 1));
     expect((await run('files', { until: toolTime(START + 1 * MS_PER_MIN) })).lines.map((line) => line.messageId)).toEqual(rows.slice(1));
@@ -72,8 +73,8 @@ describe('Attachments archive files', () => {
     const read = await run('files', { limit: ARCHIVE_TOOL_LINES_MAX }, unbounded);
     expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
     expect(read.lines.every((line) => line.messageId)).toBe(true);
-    expect(read.note).toMatch(/more/i);
-    expect((await run('files', { limit: 1 }, unbounded)).note).toMatch(/more/i);
+    expect(read.more).toBe(true);
+    expect((await run('files', { limit: 1 }, unbounded)).more).toBe(true);
     const h = start(['image', 'video', 'audio', 'application'].map((kind, i) => file(i, 'c1', kind)));
     for (const kind of ['image', 'video', 'audio', 'file']) expect((await h.run('files', { kind }, unbounded)).lines).toHaveLength(1);
   });

@@ -21,7 +21,9 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
       const limit = args.limit ?? PLANS_DEFAULT;
       const rows = planList(db, limit + 1, scope, args.upcoming ?? true);
       signal.throwIfAborted();
-      return toolResult(rows.map((row) => ({ text: `${row.kind}: ${row.title} | ${row.whenTs === null ? 'Undated' : toolTime(row.whenTs)} | ${row.who.join(', ')}`, messageId: row.messageId })), limit);
+      const included = rows.slice(0, limit);
+      return toolResult(included.map((row) => ({ text: `${row.kind}: ${row.title} | ${row.whenTs === null ? 'Undated' : toolTime(row.whenTs)} | ${row.who.join(', ')}`, messageId: row.messageId })),
+        limit, [...new Set(included.map((row) => row.channelId))], rows.length > limit);
     },
   }];
 }

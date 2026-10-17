@@ -52,7 +52,7 @@ describe('Stats archive words', () => {
     expect((await consumer.ai.tools.run('stats_words', {}, scope, new AbortController().signal)).lines).toEqual(read.lines);
     t.archive.setPrivacyMode(true);
     expect((await run('words', {}, { ...unbounded, channelIds: ['hidden'] })).lines.some((line) => line.text.includes('outsidehidden'))).toBe(false);
-    expect((await run('words', {}, { ...scope, channelIds: [] })).lines).toEqual([{ text: 'AFINN sentiment: 0 positive, 0 negative, 0 neutral (0 text messages).' }]);
+    expect((await run('words', {}, { ...scope, channelIds: [] })).lines).toEqual([]);
   });
 
   it('filters an author by id or name only from the selected window', async () => {
@@ -76,9 +76,9 @@ describe('Stats archive words', () => {
     const read = await run('words', { limit: maximum });
     expect(read.lines).toHaveLength(maximum + 1);
     expect(read.lines.length).toBeLessThanOrEqual(ARCHIVE_TOOL_LINES_MAX);
-    expect(read.note).toMatch(/more/i);
+    expect(read.more).toBe(true);
     expect((await run('words', { limit: 1 })).lines).toHaveLength(2);
-    expect((await run('words', { limit: 1 })).note).toMatch(/more/i);
+    expect((await run('words', { limit: 1 })).more).toBe(true);
     await expect(run('words', { limit: maximum + 1 })).rejects.toThrow(/limit/);
   });
 

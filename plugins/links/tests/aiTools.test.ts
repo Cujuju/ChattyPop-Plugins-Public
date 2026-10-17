@@ -47,6 +47,7 @@ describe('Links archive search', () => {
       .pluck().all(scope.since!, scope.until!) as string[];
     const read = await run('search', { since: toolTime(START - MS_PER_MIN), until: toolTime(START + 9 * MS_PER_MIN) });
     expect(read.lines.map((line) => line.messageId)).toEqual(rows);
+    expect(read.readChannels).toEqual(['c1']);
     expect(read.lines.every((line) => line.text.includes('Reference | https://example.com/') && line.text.includes('Writer'))).toBe(true);
     expect((await run('search', { since: toolTime(START + 2 * MS_PER_MIN) })).lines.map((line) => line.messageId)).toEqual(rows.slice(0, 1));
     expect((await run('search', { until: toolTime(START + 1 * MS_PER_MIN) })).lines.map((line) => line.messageId)).toEqual(rows.slice(1));
@@ -67,12 +68,15 @@ describe('Links archive search', () => {
   });
 
   it('caps shares, records omitted results and rejects aborts after a query', async () => {
-    const { t, run } = links(ARCHIVE_TOOL_LINES_MAX + 2);
+    const { t, run, consumer } = links(ARCHIVE_TOOL_LINES_MAX + 2);
     const read = await run('search', { limit: ARCHIVE_TOOL_LINES_MAX }, unbounded);
     expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
     expect(read.lines.every((line) => line.messageId)).toBe(true);
-    expect(read.note).toMatch(/more/i);
-    expect((await run('search', { limit: 1 }, unbounded)).note).toMatch(/more/i);
+    expect(read.more).toBe(true);
+    expect((await run('search', { limit: 1 }, unbounded)).more).toBe(true);
+    const guarded = await consumer.ai.tools.run('links_search', { limit: 1 }, unbounded, new AbortController().signal);
+    expect(guarded).toMatchObject({ readChannels: ['c1'], more: true, note: 'More results not shown.' });
+    expect(guarded.lines).toHaveLength(1);
     const controller = new AbortController();
     const reason = new Error('Cancelled after query.');
     const prepare = t.db.prepare.bind(t.db);

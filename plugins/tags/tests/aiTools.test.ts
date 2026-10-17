@@ -49,6 +49,7 @@ describe('Tags archive tools', () => {
     expect(listed).toEqual({ lines: [{ text: 'Focus: 2 messages' }], readChannels: ['c1'] });
     const read = await run('messages', { tag: 'focus' });
     expect(read.lines.map((line) => line.messageId)).toEqual(expected.map((row) => row.id));
+    expect(read.readChannels).toEqual(['c1']);
     expect(read.lines.every((line) => line.text.includes('Writer'))).toBe(true);
     store.setManual(expected[0]!.id, store.create({ name: 'Other', jevQuestion: null, auto: false }), false);
     expect((await run('list')).lines).toHaveLength(1);
@@ -71,15 +72,15 @@ describe('Tags archive tools', () => {
     const { run, store, rows } = tagged(ARCHIVE_TOOL_LINES_MAX + 2);
     const read = await run('messages', { tag: 'Focus', limit: ARCHIVE_TOOL_LINES_MAX }, unbounded);
     expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
-    expect(read.note).toMatch(/more/i);
-    expect((await run('messages', { tag: 'Focus', limit: 1 }, unbounded)).note).toMatch(/more/i);
+    expect(read.more).toBe(true);
+    expect((await run('messages', { tag: 'Focus', limit: 1 }, unbounded)).more).toBe(true);
     for (let i = 0; i < ARCHIVE_TOOL_LINES_MAX; i++) {
       const id = store.create({ name: `Tag ${i}`, jevQuestion: null, auto: false });
       store.setManual(rows[0]!.id, id, true);
     }
     const listed = await run('list', {}, unbounded);
     expect(listed.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
-    expect(listed.note).toMatch(/more/i);
+    expect(listed.more).toBe(true);
     expect(listed.lines.every((line) => line.messageId === undefined)).toBe(true);
   });
 

@@ -20,6 +20,7 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
     async run(raw, scope, signal) {
       signal.throwIfAborted();
       const args = parseToolArgs<{ author?: string; limit?: number }>(raw, fields);
+      if (!scope.channelIds.length) return toolResult([], undefined, []);
       const query: ChannelListQuery = { scope: 'channels', channelIds: scope.channelIds, sinceTs: scope.since, untilTs: scope.until };
       // Resolve names only from messages inside the caller's scope and window.
       const scoped = toolScopeSql(scope);
@@ -39,6 +40,7 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
         { text: `AFINN sentiment: ${sentiment.classes.positive} positive, ${sentiment.classes.negative} negative, ${sentiment.classes.neutral} neutral (${sentiment.textMessages} text messages).` },
         ...words.words.slice(0, limit).map((word) => ({ text: `${word.word}: ${word.count}` })),
       ];
+      // Every scoped channel contributes to word and sentiment totals, including zero counts.
       return toolResult(lines, undefined, scope.channelIds, words.words.length > limit);
     },
   }];
