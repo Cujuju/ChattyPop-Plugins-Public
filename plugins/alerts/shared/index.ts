@@ -37,6 +37,7 @@ export interface AlertsEvents {
 export type AlertSort = 'time' | 'rule';
 
 export const plugin = definePlugin({
+  aiTools: ['list'],
   manifest: {
     id: 'alerts',
     name: 'Alerts',

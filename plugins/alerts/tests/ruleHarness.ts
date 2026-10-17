@@ -71,7 +71,7 @@ export function ruleHarness(now: () => number = Date.now): Harness {
   });
   const say: Harness['say'] = (content, o = {}) => {
     const m = rawMessage(o.channel ?? 'c1', nextTs(), content, { ...from(o.author ?? 'u2'), ...o.extra });
-    if ((o.via ?? ARRIVAL.gateway) === ARRIVAL.sync) archive.ingestSyncPage(m.channel_id, [m], 'newer', false);
+    if ((o.via ?? ARRIVAL.gateway) === ARRIVAL.sync) archive.ingestSyncPage(m.channel_id, [m], 'newer', false, null);
     else archive.ingestMessages([m], o.via ?? ARRIVAL.gateway);
     return m;
   };

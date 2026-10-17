@@ -14,6 +14,7 @@ const cooldowns: AlertCooldowns = new Map();
 export function activateAlerts(ctx: CoreContext<typeof plugin>, now: () => number = Date.now, session: AlertCooldowns = cooldowns) {
   const db = ctx.storage.db;
   ctx.storage.migrate(ALERT_MIGRATIONS);
+  ctx.ai.tools.provide(archiveTools(db, ctx.archive.payloads));
   const notifier = new AlertNotifier(
     db,
     ctx.archive.payloads,
@@ -42,3 +43,4 @@ export function activateAlerts(ctx: CoreContext<typeof plugin>, now: () => numbe
 }
 
 export default defineCorePlugin(plugin, (ctx) => activateAlerts(ctx).dispose);
+import { archiveTools } from './aiTools';

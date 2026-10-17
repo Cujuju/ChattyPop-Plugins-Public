@@ -3,14 +3,26 @@ import { mentionsFrom, type PluginDb, type ArchivePayloadReader } from '@plugin-
 import { HELD_REASONS, type AlertItem, type AlertQuery, type HeldReason } from '../shared/types';
 import { HELD_COLUMN } from './schema';
 import { ALERTS, VISIBLE_ALERTS } from './tables';
+import type { ArchiveToolScope } from '@plugin-sdk/core';
+import { messageScope } from './toolSupport';
 
 /** A stored held reason; one this build doesn't know reads as none. */
 const heldReason = (v: string | null): HeldReason | null => (HELD_REASONS as readonly string[]).includes(v ?? '') ? (v as HeldReason) : null;
 
 /** Alerts newest first, less those privacy mode hides; `onlyId` narrows to one alert. */
-export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: AlertQuery, onlyId?: number): AlertItem[] {
+export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: AlertQuery, onlyId?: number, tool?: { scope: ArchiveToolScope; rule?: string; unread?: boolean }): AlertItem[] {
   const where: string[] = ['1'];
   const params: (string | number)[] = [];
+  if (tool) {
+    const scoped = messageScope(tool.scope);
+    where.push(scoped.sql);
+    params.push(...scoped.params);
+    if (tool.rule !== undefined) {
+      where.push('(CAST(r.id AS TEXT) = ? OR instr(lower(r.name), lower(?)) > 0)');
+      params.push(tool.rule, tool.rule);
+    }
+    if (tool.unread !== undefined) where.push(tool.unread ? 'a.read_at IS NULL' : 'a.read_at IS NOT NULL');
+  }
   if (onlyId !== undefined) {
     where.push('a.id = ?');
     params.push(onlyId);
@@ -32,6 +44,7 @@ export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: Aler
               a.ts, a.snippet, a.read_at AS readAt, a.match_kind AS matchKind,
               a.probability, a.duplicate_of AS duplicateOf, a.${HELD_COLUMN.desktop} AS heldDesktop, a.${HELD_COLUMN.phone} AS heldPhone
        FROM ${VISIBLE_ALERTS} a JOIN archive_rules r ON r.id = a.rule_id
+       ${tool ? 'JOIN archive_messages m ON m.id = a.message_id' : ''}
        LEFT JOIN archive_channels c ON c.id = a.channel_id LEFT JOIN archive_users u ON u.id = a.author_id
        WHERE ${where.join(' AND ')}
        ORDER BY a.ts DESC, a.id DESC LIMIT ?`,
