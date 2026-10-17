@@ -34,6 +34,7 @@ export interface StatsCoreCalls {
 }
 
 export const plugin = definePlugin({
+  aiTools: ['words'],
   manifest,
   channels: defineChannels<{ core: StatsCoreCalls }>()({ core: {
     activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'], personHistory: ['renderer'], peopleStats: ['renderer'], voiceStats: ['renderer'], repeatedLinks: ['renderer'],

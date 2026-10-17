@@ -1,4 +1,15 @@
 import { MS_PER_S } from '@plugin-sdk/shared';
+import type { ActivityQuery } from '../shared/types';
+
+/** Exact channel membership for AI reads; unlike the panel scope, threads are never added implicitly. */
+export interface ChannelListQuery {
+  scope: 'channels';
+  channelIds: readonly string[];
+  sinceTs: number | null;
+  untilTs: number | null;
+  authorId?: string | null;
+}
+export type TextQuery = ActivityQuery | ChannelListQuery;
 
 export interface StatsSqlScope {
   sql: string;

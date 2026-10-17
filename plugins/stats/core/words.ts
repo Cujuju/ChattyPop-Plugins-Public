@@ -1,6 +1,6 @@
 import type { PluginDb } from '@plugin-sdk/core';
 import { en } from 'stopwords-iso/stopwords-iso.json';
-import type { ActivityQuery } from '../shared/types';
+import type { TextQuery } from './query';
 import { CLOUD_WORDS, MIN_WORD_LENGTH, type WordStats } from '../shared/text';
 import { scanText } from './scan';
 import { tokenize } from './tokenize';
@@ -13,7 +13,8 @@ import { rankedTop } from './rankedTop';
 const STOP_WORDS = new Set(en);
 const eligibleWord = (word: string): boolean => Array.from(word).length >= MIN_WORD_LENGTH && !STOP_WORDS.has(word);
 
-export async function wordStats(db: PluginDb, query: ActivityQuery): Promise<WordStats> {
+export async function wordStats(db: PluginDb, query: TextQuery, signal?: AbortSignal): Promise<WordStats> {
+  signal?.throwIfAborted();
   const scope = scopeSql(db, query);
   const extent = db.prepare(`SELECT MIN(m.ts) AS firstTs, MAX(m.ts) AS lastTs FROM archive_messages m WHERE ${scope.sql}`)
     .get(...scope.params) as { firstTs: number | null; lastTs: number | null };
@@ -34,7 +35,7 @@ export async function wordStats(db: PluginDb, query: ActivityQuery): Promise<Wor
       if (message.seq < count.seq) { count.seq = message.seq; count.position = position; }
       counts.set(word, count);
     }
-  });
+  }, signal);
   const words = rankedTop([...counts].filter(([word]) => eligibleWord(word)).map(([word, { count }]) => ({ word, count })), CLOUD_WORDS,
     (a, b) => b.count - a.count || a.word.localeCompare(b.word) || counts.get(a.word)!.seq - counts.get(b.word)!.seq
       || counts.get(a.word)!.position - counts.get(b.word)!.position);

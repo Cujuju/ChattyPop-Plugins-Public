@@ -12,6 +12,7 @@ import { voiceStats } from './voice';
 import { peopleStats, personHistory } from './personHistory';
 
 export default defineCorePlugin(plugin, (ctx) => {
+  ctx.ai.tools.provide(archiveTools(ctx.storage.db));
   ctx.channels.serve({
     activityStats: (q) => activityStats(ctx.storage.db, q),
     postersPage: (q) => postersPage(ctx.storage.db, q),
@@ -26,3 +27,4 @@ export default defineCorePlugin(plugin, (ctx) => {
     conversationStats: async (q) => conversationStats(ctx.storage.db, q),
   });
 });
+import { archiveTools } from './aiTools';

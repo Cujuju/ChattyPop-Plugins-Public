@@ -1,7 +1,7 @@
 // Analytics counts over the visible archive; scope metadata and URL shares retain their existing read grants.
 import type { PluginDb } from '@plugin-sdk/core';
 import { POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsIdentity, type StatsPoster } from '../shared/types';
-import { type StatsSqlScope } from './query';
+import { type StatsSqlScope, type TextQuery } from './query';
 import { totals } from './overview';
 import { hourlyHistogram, timeStats } from './histogram';
 import { attachmentTypes, editDelay } from './messages';
@@ -10,10 +10,13 @@ import { domainTree } from './domains';
 import { periodComparison } from './comparison';
 
 /** SQL over messages `m`, with the same scope for every summary and poster page. */
-export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
+export function scopeSql(db: PluginDb, q: TextQuery): StatsSqlScope {
   const parts = ['1'];
   const params: (string | number)[] = [];
-  if (q.scope === 'channel' && q.channelId) {
+  if (q.scope === 'channels') {
+    parts.push('m.channel_id IN (SELECT value FROM json_each(?))');
+    params.push(JSON.stringify(q.channelIds));
+  } else if (q.scope === 'channel' && q.channelId) {
     // One membership range lets SQLite retain channel index order instead of merging two index scans.
     parts.push('m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)');
     params.push(q.channelId, q.channelId);
@@ -34,6 +37,10 @@ export function scopeSql(db: PluginDb, q: ActivityQuery): StatsSqlScope {
   if (q.sinceTs !== null) {
     parts.push('m.ts >= ?');
     params.push(q.sinceTs);
+  }
+  if (q.scope === 'channels' && q.untilTs !== null) {
+    parts.push('m.ts <= ?');
+    params.push(q.untilTs);
   }
   if (q.authorId != null) {
     parts.push('m.author_id = ?');
