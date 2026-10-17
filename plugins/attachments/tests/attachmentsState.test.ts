@@ -160,6 +160,19 @@ describe('a date window', () => {
     const reset = state.reloadAttachments(); await answer(rows(0, PAGE)); await reset;
   });
 
+  it('leaves a window whose files are all gone, opening the order at its start', async () => {
+    const jump = state.jumpToMonth('2026-02');
+    await answer(rows(PAGE, PAGE)); await answer(rows(PAGE - 1, 1)); await jump;
+    const reread = state.rereadAttachments();
+    expect(requests[0]!.q.startAt).toBeDefined();
+    await answer([]);
+    expect(requests[0]!.q.startAt).toBeUndefined();
+    expect(requests[0]!.q.startMonth).toBeUndefined();
+    await answer(rows(0, PAGE)); await reread;
+    expect(state.jumped()).toBe(false);
+    expect(ids().at(-1)).toBe('0');
+  });
+
   it('discards a stale window after filters reload the first page', async () => {
     const jump = state.jumpToMonth('2026-02');
     const stale = requests.shift()!;

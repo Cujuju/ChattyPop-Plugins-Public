@@ -79,15 +79,19 @@ export const places = pluginResource(plugin, 'places', () => {
 }, { guilds: {}, channels: {} } as AttachmentPlaces);
 export const months = pluginResource(plugin, 'months', () => { revision(); return [filter()]; }, [] as AttachmentMonth[]);
 
-/** The order's first `limit` rows as shown; `reachedStart`: nothing loads above them (bottom-up: the order ends there). */
-type Read = { items: AttachmentItem[]; reachedStart: boolean; moreBelow: boolean; counts: AttachmentTotals };
-const readNewest = async (limit: number, startAt?: AttachmentCursor): Promise<Read> => {
+/**
+ * The order's first `limit` rows as shown (from a jumped month's window, while one is open); `reachedStart`: nothing
+ * loads above them (bottom-up: the order ends there). `left`: the window held no rows any more, so the order's start was read.
+ */
+type Read = { items: AttachmentItem[]; reachedStart: boolean; moreBelow: boolean; counts: AttachmentTotals; left?: boolean };
+const readNewest = async (limit: number, startAt?: AttachmentCursor, windowed = selectedMonth !== null): Promise<Read> => {
   const f = filter();
-  const order = sort(), top = topDown(), windowed = selectedMonth !== null;
+  const order = sort(), top = topDown();
   const [items, counts] = await Promise.all([page({ ...f, sort: order, limit,
     ...(windowed ? startAt ? { startAt } : { startMonth: selectedMonth! } : {}) }), pluginData(() => client.totals(f), emptyTotals())]);
+  if (windowed && items.length === 0) return { ...await readNewest(limit, undefined, false), left: true };
   const complete = items.length < limit;
-  const prior = windowed && items.length > 0 ? await page({ ...f, sort: order, limit: 1, before: { ts: items[0]!.ts, id: items[0]!.id } }) : [];
+  const prior = windowed ? await page({ ...f, sort: order, limit: 1, before: { ts: items[0]!.ts, id: items[0]!.id } }) : [];
   return { items: top ? items : [...items].reverse(), reachedStart: top ? prior.length === 0 : complete,
     moreBelow: top ? !complete : prior.length > 0, counts };
 };
@@ -100,8 +104,9 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
     const kept = read as Read | null;
     batchWrites(() => {
       if (kept) { setTotals(kept.counts); setMoreBelow(kept.moreBelow); }
+      if (kept?.left) { selectedMonth = null; setJumped(false); }
       setFailure(null);
-      if (opened) setLoads((n) => n + 1);
+      if (opened || kept?.left) setLoads((n) => n + 1);
     });
   } catch (error) { if (generation === readGeneration) setFailure(String(error)); }
 }
