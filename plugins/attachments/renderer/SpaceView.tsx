@@ -7,7 +7,7 @@ import { KIND_ICON } from './AttachmentPicture';
 import styles from './Space.module.css';
 
 const DIMENSIONS: { value: BreakdownBy; label: string }[] = [
-  { value: 'guild', label: 'By server' }, { value: 'channel', label: 'Channel' }, { value: 'person', label: 'Person' }, { value: 'kind', label: 'Kind' },
+  { value: 'guild', label: 'Server' }, { value: 'channel', label: 'Channel' }, { value: 'person', label: 'Person' }, { value: 'kind', label: 'Kind' },
 ];
 const COUNT = new Intl.NumberFormat();
 const EMPTY_NAME = { color: null, gradient: null, font: null };
@@ -27,7 +27,7 @@ export function SpaceView() {
   const label = (row: AttachmentBreakdown) => breakdownBy() === 'channel'
     ? `${channelById(row.key ?? '') ? channelSigil(channelById(row.key ?? '')!) : '#'}${row.label}` : row.label;
   return <div class={styles.space} aria-label="Attachment disk space">
-    <SegGroup role="radiogroup" ariaLabel="Group disk space" value={breakdownBy()} onChange={(by: BreakdownBy) => setBreakdownBy(by)}>
+    <SegGroup role="radiogroup" ariaLabel="Group disk space by" value={breakdownBy()} onChange={(by: BreakdownBy) => setBreakdownBy(by)}>
       <For each={DIMENSIONS}>{(d) => <SegButton value={d.value} label={d.label} size="sm" />}</For>
     </SegGroup>
     <Show when={!breakdown.loading && !breakdown.failure}>

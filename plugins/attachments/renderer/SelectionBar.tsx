@@ -1,6 +1,6 @@
 import { Show, createMemo } from 'solid-js';
 import { HeaderButton, Icon, canSaveAttachmentsToFolder, failureNotice, formatBytes, look, showAttachmentFolder } from '@plugin-sdk/renderer/kit';
-import { canCompress, compressFiles, deleteFiles, deleteLabel, diskBytes } from './actions';
+import { canCompress, compressFiles, deleteFiles, deleteLabel, diskBytes, filesCount } from './actions';
 import { compression, compressionJob, selection, type AttachmentSelection } from './selection';
 import { dismissFolderSave, folderSaveJob, saveSelectedToFolder } from './folderSave';
 import styles from './Attachments.module.css';
@@ -15,7 +15,7 @@ export function SelectionBar(props: { selection?: AttachmentSelection }) {
     <div class={`${styles.selectionBar} ${look.band}`}>
       <Show when={folderSaveJob()}>{(job) => <div class={styles.saveStatus}>
         <span class={`${styles.selectionText} ${look.text}`} data-size="xs" role="status" aria-live="polite">
-          <Show when={job().running} fallback={job().error ? `Couldn’t save files: ${job().error}` : `Saved ${job().result?.saved ?? 0} files to ${job().result?.folder ?? ''}${job().result?.failed ? ` · ${job().result!.failed} failed` : ''}`}>
+          <Show when={job().running} fallback={job().error ? `Couldn’t save files: ${job().error}` : `Saved ${filesCount(job().result?.saved ?? 0)} to ${job().result?.folder ?? ''}${job().result?.failed ? ` · ${job().result!.failed} failed` : ''}`}>
             Saving {Math.min(job().done + 1, job().total)} of {job().total}…
           </Show>
         </span>
