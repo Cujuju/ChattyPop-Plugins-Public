@@ -18,6 +18,7 @@ import type { SummaryProviders } from './providers';
 /** Activates the complete summary service through the host context. */
 export function activateSummaries(ctx: CoreContext<typeof plugin>) {
   ctx.storage.migrate(SUMMARY_MIGRATIONS);
+  ctx.ai.tools.provide(archiveTools(ctx.storage.db));
   const prefs = () => ctx.preferences.get('settings');
   const emit = (event: SummaryEvent): void => {
     if (event.type === 'summary-progress') ctx.channels.emit('progress', event);
@@ -84,3 +85,4 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
 }
 
 export default defineCorePlugin(plugin, activateSummaries);
+import { archiveTools } from './aiTools';

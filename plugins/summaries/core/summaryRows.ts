@@ -7,6 +7,7 @@ import { COMPARISONS_TABLE, SUMMARIES_TABLE, VISIBLE_SUMMARIES } from './schema'
 import type { CoverageSpan, PluginDb } from '@plugin-sdk/core';
 import { sumCosts } from '@plugin-sdk/core';
 import type { LogLine } from './summaryJev';
+import type { ArchiveToolScope } from '@plugin-sdk/core';
 
 export interface SummaryRow {
   id: number;
@@ -235,11 +236,20 @@ export function summaryUsageSince(db: PluginDb, provider: ProviderId, sinceTs: n
 }
 
 /** Summary runs newest first, keyset-paged by (created_at, id). */
-export function summaryPage(db: PluginDb, q: SummaryPageQuery): Summary[] {
+export function summaryPage(db: PluginDb, q: SummaryPageQuery, scope?: ArchiveToolScope): Summary[] {
   const b = q.before;
+  const where = b ? ['(created_at, id) < (?, ?)'] : ['1'];
+  const params: (string | number)[] = b ? [b.createdAt, b.id] : [];
+  if (scope) {
+    where.push('json_array_length(s.channel_ids) > 0');
+    where.push('NOT EXISTS (SELECT 1 FROM json_each(s.channel_ids) c WHERE c.value NOT IN (SELECT value FROM json_each(?)))');
+    params.push(JSON.stringify(scope.channelIds));
+    if (scope.since !== null) { where.push('s.until_ts >= ?'); params.push(scope.since); }
+    if (scope.until !== null) { where.push('s.since_ts <= ?'); params.push(scope.until); }
+  }
   const rows = db
-    .prepare(`SELECT * FROM ${VISIBLE_SUMMARIES} s ${b ? 'WHERE (created_at, id) < (?, ?)' : ''} ORDER BY created_at DESC, id DESC LIMIT ?`)
-    .all(...(b ? [b.createdAt, b.id] : []), q.limit) as SummaryRow[];
+    .prepare(`SELECT * FROM ${VISIBLE_SUMMARIES} s WHERE ${where.join(' AND ')} ORDER BY created_at DESC, id DESC LIMIT ?`)
+    .all(...params, q.limit) as SummaryRow[];
   return rows.map(toSummary);
 }
 

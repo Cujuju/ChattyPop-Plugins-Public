@@ -93,7 +93,7 @@ export function summaryRuleHarness(now: () => number = Date.now) {
   /** A message from `author` in `channel`, arriving `via` (live gateway by default); returns it. */
   const say = (content: string, o: { author?: string; channel?: string; via?: Arrival } = {}): RawMessage => {
     const m = rawMessage(o.channel ?? 'c1', nextTs(), content, from(o.author ?? 'u2'));
-    if ((o.via ?? ARRIVAL.gateway) === ARRIVAL.sync) archive.ingestSyncPage(m.channel_id, [m], 'newer', false);
+    if ((o.via ?? ARRIVAL.gateway) === ARRIVAL.sync) archive.ingestSyncPage(m.channel_id, [m], 'newer', false, null);
     else archive.ingestMessages([m], o.via ?? ARRIVAL.gateway);
     return m;
   };

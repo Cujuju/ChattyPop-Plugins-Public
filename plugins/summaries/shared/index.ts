@@ -50,6 +50,7 @@ export interface SummaryEvents {
 /** Stable identities and legacy storage adoption. */
 
 export const plugin = definePlugin({
+  aiTools: ['read'],
   coverage: {
     noun: 'summary',
     past: 'summarized',
