@@ -132,6 +132,8 @@ export const rereadAttachments = (): Promise<void> => {
   const span = attachments.items.length;
   const first = topDown() ? attachments.items[0] : attachments.items.at(-1);
   return apply((keep) => list.update(() => readNewest(Math.max(ATTACHMENT_PAGE_SIZE, span), first ? cursorAt(first) : undefined), (r, items) => {
+    // Another window opened meanwhile (a jump, a filter): this read is of the one it replaced, and its own read is fresh.
+    if ((topDown() ? items[0] : items.at(-1))?.id !== first?.id) return [...items];
     if (items.length !== span) {
       queueMicrotask(() => void rereadAttachments());
       return [...items];

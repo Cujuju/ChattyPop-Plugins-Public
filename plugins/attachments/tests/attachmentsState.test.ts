@@ -173,6 +173,20 @@ describe('a date window', () => {
     expect(ids().at(-1)).toBe('0');
   });
 
+  it('keeps a jump that finished while an archive reread of the previous window was reading', async () => {
+    const opened = state.reloadAttachments(); await answer(rows(0, PAGE)); await opened;
+    const jump = state.jumpToMonth('2026-02');
+    const jumpRequest = requests.shift()!;
+    const reread = state.rereadAttachments();
+    const rereadRequest = requests.shift()!;
+    jumpRequest.resolve(rows(PAGE, PAGE)); await settle(); await answer(rows(PAGE - 1, 1)); await jump;
+    // Read as a window (the jump's month was chosen), so its row before the window is asked for too.
+    rereadRequest.resolve(rows(0, PAGE)); await settle(); await answer([]); await reread;
+    expect(state.jumped()).toBe(true);
+    expect(ids().at(-1)).toBe(String(PAGE));
+    const reset = state.reloadAttachments(); await answer(rows(0, PAGE)); await reset;
+  });
+
   it('discards a stale window after filters reload the first page', async () => {
     const jump = state.jumpToMonth('2026-02');
     const stale = requests.shift()!;
