@@ -10,6 +10,8 @@ import {
 import { filesCount } from './actions';
 import { KIND_ICON } from './AttachmentPicture';
 import styles from './AttachmentFilters.module.css';
+import { DateJump } from './DateJump';
+import { SavedFilters } from './SavedFilters';
 
 const KIND_LABEL: Record<AttachmentKind, string> = { image: 'Images', video: 'Video', audio: 'Audio', file: 'Files' };
 const PRESENCE_OPTIONS = [{ value: 'stored', label: 'On this PC' }, { value: 'gone', label: 'Not on this PC' }, { value: 'any', label: 'All' }];
@@ -55,7 +57,7 @@ export function FilterBar() {
   return (
     <div class={`${styles.filters} ${look.ruleBelow}`} data-rule="subtle">
       <SearchSelect class={styles.field} label="Who" value={who() ?? ''} options={whoOptions()} onChange={(value) => setWho(value || null)} />
-      <input type="search" class={styles.field} placeholder="File name" aria-label="File name" value={name()} onInput={(e) => setName(e.currentTarget.value)} />
+      <input type="search" class={styles.field} placeholder="Name or text in files" aria-label="Search file names and text" value={name()} onInput={(e) => setName(e.currentTarget.value)} />
       <Select class={styles.select} label="Minimum file size" value={String(minBytes())}
         options={MIN_SIZE_OPTIONS.map((o) => ({ ...o, value: String(o.value) }))} onChange={(value) => setMinBytes(Number(value))} />
       <Select class={styles.select} label="Storage" value={presence()} options={PRESENCE_OPTIONS} onChange={(value) => setPresence(value as AttachmentPresence)} />
@@ -72,6 +74,8 @@ export function FilterBar() {
           <SegButton value="bottom" label="Bottom" size="sm" ariaLabel="Bottom, as a chat: the order runs up" />
         </SegGroup>
       </span>
+      <SavedFilters />
+      <DateJump />
       <Show when={view() === 'grid'}>
         {/* Not a label: a click on its words would press the picker's first button. */}
         <span class={`${styles.toggle} ${look.toggleLabel} ${look.text}`} data-size="xs" data-tone="secondary" data-font="sans"
