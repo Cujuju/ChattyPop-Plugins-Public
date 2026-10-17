@@ -29,7 +29,7 @@ export async function completeTurn(owner: CodexConnection, connection: Connectio
     req.onEvent?.(event);
   };
   const answer = answerStream(emit);
-  const joined = !req.schema && (req.tools !== undefined || req.onEvent !== undefined);
+  const joined = !req.schema && (req.history !== undefined || req.tools !== undefined || req.onEvent !== undefined);
   const streamed = new Set<string>();
   let text = '';
   let total: TokenUsage | undefined;

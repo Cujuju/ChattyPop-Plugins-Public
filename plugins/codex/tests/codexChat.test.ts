@@ -29,6 +29,16 @@ describe('Codex chat completions', () => {
     expect((await c.requests()).filter((request) => request.method === 'initialize')).toHaveLength(1);
   });
 
+  it.each([[], [{ role: 'user' as const, text: 'Earlier question' }]].map((history) => ({ history })))('joins every agent message for history-only requests with history $history', async ({ history }) => {
+    const c = await harness();
+    const result = c.provider.complete({ ...REQUEST, history });
+    const [thread] = await c.threads();
+    await c.message(thread!, 'First', 'first');
+    await c.message(thread!, 'Last', 'last');
+    await c.finish(thread!);
+    await expect(result).resolves.toEqual({ text: 'First\n\nLast' });
+  });
+
   it('sends history as a transcript alongside images and effort', async () => {
     const c = await harness();
     const history = [{ role: 'user' as const, text: 'Earlier question' }, { role: 'assistant' as const, text: 'Earlier answer' }];
@@ -80,11 +90,11 @@ describe('Codex chat completions', () => {
     expect(joinedText(events)).toBe('first\n\nlast');
   });
 
-  it('keeps schema results on the last-message path even with onEvent', async () => {
+  it.each([undefined, [], [{ role: 'user' as const, text: 'Earlier question' }]].map((history) => ({ history })))('keeps schema results on the last-message path even with onEvent and history $history', async ({ history }) => {
     const c = await harness();
     const onEvent = vi.fn();
     const schema = { type: 'object', properties: { answer: { type: 'number' } } };
-    const result = c.provider.complete({ ...REQUEST, schema, onEvent });
+    const result = c.provider.complete({ ...REQUEST, schema, onEvent, history });
     const [thread] = await c.threads();
     await c.message(thread!, 'commentary', 'first');
     await c.delta(thread!, 'last', '{"answer":1}');
