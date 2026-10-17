@@ -2,17 +2,19 @@ import { createEffect, createSignal, on } from 'solid-js';
 import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource, batchWrites, containedRoot } from '@plugin-sdk/renderer';
 import { createPagedList } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
-import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentMonth, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
+import { emptyTotals, type AttachmentBreakdown, type BreakdownBy, type AttachmentCursor, type AttachmentItem, type AttachmentMonth, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
 import { selection } from './selection';
 import { ATTACHMENT_PAGE_SIZE, WHO_OPTIONS_MAX, createAttachmentFilters } from './filterState';
 export * from './filterState';
 
 export const { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
-  uncompressed, setUncompressed, name, setName, sort, setSort, filter, unplaced, filterCount, resetFilters, queryName, snapshot, applySnapshot } = createAttachmentFilters();
+  uncompressed, setUncompressed, repeated, setRepeated, name, setName, sort, setSort, filter, unplaced, filterCount, resetFilters, queryName, snapshot, applySnapshot } = createAttachmentFilters();
 export const [savedFilters, setSavedFilters] = pluginPreference(plugin, 'savedFilters');
 export const [view, setView] = pluginPreference(plugin, 'view');
 export const [hoverZoom, setHoverZoom] = pluginPreference(plugin, 'hoverZoom');
 export const [anchor, setAnchor] = pluginPreference(plugin, 'anchor');
+export const [spaceView, setSpaceView] = createSignal(false);
+export const [breakdownBy, setBreakdownBy] = createSignal<BreakdownBy>('guild');
 /** The order runs down from the top (a file browser's), not up from the bottom (a chat's). */
 export const topDown = (): boolean => anchor() === 'top';
 
@@ -60,6 +62,10 @@ export const [failure, setFailure] = createSignal<string | null>(null);
 let readGeneration = 0;
 /** Raised when the archive or privacy changes what the counts read; a filter change refetches through the filter. */
 const [revision, setRevision] = createSignal(0);
+export const breakdown = pluginResource(plugin, 'breakdown', () => {
+  revision();
+  return spaceView() ? [filter(), breakdownBy()] : null;
+}, [] as AttachmentBreakdown[]);
 
 /** The Who picker's people within the other filters, most bytes on this PC first. */
 export const people = pluginResource(plugin, 'people', () => {
@@ -132,13 +138,14 @@ export const rereadAttachments = (): Promise<void> => {
 
 containedRoot(() => {
   createEffect(() => selection.retain(attachments.items));
-  createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, queryName, sort, anchor, () => callable(plugin, 'page')],
+  createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, repeated, queryName, sort, anchor, () => callable(plugin, 'page')],
     () => void reloadAttachments(), { defer: true }));
 });
 onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, () => { setRevision((n) => n + 1); void rereadAttachments(); });
 // Hidden files leave at once, before the reread returns.
 onAppEvent('privacy-changed', () => {
   selection.clear();
+  breakdown.mutate([]);
   list.setItems([]);
   setTotals(emptyTotals());
   setRevision((n) => n + 1);

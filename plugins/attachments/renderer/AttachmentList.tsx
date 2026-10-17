@@ -72,6 +72,7 @@ export function AttachmentList(props: { item: AttachmentItem; keyboard?: Attachm
       </div>
       <span class={`${styles.listKind} ${look.text}`} data-size="2xs" data-tone="muted" title={[props.item.kind, ...itemMarks(props.item)].join(' · ')}>
         {[props.item.kind, ...itemMarks(props.item)].join(' · ')}
+        <Show when={props.item.postings > 1}> · {props.item.postings}×</Show>
       </span>
       <span class={`${styles.listSize} ${look.text}`} data-size="xs" data-figures="tabular"
         title={props.item.compressed ? `now ${bytes()}, was ${formatBytes(props.item.size ?? 0)}` : undefined}>{bytes()}</span>

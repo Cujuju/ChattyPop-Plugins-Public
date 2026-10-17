@@ -3,6 +3,7 @@ import { plugin } from '../shared';
 import { attachmentPage, personFiles } from './feed';
 import { attachmentPeople, attachmentPlaces, attachmentTotals } from './totals';
 import { attachmentMonths } from './months';
+import { attachmentBreakdown, attachmentPostings } from './space';
 
 export default defineCorePlugin(plugin, (ctx) => {
   const db = ctx.storage.db;
@@ -13,5 +14,7 @@ export default defineCorePlugin(plugin, (ctx) => {
     places: (f) => attachmentPlaces(db, f),
     months: (f) => attachmentMonths(db, f),
     sharedBy: (q) => personFiles(db, ctx.archive.messages, q),
+    postings: (sha) => attachmentPostings(db, sha),
+    breakdown: (f, by) => attachmentBreakdown(db, f, by),
   });
 });

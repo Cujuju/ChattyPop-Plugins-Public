@@ -7,6 +7,7 @@ import type { AttachmentItem } from '../shared/types';
 import { compression, compressionJob, freeSelection, selection, type AttachmentSelection } from './selection';
 import { setWhere, setWho, where } from './state';
 import { createGallery, hasPicture, type GallerySource } from './gallery';
+import { setPostingsTarget } from './postingsTarget';
 
 export const filesCount = (count: number): string => count === 1 ? '1 file' : `${count} files`;
 export const deleteLabel = (count: number): string => count === 1 ? 'Delete local copy' : 'Delete local copies';
@@ -129,6 +130,10 @@ export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelecti
     { label: 'Show in Archive', icon: 'archive', run: () => { void openArchive(item.channelId, item.messageId); } },
   ];
   if (canSaveAttachment(attachment)) open.push({ label: 'Download', icon: 'download', run: () => saveAttachmentFile(attachment) });
+  if (item.postings > 1) {
+    const tile = anchor.closest('[data-attachment-id]') ?? anchor;
+    open.push({ label: `Other postings (${item.postings - 1})`, icon: 'copy', run: () => setPostingsTarget({ item, anchor: tile }) });
+  }
   const scope: MenuItem[] = [{ label: 'Only this channel', icon: 'filter', run: () => { setWhere({ by: 'channel', id: item.channelId }); } }];
   if (item.authorId) scope.push({ label: 'Only this person', icon: 'person', run: () => { setWho(item.authorId); } });
   const change: MenuItem[] = [];

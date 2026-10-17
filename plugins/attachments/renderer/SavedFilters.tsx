@@ -13,11 +13,12 @@ const SORT_NAME: Record<AttachmentSortKey, Record<AttachmentSort['dir'], string>
 const defaultName = (s: AttachmentFilterSnapshot): string => {
   const parts: string[] = s.kinds.map((k) => ({ image: 'Images', video: 'Videos', audio: 'Audio', file: 'Files' })[k]);
   if (s.place) parts.push(s.place.by === 'channel' ? `#${channelById(s.place.id)?.name ?? s.place.id}` : directory().find((g) => g.id === s.place!.id)?.name ?? s.place.id);
-  if (s.who) parts.push(people().find((p) => p.id === s.who)?.name || s.who);
+  if (s.who !== null) parts.push(s.who ? people().find((p) => p.id === s.who)?.name || s.who : 'Unknown person');
   if (s.range !== 'all') parts.push(RANGE_NAME[s.range]);
   if (s.minBytes) parts.push(`At least ${formatBytes(s.minBytes)}`);
   if (s.presence !== 'stored') parts.push(s.presence === 'gone' ? 'Not on this PC' : 'All storage');
   if (s.uncompressed) parts.push('Can compress');
+  if (s.repeated) parts.push('Posted more than once');
   if (s.name) parts.push(s.name);
   if (s.sort.key !== 'date' || s.sort.dir !== 'desc') parts.push(SORT_NAME[s.sort.key][s.sort.dir]);
   return parts.join(' · ') || 'All stored files';

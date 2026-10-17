@@ -17,6 +17,10 @@
   min-height: 0;
 }
 
+/* Keep the virtual log mounted while Space is shown, preserving measurements and the file position. */
+.fileView { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; }
+.fileView[hidden] { display: none; }
+
 /* Owns the scroll. No padding: rows are offset-measured. Relative so .measure spans its content width. */
 .scroller {
   position: relative;
@@ -306,6 +310,9 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+.saveMeter { flex: 1 1 0; min-width: var(--cp-attachment-picker-min); }
+.saveStatus { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cp-space-3); width: 100%; }
 
 .selectionActions {
   display: flex;

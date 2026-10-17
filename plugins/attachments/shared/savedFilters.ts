@@ -9,7 +9,7 @@ export type AttachmentRange = keyof typeof ATTACHMENT_RANGES;
 export type AttachmentPlace = { by: 'guild' | 'channel'; id: string } | null;
 export interface AttachmentFilterSnapshot {
   place: AttachmentPlace; who: string | null; kinds: AttachmentKind[]; range: AttachmentRange; minBytes: number;
-  presence: AttachmentPresence; uncompressed: boolean; name: string; sort: AttachmentSort;
+  presence: AttachmentPresence; uncompressed: boolean; repeated: boolean; name: string; sort: AttachmentSort;
 }
 export interface SavedAttachmentFilter { id: string; name: string; filters: AttachmentFilterSnapshot }
 const record = (v: unknown): Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
@@ -21,10 +21,11 @@ export function normalizeFilterSnapshot(value: unknown): AttachmentFilterSnapsho
   const placeId = nonblank(place.id);
   return {
     place: placeId && (place.by === 'guild' || place.by === 'channel') ? { by: place.by, id: placeId } : null,
-    who: nonblank(v.who), kinds: ATTACHMENT_KINDS.filter((k) => Array.isArray(v.kinds) && v.kinds.includes(k)),
+    // '' is the unknown-person filter.
+    who: typeof v.who === 'string' ? v.who.trim() : null, kinds: ATTACHMENT_KINDS.filter((k) => Array.isArray(v.kinds) && v.kinds.includes(k)),
     range: typeof v.range === 'string' && Object.hasOwn(ATTACHMENT_RANGES, v.range) ? v.range as AttachmentRange : 'all',
     minBytes: typeof v.minBytes === 'number' && Number.isFinite(v.minBytes) && v.minBytes > 0 ? v.minBytes : 0,
-    presence: v.presence === 'any' || v.presence === 'gone' ? v.presence : 'stored', uncompressed: v.uncompressed === true,
+    presence: v.presence === 'any' || v.presence === 'gone' ? v.presence : 'stored', uncompressed: v.uncompressed === true, repeated: v.repeated === true,
     name: nonblank(v.name) ?? '',
     sort: { key: sort.key === 'date' || sort.key === 'size' || sort.key === 'name' || sort.key === 'kind' ? sort.key : NEWEST.key,
       dir: sort.dir === 'asc' ? 'asc' : NEWEST.dir },

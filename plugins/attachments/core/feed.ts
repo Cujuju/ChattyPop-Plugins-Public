@@ -43,8 +43,14 @@ export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): Attachment
       a.compressed_at AS compressedAt, a.removed_at AS removedAt
     ${ATTACHMENT_FROM} WHERE ${w.sql}${past}
     ORDER BY ${column ? `${column} ${dir}, ` : ''}a.ts ${dir}, a.id ${dir} LIMIT ?`)
-    .all(...w.params, ...args, q.limit) as AttachmentRow[];
-  return q.before ? rows.reverse() : rows;
+    .all(...w.params, ...args, q.limit) as Omit<AttachmentRow, 'postings'>[];
+  const hashes = [...new Set(rows.flatMap((r) => r.sha256 ?? []))];
+  // Count each page hash once, through the SHA index and privacy view; no full-archive grouping per page.
+  const counts = hashes.length ? db.prepare(`SELECT sha256, COUNT(*) AS postings FROM archive_attachments
+    WHERE sha256 IN (SELECT value FROM json_each(?)) GROUP BY sha256`).all(JSON.stringify(hashes)) as { sha256: string; postings: number }[] : [];
+  const postings = new Map(counts.map((r) => [r.sha256, r.postings]));
+  const items = rows.map((r) => ({ ...r, postings: r.sha256 ? postings.get(r.sha256) ?? 1 : 1 }));
+  return q.before ? items.reverse() : items;
 }
 
 /** Archive attachment metadata supplies local edits and animation flags; orphan rows retain safe filename/MIME fallbacks. */
