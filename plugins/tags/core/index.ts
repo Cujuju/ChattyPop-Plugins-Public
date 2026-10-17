@@ -12,6 +12,7 @@ export default defineCorePlugin(
   plugin,
   (ctx) => {
     const db = ctx.storage.db;
+    ctx.ai.tools.provide(archiveTools(db));
     const trigger = ctx.rules.trigger('tags.applied');
     const tags = new TagService(
       db,
@@ -71,3 +72,4 @@ export default defineCorePlugin(
     return () => tags.dispose();
   },
 );
+import { archiveTools } from './aiTools';

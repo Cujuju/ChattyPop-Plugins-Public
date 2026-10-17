@@ -3,6 +3,8 @@ import { TAGS, MESSAGE_TAGS } from './tables';
 import { validateTagInput, type MessageTagChip, type Tag, type TagInput, type TaggedMessage } from '../shared/types';
 import type { CustomJevQuestion } from '@plugin-sdk/shared';
 import { fromJson, toJson, type PluginDb } from '@plugin-sdk/core';
+import type { ArchiveToolScope } from '@plugin-sdk/core';
+import { messageScope } from './toolSupport';
 
 /** Stored tag definition. */
 export interface TagRow {
@@ -42,11 +44,12 @@ const toTag = (r: TagRow & { count: number }): Tag => ({
 export class TagStore {
   constructor(private readonly db: PluginDb) {}
 
-  list(): Tag[] {
+  list(scope?: ArchiveToolScope): Tag[] {
+    const scoped = scope ? messageScope(scope) : { sql: '1', params: [] };
     return (
       this.db
-        .prepare(`SELECT t.*, (SELECT COUNT(*) FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id WHERE mt.tag_id = t.id AND mt.${SHOWN_TAG_SQL}) AS count FROM ${TAGS} t ORDER BY t.name`)
-        .all() as (TagRow & { count: number })[]
+        .prepare(`SELECT t.*, (SELECT COUNT(*) FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id WHERE mt.tag_id = t.id AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql}) AS count FROM ${TAGS} t ORDER BY t.name`)
+        .all(...scoped.params) as (TagRow & { count: number })[]
     ).map(toTag);
   }
 
@@ -149,16 +152,17 @@ export class TagStore {
   }
 
   /** Messages carrying a tag, newest first. */
-  tagged(tagId: number, limit: number): TaggedMessage[] {
+  tagged(tagId: number, limit: number, scope?: ArchiveToolScope): TaggedMessage[] {
+    const scoped = scope ? messageScope(scope) : { sql: '1', params: [] };
     return this.db
       .prepare(
       `SELECT m.id AS messageId, m.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS channelName, m.ts,
                 m.author_name AS author, m.content, mt.state AS source, mt.value
          FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id
          LEFT JOIN archive_all_channels c ON c.id = m.channel_id
-         WHERE mt.tag_id = ? AND mt.${SHOWN_TAG_SQL} ORDER BY m.ts DESC LIMIT ?`,
+         WHERE mt.tag_id = ? AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql} ORDER BY m.ts DESC, m.id DESC LIMIT ?`,
     )
-      .all(tagId, limit) as TaggedMessage[];
+      .all(tagId, ...scoped.params, limit) as TaggedMessage[];
   }
 
   private assertNameFree(name: string, exceptId?: number): void {

@@ -31,6 +31,7 @@ export interface TagsEvents {
 }
 /** Descriptor preserves the legacy panel, rule names and stored ids. */
 export const plugin = definePlugin({
+  aiTools: ['list', 'messages'],
   manifest: {
     id: 'tags',
     name: 'Tags',
