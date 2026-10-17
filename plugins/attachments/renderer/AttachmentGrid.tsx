@@ -30,19 +30,20 @@ function clipBox(el: HTMLElement): Box {
 
 export function AttachmentGrid(props: { item: AttachmentItem; selection?: AttachmentSelection; keyboard?: AttachmentKeyboard; openGallery?: (item: AttachmentItem) => void }) {
   const selected = (): boolean => (props.selection ?? selection).ids().has(props.item.id);
+  const previewing = (): boolean => props.keyboard?.preview() === props.item.id;
   const size = (): string => formatBytes(props.item.sortBytes);
   // Measured as the pointer enters, so the zoom fits where the tile is now.
   const [zoom, setZoom] = createSignal<TileZoom | null>(null);
   const [hovered, setHovered] = createSignal(false);
   let cell!: HTMLButtonElement;
   const measureZoom = (): void => { setZoom(zoomWithin(cell.getBoundingClientRect(), clipBox(cell), hoverZoom())); };
-  createEffect(() => { if (props.keyboard?.preview() === props.item.id) measureZoom(); });
+  createEffect(() => { if (previewing()) measureZoom(); });
   const title = (): string => `${props.item.filename} · ${size()} · ${props.item.authorName || 'Unknown person'} · #${props.item.channelName}${props.item.guildName ? ` · ${props.item.guildName}` : ''}`;
   return (
     <button type="button" class={`${styles.cell} ${look.mediaCell}`} aria-pressed={selected()} aria-label={title()}
       ref={(el) => { cell = el; const remove = props.keyboard?.register(props.item.id, el); onCleanup(() => remove?.()); }}
       tabIndex={props.keyboard ? props.keyboard.tabId() === props.item.id ? 0 : -1 : 0}
-      data-preview={props.keyboard?.preview() === props.item.id ? true : undefined}
+      data-preview={previewing() ? true : undefined}
       onFocus={() => props.keyboard?.focused(props.item.id)}
       onBlur={() => props.keyboard?.clearPreview()}
       onKeyDown={(e) => props.keyboard?.keydown(e, props.item)}
@@ -53,7 +54,8 @@ export function AttachmentGrid(props: { item: AttachmentItem; selection?: Attach
       onPointerLeave={() => { setHovered(false); props.keyboard?.clearPreview(); }}
       onClick={(e) => clickAttachment(e, props.item, false, props.selection, props.openGallery)}
       onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item, props.selection, props.openGallery); }}>
-      <AttachmentPicture item={props.item} zoom={zoom()} hovered={hovered()} />
+      {/* A keyboard preview (Space) shows the tile as hovering does, video playback included. */}
+      <AttachmentPicture item={props.item} zoom={zoom()} hovered={hovered() || previewing()} />
       <span class={styles.cornerEnd}><span class={`${look.durationBadge} ${look.text}`} data-size="2xs" data-figures="tabular">{size()}</span></span>
       <span class={styles.cornerStart}>
         <Show when={props.item.postings > 1}><span class={`${look.tag} ${look.text}`} data-size="2xs">{props.item.postings}×</span></Show>
