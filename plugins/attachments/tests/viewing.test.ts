@@ -44,6 +44,19 @@ function harness(initial: AttachmentItem[], before = false, after = false) {
 }
 
 describe('gallery visual reading order', () => {
+  it('loads one page ahead per open, however many pages hold no pictures', async () => {
+    const h = harness([item('only')], false, true);
+    let page = 0;
+    h.load.mockImplementation(async () => {
+      h.rows([item('only'), ...Array.from({ length: ++page }, (_, i) => item(`file${i}`, { kind: 'file' }))]);
+      h.gallery.sync(); // as the panel's items effect does
+      return 1;
+    });
+    h.gallery.open(item('only'));
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    expect(h.load).toHaveBeenCalledTimes(1);
+  });
+
   it('steps images and videos in panel order, skipping missing pictures and spoilers', () => {
     const rows = [item('a'), item('file', { kind: 'file' }), item('spoiler', { spoiler: true }), item('gone', { status: 'evicted' }),
       item('no-hash', { sha256: null }), item('b', { kind: 'video' }), item('c')];

@@ -43,6 +43,7 @@ export function createGallery(source: GallerySource) {
     return true;
   };
   let loading: Promise<void> | null = null;
+  /** One page ahead per open or step: a run of files without pictures loads only as the reader steps into it. */
   const warm = (): void => {
     if (loading || id === null) return;
     const items = pictures();
@@ -53,7 +54,7 @@ export function createGallery(source: GallerySource) {
     const mine = generation;
     loading = source.load(direction).then((added) => {
       loading = null;
-      if (mine === generation && sync() && added > 0) warm();
+      if (mine === generation && added > 0) sync();
     }, () => { loading = null; });
   };
   const step = async (direction: Direction): Promise<void> => {
@@ -77,7 +78,8 @@ export function createGallery(source: GallerySource) {
     } finally { moving = false; }
   };
   return {
-    sync: (): void => { if (sync()) warm(); },
+    /** Items changed: refresh the viewer only; loading ahead waits for the reader to open or step. */
+    sync: (): void => { sync(); },
     open(item: AttachmentItem): void {
       if (!hasPicture(item)) return;
       generation++;
