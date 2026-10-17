@@ -32,6 +32,7 @@ export function AttachmentsPanel() {
   const [trackWidth, setTrackWidth] = createSignal(INITIAL_ESTIMATE_PX);
   let measure!: HTMLDivElement;
   let scroller!: HTMLDivElement;
+  let panel: HTMLElement | undefined;
   const rows = createMemo<Row[]>(() => {
     const out: Row[] = [];
     const count = view() === 'grid' ? cols() : 1;
@@ -114,7 +115,7 @@ export function AttachmentsPanel() {
   };
   createEffect(on(loads, () => queueMicrotask(toStart)));
   return (
-    <section class="cp-panel" aria-label="Attachments" on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}>
+    <section ref={panel} class="cp-panel" aria-label="Attachments" on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}>
       <PanelHeader section={ATTACHMENTS_PANEL} collapsible title="Attachments">
         <HeaderMeta>{filesCount(totals().count)} · {formatBytes(totals().bytes)}</HeaderMeta>
         <HeaderTools />
@@ -157,7 +158,7 @@ export function AttachmentsPanel() {
                 onClick={() => { vlog.holdRow(null); if (jumped()) void reloadAttachments(); else toStart(); }} />
             </Show>
           </div>
-          <PostingsHost />
+          <PostingsHost surface={() => panel} />
         </div>
       </div>
     </section>

@@ -5,6 +5,7 @@ import { plugin } from '../shared';
 import type { AttachmentItem } from '../shared/types';
 import { PERSON_FILES_PAGE } from './state';
 import { AttachmentGrid } from './AttachmentGrid';
+import { PostingsHost } from './PostingsPopover';
 import { compressionJob, createSelection } from './selection';
 import { SelectionBar } from './SelectionBar';
 import { folderSaveJob } from './folderSave';
@@ -19,6 +20,7 @@ export function PersonFiles(props: { userId: string }) {
   const refresh = (): void => void files.refetch();
   const offs = [onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, refresh), onAppEvent('privacy-changed', () => { selection.clear(); files.mutate([]); refresh(); })];
   onCleanup(() => offs.forEach((off) => off()));
+  let grid: HTMLDivElement | undefined;
   return (
     <>
       <Show when={selection.selecting() || compressionJob() || folderSaveJob()}><SelectionBar selection={selection} /></Show>
@@ -27,10 +29,11 @@ export function PersonFiles(props: { userId: string }) {
           {files.loading ? 'Loading…' : files.failure ? 'Their files couldn’t be read.' : 'They haven’t shared files in the archive.'}
         </p>
       }>
-        <div class={styles.personGrid} on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}><For each={files()}>{(item) => <AttachmentGrid item={item} selection={selection} />}</For></div>
+        <div ref={grid} class={styles.personGrid} on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}><For each={files()}>{(item) => <AttachmentGrid item={item} selection={selection} />}</For></div>
         <Show when={files().length >= limit()}><button type="button" class={`cp-button ${styles.older}`} disabled={files.loading}
           onClick={() => setLimit((n) => n + PERSON_FILES_PAGE)}>Show older</button></Show>
       </Show>
+      <PostingsHost surface={() => grid} />
     </>
   );
 }

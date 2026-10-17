@@ -60,8 +60,10 @@ export function PostingsPopover(props: { item: AttachmentItem; anchor: Element; 
   </div></Portal>;
 }
 
-/** The panel's one postings popover, for whichever file asked last. */
-export function PostingsHost() {
-  return <Show when={postingsTarget()} keyed>{(target) =>
+/** The postings popover for a file asked about within `surface` (the panel, a person's files); cleared as that surface closes. */
+export function PostingsHost(props: { surface: () => Element | undefined }) {
+  const mine = (): boolean => { const target = postingsTarget(); return !!target && !!props.surface()?.contains(target.anchor); };
+  onCleanup(() => { if (mine()) setPostingsTarget(null); });
+  return <Show when={mine() && postingsTarget()} keyed>{(target) =>
     <PostingsPopover item={target.item} anchor={target.anchor} close={() => setPostingsTarget(null)} />}</Show>;
 }
