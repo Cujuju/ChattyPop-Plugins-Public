@@ -18,6 +18,7 @@ interface Filters {
   setMinBytes(bytes: number): void;
   setPresence(presence: AttachmentPresence): void;
   setUncompressed(on: boolean): void;
+  setRepeated(on: boolean): void;
   setName(name: string): void;
   setSort(sort: AttachmentSort): void;
 }
@@ -61,16 +62,16 @@ describe('attachment filters', () => {
       const { f } = root;
       expect(f.filterCount()).toBe(0);
       f.setWhere({ by: 'guild', id: 'g1' }); f.setWho('alice'); f.setKinds(['image', 'video']); f.setRange('1y');
-      f.setMinBytes(MIN_SIZE_OPTIONS[1]!.value); f.setPresence('gone'); f.setUncompressed(true); f.setName('budget'); f.setSort(LARGEST);
-      expect(f.filterCount()).toBe(9);
+      f.setMinBytes(MIN_SIZE_OPTIONS[1]!.value); f.setPresence('gone'); f.setUncompressed(true); f.setRepeated(true); f.setName('budget'); f.setSort(LARGEST);
+      expect(f.filterCount()).toBe(10);
       await vi.advanceTimersByTimeAsync(FILENAME_DEBOUNCE_MS);
       expect(f.filter()).toMatchObject({ guildId: 'g1', authorId: 'alice', kinds: ['image', 'video'], minBytes: MIN_SIZE_OPTIONS[1]!.value, name: 'budget', presence: 'gone', uncompressed: true });
       f.resetFilters();
       expect(f.filterCount()).toBe(0);
-      expect(f.filter()).toEqual({ presence: 'stored', uncompressed: false });
+      expect(f.filter()).toEqual({ presence: 'stored', uncompressed: false, repeated: false });
       expect(f.sort()).toEqual(NEWEST);
       await vi.runAllTimersAsync();
-      expect(f.filter()).toEqual({ presence: 'stored', uncompressed: false });
+      expect(f.filter()).toEqual({ presence: 'stored', uncompressed: false, repeated: false });
     } finally { root.dispose(); vi.useRealTimers(); }
   });
 
@@ -84,7 +85,7 @@ describe('attachment filters', () => {
       await vi.advanceTimersByTimeAsync(FILENAME_DEBOUNCE_MS / 2);
       expect(root.f.filter().name).toBeUndefined();
       await vi.advanceTimersByTimeAsync(FILENAME_DEBOUNCE_MS);
-      expect(root.f.filter()).toEqual({ channelId: 'c1', name: 'new%_', presence: 'stored', uncompressed: false });
+      expect(root.f.filter()).toEqual({ channelId: 'c1', name: 'new%_', presence: 'stored', uncompressed: false, repeated: false });
     } finally { root.dispose(); vi.useRealTimers(); }
   });
 });

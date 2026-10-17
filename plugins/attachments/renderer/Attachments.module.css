@@ -17,6 +17,10 @@
   min-height: 0;
 }
 
+/* Keep the virtual log mounted while Space is shown, preserving measurements and the file position. */
+.fileView { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; }
+.fileView[hidden] { display: none; }
+
 /* Owns the scroll. No padding: rows are offset-measured. Relative so .measure spans its content width. */
 .scroller {
   position: relative;
@@ -72,18 +76,20 @@
 }
 
 /* Under the pointer its zoomed picture (look.mediaThumb's data-zoom) spills over the neighbours; on leaving it is clipped at once. */
-.cell:hover {
+.cell:hover,
+.cell[data-preview='true'] {
   z-index: 1;
   overflow: visible;
 }
 
 /* The size gives the hovered picture its corner. */
-.cell:hover .cornerEnd {
+.cell:hover .cornerEnd,
+.cell[data-preview='true'] .cornerEnd {
   visibility: hidden;
 }
 
 /* Each virtual row is its own layer (the log translates it), so the hovered tile's row rises over the rows around it. */
-.scroller [data-row-key]:has(.cell:hover) {
+.scroller [data-row-key]:has(.cell:hover, .cell[data-preview='true']) {
   z-index: 1;
 }
 
@@ -119,6 +125,11 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+}
+
+.hoverVideo {
+  position: absolute;
+  inset: 0;
 }
 
 /* No picture (a spoiler, audio, another file, a file not on this PC): an icon over the name. */
@@ -299,6 +310,9 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+.saveMeter { flex: 1 1 0; min-width: var(--cp-attachment-picker-min); }
+.saveStatus { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cp-space-3); width: 100%; }
 
 .selectionActions {
   display: flex;

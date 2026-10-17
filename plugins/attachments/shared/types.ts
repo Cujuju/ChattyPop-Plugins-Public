@@ -22,7 +22,8 @@ export interface AttachmentFilter {
   presence?: AttachmentPresence;
   /** Only stored images and videos not yet compressed. */
   uncompressed?: boolean;
-  /** Part of the filename, case-insensitive. */
+  repeated?: boolean;
+  /** Part of the filename or derived file text, case-insensitive. */
   name?: string;
 }
 export interface AttachmentItem {
@@ -34,12 +35,22 @@ export interface AttachmentItem {
   /** What largest orders by and a tile shows: bytes on this PC, else Discord's size. */ sortBytes: number;
   width: number | null; height: number | null;
   sha256: string | null; storedExt: string | null; status: 'pending' | 'stored' | 'failed' | 'evicted';
+  /** Visible postings of this hash, independent of the panel filters; unhashed files have one. */
+  postings: number;
   compressed: boolean; animated: boolean; spoiler: boolean; removed: boolean;
+  textMatch?: { source: 'text' | 'transcript'; snippet: string };
   /** Its message as the Archive shows it; null when it left the archive. */ message: ArchiveMessage | null;
 }
 /** `key`: the row's value of the order's key (sortBytes, filename or kind); date orders need none. */
 export interface AttachmentCursor { ts: number; id: string; key?: string | number }
-export interface AttachmentPageQuery extends AttachmentFilter { limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor }
+export interface AttachmentPageQuery extends AttachmentFilter {
+  limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor;
+  /** Date order only: begin at this local calendar month's first file in the order, then continue beyond the month. */
+  startMonth?: string;
+  /** Inclusive reading start for refreshing a loaded date window. */
+  startAt?: AttachmentCursor;
+}
+export interface AttachmentMonth { month: string; count: number }
 export interface AttachmentTotals { byKind: Record<AttachmentKind, { count: number; bytes: number }>; count: number; /** Bytes on disk, each stored file once. */ bytes: number }
 /** A person who shared matching files: `bytes` on this PC, each stored file once. */
 export interface PersonRow { id: string; name: string; count: number; bytes: number }
@@ -49,12 +60,28 @@ export interface PersonFilesQuery { userId: string; limit: number }
 /** Matching attachments per server and per channel id (a thread's counted in its channel), whatever the place filter. */
 export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number> }
 
+export interface AttachmentPosting {
+  id: string; messageId: string; channelId: string; channelName: string; guildId: string | null; guildName: string;
+  authorId: string | null; authorName: string; ts: number;
+}
+export type BreakdownBy = 'guild' | 'channel' | 'person' | 'kind';
+export const BREAKDOWN_LIMIT = 50;
+/** A null key is the unselectable remainder; groups is its number of remaining groups. */
+export interface AttachmentBreakdown {
+  key: string | null; label: string; bytes: number; count: number; groups?: number;
+  /** Global filtered totals deduplicate across groups too. */
+  totalBytes: number; totalCount: number;
+}
+
 export interface AttachmentsCoreCalls {
   page(q: AttachmentPageQuery): AttachmentItem[];
   totals(f: AttachmentFilter): AttachmentTotals;
   people(q: PeopleQuery): PersonRow[];
   places(f: AttachmentFilter): AttachmentPlaces;
+  months(f: AttachmentFilter): AttachmentMonth[];
   sharedBy(q: PersonFilesQuery): AttachmentItem[];
+  postings(sha256: string): AttachmentPosting[];
+  breakdown(f: AttachmentFilter, by: BreakdownBy): AttachmentBreakdown[];
 }
 
 export const emptyTotals = (): AttachmentTotals => ({

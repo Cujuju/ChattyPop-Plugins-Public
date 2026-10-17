@@ -1,11 +1,13 @@
 import { DM_GUILD_ID, type ArchiveAttachment } from '@plugin-sdk/shared';
 import {
-  attachmentUrl, canCompressHere, canSaveAttachment, compressibleAs, compressStored, confirmDialog, failureNotice, formatBytes,
-  freeStored, noticeDialog, openArchive, openMenuAt, saveAttachmentFile, setLightbox, type MenuGroup, type MenuItem, type StoredAttachmentRef,
+  attachmentUrl, attachmentThumbUrl, canCompressHere, canSaveAttachment, compressibleAs, compressStored, confirmDialog, failureNotice, formatBytes,
+  freeStored, noticeDialog, openArchive, openMenuAt, saveAttachmentFile, setLightbox, shortDateTime, type MenuGroup, type MenuItem, type StoredAttachmentRef,
 } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem } from '../shared/types';
 import { compression, compressionJob, freeSelection, selection, type AttachmentSelection } from './selection';
 import { setWhere, setWho, where } from './state';
+import { createGallery, hasPicture, type GallerySource } from './gallery';
+import { setPostingsTarget } from './postingsTarget';
 
 export const filesCount = (count: number): string => count === 1 ? '1 file' : `${count} files`;
 export const deleteLabel = (count: number): string => count === 1 ? 'Delete local copy' : 'Delete local copies';
@@ -48,11 +50,44 @@ export function archiveAttachment(item: AttachmentItem): ArchiveAttachment {
   };
 }
 
-export function openAttachment(item: AttachmentItem): void {
+export function openAttachment(item: AttachmentItem, openGallery?: (item: AttachmentItem) => void): void {
+  if (hasPicture(item) && openGallery) return openGallery(item);
   const ref = storedRef(item);
-  if (item.kind === 'image' && ref && item.status === 'stored') {
-    setLightbox({ src: attachmentUrl(ref), alt: item.filename, caption: item.filename, originalUrl: null });
+  if (hasPicture(item) && ref) {
+    setLightbox({ src: attachmentUrl(ref), kind: item.kind === 'video' ? 'video' : 'image', alt: item.filename, caption: item.filename, originalUrl: null });
   } else void openArchive(item.channelId, item.messageId);
+}
+
+export function attachmentGallery(source: Pick<GallerySource, 'items' | 'more' | 'load' | 'scroll' | 'start' | 'closed'>) {
+  let preloaded = '';
+  let videos: HTMLVideoElement[] = [];
+  const release = (): void => { videos.forEach((video) => { video.removeAttribute('src'); video.load(); }); videos = []; };
+  const gallery = createGallery({ ...source,
+    image: (item) => ({ src: attachmentUrl(storedRef(item)!), kind: item.kind === 'video' ? 'video' : 'image',
+      still: item.animated ? attachmentThumbUrl(storedRef(item)!) : undefined,
+      alt: item.filename, caption: item.filename, originalUrl: null }),
+    details: (item) => [formatBytes(item.sortBytes), item.authorName || 'Unknown person', `#${item.channelName}`, item.guildName, shortDateTime(item.ts)].filter(Boolean).join(' · '),
+    present: (image, previous) => {
+      let accepted = false;
+      setLightbox((current) => {
+        accepted = previous === undefined || current === previous;
+        return accepted ? image : current;
+      });
+      return accepted;
+    },
+    preload: (items) => {
+      const key = items.map((item) => `${item.id}:${item.sha256}:${item.storedExt}`).join(',');
+      if (key === preloaded) return;
+      preloaded = key;
+      release();
+      for (const item of items) {
+        const src = attachmentUrl(storedRef(item)!);
+        if (item.kind === 'image') { const image = new Image(); image.src = src; }
+        else { const video = document.createElement('video'); video.preload = 'auto'; video.src = src; videos.push(video); }
+      }
+    },
+  });
+  return { ...gallery, dispose: (): void => { gallery.dispose(); release(); } };
 }
 
 const confirmDelete = (count: number, bytes: number): Promise<boolean> => confirmDialog({
@@ -80,21 +115,25 @@ export const compressFiles = async (items: readonly AttachmentItem[]): Promise<v
   void await compressRefs(items.flatMap((item) => compressibleRef(item) ?? []));
 
 /** In select mode a click picks; outside it a modifier click picks (entering the mode) and a plain click opens. */
-export function clickAttachment(event: MouseEvent, item: AttachmentItem, pick = false, scope: AttachmentSelection = selection): void {
+export function clickAttachment(event: MouseEvent, item: AttachmentItem, pick = false, scope: AttachmentSelection = selection, openGallery?: (item: AttachmentItem) => void): void {
   if (pick || event.ctrlKey || event.metaKey || event.shiftKey || scope.selecting()) scope.toggle(item.id, event.shiftKey);
-  else openAttachment(item);
+  else openAttachment(item, openGallery);
 }
 
-export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelection: AttachmentSelection = selection): void {
+export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelection: AttachmentSelection = selection, openGallery?: (item: AttachmentItem) => void): void {
   const targets = scopeSelection.ids().has(item.id) && scopeSelection.ids().size > 1 ? scopeSelection.selected() : [item];
   const attachment = archiveAttachment(item);
   const picked = scopeSelection.ids().has(item.id);
   const open: MenuItem[] = [
-    { label: 'Open', icon: 'eye', run: () => openAttachment(item) },
+    { label: 'Open', icon: 'eye', run: () => openAttachment(item, openGallery) },
     { label: picked ? 'Deselect' : 'Select', icon: 'check', run: () => scopeSelection.toggle(item.id) },
     { label: 'Show in Archive', icon: 'archive', run: () => { void openArchive(item.channelId, item.messageId); } },
   ];
   if (canSaveAttachment(attachment)) open.push({ label: 'Download', icon: 'download', run: () => saveAttachmentFile(attachment) });
+  if (item.postings > 1) {
+    const tile = anchor.closest('[data-attachment-id]') ?? anchor;
+    open.push({ label: `Other postings (${item.postings - 1})`, icon: 'copy', run: () => { setPostingsTarget({ item, anchor: tile }); } });
+  }
   const scope: MenuItem[] = [{ label: 'Only this channel', icon: 'filter', run: () => { setWhere({ by: 'channel', id: item.channelId }); } }];
   if (item.authorId) scope.push({ label: 'Only this person', icon: 'person', run: () => { setWho(item.authorId); } });
   const change: MenuItem[] = [];

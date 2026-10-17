@@ -1,5 +1,6 @@
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import type { AttachmentsCoreCalls } from './types';
+import { normalizeSavedFilters, type SavedAttachmentFilter } from './savedFilters';
 
 export const ATTACHMENTS_PANEL = 'attachments';
 /**
@@ -17,14 +18,17 @@ export const hoverZoomOf = (v: unknown): number => typeof v === 'number' && Numb
 
 export const plugin = definePlugin({
   aiTools: ['files'],
-  manifest: { id: 'attachments', name: 'Attachments', version: '1.0.0', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
+  manifest: { id: 'attachments', name: 'Attachments', version: '1.9.0', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
   channels: defineChannels<{ core: AttachmentsCoreCalls }>()({
     core: {
       page: { audiences: ['renderer'], writes: false },
       totals: { audiences: ['renderer'], writes: false },
       people: { audiences: ['renderer'], writes: false },
       places: { audiences: ['renderer'], writes: false },
+      months: { audiences: ['renderer'], writes: false },
       sharedBy: { audiences: ['renderer'], writes: false },
+      postings: { audiences: ['renderer'], writes: false },
+      breakdown: { audiences: ['renderer'], writes: false },
     },
   }),
   panels: [{
@@ -37,6 +41,7 @@ export const plugin = definePlugin({
     attachmentMenu: [{ id: 'compress', after: 'download' }, { id: 'free', after: 'attachments.compress' }],
   },
   preferences: {
+    savedFilters: definePreference<SavedAttachmentFilter[]>({ default: [], normalize: normalizeSavedFilters }),
     view: definePreference<'grid' | 'list'>({ default: 'grid', normalize: (v) => v === 'list' ? 'list' : 'grid' }),
     hoverZoom: definePreference<number>({ default: DEFAULT_HOVER_ZOOM, normalize: hoverZoomOf }),
     anchor: definePreference<AttachmentAnchor>({ default: 'bottom', normalize: (v) => v === 'top' ? 'top' : 'bottom' }),
