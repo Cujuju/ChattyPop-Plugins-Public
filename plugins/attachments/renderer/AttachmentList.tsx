@@ -1,8 +1,9 @@
-import { For, Show } from 'solid-js';
+import { For, Show, createSignal } from 'solid-js';
 import { Icon, formatBytes, look, openArchive, shortDate } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem, AttachmentSort, AttachmentSortKey } from '../shared/types';
 import { clickAttachment, itemMarks, placeText, showItemMenu } from './actions';
 import { AttachmentPicture } from './AttachmentPicture';
+import { PostingsPopover } from './PostingsPopover';
 import { compressionJob, selectedIds, selection } from './selection';
 import { attachments, setSort, sort } from './state';
 import styles from './Attachments.module.css';
@@ -42,12 +43,13 @@ export function AttachmentListHeader() {
 }
 
 export function AttachmentList(props: { item: AttachmentItem }) {
+  const [postingsAnchor, setPostingsAnchor] = createSignal<Element | null>(null);
   const bytes = (): string => formatBytes(props.item.sortBytes);
   return (
-    <div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id}
+    <><div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id}
       data-state={compressionJob()?.current === props.item.id ? 'busy' : undefined}
       onClick={(e) => { if (!(e.target as Element).closest('button,input')) clickAttachment(e, props.item); }}
-      onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item); }}>
+      onContextMenu={(e) => { e.preventDefault(); const anchor = e.currentTarget; showItemMenu(anchor, props.item, undefined, () => setPostingsAnchor(anchor)); }}>
       <input type="checkbox" class={styles.listPick} aria-label={`Select ${props.item.filename}`} checked={selectedIds().has(props.item.id)}
         onClick={(e) => clickAttachment(e, props.item, true)} />
       <button type="button" class={`${styles.listThumb} ${look.mediaCell}`} aria-label={`Open ${props.item.filename}`}
@@ -62,12 +64,13 @@ export function AttachmentList(props: { item: AttachmentItem }) {
       </div>
       <span class={`${styles.listKind} ${look.text}`} data-size="2xs" data-tone="muted" title={[props.item.kind, ...itemMarks(props.item)].join(' · ')}>
         {[props.item.kind, ...itemMarks(props.item)].join(' · ')}
+        <Show when={props.item.postings > 1}> · {props.item.postings}×</Show>
       </span>
       <span class={`${styles.listSize} ${look.text}`} data-size="xs" data-figures="tabular"
         title={props.item.compressed ? `now ${bytes()}, was ${formatBytes(props.item.size ?? 0)}` : undefined}>{bytes()}</span>
       <span class={`${styles.listDate} ${look.text}`} data-size="xs" data-tone="secondary" data-figures="tabular">{shortDate(props.item.ts)}</span>
       <button type="button" class={`${styles.listMenu} ${look.iconButton}`} aria-label={`Menu for ${props.item.filename}`}
-        onClick={(e) => showItemMenu(e.currentTarget, props.item)}><Icon name="more" /></button>
-    </div>
+        onClick={(e) => { const anchor = e.currentTarget.closest('[data-attachment-id]')!; showItemMenu(e.currentTarget, props.item, undefined, () => setPostingsAnchor(anchor)); }}><Icon name="more" /></button>
+    </div><Show when={postingsAnchor()}>{(anchor) => <PostingsPopover item={props.item} anchor={anchor()} close={() => setPostingsAnchor(null)} />}</Show></>
   );
 }

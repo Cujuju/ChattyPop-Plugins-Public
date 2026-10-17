@@ -7,6 +7,7 @@ import { PERSON_FILES_PAGE } from './state';
 import { AttachmentGrid } from './AttachmentGrid';
 import { compressionJob, createSelection } from './selection';
 import { SelectionBar } from './SelectionBar';
+import { folderSaveJob } from './folderSave';
 import styles from './Attachments.module.css';
 
 export function PersonFiles(props: { userId: string }) {
@@ -20,7 +21,7 @@ export function PersonFiles(props: { userId: string }) {
   onCleanup(() => offs.forEach((off) => off()));
   return (
     <>
-      <Show when={selection.selecting() || compressionJob()}><SelectionBar selection={selection} /></Show>
+      <Show when={selection.selecting() || compressionJob() || folderSaveJob()}><SelectionBar selection={selection} /></Show>
       <Show when={files().length} fallback={
         <p class={`cp-hint ${styles.personNote}`} title={files.failure ?? undefined}>
           {files.loading ? 'Loading…' : files.failure ? 'Their files couldn’t be read.' : 'They haven’t shared files in the archive.'}

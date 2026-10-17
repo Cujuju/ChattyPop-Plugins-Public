@@ -85,7 +85,7 @@ export function clickAttachment(event: MouseEvent, item: AttachmentItem, pick = 
   else openAttachment(item);
 }
 
-export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelection: AttachmentSelection = selection): void {
+export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelection: AttachmentSelection = selection, postings?: () => void): void {
   const targets = scopeSelection.ids().has(item.id) && scopeSelection.ids().size > 1 ? scopeSelection.selected() : [item];
   const attachment = archiveAttachment(item);
   const picked = scopeSelection.ids().has(item.id);
@@ -95,6 +95,7 @@ export function showItemMenu(anchor: Element, item: AttachmentItem, scopeSelecti
     { label: 'Show in Archive', icon: 'archive', run: () => { void openArchive(item.channelId, item.messageId); } },
   ];
   if (canSaveAttachment(attachment)) open.push({ label: 'Download', icon: 'download', run: () => saveAttachmentFile(attachment) });
+  if (item.postings > 1 && postings) open.push({ label: `Other postings (${item.postings - 1})`, icon: 'copy', run: postings });
   const scope: MenuItem[] = [{ label: 'Only this channel', icon: 'filter', run: () => { setWhere({ by: 'channel', id: item.channelId }); } }];
   if (item.authorId) scope.push({ label: 'Only this person', icon: 'person', run: () => { setWho(item.authorId); } });
   const change: MenuItem[] = [];

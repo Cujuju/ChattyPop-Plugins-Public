@@ -27,11 +27,12 @@ export function createAttachmentFilters() {
   const [minBytes, setMinBytes] = createSignal(0);
   const [presence, setPresence] = createSignal<AttachmentPresence>('stored');
   const [uncompressed, setUncompressed] = createSignal(false);
+  const [repeated, setRepeated] = createSignal(false);
   const [name, setName] = createSignal('');
   const [queryName, setQueryName] = createSignal('');
   const [sort, setSort] = createSignal<AttachmentSort>(NEWEST);
   const filterCount = (): number => [where() !== null, who() !== null, kinds().length > 0, range() !== 'all', minBytes() > 0,
-    presence() !== 'stored', uncompressed(), name().trim().length > 0, sort().key !== NEWEST.key || sort().dir !== NEWEST.dir].filter(Boolean).length;
+    presence() !== 'stored', uncompressed(), repeated(), name().trim().length > 0, sort().key !== NEWEST.key || sort().dir !== NEWEST.dir].filter(Boolean).length;
   let timer: ReturnType<typeof setTimeout> | undefined;
   createEffect(on(name, (value) => {
     clearTimeout(timer);
@@ -42,16 +43,16 @@ export function createAttachmentFilters() {
     clearTimeout(timer);
     batch(() => {
       setWhere(null); setWho(null); setKinds([]); setRange('all'); setMinBytes(0); setPresence('stored');
-      setUncompressed(false); setName(''); setQueryName(''); setSort(NEWEST);
+      setUncompressed(false); setRepeated(false); setName(''); setQueryName(''); setSort(NEWEST);
     });
   };
   /** Every filter but the place (where): what the rail counts under. */
   const unplaced = (): AttachmentFilter => {
     const days = ATTACHMENT_RANGES[range()].days;
     return {
-      ...(who() ? { authorId: who()! } : {}), ...(kinds().length ? { kinds: kinds() } : {}),
+      ...(who() !== null ? { authorId: who()! } : {}), ...(kinds().length ? { kinds: kinds() } : {}),
       ...(days !== null ? { sinceTs: Date.now() - days * MS_PER_DAY } : {}),
-      ...(minBytes() ? { minBytes: minBytes() } : {}), presence: presence(), uncompressed: uncompressed(),
+      ...(minBytes() ? { minBytes: minBytes() } : {}), presence: presence(), uncompressed: uncompressed(), repeated: repeated(),
       ...(queryName() ? { name: queryName() } : {}),
     };
   };
@@ -60,5 +61,5 @@ export function createAttachmentFilters() {
     return { ...(scope ? { [scope.by === 'guild' ? 'guildId' : 'channelId']: scope.id } : {}), ...unplaced() };
   };
   return { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
-    uncompressed, setUncompressed, name, setName, queryName, sort, setSort, filter, unplaced, filterCount, resetFilters };
+    uncompressed, setUncompressed, repeated, setRepeated, name, setName, queryName, sort, setSort, filter, unplaced, filterCount, resetFilters };
 }

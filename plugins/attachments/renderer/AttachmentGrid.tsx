@@ -1,7 +1,8 @@
 import { For, Show, createSignal } from 'solid-js';
-import { formatBytes, look } from '@plugin-sdk/renderer/kit';
+import { canSaveAttachmentsToFolder, failureNotice, formatBytes, look, startFileDrag } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem } from '../shared/types';
-import { clickAttachment, itemMarks, showItemMenu } from './actions';
+import { clickAttachment, itemMarks, showItemMenu, storedRef } from './actions';
+import { PostingsPopover } from './PostingsPopover';
 import { AttachmentPicture } from './AttachmentPicture';
 import { compressionJob, selection, type AttachmentSelection } from './selection';
 import { hoverZoom } from './state';
@@ -26,24 +27,28 @@ function clipBox(el: HTMLElement): Box {
 }
 
 export function AttachmentGrid(props: { item: AttachmentItem; selection?: AttachmentSelection }) {
+  const [postingsAnchor, setPostingsAnchor] = createSignal<Element | null>(null);
   const selected = (): boolean => (props.selection ?? selection).ids().has(props.item.id);
   const size = (): string => formatBytes(props.item.sortBytes);
   // Measured as the pointer enters, so the zoom fits where the tile is now.
   const [zoom, setZoom] = createSignal<TileZoom | null>(null);
   const title = (): string => `${props.item.filename} · ${size()} · ${props.item.authorName || 'Unknown person'} · #${props.item.channelName}${props.item.guildName ? ` · ${props.item.guildName}` : ''}`;
   return (
-    <button type="button" class={`${styles.cell} ${look.mediaCell}`} aria-pressed={selected()} aria-label={title()}
+    <><button type="button" class={`${styles.cell} ${look.mediaCell}`} aria-pressed={selected()} aria-label={title()}
+      draggable={canSaveAttachmentsToFolder && props.item.status === 'stored' && !!props.item.sha256}
+      onDragStart={(e) => { e.preventDefault(); const ref = storedRef(props.item); if (ref) void startFileDrag(ref).catch(failureNotice("Couldn't drag the file")); }}
       data-kind={props.item.kind} data-state={compressionJob()?.current === props.item.id ? 'busy' : undefined}
       data-attachment-id={props.item.id} title={title()}
       onPointerEnter={(e) => setZoom(zoomWithin(e.currentTarget.getBoundingClientRect(), clipBox(e.currentTarget), hoverZoom()))}
       onClick={(e) => clickAttachment(e, props.item, false, props.selection)}
-      onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item, props.selection); }}>
+      onContextMenu={(e) => { e.preventDefault(); const anchor = e.currentTarget; showItemMenu(anchor, props.item, props.selection, () => setPostingsAnchor(anchor)); }}>
       <AttachmentPicture item={props.item} zoom={zoom()} />
       <span class={styles.cornerEnd}><span class={`${look.durationBadge} ${look.text}`} data-size="2xs" data-figures="tabular">{size()}</span></span>
       <span class={styles.cornerStart}>
+        <Show when={props.item.postings > 1}><span class={`${look.tag} ${look.text}`} data-size="2xs">{props.item.postings}×</span></Show>
         <Show when={props.item.kind === 'video' || props.item.kind === 'audio'}><span class={`${look.tag} ${look.text}`} data-size="2xs">{props.item.kind}</span></Show>
         <For each={itemMarks(props.item)}>{(mark) => <span class={`${look.tag} ${look.text}`} data-size="2xs">{mark}</span>}</For>
       </span>
-    </button>
+    </button><Show when={postingsAnchor()}>{(anchor) => <PostingsPopover item={props.item} anchor={anchor()} close={() => setPostingsAnchor(null)} />}</Show></>
   );
 }

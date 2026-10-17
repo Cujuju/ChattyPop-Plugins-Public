@@ -5,6 +5,7 @@ import type { AttachmentItem } from '../shared/types';
 import {
   attachments, failure, filterCount, hasMoreBelow, loadMoreBelow, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, topDown,
   totals, view,
+  spaceView, setSpaceView,
 } from './state';
 import { compressionJob, selection } from './selection';
 import { filesCount } from './actions';
@@ -13,6 +14,8 @@ import { AttachmentGrid } from './AttachmentGrid';
 import { AttachmentList, AttachmentListHeader } from './AttachmentList';
 import { PlaceRail } from './PlaceRail';
 import { SelectionBar } from './SelectionBar';
+import { SpaceView } from './SpaceView';
+import { folderSaveJob } from './folderSave';
 import styles from './Attachments.module.css';
 
 const LOAD_OLDER_THRESHOLD_ROWS = 10;
@@ -76,9 +79,10 @@ export function AttachmentsPanel() {
         <HeaderMeta>{filesCount(totals().count)} · {formatBytes(totals().bytes)}</HeaderMeta>
         <HeaderTools />
         <HeaderActions>
-          <HeaderButton aria-pressed={selection.selecting()} title="Pick files to compress or delete" onClick={() => selection.selecting() ? selection.done() : selection.start()}>Select</HeaderButton>
-          <HeaderButton variant="icon" aria-label="Grid view" aria-pressed={view() === 'grid'} onClick={() => setView('grid')}><Icon name="apps" /></HeaderButton>
-          <HeaderButton variant="icon" aria-label="List view" aria-pressed={view() === 'list'} onClick={() => setView('list')}><Icon name="text" /></HeaderButton>
+          <HeaderButton aria-pressed={selection.selecting()} title="Pick files to save, compress or delete" onClick={() => selection.selecting() ? selection.done() : selection.start()}>Select</HeaderButton>
+          <HeaderButton variant="icon" aria-label="Grid view" aria-pressed={!spaceView() && view() === 'grid'} onClick={() => { setSpaceView(false); void setView('grid'); }}><Icon name="apps" /></HeaderButton>
+          <HeaderButton variant="icon" aria-label="List view" aria-pressed={!spaceView() && view() === 'list'} onClick={() => { setSpaceView(false); void setView('list'); }}><Icon name="text" /></HeaderButton>
+          <HeaderButton variant="icon" aria-label="Space" aria-pressed={spaceView()} onClick={() => setSpaceView(true)}><Icon name="chart" /></HeaderButton>
           <Show when={filterCount() > 0}><HeaderButton onClick={resetFilters}>Reset</HeaderButton></Show>
         </HeaderActions>
       </PanelHeader>
@@ -86,27 +90,30 @@ export function AttachmentsPanel() {
         <PlaceRail />
         <div class={styles.main}>
           <FilterBar />
-          <Show when={selection.selecting() || compressionJob()}><SelectionBar /></Show>
-          <Show when={failure()} fallback={<Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>}>
-            <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
-          </Show>
-          <Show when={view() === 'list'}><AttachmentListHeader /></Show>
-          <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
-            <div class={styles.measure} ref={measure} aria-hidden="true" />
-            <VirtualRows log={vlog}>{(row) => (
-              <Switch>
-                <Match when={row().kind === 'day' && row() as Extract<Row, { kind: 'day' }>}>
-                  {(day) => <DayDivider label={day().label} />}
-                </Match>
-                <Match when={row().kind === 'items' && row() as Extract<Row, { kind: 'items' }>}>
-                  {(group) => <Show when={view() === 'grid'} fallback={<AttachmentList item={group().items[0]!} />}>
-                    <div class={styles.gridRow} style={{ '--cols': cols() }}><For each={group().items}>{(item) => <AttachmentGrid item={item} />}</For></div>
-                  </Show>}
-                </Match>
-              </Switch>
-            )}</VirtualRows>
+          <Show when={selection.selecting() || compressionJob() || folderSaveJob()}><SelectionBar /></Show>
+          <Show when={spaceView()}><SpaceView /></Show>
+          <div class={styles.fileView} hidden={spaceView()} style={{ display: spaceView() ? 'none' : undefined }}>
+            <Show when={failure()} fallback={<Show when={attachments.items.length === 0 && !attachments.loading}><p class={`cp-panel-empty ${styles.empty}`}>No attachments match these filters.</p></Show>}>
+              <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
+            </Show>
+            <Show when={view() === 'list'}><AttachmentListHeader /></Show>
+            <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
+              <div class={styles.measure} ref={measure} aria-hidden="true" />
+              <VirtualRows log={vlog}>{(row) => (
+                <Switch>
+                  <Match when={row().kind === 'day' && row() as Extract<Row, { kind: 'day' }>}>
+                    {(day) => <DayDivider label={day().label} />}
+                  </Match>
+                  <Match when={row().kind === 'items' && row() as Extract<Row, { kind: 'items' }>}>
+                    {(group) => <Show when={view() === 'grid'} fallback={<AttachmentList item={group().items[0]!} />}>
+                      <div class={styles.gridRow} style={{ '--cols': cols() }}><For each={group().items}>{(item) => <AttachmentGrid item={item} />}</For></div>
+                    </Show>}
+                  </Match>
+                </Switch>
+              )}</VirtualRows>
+            </div>
+            <Show when={!topDown() && !log.following()}><JumpToNewest label="Jump to newest attachment" onClick={() => { vlog.holdRow(null); log.scrollToNewest(); }} /></Show>
           </div>
-          <Show when={!topDown() && !log.following()}><JumpToNewest label="Jump to newest attachment" onClick={() => { vlog.holdRow(null); log.scrollToNewest(); }} /></Show>
         </div>
       </div>
     </section>
