@@ -12,6 +12,7 @@ import {
 } from '@plugin-sdk/core';
 import { sseData } from './sse';
 import { requestToolRunner, toolArguments } from './toolCalls';
+import { mergeReasoning, type ReasoningDetail } from './reasoning';
 
 const FINAL_ANSWER_ROUNDS = 1;
 
@@ -26,6 +27,8 @@ export interface ChatMessage {
   content: string | object[] | null;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
+  reasoning?: string;
+  reasoning_details?: ReasoningDetail[];
 }
 
 interface ChatBody {
@@ -44,6 +47,8 @@ interface StreamUsage {
 interface StreamChunk {
   choices?: { delta?: {
     content?: string | null;
+    reasoning?: string | null;
+    reasoning_details?: ReasoningDetail[] | null;
     tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[];
   } }[];
   usage?: StreamUsage | null;
@@ -53,12 +58,16 @@ interface StreamChunk {
 async function readRound(res: Response, signal: AbortSignal, answer: AnswerStream, keyLabel: string) {
   const calls = new Map<number, ToolCall>();
   let content = '';
+  let reasoning = '';
+  const reasoningDetails: ReasoningDetail[] = [];
   let usage: StreamUsage | undefined;
   for await (const data of sseData(res.body, signal)) {
     const chunk = JSON.parse(data) as StreamChunk;
     if (chunk.error) throw new Error(`OpenRouter: ${openRouterErrorText(chunk.error, res.status, keyLabel)}`);
     if (chunk.usage) usage = chunk.usage;
     const delta = chunk.choices?.[0]?.delta;
+    reasoning += delta?.reasoning ?? '';
+    for (const fragment of delta?.reasoning_details ?? []) mergeReasoning(reasoningDetails, fragment);
     if (delta?.content) {
       content += delta.content;
       answer.push(delta.content);
@@ -75,7 +84,7 @@ async function readRound(res: Response, signal: AbortSignal, answer: AnswerStrea
   signal.throwIfAborted();
   const toolCalls = [...calls].sort(([a], [b]) => a - b).map(([, call]) => call);
   if (toolCalls.some((call) => !call.id || !call.function.name)) throw new Error('OpenRouter: incomplete streamed tool call.');
-  return { content, toolCalls, usage };
+  return { content, toolCalls, usage, reasoning, reasoningDetails };
 }
 
 /** Keeps one paying key and one tool budget for every round of the answer. */
@@ -120,7 +129,10 @@ export async function streamCompletion(net: PluginFetch, req: CompletionRequest,
     }
     if (!result.toolCalls.length) return { text: answer.text, ...(usage ? { usage } : {}), ...(apiCostUsd !== undefined ? { apiCostUsd } : {}) };
     if (round === maxRounds - FINAL_ANSWER_ROUNDS) throw new Error('OpenRouter: tool calls continued after the final answer round.');
-    body.messages.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
+    body.messages.push({
+      role: 'assistant', content: result.content || null, tool_calls: result.toolCalls,
+      ...(result.reasoningDetails.length ? { reasoning_details: result.reasoningDetails } : result.reasoning ? { reasoning: result.reasoning } : {}),
+    });
     for (const call of result.toolCalls) {
       const outcome = await runner.call(call.function.name, toolArguments(call.function.arguments), call.id);
       body.messages.push({ role: 'tool', tool_call_id: call.id, content: outcome.text });

@@ -26,7 +26,12 @@ describe('OpenRouter SSE framing', () => {
 
   it('accepts bare CR delimiters and a final event without a trailing newline', async () => {
     await expect(collect(rawResponse(['data: one\r\rdata: two\r\rdata: [DONE]']))).resolves.toEqual(['one', 'two']);
-    await expect(collect(rawResponse(['data: last']))).resolves.toEqual(['last']);
+  });
+
+  it.each(['', ': keepalive\n\n', 'data: last', 'data: last\n\n'])('rejects EOF without DONE: %j', async (wire) => {
+    const response = rawResponse([wire]);
+    await expect(collect(response)).rejects.toThrow("OpenRouter's response ended early.");
+    expect(response.body?.locked).toBe(false);
   });
 
   it('cancels and unlocks the body at DONE even if the connection stays open', async () => {

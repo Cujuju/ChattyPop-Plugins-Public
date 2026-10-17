@@ -3,6 +3,24 @@ import type { CompletionEvent } from '@plugin-sdk/core';
 import { callDelta, data, delta, rawResponse, REQUEST, scripted, streamed, tool } from './streamFixture';
 
 describe('OpenRouter stream failures and cancellation', () => {
+  it('rejects a content round ending before DONE instead of returning a partial answer', async () => {
+    const events: CompletionEvent[] = [];
+    const { provider, bodies } = scripted([rawResponse([data(delta({ content: 'Partial' }))])]);
+    await expect(provider.complete({ ...REQUEST, onEvent: (event) => events.push(event) })).rejects.toThrow("OpenRouter's response ended early.");
+    expect(events).toEqual([{ type: 'text', delta: 'Partial' }]);
+    expect(bodies).toHaveLength(1);
+  });
+
+  it('rejects a tool round ending before DONE without running tools or sending another request', async () => {
+    const events: CompletionEvent[] = [];
+    const lookup = tool();
+    const { provider, bodies } = scripted([rawResponse([data(callDelta('call')), data({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] })])]);
+    await expect(provider.complete({ ...REQUEST, tools: [lookup], maxToolCalls: 1, onEvent: (event) => events.push(event) })).rejects.toThrow("OpenRouter's response ended early.");
+    expect(lookup.run).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+    expect(bodies).toHaveLength(1);
+  });
+
   it.each([false, true])('surfaces a mid-stream error with existing key-cap wording (text first: %s)', async (textFirst) => {
     const events: CompletionEvent[] = [];
     const error = { error: { message: 'limit', metadata: { limit_source: 'openrouter_key_limit' } } };

@@ -30,7 +30,7 @@ export async function* sseData(body: ReadableStream<Uint8Array> | null, signal: 
           data.push(line.slice('data:'.length).replace(/^ /, ''));
         }
       }
-      if (done) return;
+      if (done) throw new Error("OpenRouter's response ended early.");
     }
   } finally {
     signal.removeEventListener('abort', abort);
