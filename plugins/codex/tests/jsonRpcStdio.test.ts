@@ -8,9 +8,20 @@ import { JsonRpcStdio } from '../core/jsonRpcStdio';
 const SERVER = String.raw`
 const rl = require('readline').createInterface({ input: process.stdin });
 const send = (m) => process.stdout.write(JSON.stringify(m) + '\n');
+const pending = new Map();
+let requestId = 0;
 rl.on('line', (line) => {
   const m = JSON.parse(line);
-  if (m.method === 'echo') send({ jsonrpc: '2.0', id: m.id, result: m.params });
+  if (m.method === 'invoke') {
+    const id = 'server-' + ++requestId;
+    pending.set(id, m.id);
+    send({ jsonrpc: '2.0', id, method: m.params.method, params: m.params.params });
+  }
+  else if (pending.has(m.id)) {
+    send({ jsonrpc: '2.0', id: pending.get(m.id), result: m });
+    pending.delete(m.id);
+  }
+  else if (m.method === 'echo') send({ jsonrpc: '2.0', id: m.id, result: m.params });
   else if (m.method === 'fail') send({ jsonrpc: '2.0', id: m.id, error: { code: 1, message: 'nope' } });
   else if (m.method === 'poke') { send({ jsonrpc: '2.0', method: 'progress', params: { n: 1 } }); send({ jsonrpc: '2.0', id: 99, method: 'approve', params: {} }); }
   else if (m.id === 99) send({ jsonrpc: '2.0', method: 'answered', params: m.error });
@@ -49,6 +60,39 @@ describe('JSON-RPC over stdio', () => {
     const pending = c.request('never', {});
     c.dispose();
     await expect(pending).rejects.toThrow();
+  });
+
+  it('routes concurrent server requests by method and replies to string ids', async () => {
+    const c = start();
+    c.handleRequest('lookup', async (params) => ({ found: params }));
+    c.handleRequest('count', () => 2);
+    await expect(Promise.all([
+      c.request('invoke', { method: 'lookup', params: { query: 'hi' } }),
+      c.request('invoke', { method: 'count' }),
+    ])).resolves.toMatchObject([
+      { id: 'server-1', result: { found: { query: 'hi' } } },
+      { id: 'server-2', result: 2 },
+    ]);
+  });
+
+  it('unregisters a handler and continues refusing approvals', async () => {
+    const c = start();
+    const off = c.handleRequest('lookup', () => 'ok');
+    await expect(c.request('invoke', { method: 'approve' })).resolves.toMatchObject({ error: { code: -32601 } });
+    off();
+    await expect(c.request('invoke', { method: 'lookup' })).resolves.toMatchObject({ error: { code: -32601 } });
+    const next = c.handleRequest('lookup', () => 'next');
+    off();
+    await expect(c.request('invoke', { method: 'lookup' })).resolves.toMatchObject({ result: 'next' });
+    next();
+  });
+
+  it.each([false, true])('replies with a JSON-RPC error when a handler throws (async: %s)', async (asyncThrow) => {
+    const c = start();
+    const fail = (): never => { throw new Error('lookup failed'); };
+    c.handleRequest('lookup', asyncThrow ? async () => fail() : fail);
+    await expect(c.request('invoke', { method: 'lookup' })).resolves.toMatchObject({ error: { code: -32603, message: 'lookup failed' } });
+    await expect(c.request('echo', 'still open')).resolves.toBe('still open');
   });
 
   it('skips a line that is not JSON', async () => {
