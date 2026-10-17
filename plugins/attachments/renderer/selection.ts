@@ -33,6 +33,14 @@ export function createSelection<T extends { id: string }>() {
   };
   return {
     ids, clear, done, retain, toggle, selecting,
+    extend(firstId: string, lastId: string): void {
+      const loaded = items();
+      const first = loaded.findIndex((item) => item.id === firstId);
+      const last = loaded.findIndex((item) => item.id === lastId);
+      if (first < 0 || last < 0) return;
+      setIds((old) => new Set([...old, ...loaded.slice(Math.min(first, last), Math.max(first, last) + 1).map((item) => item.id)]));
+      setSelecting(true);
+    },
     start: () => setSelecting(true),
     selected: () => items().filter((i) => ids().has(i.id)),
     selectAll: () => batch(() => { setIds(new Set(items().map((i) => i.id))); setSelecting(true); }),
