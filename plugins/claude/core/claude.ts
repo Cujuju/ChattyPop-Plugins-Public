@@ -1,11 +1,14 @@
 // Claude through the Agent SDK, using the owner's sign-in or API key.
 import { accountEnv, API_KEY_ENV } from './accountEnv';
 import { modelFacts } from './modelFacts';
+import { completionAnswer } from './completionAnswer';
+import { completionTools } from './completionTools';
 import { tmpdir } from 'node:os';
 import { query, type ApiKeySource, type EffortLevel, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { MS_PER_DAY, MS_PER_HOUR } from '@plugin-sdk/shared';
 import {
   HOSTED_MAX_INPUT_CHARS,
+  historyTranscript,
   ProviderUnavailableError,
   resolveCli,
   type CliSpec,
@@ -62,7 +65,7 @@ export class ClaudeProvider implements LlmProvider {
     if (!launch) throw new ProviderUnavailableError(`${name} is not installed or not on PATH.`);
     return {
       pathToClaudeCodeExecutable: launch.args[0] ?? launch.command,
-      // Isolation: no tools, no user/project settings, CLAUDE.md, hooks or skills, no saved transcript.
+      // Isolation: no built-in tools, user/project settings, CLAUDE.md, hooks, skills or saved transcript.
       tools: [],
       settingSources: [],
       // Disables user MCP servers to omit their tool definitions from completion calls.
@@ -78,29 +81,42 @@ export class ClaudeProvider implements LlmProvider {
   async complete(req: CompletionRequest): Promise<CompletionResult> {
     const key = this.account.auth === 'apiKey' ? this.account.apiKey() : null;
     let verifiedKeySource = key === null;
-    const prompt = req.images?.length ? withImages(req.prompt, req.images) : req.prompt;
     const abortController = new AbortController();
-    req.signal?.addEventListener('abort', () => abortController.abort(), { once: true });
-    const q = query({
-      prompt,
-      options: {
-        ...this.baseOptions(key),
-        systemPrompt: req.system,
-        maxTurns: req.schema ? MAX_TURNS_WITH_SCHEMA : MAX_TURNS_TEXT,
-        abortController,
-        ...(req.model ? { model: req.model } : {}),
-        // Levels come from the model's supportedEffortLevels (listModels).
-        ...(req.effort ? { effort: req.effort as EffortLevel } : {}),
-        ...(req.schema ? { outputFormat: { type: 'json_schema', schema: req.schema } } : {}),
-      },
-    });
-    this.queries.add(q);
+    const abort = (): void => abortController.abort(req.signal?.reason);
+    req.signal?.addEventListener('abort', abort, { once: true });
+    if (req.signal?.aborted) abort();
+    const onEvent: CompletionRequest['onEvent'] = req.onEvent ? (event) => {
+      if (!abortController.signal.aborted) req.onEvent?.(event);
+    } : undefined;
+    const answer = completionAnswer(onEvent);
+    let q: ReturnType<typeof query> | undefined;
     try {
+      abortController.signal.throwIfAborted();
+      const text = historyTranscript(req.history, req.prompt);
+      const prompt = req.images?.length ? withImages(text, req.images) : text;
+      q = query({
+        prompt,
+        options: {
+          ...this.baseOptions(key),
+          systemPrompt: req.system,
+          maxTurns: req.schema ? MAX_TURNS_WITH_SCHEMA : MAX_TURNS_TEXT,
+          abortController,
+          ...(req.tools ? completionTools({ ...req, onEvent }, abortController.signal) : {}),
+          ...(onEvent ? { includePartialMessages: true } : {}),
+          ...(req.model ? { model: req.model } : {}),
+          // Levels come from the model's supportedEffortLevels (listModels).
+          ...(req.effort ? { effort: req.effort as EffortLevel } : {}),
+          ...(req.schema ? { outputFormat: { type: 'json_schema', schema: req.schema } } : {}),
+        },
+      });
+      this.queries.add(q);
       for await (const msg of q) {
+        abortController.signal.throwIfAborted();
         if (key && msg.type === 'system' && msg.subtype === 'init') {
           if (msg.apiKeySource !== API_KEY_SOURCE) throw new Error('Claude did not select your API key. The request was stopped.');
           verifiedKeySource = true;
         }
+        if (req.tools || onEvent) answer.accept(msg);
         if (msg.type !== 'result') continue;
         if (!verifiedKeySource) throw new Error('Claude did not confirm your API key. The request was stopped.');
         if (msg.subtype !== 'success') throw new Error(`Claude run failed: ${msg.subtype}`);
@@ -112,7 +128,7 @@ export class ClaudeProvider implements LlmProvider {
           outputTokens: u.output_tokens,
         };
         // Priced by Claude Code at API list rates, cache writes and reads included, whatever the plan.
-        return { text: msg.result, usage, apiCostUsd: msg.total_cost_usd, ...(req.schema ? { json: msg.structured_output } : {}) };
+        return { text: req.tools || onEvent ? answer.text : msg.result, usage, apiCostUsd: msg.total_cost_usd, ...(req.schema ? { json: msg.structured_output } : {}) };
       }
       throw new Error('Claude run ended without a result.');
     } catch (err) {
@@ -120,8 +136,12 @@ export class ClaudeProvider implements LlmProvider {
       if (key && err instanceof Error && err.message.includes(key)) throw new Error(err.message.replaceAll(key, '[API key]'));
       throw err;
     } finally {
-      this.queries.delete(q);
-      q.close();
+      abortController.abort();
+      req.signal?.removeEventListener('abort', abort);
+      if (q) {
+        this.queries.delete(q);
+        q.close();
+      }
     }
   }
 
@@ -144,6 +164,7 @@ export class ClaudeProvider implements LlmProvider {
         ...(m.supportedEffortLevels?.length ? { efforts: m.supportedEffortLevels } : {}),
         // supportedModels omits input types; this adapter advertises image support for every returned model.
         images: true,
+        tools: true,
         ...(m.value === DEFAULT_MODEL_VALUE ? { isDefault: true } : {}),
       }));
     } finally {
