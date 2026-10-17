@@ -5,6 +5,7 @@ import { attachmentPeople, attachmentPlaces, attachmentTotals } from './totals';
 
 export default defineCorePlugin(plugin, (ctx) => {
   const db = ctx.storage.db;
+  ctx.ai.tools.provide(archiveTools(db));
   ctx.channels.serve({
     page: (q) => attachmentPage(db, ctx.archive.messages, q),
     totals: (f) => attachmentTotals(db, f),
@@ -13,3 +14,4 @@ export default defineCorePlugin(plugin, (ctx) => {
     sharedBy: (q) => personFiles(db, ctx.archive.messages, q),
   });
 });
+import { archiveTools } from './aiTools';
