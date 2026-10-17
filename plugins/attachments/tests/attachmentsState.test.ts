@@ -10,7 +10,8 @@ vi.mock('solid-js', async () => { const clientBuild = 'solid-js/dist/solid.cjs';
 const PAGE = vi.hoisted(() => 100);
 type Request = { q: AttachmentPageQuery; resolve: (rows: AttachmentItem[]) => void };
 const requests: Request[] = [];
-vi.mock('@plugin-sdk/renderer', () => ({
+vi.mock('@plugin-sdk/renderer', async () => ({
+  ...(await import('@plugin-sdk/renderer/containment')),
   ARCHIVE_REFRESH_DEBOUNCE_MS: 0,
   callable: () => true,
   desktopCoreClient: () => ({
