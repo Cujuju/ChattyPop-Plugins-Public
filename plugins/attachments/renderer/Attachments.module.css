@@ -72,18 +72,20 @@
 }
 
 /* Under the pointer its zoomed picture (look.mediaThumb's data-zoom) spills over the neighbours; on leaving it is clipped at once. */
-.cell:hover {
+.cell:hover,
+.cell[data-preview='true'] {
   z-index: 1;
   overflow: visible;
 }
 
 /* The size gives the hovered picture its corner. */
-.cell:hover .cornerEnd {
+.cell:hover .cornerEnd,
+.cell[data-preview='true'] .cornerEnd {
   visibility: hidden;
 }
 
 /* Each virtual row is its own layer (the log translates it), so the hovered tile's row rises over the rows around it. */
-.scroller [data-row-key]:has(.cell:hover) {
+.scroller [data-row-key]:has(.cell:hover, .cell[data-preview='true']) {
   z-index: 1;
 }
 
@@ -119,6 +121,11 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+}
+
+.hoverVideo {
+  position: absolute;
+  inset: 0;
 }
 
 /* No picture (a spoiler, audio, another file, a file not on this PC): an icon over the name. */
