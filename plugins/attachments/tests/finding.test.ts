@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AttachmentFilter } from '../shared/types';
 import { fixture, ids } from './attachmentsHarness';
-import { monthBounds } from '../shared/months';
+import { monthBounds, monthOf } from '../shared/months';
 
 const LIMIT = 100;
 const LONG_CONTEXT = 80;
@@ -106,5 +106,22 @@ describe('calendar months', () => {
     expect(monthBounds('2026-12')).toEqual({ start: new Date(2026, 11).getTime(), end: new Date(2027, 0).getTime() });
     expect(monthBounds('2026-00')).toBeNull();
     expect(monthBounds('2026-13')).toBeNull();
+  });
+
+  it("follows the viewer's zone, daylight-saving changes included, wherever the core runs", async () => {
+    // Los Angeles: PST (UTC-8) on March 1, PDT (UTC-7) by April 1. London: back on GMT by November 1.
+    expect(monthBounds('2026-03', 'America/Los_Angeles')).toEqual({ start: Date.UTC(2026, 2, 1, 8), end: Date.UTC(2026, 3, 1, 7) });
+    expect(monthBounds('2026-11', 'Europe/London')!.start).toBe(Date.UTC(2026, 10, 1));
+    expect(monthOf(Date.UTC(2026, 2, 31, 20), 'Pacific/Auckland')).toBe('2026-04');
+    expect(monthOf(Date.UTC(2026, 2, 31, 20), 'UTC')).toBe('2026-03');
+    const { t, client } = fixture();
+    // a1 is March 31 in UTC but April 1 in Auckland; the rest stay in January.
+    t.db.prepare('UPDATE attachments SET ts = ?').run(Date.UTC(2026, 0, 15));
+    t.db.prepare('UPDATE attachments SET ts = ? WHERE id = ?').run(Date.UTC(2026, 2, 31, 20), 'a1');
+    expect((await client.months({}, 'UTC')).map((r) => r.month)).toEqual(['2026-03', '2026-01']);
+    expect((await client.months({}, 'Pacific/Auckland')).map((r) => r.month)).toEqual(['2026-04', '2026-01']);
+    const sort = { key: 'date' as const, dir: 'asc' as const };
+    expect(ids(await client.page({ limit: 1, sort, startMonth: '2026-04', timeZone: 'Pacific/Auckland' }))).toEqual(['a1']);
+    expect(await client.page({ limit: 1, sort, startMonth: '2026-04', timeZone: 'UTC' })).toEqual([]);
   });
 });

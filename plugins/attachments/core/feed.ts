@@ -19,7 +19,7 @@ export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): Attachment
   const w = attachmentWhere(q);
   const sort = q.sort ?? NEWEST;
   if (sort.key === 'date' && q.startMonth) {
-    const bounds = monthBounds(q.startMonth);
+    const bounds = monthBounds(q.startMonth, q.timeZone);
     if (!bounds) return [];
     w.sql += sort.dir === 'desc' ? ' AND a.ts < ?' : ' AND a.ts >= ?';
     w.params.push(sort.dir === 'desc' ? bounds.end : bounds.start);

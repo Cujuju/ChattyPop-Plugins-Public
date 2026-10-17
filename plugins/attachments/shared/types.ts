@@ -81,7 +81,8 @@ export interface AttachmentsCoreCalls {
   totals(f: AttachmentFilter): AttachmentTotals;
   people(q: PeopleQuery): PersonRow[];
   places(f: AttachmentFilter): AttachmentPlaces;
-  months(f: AttachmentFilter): AttachmentMonth[];
+  /** `timeZone`: the viewer's IANA zone, whose calendar the months follow; the core's own when absent. */
+  months(f: AttachmentFilter, timeZone?: string): AttachmentMonth[];
   sharedBy(q: PersonFilesQuery): AttachmentItem[];
   postings(sha256: string): AttachmentPosting[];
   breakdown(f: AttachmentFilter, by: BreakdownBy): AttachmentBreakdown[];

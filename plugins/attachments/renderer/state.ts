@@ -77,7 +77,9 @@ export const places = pluginResource(plugin, 'places', () => {
   revision();
   return [unplaced()];
 }, { guilds: {}, channels: {} } as AttachmentPlaces);
-export const months = pluginResource(plugin, 'months', () => { revision(); return [filter()]; }, [] as AttachmentMonth[]);
+/** This viewer's time zone: months and jumps follow the calendar its dates are shown in, wherever the core runs. */
+const viewerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const months = pluginResource(plugin, 'months', () => { revision(); return [filter(), viewerZone()]; }, [] as AttachmentMonth[]);
 
 /**
  * The order's first `limit` rows as shown (from a jumped month's window, while one is open); `reachedStart`: nothing
@@ -88,7 +90,7 @@ const readNewest = async (limit: number, startAt?: AttachmentCursor, windowed = 
   const f = filter();
   const order = sort(), top = topDown();
   const [items, counts] = await Promise.all([page({ ...f, sort: order, limit,
-    ...(windowed ? startAt ? { startAt } : { startMonth: selectedMonth! } : {}) }), pluginData(() => client.totals(f), emptyTotals())]);
+    ...(windowed ? startAt ? { startAt } : { startMonth: selectedMonth!, timeZone: viewerZone() } : {}) }), pluginData(() => client.totals(f), emptyTotals())]);
   if (windowed && items.length === 0) return { ...await readNewest(limit, undefined, false), left: true };
   const complete = items.length < limit;
   const prior = windowed ? await page({ ...f, sort: order, limit: 1, before: { ts: items[0]!.ts, id: items[0]!.id } }) : [];
