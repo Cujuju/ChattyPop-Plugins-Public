@@ -24,6 +24,7 @@ export function AttachmentsPanel() {
   const [cols, setCols] = createSignal(INITIAL_TRACK_COUNT);
   const [trackWidth, setTrackWidth] = createSignal(INITIAL_ESTIMATE_PX);
   let measure!: HTMLDivElement;
+  let scroller!: HTMLDivElement;
   const rows = createMemo<Row[]>(() => {
     const out: Row[] = [];
     const count = view() === 'grid' ? cols() : 1;
@@ -70,7 +71,16 @@ export function AttachmentsPanel() {
     if (!topDown()) log.scrollToNewest();
     // A row above the view comes in at its top edge.
     else if (first) vlog.scrollToKey(first.key);
-    if (jumped() && first) vlog.holdRow(first.key, topDown() ? 'auto' : { bottom: 0 });
+    if (jumped() && first) {
+      vlog.holdRow(first.key, topDown() ? 'auto' : { bottom: 0 });
+      const opened = loads();
+      // A short window can already be visible at the bottom; align its measured first row to the reading edge.
+      queueMicrotask(() => {
+        if (!jumped() || opened !== loads() || !topDown()) return;
+        const row = scroller.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(first.key)}"]`);
+        if (row) vlog.holdRow(first.key, { bottom: scroller.clientHeight - row.getBoundingClientRect().height });
+      });
+    }
   };
   createEffect(on(loads, () => queueMicrotask(toStart)));
   return (
@@ -94,7 +104,7 @@ export function AttachmentsPanel() {
             <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
           </Show>
           <Show when={view() === 'list'}><AttachmentListHeader /></Show>
-          <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
+          <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { scroller = el; vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
             <div class={styles.measure} ref={measure} aria-hidden="true" />
             <VirtualRows log={vlog}>{(row) => (
               <Switch>

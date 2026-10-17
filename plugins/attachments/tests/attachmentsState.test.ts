@@ -149,6 +149,16 @@ describe('a date window', () => {
     expect(state.jumped()).toBe(false);
   });
 
+  it.each(['top', 'bottom'] as const)('keeps the return direction open for a short window from the %s', async (anchor) => {
+    batch(() => { state.setAnchor(anchor); state.setSort({ key: 'date', dir: 'desc' }); });
+    await settle(); await answer(rows(0, PAGE));
+    const jump = state.jumpToMonth('2026-02');
+    await answer(rows(PAGE, 1)); await answer(rows(PAGE - 1, 1)); await jump;
+    expect(state.attachments.reachedStart).toBe(anchor === 'bottom');
+    expect(state.hasMoreBelow()).toBe(anchor === 'bottom');
+    const reset = state.reloadAttachments(); await answer(rows(0, PAGE)); await reset;
+  });
+
   it('discards a stale window after filters reload the first page', async () => {
     const jump = state.jumpToMonth('2026-02');
     const stale = requests.shift()!;

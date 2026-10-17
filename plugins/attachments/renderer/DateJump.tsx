@@ -1,6 +1,6 @@
 import { Icon, look, openMenuAt, type MenuGroup } from '@plugin-sdk/renderer/kit';
 import { monthBounds } from '../shared/months';
-import { failure, jumpToMonth, months, sort } from './state';
+import { jumpToMonth, months, sort } from './state';
 import styles from './AttachmentFilters.module.css';
 
 export function DateJump() {
@@ -21,7 +21,7 @@ export function DateJump() {
     : !months().length ? 'No matching dates' : 'Jump to date';
   return <span title={title()}>
     <button type="button" class={`${styles.chip} ${look.iconButton}`} aria-label="Jump to date" aria-haspopup="menu"
-      disabled={sort().key !== 'date' || months.loading || !!months.failure || !months().length || !!failure()}
+      disabled={sort().key !== 'date' || months.loading || !!months.failure || !months().length}
       onClick={(e) => open(e.currentTarget)}><Icon name="calendar" /></button>
   </span>;
 }
