@@ -623,6 +623,13 @@
       "description": "The Analytics panel: message counts by person, day, hour and channel.",
       "releases": [
         {
+          "version": "1.22.0",
+          "tag": "stats-v1.22.0",
+          "asset": "stats-1.22.0.tar.gz",
+          "sha256": "6a0a623dad6c2fe3d673dacd31d54f80faa1289b896660c02eba626c76259928",
+          "sdk": "3.2.0"
+        },
+        {
           "version": "1.21.3",
           "tag": "stats-v1.21.3",
           "asset": "stats-1.21.3.tar.gz",
@@ -1014,6 +1021,13 @@
       "name": "Attachments",
       "description": "Browse archived files, see what uses disk space, compress media and delete local copies.",
       "releases": [
+        {
+          "version": "1.9.0",
+          "tag": "attachments-v1.9.0",
+          "asset": "attachments-1.9.0.tar.gz",
+          "sha256": "6a3d0c6866d25f6e1b54f4b34894456259ddb9fa86da560a818c9c979c11c896",
+          "sdk": "3.2.0"
+        },
         {
           "version": "1.0.0",
           "tag": "attachments-v1.0.0",
