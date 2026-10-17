@@ -1,11 +1,10 @@
 // #67: Jev detects plans and decisions; the selected provider extracts details. Code validates dates against message timestamps.
 import type { PlanItem, PlanKind } from '../shared/types';
 import { cutText, errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
-import { clipMessage, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, } from '@plugin-sdk/core';
+import { clipMessage, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, toolScopeSql } from '@plugin-sdk/core';
 import { PLAN_QUERY, PLAN_SUBJECT } from '../shared';
 import { PENDING_TABLE, PLANS_TABLE } from './schema';
 import type { ArchiveToolScope } from '@plugin-sdk/core';
-import { messageScope } from './toolSupport';
 
 /** Longest title kept; the panel shows one line. */
 const MAX_TITLE_CHARS = 120;
@@ -144,7 +143,7 @@ async function extract(deps: PlanDeps, m: TextMessage, kind: PlanKind): Promise<
 
 /** Plans soonest first (undated after dated), then decisions newest first. */
 export function planList(db: PluginDb, limit: number, scope?: ArchiveToolScope, upcoming = false, now = Date.now()): PlanItem[] {
-  const scoped = scope ? messageScope(scope) : { sql: '1', params: [] };
+  const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
   const future = upcoming ? " AND (p.kind = 'decision' OR p.when_ts IS NULL OR p.when_ts >= ?)" : '';
   // CROSS JOIN forces plan-driven archive lookups.
   const rows = db

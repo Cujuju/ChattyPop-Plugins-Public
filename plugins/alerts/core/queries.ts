@@ -1,10 +1,9 @@
 // Privacy-aware inbox queries and read state.
-import { mentionsFrom, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
+import { mentionsFrom, type PluginDb, type ArchivePayloadReader, toolScopeSql } from '@plugin-sdk/core';
 import { HELD_REASONS, type AlertItem, type AlertQuery, type HeldReason } from '../shared/types';
 import { HELD_COLUMN } from './schema';
 import { ALERTS, VISIBLE_ALERTS } from './tables';
 import type { ArchiveToolScope } from '@plugin-sdk/core';
-import { messageScope } from './toolSupport';
 
 /** A stored held reason; one this build doesn't know reads as none. */
 const heldReason = (v: string | null): HeldReason | null => (HELD_REASONS as readonly string[]).includes(v ?? '') ? (v as HeldReason) : null;
@@ -14,7 +13,7 @@ export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: Aler
   const where: string[] = ['1'];
   const params: (string | number)[] = [];
   if (tool) {
-    const scoped = messageScope(tool.scope);
+    const scoped = toolScopeSql(tool.scope);
     where.push(scoped.sql);
     params.push(...scoped.params);
     if (tool.rule !== undefined) {

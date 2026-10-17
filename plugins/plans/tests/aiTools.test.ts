@@ -1,18 +1,18 @@
 // Real activation plus direct tool calls, so host output guards cannot hide scope errors.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { ARCHIVE_TOOL_LINES_MAX, defineCorePlugin, type ArchiveToolScope, type CoreContext } from '@plugin-sdk/core';
-import { definePlugin } from '@plugin-sdk/shared';
+import { definePlugin, MS_PER_MIN } from '@plugin-sdk/shared';
 import { testPlugin, type SeedMessage } from '@plugin-sdk/core/testing';
 import core from '../core';
 import { plugin } from '../shared';
 import { archiveTools } from '../core/aiTools';
 
 const START = Date.UTC(2026, 8, 1);
-const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1, until: START + 2 };
+const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1 * MS_PER_MIN, until: START + 2 * MS_PER_MIN };
 const unbounded: ArchiveToolScope = { channelIds: ['c1'], since: null, until: null };
 const reader = definePlugin({ manifest: { id: 'toolreader', name: 'Tool reader', version: '1', description: '' } });
 const message = (index: number, channelId = 'c1'): SeedMessage => ({
-  channelId, ts: START + index, authorId: 'writer', authorName: 'Writer', content: `message ${index}`,
+  channelId, ts: START + index * MS_PER_MIN, authorId: 'writer', authorName: 'Writer', content: `message ${index}`,
 });
 const messages = [0, 1, 2, 3].map((i) => message(i)).concat([message(2, 'c2'), message(2, 'thread'), message(2, 'hidden')]);
 
@@ -38,7 +38,7 @@ function plans(count = 0) {
     .all() as { id: string; channelId: string; ts: number }[];
   const insert = h.t.db.prepare(`INSERT INTO ${PLANS_TABLE} (message_id, channel_id, kind, title, when_ts, who_json, details, created_at)
     VALUES (?, ?, 'plan', ?, NULL, '["Participant"]', '', ?)`);
-  for (const row of rows) insert.run(row.id, row.channelId, `Plan ${row.ts - START}`, row.ts);
+  for (const row of rows) insert.run(row.id, row.channelId, `Plan ${(row.ts - START) / MS_PER_MIN}`, row.ts);
   return { ...h, rows };
 }
 
@@ -55,7 +55,7 @@ describe('Plans archive list', () => {
 
   it('defaults upcoming to true, retaining undated plans and decisions, and honors privacy', async () => {
     const { t, run, rows } = plans();
-    const past = rows.find((row) => row.channelId === 'c1' && row.ts === START + 1)!;
+    const past = rows.find((row) => row.channelId === 'c1' && row.ts === START + 1 * MS_PER_MIN)!;
     t.db.prepare(`UPDATE ${PLANS_TABLE} SET when_ts = ? WHERE message_id = ?`).run(START, past.id);
     expect((await run('list')).lines).toHaveLength(1);
     expect((await run('list', { upcoming: false })).lines).toHaveLength(2);

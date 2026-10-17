@@ -1,18 +1,18 @@
 // Real activation plus direct tool calls, so host output guards cannot hide scope errors.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { ARCHIVE_TOOL_LINES_MAX, defineCorePlugin, type ArchiveToolScope, type CoreContext } from '@plugin-sdk/core';
-import { definePlugin } from '@plugin-sdk/shared';
+import { ARCHIVE_TOOL_LINES_MAX, toolTime, defineCorePlugin, type ArchiveToolScope, type CoreContext } from '@plugin-sdk/core';
+import { definePlugin, MS_PER_MIN } from '@plugin-sdk/shared';
 import { testPlugin, type SeedMessage } from '@plugin-sdk/core/testing';
 import core from '../core';
 import { plugin } from '../shared';
 import { archiveTools } from '../core/aiTools';
 
 const START = Date.UTC(2026, 8, 1);
-const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1, until: START + 2 };
+const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1 * MS_PER_MIN, until: START + 2 * MS_PER_MIN };
 const unbounded: ArchiveToolScope = { channelIds: ['c1'], since: null, until: null };
 const reader = definePlugin({ manifest: { id: 'toolreader', name: 'Tool reader', version: '1', description: '' } });
 const message = (index: number, channelId = 'c1'): SeedMessage => ({
-  channelId, ts: START + index, authorId: 'writer', authorName: 'Writer', content: `message ${index}`,
+  channelId, ts: START + index * MS_PER_MIN, authorId: 'writer', authorName: 'Writer', content: `message ${index}`,
 });
 const messages = [0, 1, 2, 3].map((i) => message(i)).concat([message(2, 'c2'), message(2, 'thread'), message(2, 'hidden')]);
 
@@ -35,14 +35,14 @@ import type { Citation, SummaryItem } from '../shared/types';
 
 type Host = ReturnType<typeof start>;
 function citation(h: Host, offset: number, channelId = 'c1'): Citation {
-  const messageId = h.t.db.prepare('SELECT id FROM archive_messages WHERE channel_id = ? AND ts = ?').pluck().get(channelId, START + offset) as string;
-  return { messageId, channelId, channelName: channelId, ts: START + offset };
+  const messageId = h.t.db.prepare('SELECT id FROM archive_messages WHERE channel_id = ? AND ts = ?').pluck().get(channelId, START + offset * MS_PER_MIN) as string;
+  return { messageId, channelId, channelName: channelId, ts: START + offset * MS_PER_MIN };
 }
 function add(h: Host, key: string, channels = ['c1'], since = 1, until = 2, items: SummaryItem[] = [], created = 0) {
   h.t.db.prepare(`INSERT INTO ${SUMMARIES_TABLE}
     (cache_key, created_at, provider, since_ts, until_ts, channel_ids, message_count, duration_ms, headline, items_json)
     VALUES (?, ?, 'local', ?, ?, ?, 1, 1, ?, ?)`)
-    .run(key, START + created, START + since, START + until, JSON.stringify(channels), key, JSON.stringify(items));
+    .run(key, START + created, START + since * MS_PER_MIN, START + until * MS_PER_MIN, JSON.stringify(channels), key, JSON.stringify(items));
 }
 const item = (text: string, citations: Citation[]): SummaryItem => ({ parts: [{ text, citations }] });
 
@@ -55,13 +55,13 @@ describe('Summaries archive read', () => {
     add(h, 'Mixed channels', ['c1', 'c2'], 1, 2, [], 4);
     add(h, 'Outside span', ['c1'], 0, 0, [], 5);
     add(h, 'Thread', ['thread'], 1, 2, [], 6);
-    const read = await h.run('read', { since: START - 1, until: START + 9 });
+    const read = await h.run('read', { since: toolTime(START - MS_PER_MIN), until: toolTime(START + 9 * MS_PER_MIN) });
     expect(read.lines.map((line) => line.text.split(' | ')[0])).toEqual(['Newest', 'Window item', 'Older']);
     expect(read.lines[1]!.messageId).toBe(citation(h, 1).messageId);
     expect(read.lines[0]!.messageId).toBeUndefined();
     expect(read.readChannels).toEqual(['c1']);
     expect((await h.run('read', {}, { ...scope, channelIds: [] })).lines).toEqual([]);
-    expect((await h.run('read', { since: START + 4 })).lines).toEqual([]);
+    expect((await h.run('read', { since: toolTime(START + 4 * MS_PER_MIN) })).lines).toEqual([]);
     expect((await h.consumer.ai.tools.run('summaries_read', {}, scope, new AbortController().signal)).lines).toEqual(read.lines);
   });
 
@@ -72,8 +72,8 @@ describe('Summaries archive read', () => {
       item('Both', [citation(h, 1), citation(h, 2)]),
       item('Missing', [{ ...citation(h, 1), messageId: 'missing' }]),
     ]);
-    expect((await h.run('read', { since: START + 2 })).lines.map((line) => line.text.split(' | ')[0])).toEqual(['Span', 'Second']);
-    expect((await h.run('read', { until: START + 1 })).lines.map((line) => line.text.split(' | ')[0])).toEqual(['Span', 'First']);
+    expect((await h.run('read', { since: toolTime(START + 2 * MS_PER_MIN) })).lines.map((line) => line.text.split(' | ')[0])).toEqual(['Span', 'Second']);
+    expect((await h.run('read', { until: toolTime(START + 1 * MS_PER_MIN) })).lines.map((line) => line.text.split(' | ')[0])).toEqual(['Span', 'First']);
     add(h, 'Hidden mix', ['c1', 'hidden']);
     h.t.archive.setPrivacyMode(true);
     const read = await h.consumer.ai.tools.run('summaries_read', {}, { ...scope, channelIds: ['c1', 'hidden'] }, new AbortController().signal);
@@ -101,7 +101,7 @@ describe('Summaries archive read', () => {
     for (const tool of tools) {
       expect(tool.parameters).toMatchObject({ type: 'object', properties: expect.any(Object), additionalProperties: false });
       const valid: Record<string, unknown> = {};
-      const bad: unknown[] = [null, [], 'text', { unexpected: true }, ...[{ since: 'today' }, { since: Infinity }, { until: NaN }, { since: START + 2, until: START }]];
+      const bad: unknown[] = [null, [], 'text', { unexpected: true }, ...[{ since: 'today' }, { since: Infinity }, { until: NaN }, { since: toolTime(START + 2 * MS_PER_MIN), until: toolTime(START) }]];
       if (Object.hasOwn(tool.parameters['properties'] as object, 'limit')) {
         bad.push({ ...valid, limit: 0 }, { ...valid, limit: -1 }, { ...valid, limit: 1.5 }, { ...valid, limit: NaN }, { ...valid, limit: Infinity }, { ...valid, limit: ARCHIVE_TOOL_LINES_MAX + 1 });
       }

@@ -1,6 +1,7 @@
 // Real activation plus direct tool calls, so host output guards cannot hide scope errors.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { ARCHIVE_TOOL_LINES_MAX, type ArchiveToolScope } from '@plugin-sdk/core';
+import { MS_PER_MIN } from '@plugin-sdk/shared';
 import type { SeedMessage } from '@plugin-sdk/core/testing';
 import { tempDb, seedArchive, rawMessage, hostRuleStack } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
@@ -13,10 +14,10 @@ import { plugin } from '../shared';
 import { archiveTools } from '../core/aiTools';
 
 const START = Date.UTC(2026, 8, 1);
-const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1, until: START + 2 };
+const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1 * MS_PER_MIN, until: START + 2 * MS_PER_MIN };
 const unbounded: ArchiveToolScope = { channelIds: ['c1'], since: null, until: null };
 const message = (index: number, channelId = 'c1'): SeedMessage => ({
-  channelId, ts: START + index, authorId: 'writer', authorName: 'Writer', content: `message ${index}`,
+  channelId, ts: START + index * MS_PER_MIN, authorId: 'writer', authorName: 'Writer', content: `message ${index}`,
 });
 const messages = [0, 1, 2, 3].map((i) => message(i)).concat([message(2, 'c2'), message(2, 'thread'), message(2, 'hidden')]);
 
@@ -56,7 +57,7 @@ function alerts(count = 0) {
     .all() as { id: string; channelId: string; authorId: string; ts: number; content: string }[];
   const insert = h.t.db.prepare(`INSERT INTO ${ALERTS} (rule_id, message_id, channel_id, author_id, ts, snippet, created_at, read_at, match_kind)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'text')`);
-  for (const row of rows) insert.run(rule, row.id, row.channelId, row.authorId, row.ts, row.content, row.ts, row.ts === START + 1 ? START : null);
+  for (const row of rows) insert.run(rule, row.id, row.channelId, row.authorId, row.ts, row.content, row.ts, row.ts === START + 1 * MS_PER_MIN ? START : null);
   return { ...h, rows, rule };
 }
 

@@ -2,9 +2,8 @@
 import { TAGS, MESSAGE_TAGS } from './tables';
 import { validateTagInput, type MessageTagChip, type Tag, type TagInput, type TaggedMessage } from '../shared/types';
 import type { CustomJevQuestion } from '@plugin-sdk/shared';
-import { fromJson, toJson, type PluginDb } from '@plugin-sdk/core';
+import { fromJson, toJson, type PluginDb, toolScopeSql } from '@plugin-sdk/core';
 import type { ArchiveToolScope } from '@plugin-sdk/core';
-import { messageScope } from './toolSupport';
 
 /** Stored tag definition. */
 export interface TagRow {
@@ -45,7 +44,7 @@ export class TagStore {
   constructor(private readonly db: PluginDb) {}
 
   list(scope?: ArchiveToolScope): Tag[] {
-    const scoped = scope ? messageScope(scope) : { sql: '1', params: [] };
+    const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
     return (
       this.db
         .prepare(`SELECT t.*, (SELECT COUNT(*) FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id WHERE mt.tag_id = t.id AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql}) AS count FROM ${TAGS} t ORDER BY t.name`)
@@ -153,7 +152,7 @@ export class TagStore {
 
   /** Messages carrying a tag, newest first. */
   tagged(tagId: number, limit: number, scope?: ArchiveToolScope): TaggedMessage[] {
-    const scoped = scope ? messageScope(scope) : { sql: '1', params: [] };
+    const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
     return this.db
       .prepare(
       `SELECT m.id AS messageId, m.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS channelName, m.ts,
