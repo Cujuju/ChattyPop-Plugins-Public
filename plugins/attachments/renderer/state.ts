@@ -2,13 +2,14 @@ import { batch, createEffect, createSignal, on } from 'solid-js';
 import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource } from '@plugin-sdk/renderer';
 import { createPagedList } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
-import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
+import { emptyTotals, type AttachmentCursor, type AttachmentItem, type AttachmentMonth, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
 import { selection } from './selection';
 import { ATTACHMENT_PAGE_SIZE, WHO_OPTIONS_MAX, createAttachmentFilters } from './filterState';
 export * from './filterState';
 
 export const { where, setWhere, who, setWho, kinds, setKinds, range, setRange, minBytes, setMinBytes, presence, setPresence,
-  uncompressed, setUncompressed, name, setName, sort, setSort, filter, unplaced, filterCount, resetFilters, queryName } = createAttachmentFilters();
+  uncompressed, setUncompressed, name, setName, sort, setSort, filter, unplaced, filterCount, resetFilters, queryName, snapshot, applySnapshot } = createAttachmentFilters();
+export const [savedFilters, setSavedFilters] = pluginPreference(plugin, 'savedFilters');
 export const [view, setView] = pluginPreference(plugin, 'view');
 export const [hoverZoom, setHoverZoom] = pluginPreference(plugin, 'hoverZoom');
 export const [anchor, setAnchor] = pluginPreference(plugin, 'anchor');
@@ -29,12 +30,16 @@ export const cursorAt = (item: AttachmentItem): AttachmentCursor => {
 /** The next page of the order after `last` (the bottom-up list's top row, the top-down list's bottom row). */
 const pageAfter = async (last: AttachmentItem): Promise<AttachmentItem[]> =>
   shown(await page({ ...filter(), sort: sort(), limit: ATTACHMENT_PAGE_SIZE, after: cursorAt(last) }));
-// Bottom-up loads more above (older); top-down, below (newer). Top-down marks the start reached, so nothing loads above.
-const list = createPagedList<AttachmentItem>(ATTACHMENT_PAGE_SIZE, pageAfter, pageAfter);
+const pageBefore = async (first: AttachmentItem): Promise<AttachmentItem[]> =>
+  shown(await page({ ...filter(), sort: sort(), limit: ATTACHMENT_PAGE_SIZE, before: cursorAt(first) }));
+const list = createPagedList<AttachmentItem>(ATTACHMENT_PAGE_SIZE,
+  (first) => topDown() ? pageBefore(first) : pageAfter(first), (last) => topDown() ? pageAfter(last) : pageBefore(last));
 export const attachments = list.state;
 /** Top-down: more of the order lies below the last row loaded. */
 const [moreBelow, setMoreBelow] = createSignal(false);
-export const hasMoreBelow = (): boolean => topDown() && moreBelow();
+export const hasMoreBelow = (): boolean => moreBelow();
+export const [jumped, setJumped] = createSignal(false);
+let selectedMonth: string | null = null;
 /** A page's failure shows only while its read is current: a filter change since has its own outcome. */
 const loading = (load: () => Promise<number>): Promise<number> => {
   const generation = readGeneration;
@@ -43,8 +48,9 @@ const loading = (load: () => Promise<number>): Promise<number> => {
 export const loadOlderAttachments = (): Promise<number> => loading(() => list.loadOlder());
 export const loadMoreBelow = (): Promise<number> => loading(async () => {
   if (!hasMoreBelow()) return 0;
+  const generation = readGeneration;
   const added = await list.loadNewer();
-  if (added !== null && added < ATTACHMENT_PAGE_SIZE) setMoreBelow(false);
+  if (generation === readGeneration && added !== null && added < ATTACHMENT_PAGE_SIZE) setMoreBelow(false);
   return added ?? 0;
 });
 export const [totals, setTotals] = createSignal(emptyTotals());
@@ -65,14 +71,19 @@ export const places = pluginResource(plugin, 'places', () => {
   revision();
   return [unplaced()];
 }, { guilds: {}, channels: {} } as AttachmentPlaces);
+export const months = pluginResource(plugin, 'months', () => { revision(); return [filter()]; }, [] as AttachmentMonth[]);
 
 /** The order's first `limit` rows as shown; `reachedStart`: nothing loads above them (bottom-up: the order ends there). */
-type Read = { items: AttachmentItem[]; reachedStart: boolean; complete: boolean; counts: AttachmentTotals };
-const readNewest = async (limit: number): Promise<Read> => {
+type Read = { items: AttachmentItem[]; reachedStart: boolean; moreBelow: boolean; counts: AttachmentTotals };
+const readNewest = async (limit: number, startAt?: AttachmentCursor): Promise<Read> => {
   const f = filter();
-  const [items, counts] = await Promise.all([page({ ...f, sort: sort(), limit }), pluginData(() => client.totals(f), emptyTotals())]);
+  const order = sort(), top = topDown(), windowed = selectedMonth !== null;
+  const [items, counts] = await Promise.all([page({ ...f, sort: order, limit,
+    ...(windowed ? startAt ? { startAt } : { startMonth: selectedMonth! } : {}) }), pluginData(() => client.totals(f), emptyTotals())]);
   const complete = items.length < limit;
-  return { items: shown(items), reachedStart: topDown() || complete, complete, counts };
+  const prior = windowed && items.length > 0 ? await page({ ...f, sort: order, limit: 1, before: { ts: items[0]!.ts, id: items[0]!.id } }) : [];
+  return { items: top ? items : [...items].reverse(), reachedStart: top ? prior.length === 0 : complete,
+    moreBelow: top ? !complete : prior.length > 0, counts };
 };
 async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened: boolean): Promise<void> {
   const generation = ++readGeneration;
@@ -82,7 +93,7 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
     if (!await load((r) => { read = r; })) return;
     const kept = read as Read | null;
     batch(() => {
-      if (kept) { setTotals(kept.counts); setMoreBelow(!kept.complete); }
+      if (kept) { setTotals(kept.counts); setMoreBelow(kept.moreBelow); }
       setFailure(null);
       if (opened) setLoads((n) => n + 1);
     });
@@ -90,8 +101,17 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
 }
 
 /** A filter, order or privacy change: the order's first page replaces the rows, opened where the order starts. */
-export const reloadAttachments = (): Promise<void> =>
+const reloadWindow = (): Promise<void> =>
   apply((keep) => list.reload(async () => { const r = await readNewest(ATTACHMENT_PAGE_SIZE); keep(r); return r; }), true);
+export const reloadAttachments = (): Promise<void> => {
+  selectedMonth = null; setJumped(false);
+  return reloadWindow();
+};
+export const jumpToMonth = (month: string): Promise<void> => {
+  if (sort().key !== 'date') return Promise.resolve();
+  selectedMonth = month; setJumped(true);
+  return reloadWindow();
+};
 
 /**
  * An archive change: the loaded span reread in place; rows keep their objects by id, so tiles and pictures stay. A page
@@ -99,7 +119,8 @@ export const reloadAttachments = (): Promise<void> =>
  */
 export const rereadAttachments = (): Promise<void> => {
   const span = attachments.items.length;
-  return apply((keep) => list.update(() => readNewest(Math.max(ATTACHMENT_PAGE_SIZE, span)), (r, items) => {
+  const first = topDown() ? attachments.items[0] : attachments.items.at(-1);
+  return apply((keep) => list.update(() => readNewest(Math.max(ATTACHMENT_PAGE_SIZE, span), first ? cursorAt(first) : undefined), (r, items) => {
     if (items.length !== span) {
       queueMicrotask(() => void rereadAttachments());
       return [...items];
