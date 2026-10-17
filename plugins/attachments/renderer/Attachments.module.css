@@ -33,9 +33,9 @@
   scrollbar-gutter: stable;
 }
 
-/* Top-down: rows fewer than the view sit at its top. The log lays rows out bottom-up (column-reverse), so flex-end is the top. */
-.scroller[data-anchor='top'] {
-  justify-content: flex-end;
+/* Top-down: rows fewer than the view sit at its top. An auto margin, unlike flex-end, keeps overflowing rows in the reversed scroll range. */
+.scroller[data-anchor='top'] > .canvas {
+  margin-block-end: auto;
 }
 
 .empty {

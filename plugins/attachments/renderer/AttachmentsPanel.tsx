@@ -141,7 +141,7 @@ export function AttachmentsPanel() {
             <Show when={view() === 'list'}><AttachmentListHeader /></Show>
             <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { scroller = el; vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
               <div class={styles.measure} ref={measure} aria-hidden="true" />
-              <VirtualRows log={vlog} rowFocus={false}>{(row) => (
+              <VirtualRows log={vlog} rowFocus={false} class={styles.canvas}>{(row) => (
                 <Switch>
                   <Match when={row().kind === 'day' && row() as Extract<Row, { kind: 'day' }>}>
                     {(day) => <DayDivider label={day().label} />}
