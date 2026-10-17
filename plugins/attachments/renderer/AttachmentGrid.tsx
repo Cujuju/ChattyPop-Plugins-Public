@@ -1,9 +1,10 @@
 import { For, Show, createEffect, createSignal } from 'solid-js';
 import { onCleanup } from '@plugin-sdk/renderer';
-import { canSaveAttachmentsToFolder, failureNotice, formatBytes, look, startFileDrag } from '@plugin-sdk/renderer/kit';
+import { formatBytes, look } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem } from '../shared/types';
-import { clickAttachment, itemMarks, showItemMenu, storedRef } from './actions';
+import { clickAttachment, itemMarks, showItemMenu } from './actions';
 import { AttachmentPicture } from './AttachmentPicture';
+import { canDragOut, dragOut } from './folderSave';
 import { compressionJob, selection, type AttachmentSelection } from './selection';
 import { hoverZoom } from './state';
 import { zoomWithin, type Box, type TileZoom } from './zoom';
@@ -45,8 +46,7 @@ export function AttachmentGrid(props: { item: AttachmentItem; selection?: Attach
       onFocus={() => props.keyboard?.focused(props.item.id)}
       onBlur={() => props.keyboard?.clearPreview()}
       onKeyDown={(e) => props.keyboard?.keydown(e, props.item)}
-      draggable={canSaveAttachmentsToFolder && props.item.status === 'stored' && !!props.item.sha256}
-      onDragStart={(e) => { e.preventDefault(); const ref = storedRef(props.item); if (ref) void startFileDrag(ref).catch(failureNotice("Couldn't drag the file")); }}
+      draggable={canDragOut(props.item)} onDragStart={(e) => dragOut(e, props.item)}
       data-kind={props.item.kind} data-state={compressionJob()?.current === props.item.id ? 'busy' : undefined}
       data-attachment-id={props.item.id} title={title()}
       onPointerEnter={() => { measureZoom(); setHovered(true); }}

@@ -4,6 +4,7 @@ import { Icon, formatBytes, look, openArchive, shortDate } from '@plugin-sdk/ren
 import type { AttachmentItem, AttachmentSort, AttachmentSortKey } from '../shared/types';
 import { clickAttachment, itemMarks, placeText, showItemMenu } from './actions';
 import { AttachmentPicture } from './AttachmentPicture';
+import { canDragOut, dragOut } from './folderSave';
 import { compressionJob, selectedIds, selection } from './selection';
 import { attachments, queryName, setSort, sort } from './state';
 import { textHighlights } from './textHighlights';
@@ -50,6 +51,7 @@ export function AttachmentList(props: { item: AttachmentItem; keyboard?: Attachm
   return (
     <div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id} title={props.item.textMatch ? whoWhere() : undefined}
       ref={(el) => { const remove = props.keyboard?.register(props.item.id, el); onCleanup(() => remove?.()); }}
+      draggable={canDragOut(props.item)} onDragStart={(e) => dragOut(e, props.item)}
       tabIndex={props.keyboard?.tabId() === props.item.id ? 0 : -1} role="group" aria-label={props.item.filename}
       onFocus={() => props.keyboard?.focused(props.item.id)}
       onKeyDown={(e) => { if (e.target === e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) props.keyboard?.keydown(e, props.item); }}

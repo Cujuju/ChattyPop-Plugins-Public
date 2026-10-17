@@ -1,5 +1,5 @@
 import { createSignal } from 'solid-js';
-import { saveAttachmentsToFolder, type FolderSaveResult } from '@plugin-sdk/renderer/kit';
+import { canSaveAttachmentsToFolder, failureNotice, saveAttachmentsToFolder, startFileDrag, type FolderSaveResult } from '@plugin-sdk/renderer/kit';
 import type { AttachmentItem } from '../shared/types';
 import { storedRef } from './actions';
 
@@ -22,4 +22,13 @@ export async function saveSelectedToFolder(items: readonly AttachmentItem[]): Pr
     setFolderSaveJob({ running: false, done: 0, total: refs.length, error: String(error) });
   }
   dismissTimer = setTimeout(dismissFolderSave, SAVE_STATUS_MS);
+}
+
+/** A stored file drags out to the OS file manager, on the PC that holds it. */
+export const canDragOut = (item: AttachmentItem): boolean => canSaveAttachmentsToFolder && item.status === 'stored' && !!item.sha256;
+/** The browser's own drag (a media URL) gives way to the native file drag. */
+export function dragOut(event: DragEvent, item: AttachmentItem): void {
+  event.preventDefault();
+  const ref = storedRef(item);
+  if (ref) void startFileDrag(ref).catch(failureNotice("Couldn't drag the file"));
 }
