@@ -41,6 +41,7 @@ export function AttachmentGrid(props: { item: AttachmentItem; selection?: Attach
       <AttachmentPicture item={props.item} zoom={zoom()} />
       <span class={styles.cornerEnd}><span class={`${look.durationBadge} ${look.text}`} data-size="2xs" data-figures="tabular">{size()}</span></span>
       <span class={styles.cornerStart}>
+        <Show when={props.item.textMatch}>{(match) => <span class={`${look.tag} ${look.text}`} data-size="2xs">{match().source === 'transcript' ? 'Speech' : 'Text'}</span>}</Show>
         <Show when={props.item.kind === 'video' || props.item.kind === 'audio'}><span class={`${look.tag} ${look.text}`} data-size="2xs">{props.item.kind}</span></Show>
         <For each={itemMarks(props.item)}>{(mark) => <span class={`${look.tag} ${look.text}`} data-size="2xs">{mark}</span>}</For>
       </span>

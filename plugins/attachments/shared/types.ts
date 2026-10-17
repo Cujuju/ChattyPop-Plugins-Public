@@ -22,7 +22,7 @@ export interface AttachmentFilter {
   presence?: AttachmentPresence;
   /** Only stored images and videos not yet compressed. */
   uncompressed?: boolean;
-  /** Part of the filename, case-insensitive. */
+  /** Part of the filename or derived file text, case-insensitive. */
   name?: string;
 }
 export interface AttachmentItem {
@@ -35,11 +35,19 @@ export interface AttachmentItem {
   width: number | null; height: number | null;
   sha256: string | null; storedExt: string | null; status: 'pending' | 'stored' | 'failed' | 'evicted';
   compressed: boolean; animated: boolean; spoiler: boolean; removed: boolean;
+  textMatch?: { source: 'text' | 'transcript'; snippet: string };
   /** Its message as the Archive shows it; null when it left the archive. */ message: ArchiveMessage | null;
 }
 /** `key`: the row's value of the order's key (sortBytes, filename or kind); date orders need none. */
 export interface AttachmentCursor { ts: number; id: string; key?: string | number }
-export interface AttachmentPageQuery extends AttachmentFilter { limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor }
+export interface AttachmentPageQuery extends AttachmentFilter {
+  limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor;
+  /** Date order only: begin at this local calendar month's first file in the order, then continue beyond the month. */
+  startMonth?: string;
+  /** Inclusive reading start for refreshing a loaded date window. */
+  startAt?: AttachmentCursor;
+}
+export interface AttachmentMonth { month: string; count: number }
 export interface AttachmentTotals { byKind: Record<AttachmentKind, { count: number; bytes: number }>; count: number; /** Bytes on disk, each stored file once. */ bytes: number }
 /** A person who shared matching files: `bytes` on this PC, each stored file once. */
 export interface PersonRow { id: string; name: string; count: number; bytes: number }
@@ -54,6 +62,7 @@ export interface AttachmentsCoreCalls {
   totals(f: AttachmentFilter): AttachmentTotals;
   people(q: PeopleQuery): PersonRow[];
   places(f: AttachmentFilter): AttachmentPlaces;
+  months(f: AttachmentFilter): AttachmentMonth[];
   sharedBy(q: PersonFilesQuery): AttachmentItem[];
 }
 

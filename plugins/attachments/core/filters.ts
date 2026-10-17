@@ -14,6 +14,10 @@ export const AUTHOR_NAME = messageColumn('author_name');
 export const ATTACHMENT_FROM = `FROM archive_attachments a
   LEFT JOIN archive_channels c ON c.id = a.channel_id
   LEFT JOIN archive_guilds g ON g.id = c.guild_id`;
+/** Legacy message-wide text applies only while that message has no identified parts. */
+export const TEXT_PART = `(d.part = 'attachment:' || a.id OR (d.part IS NULL AND NOT EXISTS (
+  SELECT 1 FROM archive_derived_texts p WHERE p.message_id = a.message_id AND p.part IS NOT NULL)))`;
+export const namePattern = (name: string): string => `%${name.replace(/[\\%_]/g, '\\$&')}%`;
 
 /** Filter values remain bound, including LIKE metacharacters and channel thread scope. */
 export function attachmentWhere(f: AttachmentFilter): { sql: string; params: (string | number)[] } {
@@ -30,6 +34,7 @@ export function attachmentWhere(f: AttachmentFilter): { sql: string; params: (st
   if (f.presence === 'stored') parts.push(ON_DISK);
   if (f.presence === 'gone') parts.push(`NOT (${ON_DISK})`);
   if (f.uncompressed) parts.push(`${ON_DISK} AND a.kind IN ('image', 'video') AND a.compressed_at IS NULL`);
-  if (f.name) add("a.filename LIKE ? ESCAPE '\\'", `%${f.name.replace(/[\\%_]/g, '\\$&')}%`);
+  if (f.name) add(`(a.filename LIKE ? ESCAPE '\\' OR EXISTS (
+    SELECT 1 FROM archive_derived_texts d WHERE d.message_id = a.message_id AND ${TEXT_PART} AND d.text LIKE ? ESCAPE '\\'))`, namePattern(f.name), namePattern(f.name));
   return { sql: parts.join(' AND '), params };
 }

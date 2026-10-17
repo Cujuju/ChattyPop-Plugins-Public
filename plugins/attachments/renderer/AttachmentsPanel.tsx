@@ -5,7 +5,7 @@ import { ATTACHMENTS_PANEL } from '../shared';
 import type { AttachmentItem } from '../shared/types';
 import {
   attachments, failure, filterCount, hasMoreBelow, loadMoreBelow, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, topDown,
-  totals, view,
+  totals, view, jumped,
 } from './state';
 import { compressionJob, selection } from './selection';
 import { filesCount } from './actions';
@@ -25,6 +25,7 @@ export function AttachmentsPanel() {
   const [cols, setCols] = createSignal(INITIAL_TRACK_COUNT);
   const [trackWidth, setTrackWidth] = createSignal(INITIAL_ESTIMATE_PX);
   let measure!: HTMLDivElement;
+  let scroller!: HTMLDivElement;
   const rows = createMemo<Row[]>(() => {
     const out: Row[] = [];
     const count = view() === 'grid' ? cols() : 1;
@@ -44,7 +45,7 @@ export function AttachmentsPanel() {
   const vlog = createVirtualLog({ rows, estimatePx: () => trackWidth(), olderThresholdRows: LOAD_OLDER_THRESHOLD_ROWS,
     loadOlder: loadOlderAttachments, hasOlder: () => !attachments.reachedStart, hasNewer: hasMoreBelow, loadNewer: loadMoreBelow,
     // Top-down, the view stays where the reader put it as more loads below.
-    following: () => !topDown() && log.following(),
+    following: () => !topDown() && !jumped() && log.following(),
     layoutKey: () => `${view()}:${cols()}:${trackWidth()}`,
   });
   const log = createFollowBottom(() => vlog.holding());
@@ -65,10 +66,22 @@ export function AttachmentsPanel() {
   });
   /** Where the order starts: its first row, at the top or the bottom. */
   const toStart = (): void => {
-    const first = rows()[0];
+    vlog.holdRow(null);
+    const groups = rows().filter((r) => r.kind === 'items');
+    const first = topDown() ? groups[0] : groups.at(-1);
     if (!topDown()) log.scrollToNewest();
     // A row above the view comes in at its top edge.
     else if (first) vlog.scrollToKey(first.key);
+    if (jumped() && first) {
+      vlog.holdRow(first.key, topDown() ? 'auto' : { bottom: 0 });
+      const opened = loads();
+      // A short window can already be visible at the bottom; align its measured first row to the reading edge.
+      queueMicrotask(() => {
+        if (!jumped() || opened !== loads() || !topDown()) return;
+        const row = scroller.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(first.key)}"]`);
+        if (row) vlog.holdRow(first.key, { bottom: scroller.clientHeight - row.getBoundingClientRect().height });
+      });
+    }
   };
   createEffect(on(loads, () => queueMicrotask(toStart)));
   return (
@@ -92,7 +105,7 @@ export function AttachmentsPanel() {
             <p class={`cp-panel-empty ${styles.empty}`} role="alert" title={failure()!}>Attachments couldn’t be read.</p>
           </Show>
           <Show when={view() === 'list'}><AttachmentListHeader /></Show>
-          <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
+          <div class={styles.scroller} data-anchor={topDown() ? 'top' : 'bottom'} ref={(el) => { scroller = el; vlog.ref(el); log.ref(el); }} onScroll={() => void vlog.onScroll()}>
             <div class={styles.measure} ref={measure} aria-hidden="true" />
             <VirtualRows log={vlog}>{(row) => (
               <Switch>
@@ -107,7 +120,10 @@ export function AttachmentsPanel() {
               </Switch>
             )}</VirtualRows>
           </div>
-          <Show when={!topDown() && !log.following()}><JumpToNewest label="Jump to newest attachment" onClick={() => { vlog.holdRow(null); log.scrollToNewest(); }} /></Show>
+          <Show when={jumped() || (!topDown() && !log.following())}>
+            <JumpToNewest label={sort().key === 'date' && sort().dir === 'desc' ? 'Jump to newest attachment' : 'Jump to first attachment'}
+              onClick={() => { vlog.holdRow(null); if (jumped()) void reloadAttachments(); else toStart(); }} />
+          </Show>
         </div>
       </div>
     </section>

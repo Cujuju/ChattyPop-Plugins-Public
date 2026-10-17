@@ -4,7 +4,8 @@ import type { AttachmentItem, AttachmentSort, AttachmentSortKey } from '../share
 import { clickAttachment, itemMarks, placeText, showItemMenu } from './actions';
 import { AttachmentPicture } from './AttachmentPicture';
 import { compressionJob, selectedIds, selection } from './selection';
-import { attachments, setSort, sort } from './state';
+import { attachments, queryName, setSort, sort } from './state';
+import { textHighlights } from './textHighlights';
 import styles from './Attachments.module.css';
 
 /** The sortable columns, each with the direction its first click sorts in: names A to Z, sizes and dates largest and newest first. */
@@ -43,8 +44,9 @@ export function AttachmentListHeader() {
 
 export function AttachmentList(props: { item: AttachmentItem }) {
   const bytes = (): string => formatBytes(props.item.sortBytes);
+  const whoWhere = (): string => [props.item.authorName || 'Unknown person', placeText(props.item)].filter(Boolean).join(' · ');
   return (
-    <div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id}
+    <div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id} title={props.item.textMatch ? whoWhere() : undefined}
       data-state={compressionJob()?.current === props.item.id ? 'busy' : undefined}
       onClick={(e) => { if (!(e.target as Element).closest('button,input')) clickAttachment(e, props.item); }}
       onContextMenu={(e) => { e.preventDefault(); showItemMenu(e.currentTarget, props.item); }}>
@@ -55,10 +57,12 @@ export function AttachmentList(props: { item: AttachmentItem }) {
       <div class={styles.listMain}>
         <button type="button" class={`${styles.listName} ${look.quietLink} ${look.text}`} data-size="sm"
           title={props.item.filename} onClick={(e) => clickAttachment(e, props.item)}>{props.item.filename}</button>
-        <button type="button" class={`${styles.listMeta} ${look.quietLink} ${look.text}`} data-size="2xs"
-          onClick={() => void openArchive(props.item.channelId, props.item.messageId)}>
-          {[props.item.authorName || 'Unknown person', placeText(props.item)].filter(Boolean).join(' · ')}
-        </button>
+        <Show when={props.item.textMatch} fallback={<button type="button" class={`${styles.listMeta} ${look.quietLink} ${look.text}`} data-size="2xs"
+          onClick={() => void openArchive(props.item.channelId, props.item.messageId)}>{whoWhere()}</button>}>
+          {(match) => <span class={`${styles.listMeta} ${look.text}`} data-size="2xs" data-tone="muted" title={match().snippet}>
+            <For each={textHighlights(match().snippet, queryName())}>{(part) => <span class={look.text} data-weight={part.matched ? 'semibold' : undefined}>{part.text}</span>}</For>
+          </span>}
+        </Show>
       </div>
       <span class={`${styles.listKind} ${look.text}`} data-size="2xs" data-tone="muted" title={[props.item.kind, ...itemMarks(props.item)].join(' · ')}>
         {[props.item.kind, ...itemMarks(props.item)].join(' · ')}

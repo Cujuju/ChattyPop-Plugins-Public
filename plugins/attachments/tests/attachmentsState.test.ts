@@ -1,8 +1,8 @@
 // The panel's rows over the paged list: where the order starts (top or bottom), loading more, and archive rereads.
-import { createSignal } from 'solid-js';
+import { batch, createSignal } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
 import type { AttachmentAnchor } from '../shared';
-import type { AttachmentItem, AttachmentPageQuery } from '../shared/types';
+import type { AttachmentItem, AttachmentPageQuery, AttachmentSort } from '../shared/types';
 import type { PagedState } from '@/state/paged';
 
 vi.mock('solid-js', async () => { const clientBuild = 'solid-js/dist/solid.cjs'; return import(clientBuild); });
@@ -38,6 +38,9 @@ const state = (await import(statePath)) as {
   loadMoreBelow(): Promise<number>;
   hasMoreBelow(): boolean;
   setAnchor(anchor: AttachmentAnchor): void;
+  setSort(sort: AttachmentSort): void;
+  jumpToMonth(month: string): Promise<void>;
+  jumped(): boolean;
 };
 const settle = async (): Promise<void> => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 /** `n` rows of the order from its `from`th, as core returns them: first in the order first. */
@@ -104,5 +107,67 @@ describe('an archive reread', () => {
     expect(requests[0]!.q.limit).toBe(2 * PAGE);
     await answer(rows(0, 2 * PAGE));
     expect(ids()).toHaveLength(2 * PAGE);
+  });
+});
+
+describe('a date window', () => {
+  it.each([
+    ['asc', 'top'], ['desc', 'top'], ['asc', 'bottom'], ['desc', 'bottom'],
+  ] as const)('loads both directions in %s order from the %s', async (dir, anchor) => {
+    batch(() => { state.setAnchor(anchor); state.setSort({ key: 'date', dir }); });
+    await settle();
+    await answer(rows(0, PAGE));
+    const jumped = state.jumpToMonth('2026-02');
+    expect(requests[0]!.q).toMatchObject({ startMonth: '2026-02', sort: { key: 'date', dir } });
+    await answer(rows(PAGE, PAGE));
+    expect(requests[0]!.q.before?.id).toBe(String(PAGE));
+    await answer(rows(PAGE - 1, 1));
+    await jumped;
+    expect(state.jumped()).toBe(true);
+    expect(state.attachments.reachedStart).toBe(false);
+    expect(state.hasMoreBelow()).toBe(true);
+    expect(ids()[anchor === 'top' ? 0 : ids().length - 1]).toBe(String(PAGE));
+    const above = state.loadOlderAttachments();
+    expect(requests[0]!.q[anchor === 'top' ? 'before' : 'after']?.id).toBe(String(anchor === 'top' ? PAGE : 2 * PAGE - 1));
+    await answer(anchor === 'top' ? rows(0, PAGE) : rows(2 * PAGE, PAGE));
+    await above;
+    const below = state.loadMoreBelow();
+    expect(requests[0]!.q[anchor === 'top' ? 'after' : 'before']?.id).toBe(String(anchor === 'top' ? 2 * PAGE - 1 : PAGE));
+    await answer([]);
+    await below;
+    expect(state.hasMoreBelow()).toBe(false);
+    const reread = state.rereadAttachments();
+    expect(requests[0]!.q.startAt?.id).toBe(String(anchor === 'top' ? 0 : PAGE));
+    expect(requests[0]!.q.startMonth).toBeUndefined();
+    await answer(rows(anchor === 'top' ? 0 : PAGE, 2 * PAGE));
+    await answer([]);
+    await reread;
+    const reset = state.reloadAttachments();
+    expect(requests[0]!.q.startMonth).toBeUndefined();
+    expect(requests[0]!.q.startAt).toBeUndefined();
+    await answer(rows(0, PAGE));
+    await reset;
+    expect(state.jumped()).toBe(false);
+  });
+
+  it.each(['top', 'bottom'] as const)('keeps the return direction open for a short window from the %s', async (anchor) => {
+    batch(() => { state.setAnchor(anchor); state.setSort({ key: 'date', dir: 'desc' }); });
+    await settle(); await answer(rows(0, PAGE));
+    const jump = state.jumpToMonth('2026-02');
+    await answer(rows(PAGE, 1)); await answer(rows(PAGE - 1, 1)); await jump;
+    expect(state.attachments.reachedStart).toBe(anchor === 'bottom');
+    expect(state.hasMoreBelow()).toBe(anchor === 'bottom');
+    const reset = state.reloadAttachments(); await answer(rows(0, PAGE)); await reset;
+  });
+
+  it('discards a stale window after filters reload the first page', async () => {
+    const jump = state.jumpToMonth('2026-02');
+    const stale = requests.shift()!;
+    const reload = state.reloadAttachments();
+    await answer(rows(0, PAGE)); await reload;
+    stale.resolve(rows(PAGE, PAGE)); await settle();
+    await answer(rows(PAGE - 1, 1)); await jump;
+    expect(state.jumped()).toBe(false);
+    expect(ids().at(-1)).toBe('0');
   });
 });
