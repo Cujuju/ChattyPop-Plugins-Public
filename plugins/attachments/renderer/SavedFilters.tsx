@@ -110,8 +110,8 @@ export function SavedFilters() {
       if (e.key === 'Escape' && editing()) { e.preventDefault(); e.stopPropagation(); cancelRename(); }
     }} />;
   const buttons = () => <div class={styles.actions}>
-    <button type="button" class={look.button} data-variant="primary" disabled={!draft().trim() || busy()} onClick={() => void save()}>Save</button>
-    <button type="button" class={look.button} disabled={busy()} onClick={() => editing() ? cancelRename() : close()}>Cancel</button>
+    <button type="button" class={`${styles.action} ${look.button} ${look.text}`} data-variant="primary" data-size="sm" disabled={!draft().trim() || busy()} onClick={() => void save()}>Save</button>
+    <button type="button" class={`${styles.action} ${look.button} ${look.text}`} data-variant="raised" data-size="sm" disabled={busy()} onClick={() => editing() ? cancelRename() : close()}>Cancel</button>
   </div>;
   return <span ref={root} class={styles.root}>
     <button ref={trigger} type="button" class={`${styles.trigger} ${look.filterChip} ${look.text}`} data-size="xs" aria-haspopup="menu"
@@ -134,7 +134,9 @@ export function SavedFilters() {
           </Show>
         </div>}>{field()}{buttons()}</Show>
         <Show when={error()}><p class={look.text} data-size="xs" data-tone="danger" role="alert">{error()}</p></Show>
-        <Show when={mode() === 'manage'}><button type="button" class={look.button} disabled={busy()} onClick={() => close()}>Done</button></Show>
+        <Show when={mode() === 'manage'}><div class={styles.actions}>
+          <button type="button" class={`${styles.action} ${look.button} ${look.text}`} data-variant="raised" data-size="sm" disabled={busy()} onClick={() => close()}>Done</button>
+        </div></Show>
       </div>
     </Show>
   </span>;
