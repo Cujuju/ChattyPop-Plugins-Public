@@ -58,7 +58,7 @@ export function openAttachment(item: AttachmentItem, openGallery?: (item: Attach
   } else void openArchive(item.channelId, item.messageId);
 }
 
-export function attachmentGallery(source: Pick<GallerySource, 'items' | 'more' | 'load' | 'scroll'>) {
+export function attachmentGallery(source: Pick<GallerySource, 'items' | 'more' | 'load' | 'scroll' | 'start' | 'closed'>) {
   let preloaded = '';
   let videos: HTMLVideoElement[] = [];
   const release = (): void => { videos.forEach((video) => { video.removeAttribute('src'); video.load(); }); videos = []; };

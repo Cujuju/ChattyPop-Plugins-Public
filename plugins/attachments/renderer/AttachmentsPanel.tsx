@@ -63,7 +63,8 @@ export function AttachmentsPanel() {
   };
   const more = (direction: Direction): boolean => direction < 0 ? !attachments.reachedStart : hasMoreBelow();
   const load = (direction: Direction): Promise<number> => direction < 0 ? loadOlderAttachments() : loadMoreBelow();
-  const gallery = attachmentGallery({ items: () => attachments.items, more, load, scroll });
+  const gallery = attachmentGallery({ items: () => attachments.items, more, load, scroll,
+    start: () => topDown() ? -1 : 1, closed: (id) => keyboard.focus(id) });
   const keyboard = createAttachmentKeyboard({ rows: itemRows,
     visible: () => {
       const visible = new Set(vlog.log.keys());

@@ -16,6 +16,10 @@ export interface GallerySource {
   present(image: LightboxImage | null, previous?: LightboxImage): boolean;
   scroll(id: string): void;
   preload(items: readonly AttachmentItem[]): void;
+  /** Where the order's first file sits: -1 at the top, 1 at the bottom. */
+  start(): Direction;
+  /** The viewer closed on this file. */
+  closed(id: string): void;
 }
 
 /** Reads visual order anew after every page; ids survive pages prepended at the top. */
@@ -30,12 +34,21 @@ export function createGallery(source: GallerySource) {
     const items = pictures();
     const index = items.findIndex((item) => item.id === id);
     const item = items[index];
-    if (!item) { source.present(null, shown); id = null; return false; }
+    if (!item) { id = null; source.present(null, shown); return false; }
+    // Counted from the order's start, so pages loading at the far end never renumber it; unknown until the start is loaded.
+    const start = source.start();
+    const rank = start < 0 ? index + 1 : items.length - index;
+    const mine = generation;
     const image: LightboxImage = { ...source.image(item), gallery: {
-      position: source.more(-1) || source.more(1) ? String(index + 1) : `${index + 1} of ${items.length}`,
+      position: source.more(start) ? undefined : source.more(-start as Direction) ? String(rank) : `${rank} of ${items.length}`,
       details: source.details(item),
       prev: index > 0 || source.more(-1) ? () => void step(-1) : undefined,
       next: index < items.length - 1 || source.more(1) ? () => void step(1) : undefined,
+      closed: () => {
+        if (mine !== generation || id !== item.id) return;
+        id = null; shown = undefined;
+        source.closed(item.id);
+      },
     } };
     if (!source.present(image, shown)) { id = null; return false; }
     shown = image;
@@ -87,6 +100,6 @@ export function createGallery(source: GallerySource) {
       shown = undefined;
       if (sync()) { source.scroll(item.id); warm(); }
     },
-    dispose: (): void => { generation++; if (shown) source.present(null, shown); id = null; },
+    dispose: (): void => { generation++; id = null; if (shown) source.present(null, shown); },
   };
 }
