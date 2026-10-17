@@ -123,6 +123,7 @@ const QUERIES: readonly JevQueryDecl<(typeof FEATURES)[number]['key']>[] = [
 ];
 
 export const plugin = definePlugin({
+  aiTools: ['search'],
   manifest,
   channels: defineChannels<{ core: LinksCoreCalls; events: LinksEvents }>()({
     core: {
