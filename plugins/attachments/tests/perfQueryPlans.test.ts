@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PluginDb } from '@plugin-sdk/core';
 import { attachmentRows } from '../core/feed';
 import { attachmentPeople, attachmentPlaces, attachmentTotals } from '../core/totals';
+import { attachmentBreakdown, attachmentPostings } from '../core/space';
+import type { BreakdownBy } from '../shared/types';
 import { at, seedMessage, start } from './attachmentsHarness';
 
 const ARCHIVE_ROWS = 1000;
@@ -51,7 +53,12 @@ describe('message author lookups', () => {
     attachmentTotals(db, scoped);
     attachmentPeople(db, { ...scoped, limit: PAGE_SIZE });
     attachmentPlaces(db, scoped);
+    attachmentPostings(db, 'a'.repeat(64));
+    attachmentRows(db, { ...scoped, repeated: true, limit: PAGE_SIZE });
+    for (const by of ['guild', 'channel', 'person', 'kind'] as BreakdownBy[]) attachmentBreakdown(db, { ...scoped, repeated: true }, by);
     expect(plans.length).toBeGreaterThan(0);
     expect(plans.join('\n')).not.toMatch(/MATERIALIZE archive_messages/);
+    expect(plans.join('\n')).toMatch(/USING (?:COVERING )?INDEX attachments_sha256/);
+    expect(plans.join('\n')).not.toMatch(/SCAN posting(?:\s|$)/);
   });
 });

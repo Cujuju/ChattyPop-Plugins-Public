@@ -24,6 +24,8 @@ export const plugin = definePlugin({
       people: { audiences: ['renderer'], writes: false },
       places: { audiences: ['renderer'], writes: false },
       sharedBy: { audiences: ['renderer'], writes: false },
+      postings: { audiences: ['renderer'], writes: false },
+      breakdown: { audiences: ['renderer'], writes: false },
     },
   }),
   panels: [{

@@ -22,6 +22,7 @@ export interface AttachmentFilter {
   presence?: AttachmentPresence;
   /** Only stored images and videos not yet compressed. */
   uncompressed?: boolean;
+  repeated?: boolean;
   /** Part of the filename, case-insensitive. */
   name?: string;
 }
@@ -34,6 +35,8 @@ export interface AttachmentItem {
   /** What largest orders by and a tile shows: bytes on this PC, else Discord's size. */ sortBytes: number;
   width: number | null; height: number | null;
   sha256: string | null; storedExt: string | null; status: 'pending' | 'stored' | 'failed' | 'evicted';
+  /** Visible postings of this hash, independent of the panel filters; unhashed files have one. */
+  postings: number;
   compressed: boolean; animated: boolean; spoiler: boolean; removed: boolean;
   /** Its message as the Archive shows it; null when it left the archive. */ message: ArchiveMessage | null;
 }
@@ -49,12 +52,27 @@ export interface PersonFilesQuery { userId: string; limit: number }
 /** Matching attachments per server and per channel id (a thread's counted in its channel), whatever the place filter. */
 export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number> }
 
+export interface AttachmentPosting {
+  id: string; messageId: string; channelId: string; channelName: string; guildId: string | null; guildName: string;
+  authorId: string | null; authorName: string; ts: number;
+}
+export type BreakdownBy = 'guild' | 'channel' | 'person' | 'kind';
+export const BREAKDOWN_LIMIT = 50;
+/** A null key is the unselectable remainder; groups is its number of remaining groups. */
+export interface AttachmentBreakdown {
+  key: string | null; label: string; bytes: number; count: number; groups?: number;
+  /** Global filtered totals deduplicate across groups too. */
+  totalBytes: number; totalCount: number;
+}
+
 export interface AttachmentsCoreCalls {
   page(q: AttachmentPageQuery): AttachmentItem[];
   totals(f: AttachmentFilter): AttachmentTotals;
   people(q: PeopleQuery): PersonRow[];
   places(f: AttachmentFilter): AttachmentPlaces;
   sharedBy(q: PersonFilesQuery): AttachmentItem[];
+  postings(sha256: string): AttachmentPosting[];
+  breakdown(f: AttachmentFilter, by: BreakdownBy): AttachmentBreakdown[];
 }
 
 export const emptyTotals = (): AttachmentTotals => ({
