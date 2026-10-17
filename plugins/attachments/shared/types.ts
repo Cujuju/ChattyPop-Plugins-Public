@@ -38,15 +38,18 @@ export interface AttachmentItem {
   /** Visible postings of this hash, independent of the panel filters; unhashed files have one. */
   postings: number;
   compressed: boolean; animated: boolean; spoiler: boolean; removed: boolean;
-  textMatch?: { source: 'text' | 'transcript'; snippet: string };
+  /** Absent snippet: a spoiler's text matched, and stays hidden. */
+  textMatch?: { source: 'text' | 'transcript'; snippet?: string };
   /** Its message as the Archive shows it; null when it left the archive. */ message: ArchiveMessage | null;
 }
 /** `key`: the row's value of the order's key (sortBytes, filename or kind); date orders need none. */
 export interface AttachmentCursor { ts: number; id: string; key?: string | number }
 export interface AttachmentPageQuery extends AttachmentFilter {
   limit: number; sort?: AttachmentSort; after?: AttachmentCursor; before?: AttachmentCursor;
-  /** Date order only: begin at this local calendar month's first file in the order, then continue beyond the month. */
+  /** Date order only: begin at this calendar month's first file in the order, then continue beyond the month. */
   startMonth?: string;
+  /** The IANA zone whose calendar `startMonth` is in: the viewer's. The core's own when absent. */
+  timeZone?: string;
   /** Inclusive reading start for refreshing a loaded date window. */
   startAt?: AttachmentCursor;
 }

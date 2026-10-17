@@ -61,11 +61,15 @@ export function attachmentPage(db: PluginDb, messagesByIds: MessageReader, q: At
   return rows.map(({ compressedAt, removedAt, ...row }) => {
     const message = messages.get(row.messageId) ?? null;
     const a = message?.attachments.find((a) => a.id === row.id);
+    const spoiler = a?.spoiler ?? row.filename.startsWith('SPOILER_');
+    const match = textMatches.get(row.id);
+    // A spoiler's text is as hidden as its picture: it still matches, but its words never leave the core.
+    const textMatch = match && spoiler ? { source: match.source } : match;
     return {
-      ...row, message, ...(textMatches.has(row.id) ? { textMatch: textMatches.get(row.id)! } : {}),
+      ...row, message, ...(textMatch ? { textMatch } : {}),
       compressed: a?.compressed ?? compressedAt !== null,
       animated: a?.animated ?? row.contentType?.toLowerCase() === 'image/gif',
-      spoiler: a?.spoiler ?? row.filename.startsWith('SPOILER_'),
+      spoiler,
       removed: a?.removed ?? removedAt !== null,
     };
   });

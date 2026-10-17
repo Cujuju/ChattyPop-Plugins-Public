@@ -49,7 +49,7 @@ export function AttachmentList(props: { item: AttachmentItem; keyboard?: Attachm
   const bytes = (): string => formatBytes(props.item.sortBytes);
   const whoWhere = (): string => [props.item.authorName || 'Unknown person', placeText(props.item)].filter(Boolean).join(' · ');
   return (
-    <div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id} title={props.item.textMatch ? whoWhere() : undefined}
+    <div class={`${styles.listColumns} ${styles.listRow} ${look.row}`} data-attachment-id={props.item.id} title={props.item.textMatch?.snippet ? whoWhere() : undefined}
       ref={(el) => { const remove = props.keyboard?.register(props.item.id, el); onCleanup(() => remove?.()); }}
       draggable={canDragOut(props.item)} onDragStart={(e) => dragOut(e, props.item)}
       tabIndex={props.keyboard?.tabId() === props.item.id ? 0 : -1} role="group" aria-label={props.item.filename}
@@ -65,10 +65,10 @@ export function AttachmentList(props: { item: AttachmentItem; keyboard?: Attachm
       <div class={styles.listMain}>
         <button type="button" tabIndex={-1} class={`${styles.listName} ${look.quietLink} ${look.text}`} data-size="sm"
           title={props.item.filename} onClick={(e) => clickAttachment(e, props.item, false, selection, props.openGallery)}>{props.item.filename}</button>
-        <Show when={props.item.textMatch} fallback={<button type="button" tabIndex={-1} class={`${styles.listMeta} ${look.quietLink} ${look.text}`} data-size="2xs"
+        <Show when={props.item.textMatch?.snippet} fallback={<button type="button" tabIndex={-1} class={`${styles.listMeta} ${look.quietLink} ${look.text}`} data-size="2xs"
           onClick={() => void openArchive(props.item.channelId, props.item.messageId)}>{whoWhere()}</button>}>
-          {(match) => <span class={`${styles.listMeta} ${look.text}`} data-size="2xs" data-tone="muted" title={match().snippet}>
-            <For each={textHighlights(match().snippet, queryName())}>{(part) => <span class={look.text} data-weight={part.matched ? 'semibold' : undefined}>{part.text}</span>}</For>
+          {(snippet) => <span class={`${styles.listMeta} ${look.text}`} data-size="2xs" data-tone="muted" title={snippet()}>
+            <For each={textHighlights(snippet(), queryName())}>{(part) => <span class={look.text} data-weight={part.matched ? 'semibold' : undefined}>{part.text}</span>}</For>
           </span>}
         </Show>
       </div>

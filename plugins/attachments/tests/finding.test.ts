@@ -26,6 +26,16 @@ describe('derived file text', () => {
     expect(await client.places({ name: 'nebula' })).toEqual({ guilds: { '100000000000000001': 2 }, channels: { '200000000000000001': 2 } });
   });
 
+  it("matches a spoiler's text without sending its words", async () => {
+    const { t, client } = fixture();
+    const rows = await client.page({ limit: LIMIT });
+    const spoiler = rows.find((r) => r.id === 'a5')!;
+    expect(spoiler.spoiler).toBe(true);
+    t.db.prepare('INSERT INTO derived_texts (message_id, source, ord, text, part) VALUES (?, ?, ?, ?, ?)')
+      .run(spoiler.messageId, 'ocr:picture', 1, 'secret nebula plans', 'attachment:a5');
+    expect((await client.page({ limit: LIMIT, name: 'nebula' })).map((r) => [r.id, r.textMatch])).toEqual([['a5', { source: 'text' }]]);
+  });
+
   it('never leaks a sibling or embed part, and uses message-wide legacy text only without identified parts', async () => {
     const { t, client } = fixture();
     const item = (await client.page({ limit: LIMIT })).find((r) => r.id === 'a1')!;
