@@ -61,8 +61,10 @@ export function openAttachment(item: AttachmentItem, openGallery?: (item: Attach
 export function attachmentGallery(source: Pick<GallerySource, 'items' | 'more' | 'load' | 'scroll' | 'start' | 'closed'>) {
   let preloaded = '';
   let videos: HTMLVideoElement[] = [];
-  const release = (): void => { videos.forEach((video) => { video.removeAttribute('src'); video.load(); }); videos = []; };
+  /** Detaches the neighbours' videos; called whenever the viewer closes, so none keeps buffering behind it. */
+  const release = (): void => { videos.forEach((video) => { video.removeAttribute('src'); video.load(); }); videos = []; preloaded = ''; };
   const gallery = createGallery({ ...source,
+    closed: (id) => { release(); source.closed(id); },
     image: (item) => ({ src: attachmentUrl(storedRef(item)!), kind: item.kind === 'video' ? 'video' : 'image',
       still: item.animated ? attachmentThumbUrl(storedRef(item)!) : undefined,
       alt: item.filename, caption: item.filename, originalUrl: null }),
@@ -73,13 +75,14 @@ export function attachmentGallery(source: Pick<GallerySource, 'items' | 'more' |
         accepted = previous === undefined || current === previous;
         return accepted ? image : current;
       });
+      if (accepted && !image) release();
       return accepted;
     },
     preload: (items) => {
       const key = items.map((item) => `${item.id}:${item.sha256}:${item.storedExt}`).join(',');
       if (key === preloaded) return;
-      preloaded = key;
       release();
+      preloaded = key;
       for (const item of items) {
         const src = attachmentUrl(storedRef(item)!);
         if (item.kind === 'image') { const image = new Image(); image.src = src; }
