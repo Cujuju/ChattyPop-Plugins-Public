@@ -12,6 +12,7 @@ interface OllamaToolCall {
 interface OllamaMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  thinking?: string;
   images?: string[];
   tool_calls?: OllamaToolCall[];
   tool_name?: string;
@@ -90,7 +91,8 @@ export async function completeOllama(net: PluginFetch, baseUrl: string, model: s
     signal.throwIfAborted();
     if (!res.ok) throw new Error(`Ollama ${res.status}: ${await res.text()}`);
     let content: string | undefined;
-    let thought = false;
+    let thinking = '';
+    let done = false;
     let body: OllamaChatLine | null = null;
     const calls: OllamaToolCall[] = [];
     const invalid = (): Error => new Error(`Ollama (${model}) returned an invalid API response.`);
@@ -100,7 +102,8 @@ export async function completeOllama(net: PluginFetch, baseUrl: string, model: s
         signal.throwIfAborted();
         body = line;
         if (typeof line?.error === 'string') throw new Error(`Ollama (${model}): ${line.error}`);
-        if (line?.message?.thinking) thought = true;
+        if (typeof line?.message?.thinking === 'string') thinking += line.message.thinking;
+        if (line?.done === true) done = true;
         const toolCalls = line?.message?.tool_calls;
         if (tools?.length && toolCalls !== undefined) {
           if (!Array.isArray(toolCalls) || toolCalls.some((call) => typeof call?.function?.name !== 'string')) throw invalid();
@@ -125,12 +128,12 @@ export async function completeOllama(net: PluginFetch, baseUrl: string, model: s
       ...(typeof body?.eval_count === 'number' ? [`output tokens: ${body.eval_count}`] : []),
     ].join('; ');
     const failure = (message: string): Error => new Error(`Ollama (${model}) ${message} (${details}).`);
-    if (body?.done_reason === 'length') throw failure(thought && !content ? 'ran out of output while thinking and gave no answer' : 'reached its output token limit; the response may be incomplete');
-    if (body?.done === false) throw failure('returned an unfinished response');
+    if (body?.done_reason === 'length') throw failure(thinking && !content ? 'ran out of output while thinking and gave no answer' : 'reached its output token limit; the response may be incomplete');
+    if (!done) throw failure('returned an unfinished response');
     usage.inputTokens += body?.prompt_eval_count ?? 0;
     usage.outputTokens += body?.eval_count ?? 0;
     if (calls.length) {
-      messages.push({ role: 'assistant', content: content ?? '', tool_calls: calls });
+      messages.push({ role: 'assistant', content: content ?? '', ...(thinking ? { thinking } : {}), tool_calls: calls });
       answer.endRound();
       for (const call of calls) {
         const { name, arguments: args } = call.function;

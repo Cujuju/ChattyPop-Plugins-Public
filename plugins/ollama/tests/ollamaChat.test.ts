@@ -55,7 +55,8 @@ describe('Ollama conversation rounds', () => {
     const lookup = call('release');
     const { p, sent } = start([
       streamed(
-        { message: { thinking: 'Hidden reasoning', content: '' } },
+        { message: { thinking: 'Hidden ', content: '' } },
+        { message: { thinking: 'reasoning' } },
         { message: { content: 'Checking' } },
         { message: { content: ' now.', tool_calls: [lookup] } },
         { ...STOP, prompt_eval_count: 10, eval_count: 8 },
@@ -77,7 +78,7 @@ describe('Ollama conversation rounds', () => {
       model: MODEL, stream: true, options: { num_ctx: 16_384 }, tools,
       messages: [
         { role: 'system', content: REQUEST.system }, { role: 'user', content: REQUEST.prompt },
-        { role: 'assistant', content: 'Checking now.', tool_calls: [lookup] },
+        { role: 'assistant', content: 'Checking now.', thinking: 'Hidden reasoning', tool_calls: [lookup] },
         { role: 'tool', content: 'Matched messages.', tool_name: 'lookup' },
       ],
     });
@@ -106,6 +107,14 @@ describe('Ollama conversation rounds', () => {
     ]);
   });
 
+  it('rejects a tool round without done before running tools or sending another request', async () => {
+    const run = vi.fn(async () => 'One result.');
+    const { p, sent } = start([streamed({ message: { content: 'Looking.', tool_calls: [call('one')] } })]);
+    await expect(p.complete({ ...REQUEST, tools: [tool(run)], maxToolCalls: 1 })).rejects.toThrow('returned an unfinished response');
+    expect(run).not.toHaveBeenCalled();
+    expect(sent).toHaveLength(1);
+  });
+
   it('bounds a model that keeps calling tools to the budget plus a final round', async () => {
     const run = vi.fn(async () => 'One result.');
     const { p, sent } = start([
@@ -132,6 +141,7 @@ describe('Ollama conversation rounds', () => {
   it.each([
     { name: 'length', response: () => streamed({ message: { content: 'Partial' }, done: true, done_reason: 'length', eval_count: 7 }), error: 'reached its output token limit; the response may be incomplete (stop reason: length; output tokens: 7)' },
     { name: 'unfinished', response: () => streamed({ message: { content: 'Partial' }, done: false }), error: 'returned an unfinished response (stop reason not reported)' },
+    { name: 'missing done', response: () => streamed({ message: { content: 'Partial' } }), error: 'returned an unfinished response (stop reason not reported)' },
     { name: 'invalid JSON', response: () => new Response('invalid JSON'), error: 'returned an invalid API response' },
     { name: 'missing answer', response: () => streamed(STOP), error: 'returned no response text (stop reason: stop)' },
     { name: 'thinking limit', response: () => streamed({ message: { thinking: 'Still thinking' }, done_reason: 'length', eval_count: 7 }), error: 'ran out of output while thinking and gave no answer (stop reason: length; output tokens: 7)' },
