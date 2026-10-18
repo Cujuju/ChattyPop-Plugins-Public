@@ -99,6 +99,14 @@
   min-width: 0;
 }
 
+/* The header's time window: as wide as its label, at the header's control height. */
+.windowSelect {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: var(--cp-filter-select-max-w);
+  height: var(--cp-btn-h-sm);
+}
+
 /* With cp-panel-body. The panel places its own scroll (the newest run shown from its top, older runs loading above): the
    browser's anchoring, which may hold a run under the one the reader unfolds, would push that one up. */
 .body {

@@ -33,3 +33,8 @@ export function historyEntries(runs: readonly Summary[], failures: readonly Summ
   const from = reachedStart ? -Infinity : (runs[0]?.createdAt ?? Infinity);
   return [...runs, ...failures.filter((f) => f.claimedAt >= from)].sort((a, b) => enteredAt(a) - enteredAt(b));
 }
+
+/** Rows whose covered time overlaps the bounds, both ends inclusive; a null end doesn't bound. */
+export function overlapping(rows: readonly HistoryEntry[], since: number | null, until: number | null): HistoryEntry[] {
+  return rows.filter((e) => (since === null || e.untilTs >= since) && (until === null || e.sinceTs <= until));
+}

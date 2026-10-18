@@ -4,17 +4,22 @@ import type { Summary, SummaryProgress, SummaryRunFailure, SummaryScope } from '
 import { scopeKey } from './scope';
 import { plugin } from '../shared';
 import { callable, pluginsLoaded, coreClient, pluginData, pluginResource, onEvent, lastSeenAt, pluginPreference, onAppEvent, containedRoot } from '@plugin-sdk/renderer';
-import { refetchPlanUsage, createAction, createPagedList, aiSettings } from '@plugin-sdk/renderer/kit';
+import { refetchPlanUsage, createAction, createPagedList, aiSettings, type TimeWindow } from '@plugin-sdk/renderer/kit';
 import { MS_PER_DAY, type ProviderId } from '@plugin-sdk/shared';
 import { SUMMARY_RANGES, type SummaryRange, type SummaryRuleOptions } from '../shared/settings';
 import { summarySettings } from './settings';
 import { mergeHistoryPage, runOpen } from './historyPage';
 import { dayOf } from './order';
 
-/** The range picked in the panel this session; until one is picked, Settings → Summaries' default. */
-const [pickedRange, setSummaryRange] = createSignal<SummaryRange | null>(null);
+/** A run's time frame: one of Summaries' ranges, or a custom span. */
+export type RunFrame = SummaryRange | { sinceTs: number; untilTs: number };
+/** The frame picked in the panel this session; until one is picked, Settings → Summaries' default. */
+const [pickedRange, setSummaryRange] = createSignal<RunFrame | null>(null);
 export { setSummaryRange };
-export const summaryRange = (): SummaryRange => pickedRange() ?? summarySettings().defaultRange;
+export const summaryRange = (): RunFrame => pickedRange() ?? summarySettings().defaultRange;
+
+/** Which runs the history lists, by the time they cover; null is any time. */
+export const [summaryWindow, setSummaryWindow] = createSignal<TimeWindow | null>(null);
 
 /** What the panel summarizes this session: everything until a server or channel is picked. */
 export const [summaryScope, setSummaryScope] = createSignal<SummaryScope | null>(null);
@@ -150,8 +155,9 @@ function midnight(daysBack: number): number {
   return d.getTime();
 }
 
-/** Resolves range spans through now unless bounded. "Last run" is the last run over scope; before one, the previous session. */
-export async function rangeOf(id: SummaryRange, scope: SummaryScope | null = null): Promise<{ sinceTs: number; untilTs?: number }> {
+/** Resolves range spans through now unless bounded; a custom span is its own. "Last run" is the last run over scope; before one, the previous session. */
+export async function rangeOf(id: RunFrame, scope: SummaryScope | null = null): Promise<{ sinceTs: number; untilTs?: number }> {
+  if (typeof id === 'object') return id;
   const ms = SUMMARY_RANGES[id].ms;
   if (ms !== null) return { sinceTs: Date.now() - ms };
   if (id === 'today') return { sinceTs: midnight(0) };

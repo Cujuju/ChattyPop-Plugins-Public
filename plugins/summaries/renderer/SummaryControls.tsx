@@ -6,16 +6,21 @@ import {
   HeaderButton,
   Icon,
   ProviderSelect,
-  Select,
+  TimeWindowSelect,
   inCompanion,
+  isTimeRange,
   listen,
   look,
 } from '@plugin-sdk/renderer/kit';
 import { SUMMARY_RANGES, type SummaryRange } from '../shared/settings';
 import { patchSummarySettings, summarySettings } from './settings';
-import { runSummary, setSummaryRange, setSummaryScope, summaryRange, summaryRunning, summaryScope } from './state';
+import { runSummary, setSummaryRange, setSummaryScope, summaryRange, summaryRunning, summaryScope, type RunFrame } from './state';
 import { ScopeSelect } from './scope';
 import styles from './Summary.module.css';
+
+/** Summaries' ranges as the time window picker's presets; a custom span is picked as the panel filters' are. */
+const RUN_PRESETS = Object.entries(SUMMARY_RANGES).map(([id, r]) => ({ id, label: r.label }));
+const frameWindow = (f: RunFrame) => (typeof f === 'string' ? { last: f } : { since: f.sinceTs, until: f.untilTs });
 
 /** Opening focuses the surface; picking a provider, channel or time frame requires its own interaction. */
 export function SummaryControls() {
@@ -158,12 +163,19 @@ function SummaryFields(props: { id: string; onClose: () => void }) {
       </div>
       <div class={styles.runField}>
         <label for={`${props.id}-range`} class={look.text} data-size="sm">Time frame</label>
-        <Select
+        <TimeWindowSelect
           id={`${props.id}-range`}
           class={styles.runSelect}
-          value={summaryRange()}
-          options={Object.entries(SUMMARY_RANGES).map(([value, r]) => ({ value, label: r.label }))}
-          onChange={(v) => setSummaryRange(v as SummaryRange)}
+          label="Time frame"
+          presets={RUN_PRESETS}
+          anyTime={false}
+          window={frameWindow(summaryRange())}
+          onChange={(w) => {
+            // Without Any, a pick is a preset or a custom span with both ends.
+            if (!w) return;
+            if (!isTimeRange(w)) setSummaryRange(w.last as SummaryRange);
+            else if (w.since !== null && w.until !== null) setSummaryRange({ sinceTs: w.since, untilTs: w.until });
+          }}
         />
       </div>
       <button

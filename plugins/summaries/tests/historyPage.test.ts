@@ -1,6 +1,6 @@
 // Summary history in the renderer: a refreshed page merges in order, which runs show their body, where failed runs sit, which row has just landed, and a run's facts.
 import { expect, it } from 'vitest';
-import { entryKey, historyEntries, isFailure, landedRow, mergeHistoryPage, runOpen } from '../renderer/historyPage';
+import { entryKey, historyEntries, isFailure, landedRow, mergeHistoryPage, overlapping, runOpen } from '../renderer/historyPage';
 import { durationText, runFacts, type FactText } from '../renderer/runFacts';
 import type { Summary, SummaryRunFailure } from '../shared/types';
 
@@ -86,4 +86,15 @@ it('says what a run that called a model did not report, and leaves both out of o
   expect(labelled(run({}))).toMatchObject({ Tokens: 'not reported', 'API cost': 'unknown' });
   expect(Object.keys(labelled(run({ messageCount: 0, model: null })))).toEqual(['Messages', 'Took', 'Model']);
   expect(labelled(run({ messageCount: 0, model: null })).Model).toBe('Claude');
+});
+
+it('lists the runs and failures whose covered time overlaps the time frame, both ends inclusive', () => {
+  const span = (id: number, sinceTs: number, untilTs: number): Summary => ({ id, sinceTs, untilTs }) as Summary;
+  const failure = { runId: 9, sinceTs: 40, untilTs: 50 } as SummaryRunFailure;
+  const rows = [span(1, 0, 10), span(2, 10, 20), span(3, 25, 30), failure];
+  const ids = (since: number | null, until: number | null) => overlapping(rows, since, until).map((e) => (isFailure(e) ? `f${e.runId}` : e.id));
+  expect(ids(null, null)).toEqual([1, 2, 3, 'f9']);
+  expect(ids(10, 25)).toEqual([1, 2, 3]);
+  expect(ids(21, 24)).toEqual([]);
+  expect(ids(45, null)).toEqual(['f9']);
 });

@@ -12,7 +12,9 @@ import {
   isPanelCollapsed,
   PanelHeader,
   HeaderActions,
+  TimeWindowSelect,
   scrolledFromTop,
+  timeBounds,
 } from '@plugin-sdk/renderer/kit';
 import { namedText } from '../shared/people';
 import {
@@ -22,14 +24,16 @@ import {
   loadOlderSummaries,
   overlapUntil,
   retryFailure,
+  setSummaryWindow,
   summaryError,
   summaryFailures,
   summaryHistory,
   summaryProgress,
   summaryRunning,
+  summaryWindow,
   toggleSummary,
 } from './state';
-import { entryKey, historyEntries, isFailure, landedRow } from './historyPage';
+import { entryKey, historyEntries, isFailure, landedRow, overlapping } from './historyPage';
 import { scopeLabel } from './scope';
 import { SummaryControls } from './SummaryControls';
 import { spansDays } from './order';
@@ -66,16 +70,22 @@ export function SummaryPanel() {
     const before = body.scrollHeight;
     if (await loadOlderSummaries()) body.scrollTop += body.scrollHeight - before;
   };
-  // Folded runs may not fill the panel, and then nothing scrolls: older runs load until they do, or none are left.
+  // The runs that cover time in the window; the clock keeps a preset its length back from now. A tick that changes no
+  // row keeps the list, so nothing below re-runs.
+  const entries = createMemo(() => {
+    const { since, until } = timeBounds(summaryWindow(), now());
+    return overlapping(historyEntries(summaryHistory.items, summaryFailures(), summaryHistory.reachedStart), since, until);
+  }, [], { equals: (a, b) => a.length === b.length && a.every((e, i) => e === b[i]) });
+  // Folded or filtered runs may not fill the panel, and then nothing scrolls: older runs load until they do, or none are left.
   createEffect(() => {
     void summaryHistory.items.length;
+    void entries().length;
     for (const s of summaryHistory.items) isSummaryOpen(s.id);
     if (isPanelCollapsed('summary') || summaryHistory.reachedStart) return;
     queueMicrotask(() => {
       if (body?.isConnected && body.scrollHeight <= body.clientHeight) void loadOlderSummaries();
     });
   });
-  const entries = createMemo(() => historyEntries(summaryHistory.items, summaryFailures(), summaryHistory.reachedStart));
   const progressText = (): string => {
     const p = summaryProgress();
     if (!summaryRunning()) return '';
@@ -113,6 +123,7 @@ export function SummaryPanel() {
     <section class="cp-panel" aria-label="Summary">
       <PanelHeader section="summary" collapsible title="Summary">
         <HeaderActions>
+          <TimeWindowSelect label="Summaries time frame" class={styles.windowSelect} window={summaryWindow()} onChange={setSummaryWindow} />
           <SummaryControls />
         </HeaderActions>
       </PanelHeader>
@@ -123,7 +134,11 @@ export function SummaryPanel() {
           onScroll={() => void onScroll()}
         >
           <Show when={entries().length === 0 && !summaryRunning()}>
-            <p class={look.text} data-size="md" data-tone="muted">No summary yet. Open summary options, pick a time frame, and press Run summary.</p>
+            <p class={look.text} data-size="md" data-tone="muted">
+              {summaryWindow() !== null && summaryHistory.items.length > 0
+                ? 'No summaries cover this time frame.'
+                : 'No summary yet. Open summary options, pick a time frame, and press Run summary.'}
+            </p>
           </Show>
           <For each={entries()}>
             {(e) => (isFailure(e) ? <FailedRun failure={e} /> : <SummaryRun summary={e} />)}
