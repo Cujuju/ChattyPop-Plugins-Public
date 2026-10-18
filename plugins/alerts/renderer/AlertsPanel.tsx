@@ -7,10 +7,12 @@ import {
   alertSort,
   alerts,
   alertsUnreadOnly,
+  alertsWindow,
   markAllAlertsRead,
   openAlert,
   setAlertSort,
   setAlertsUnreadOnly,
+  setAlertsWindow,
   shownUnreadAlertCount,
 } from './state';
 import type { MessageMenuScope } from '@plugin-sdk/renderer';
@@ -28,6 +30,7 @@ import {
   HeaderBadge,
   HeaderButton,
   Icon,
+  TimeWindowSelect,
   look,
 } from '@plugin-sdk/renderer/kit';
 import { RuleFilter } from './RuleFilter';
@@ -98,6 +101,7 @@ export function AlertsPanel() {
         </Show>
         {/* Icon buttons, so the row fits a phone's width: each shows its current state; its title says what a tap does. */}
         <HeaderActions>
+          <TimeWindowSelect label="Alerts time frame" class={styles.windowSelect} window={alertsWindow()} onChange={setAlertsWindow} />
           <RuleFilter />
           <HeaderButton
             variant="icon"
@@ -124,9 +128,11 @@ export function AlertsPanel() {
           when={alerts().length > 0}
           fallback={
             <p class="cp-panel-empty">
-              {rules().some((r) => r.spec.actions.some((a) => a.type === 'alerts.notify'))
-                ? 'No matches yet.'
-                : 'Add a rule with an Alert to hear when something comes up.'}
+              {alertsWindow() !== null
+                ? 'No alerts in this time frame.'
+                : rules().some((r) => r.spec.actions.some((a) => a.type === 'alerts.notify'))
+                  ? 'No matches yet.'
+                  : 'Add a rule with an Alert to hear when something comes up.'}
             </p>
           }
         >

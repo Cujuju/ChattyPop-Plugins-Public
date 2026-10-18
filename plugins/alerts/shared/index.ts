@@ -2,16 +2,16 @@
 import { defineChannels, definePlugin, definePreference, integersOr } from '@plugin-sdk/shared';
 import { aimed, notify, openQuestion, managedMatch } from './rules';
 import { ALERT_FEATURES, ALERT_QUERIES } from './queries';
-import type { AlertDelivery, AlertItem, AlertQuery } from './types';
+import type { AlertDelivery, AlertItem, AlertQuery, AlertSpan } from './types';
 
 /** Core calls shared by the desktop inbox and phone section. */
 export interface AlertsCoreCalls {
   /** Alerts newest first, less those privacy mode hides. */
   alerts(query: AlertQuery): AlertItem[];
-  /** Marks alerts read: the given ids, or every visible unread one (of these rules when any). */
-  markRead(ids: number[] | null, ruleIds?: number[]): void;
-  /** Unread counts by rule, restricted to messages privacy mode leaves visible. */
-  unread(): Record<number, number>;
+  /** Marks alerts read: the given ids, or every visible unread one (of these rules when any, within the span when given). */
+  markRead(ids: number[] | null, ruleIds?: number[], span?: AlertSpan): void;
+  /** Unread counts by rule (within the span when given), restricted to messages privacy mode leaves visible. */
+  unread(span?: AlertSpan): Record<number, number>;
 }
 
 /** Alert or rule ids as a caller sent them; throws unless every one is an integer. */
@@ -20,11 +20,29 @@ function ids(v: unknown, what: string): number[] {
   return v as number[];
 }
 
+/** A span as a caller sent it; throws unless each end it has is an integer time. */
+function span(v: unknown): AlertSpan | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new Error('Not an alert span.');
+  const end = (t: unknown): number | undefined => {
+    if (t === undefined) return undefined;
+    if (!Number.isSafeInteger(t)) throw new Error('Not an alert span time.');
+    return t as number;
+  };
+  const raw = v as Record<string, unknown>;
+  const [sinceTs, untilTs] = [end(raw['sinceTs']), end(raw['untilTs'])];
+  return { ...(sinceTs === undefined ? {} : { sinceTs }), ...(untilTs === undefined ? {} : { untilTs }) };
+}
+
 /** markRead's arguments checked (the phone makes the call). */
-export const decodeMarkRead = ([alertIds, ruleIds]: readonly unknown[]): Parameters<AlertsCoreCalls['markRead']> => [
+export const decodeMarkRead = ([alertIds, ruleIds, within]: readonly unknown[]): Parameters<AlertsCoreCalls['markRead']> => [
   alertIds === null ? null : ids(alertIds, 'alert'),
   ruleIds === undefined ? undefined : ids(ruleIds, 'rule'),
+  span(within),
 ];
+
+/** unread's span checked. */
+export const decodeUnread = ([within]: readonly unknown[]): Parameters<AlertsCoreCalls['unread']> => [span(within)];
 
 /** A burst updates the inbox; main delivers only the alerts selected by core, to the devices core chose. */
 export interface AlertsEvents {
@@ -51,7 +69,7 @@ export const plugin = definePlugin({
     core: {
       alerts: { audiences: ['renderer', 'phone'], writes: false },
       markRead: { audiences: ['renderer', 'phone'], writes: true, decode: decodeMarkRead },
-      unread: { audiences: ['renderer', 'phone'], writes: false },
+      unread: { audiences: ['renderer', 'phone'], writes: false, decode: decodeUnread },
     },
     events: {
       changed: ['renderer', 'phone'],

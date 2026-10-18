@@ -1,5 +1,13 @@
 /* Alerts rows and shared PanelHeader layout. Theme look attributes are applied in TSX. */
 
+/* Header time window: as wide as its label, at the header's control height. */
+.windowSelect {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: var(--cp-filter-select-max-w);
+  height: var(--cp-btn-h-sm);
+}
+
 /* Header rule picker: the trigger is a header action; the checklist floats below it, opening leftward. */
 .ruleFilter {
   position: relative;

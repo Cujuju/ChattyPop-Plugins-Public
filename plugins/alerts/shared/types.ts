@@ -44,7 +44,13 @@ export interface AlertDelivery {
   devices: NotifyDevice[];
 }
 
-export interface AlertQuery {
+/** Alerts from `sinceTs` through `untilTs`, inclusive ms; an absent end is open. */
+export interface AlertSpan {
+  sinceTs?: number;
+  untilTs?: number;
+}
+
+export interface AlertQuery extends AlertSpan {
   limit: number;
   unreadOnly?: boolean;
   /** Only alerts of these rules; absent or empty = every alert. */

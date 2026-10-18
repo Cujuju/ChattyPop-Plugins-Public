@@ -32,11 +32,11 @@ export function activateAlerts(ctx: CoreContext<typeof plugin>, now: () => numbe
   ctx.ai.onSettingsChange(sync);
   ctx.channels.serve({
     alerts: (query) => alertItems(db, ctx.archive.payloads, query),
-    markRead: (ids, ruleIds) => {
-      markAlertsRead(db, ids, ruleIds);
+    markRead: (ids, ruleIds, span) => {
+      markAlertsRead(db, ids, ruleIds, span);
       notifier.changed();
     },
-    unread: () => unreadCounts(db),
+    unread: (span) => unreadCounts(db, span),
   });
   sync();
   return { pending, dispose: () => notifier.dispose() };

@@ -1,6 +1,6 @@
 // Privacy-aware inbox queries and read state.
 import { mentionsFrom, type PluginDb, type ArchivePayloadReader, toolScopeSql } from '@plugin-sdk/core';
-import { HELD_REASONS, type AlertItem, type AlertQuery, type HeldReason } from '../shared/types';
+import { HELD_REASONS, type AlertItem, type AlertQuery, type AlertSpan, type HeldReason } from '../shared/types';
 import { HELD_COLUMN } from './schema';
 import { ALERTS, VISIBLE_ALERTS } from './tables';
 import type { ArchiveToolScope } from '@plugin-sdk/core';
@@ -10,6 +10,15 @@ const heldReason = (v: string | null): HeldReason | null => (HELD_REASONS as rea
 
 type AlertRow = Omit<AlertItem, 'mentions' | 'held'> & { heldDesktop: string | null; heldPhone: string | null };
 export interface AlertToolFilter { scope: ArchiveToolScope; rule?: string; unread?: boolean }
+
+/** A span's bounds on the alerts aliased `a`. */
+function spanSql(span: AlertSpan | undefined): { where: string[]; params: number[] } {
+  const where: string[] = [];
+  const params: number[] = [];
+  if (span?.sinceTs !== undefined) { where.push('a.ts >= ?'); params.push(span.sinceTs); }
+  if (span?.untilTs !== undefined) { where.push('a.ts <= ?'); params.push(span.untilTs); }
+  return { where, params };
+}
 
 /** Alerts newest first, less those privacy mode hides; `onlyId` narrows to one alert. */
 export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: AlertQuery, onlyId?: number): AlertItem[] {
@@ -46,6 +55,9 @@ export function alertsSql(q: AlertQuery, onlyId?: number, tool?: AlertToolFilter
     where.push(`a.rule_id IN (${q.ruleIds.map(() => '?').join(', ')})`);
     params.push(...q.ruleIds);
   }
+  const spanned = spanSql(q);
+  where.push(...spanned.where);
+  params.push(...spanned.params);
   if (q.after) {
     where.push('(a.ts, a.id) < (?, ?)');
     params.push(q.after.ts, q.after.id);
@@ -65,25 +77,28 @@ export function alertsSql(q: AlertQuery, onlyId?: number, tool?: AlertToolFilter
   };
 }
 
-/** Marks alerts read: the given ids, or every visible unread one (of these rules when any); hidden ones stay unread. */
-export function markAlertsRead(db: PluginDb, ids: number[] | null, ruleIds?: number[]): void {
+/** Marks alerts read: the given ids, or every visible unread one (of these rules when any, within the span); hidden ones stay unread. */
+export function markAlertsRead(db: PluginDb, ids: number[] | null, ruleIds?: number[], span?: AlertSpan): void {
   const now = Date.now();
   if (ids) {
     const mark = db.prepare(`UPDATE ${ALERTS} SET read_at = ? WHERE id = ? AND read_at IS NULL`);
     db.transaction(() => ids.forEach((id) => mark.run(now, id)))();
     return;
   }
-  const only = ruleIds?.length ? ` AND a.rule_id IN (${ruleIds.map(() => '?').join(', ')})` : '';
-  db.prepare(`UPDATE ${ALERTS} SET read_at = ? WHERE read_at IS NULL AND id IN (SELECT a.id FROM ${VISIBLE_ALERTS} a WHERE a.read_at IS NULL${only})`).run(
+  const spanned = spanSql(span);
+  const where = ['a.read_at IS NULL', ...(ruleIds?.length ? [`a.rule_id IN (${ruleIds.map(() => '?').join(', ')})`] : []), ...spanned.where];
+  db.prepare(`UPDATE ${ALERTS} SET read_at = ? WHERE read_at IS NULL AND id IN (SELECT a.id FROM ${VISIBLE_ALERTS} a WHERE ${where.join(' AND ')})`).run(
     now,
     ...(ruleIds ?? []),
+    ...spanned.params,
   );
 }
 
-/** Unread counts grouped by rule, excluding hidden messages. */
-export function unreadCounts(db: PluginDb): Record<number, number> {
+/** Unread counts grouped by rule (within the span when given), excluding hidden messages. */
+export function unreadCounts(db: PluginDb, span?: AlertSpan): Record<number, number> {
+  const spanned = spanSql(span);
   const rows = db.prepare(
-    `SELECT a.rule_id AS id, COUNT(*) AS n FROM ${VISIBLE_ALERTS} a WHERE a.read_at IS NULL GROUP BY a.rule_id`,
-  ).all() as { id: number; n: number }[];
+    `SELECT a.rule_id AS id, COUNT(*) AS n FROM ${VISIBLE_ALERTS} a WHERE ${['a.read_at IS NULL', ...spanned.where].join(' AND ')} GROUP BY a.rule_id`,
+  ).all(...spanned.params) as { id: number; n: number }[];
   return Object.fromEntries(rows.map((row) => [row.id, row.n]));
 }
