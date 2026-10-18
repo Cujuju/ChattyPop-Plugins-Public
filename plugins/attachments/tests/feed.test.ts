@@ -94,7 +94,7 @@ describe('attachment page', () => {
     expect(ids(await client.page({ limit: PAGE_LIMIT }))).toEqual(['a8', 'a7', 'a4', 'a2', 'a1']);
     expect((await client.totals({})).count).toBe(5);
     expect(ids(await client.sharedBy({ userId: 'bob', limit: PAGE_LIMIT }))).toEqual(['a4', 'a2']);
-    expect(await client.places({})).toEqual({ guilds: { '100000000000000001': 5 }, channels: { '200000000000000001': 5 } });
+    expect(await client.places({})).toEqual({ guilds: { '100000000000000001': 5 }, channels: { '200000000000000001': 5 }, threads: { '300000000000000001': 1 } });
     expect((await client.people({ limit: PAGE_LIMIT })).map((r) => [r.id, r.count])).toEqual([['bob', 2], ['alice', 3]]);
   });
 

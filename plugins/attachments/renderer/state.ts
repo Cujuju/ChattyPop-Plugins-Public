@@ -13,6 +13,7 @@ export const [savedFilters, setSavedFilters] = pluginPreference(plugin, 'savedFi
 export const [view, setView] = pluginPreference(plugin, 'view');
 export const [hoverZoom, setHoverZoom] = pluginPreference(plugin, 'hoverZoom');
 export const [anchor, setAnchor] = pluginPreference(plugin, 'anchor');
+export const [channelsHidden, setChannelsHidden] = pluginPreference(plugin, 'channelsHidden');
 export const [spaceView, setSpaceView] = createSignal(false);
 export const [breakdownBy, setBreakdownBy] = createSignal<BreakdownBy>('guild');
 /** The order runs down from the top (a file browser's), not up from the bottom (a chat's). */
@@ -76,7 +77,7 @@ export const people = pluginResource(plugin, 'people', () => {
 export const places = pluginResource(plugin, 'places', () => {
   revision();
   return [unplaced()];
-}, { guilds: {}, channels: {} } as AttachmentPlaces);
+}, { guilds: {}, channels: {}, threads: {} } as AttachmentPlaces);
 /** This viewer's time zone: months and jumps follow the calendar its dates are shown in, wherever the core runs. */
 const viewerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export const months = pluginResource(plugin, 'months', () => { revision(); return [filter(), viewerZone()]; }, [] as AttachmentMonth[]);

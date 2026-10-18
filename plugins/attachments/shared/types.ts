@@ -61,7 +61,8 @@ export interface PersonRow { id: string; name: string; count: number; bytes: num
 export interface PeopleQuery extends AttachmentFilter { limit: number }
 export interface PersonFilesQuery { userId: string; limit: number }
 /** Matching attachments per server and per channel id (a thread's counted in its channel), whatever the place filter. */
-export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number> }
+/** File counts by place id; a thread's files count in `threads` and again in its channel's. */
+export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number>; threads: Record<string, number> }
 
 export interface AttachmentPosting {
   id: string; messageId: string; channelId: string; channelName: string; guildId: string | null; guildName: string;

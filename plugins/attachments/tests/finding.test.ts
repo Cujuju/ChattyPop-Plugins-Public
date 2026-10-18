@@ -23,7 +23,7 @@ describe('derived file text', () => {
     expect((await client.page({ limit: LIMIT, name: 'photo' })).every((r) => r.textMatch === undefined)).toBe(true);
     expect((await client.totals({ name: 'nebula' })).count).toBe(2);
     expect((await client.people({ name: 'nebula', limit: LIMIT })).map((r) => r.id).sort()).toEqual(['alice', 'bob']);
-    expect(await client.places({ name: 'nebula' })).toEqual({ guilds: { '100000000000000001': 2 }, channels: { '200000000000000001': 2 } });
+    expect(await client.places({ name: 'nebula' })).toEqual({ guilds: { '100000000000000001': 2 }, channels: { '200000000000000001': 2 }, threads: {} });
   });
 
   it("matches a spoiler's text without sending its words", async () => {
