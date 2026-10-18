@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@core/db';
 import { LinkJudge } from '../core/judge';
 import { JUDGMENTS } from '../core/tables';
-import { adoptLinks, linkFeed } from './linksHarness';
+import { adoptLinks, linkFeed, linksSql } from './linksHarness';
 import { FakeJev, type JevRequest, rawMessage, seedArchive, settleAsync, tempDb } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
 import { aiSources, scopedDecider } from '@core/ai/readScope';
@@ -42,10 +42,22 @@ beforeEach(() => {
     const d = jev.forPlugin('links')(f);
     return d && scopedDecider(d, () => db);
   };
-  judge = new LinkJudge(db, decider, () => {}, aiSources(() => db, () => false));
+  judge = new LinkJudge(db, decider, () => {}, aiSources(() => db, () => false), linksSql);
 });
 
 describe('link judgments (#61–#63)', () => {
+  it('omits metadata supplied by a local-only later share of an eligible link', async () => {
+    const a = seedArchive(db, [{ id: OPEN }, { id: PRIVATE }]);
+    a.ingestMessages([rawMessage(PRIVATE, Date.now(), 'https://youtu.be/abc123', {
+      embeds: [{ url: 'https://youtu.be/abc123', title: 'classified title', provider: { name: 'Secret site' } }],
+    })], ARRIVAL.gateway);
+    judge.kick();
+    await settleAsync();
+    expect(jev.requests).toHaveLength(1);
+    expect(JSON.stringify(jev.requests)).not.toContain('classified');
+    expect(JSON.stringify(jev.requests)).not.toContain('Secret site');
+  });
+
   it('asks about all pending links in one request, each question carrying its link, never for local-only channels', async () => {
     judge.kick();
     await settleAsync();

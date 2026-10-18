@@ -1,5 +1,5 @@
 // Link searches use sharing messages rather than the link's global first share.
-import { ARCHIVE_TOOL_LINES_MAX, type ArchiveTool, type PluginDb, clampToolScope, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField, toolTimeFields, toolTime } from '@plugin-sdk/core';
+import { ARCHIVE_TOOL_LINES_MAX, type ArchiveTool, type PluginDb, type CoreContext, clampToolScope, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField, toolTimeFields, toolTime } from '@plugin-sdk/core';
 
 /** Default searches return twenty shares; expanded reads use the host line budget. */
 const SEARCH_DEFAULT = 20;
@@ -13,7 +13,7 @@ const fields = {
 interface Args { query?: string; platform?: string; author?: string; since?: string; until?: string; limit?: number }
 interface Share { messageId: string; channelId: string; title: string | null; url: string; site: string | null; author: string; ts: number }
 
-export function archiveTools(db: PluginDb): ArchiveTool[] {
+export function archiveTools(db: PluginDb, archive: Pick<CoreContext['archive'], 'linksSql'>): ArchiveTool[] {
   return [{
     name: 'search',
     description: 'Finds links shared in the chat scope and window, with title, URL, site, sharing author and timestamp. Use it to locate shared resources, including later shares of older links.',
@@ -21,7 +21,8 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
     async run(raw, scope, signal) {
       signal.throwIfAborted();
       const args = parseToolArgs<Args>(raw, fields);
-      const scoped = toolScopeSql(clampToolScope(scope, args));
+      const window = clampToolScope(scope, args);
+      const scoped = toolScopeSql(window);
       const parts = [scoped.sql];
       const params = scoped.params;
       if (args.query !== undefined) {
@@ -36,12 +37,12 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
       const limit = args.limit ?? SEARCH_DEFAULT;
       const rows = db.prepare(`SELECT m.id AS messageId, m.channel_id AS channelId, l.title, l.url, l.site, m.author_name AS author, m.ts
         FROM archive_message_links ml JOIN archive_messages m ON m.id = ml.message_id
-        JOIN archive_links l ON l.id = ml.link_id WHERE ${parts.join(' AND ')}
+        JOIN (${archive.linksSql(window)}) l ON l.id = ml.link_id WHERE ${parts.join(' AND ')}
         ORDER BY m.ts DESC, m.id DESC, l.id DESC LIMIT ?`).all(...params, limit + 1) as Share[];
       signal.throwIfAborted();
       const included = rows.slice(0, limit);
       return toolResult(included.map((row) => ({ text: `${row.title ?? 'Untitled'} | ${row.url} | ${row.site ?? ''} | ${row.author} | ${toolTime(row.ts)}`, messageId: row.messageId })),
-        limit, [...new Set(included.map((row) => row.channelId))], rows.length > limit);
+        limit, included.length ? window.channelIds : [], rows.length > limit);
     },
   }];
 }

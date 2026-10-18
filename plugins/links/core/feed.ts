@@ -1,6 +1,6 @@
 // The Links feed: shared links from the host's link index, with Jev's judgments and each link's best preview card.
 import type { ArchiveEmbed, ArchiveMessage, Platform } from '@plugin-sdk/shared';
-import { embedsFrom, normalizeUrl, partKey, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
+import { embedsFrom, normalizeUrl, partKey, toolScopeSql, type ArchiveToolScope, type CoreContext, type PluginDb, type ArchivePayloadReader } from '@plugin-sdk/core';
 import type { LinkCard, LinkCursor, LinkFilter, LinkItem, LinkPageQuery, LinkSort, LinkWindow, LinkWindowQuery, PersonLinksQuery } from '../shared/types';
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
@@ -34,6 +34,14 @@ function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
 }
 
 type LinkRow = Omit<LinkCard, 'embed' | 'flagged'> & { flagged: number | null };
+type LinksSql = CoreContext['archive']['linksSql'];
+
+/** Display filters constrain preview sources as well as the link's first share. */
+function previewScope(db: PluginDb, f: LinkFilter): ArchiveToolScope {
+  const channelIds = db.prepare(`SELECT id FROM archive_channels ${f.channelId ? 'WHERE id = ? OR (is_thread = 1 AND parent_id = ?)' : ''}`)
+    .pluck().all(...(f.channelId ? [f.channelId, f.channelId] : [])) as string[];
+  return { channelIds, since: f.sinceTs === undefined ? null : f.sinceTs + 1, until: f.untilTs ?? null };
+}
 
 /** What a row reads of the link itself and its judgment; `l` is archive_links, `j` its judgment. */
 const LINK_COLUMNS = `l.id, l.url, l.platform, l.title, l.description, l.thumbnail_url AS thumbnailUrl, l.site,
@@ -82,7 +90,7 @@ function embedFor(r: LinkRow, shares: Share[]): { embed: ArchiveEmbed | null; so
 type Past = { cursor: LinkCursor; op: '<' | '<=' | '>' };
 
 /** Up to `limit` rows in sort order (every key descending); past a cursor, the nearest ones to it. */
-function linkRows(db: PluginDb, f: LinkFilter, sort: LinkSort | undefined, past: Past | null, limit: number): LinkRow[] {
+function linkRows(db: PluginDb, f: LinkFilter, sort: LinkSort | undefined, past: Past | null, limit: number, linksSql: LinksSql): LinkRow[] {
   const w = where(f);
   const byWorth = sort === 'worth';
   // Row values compare key by key, matching the ORDER BY (none NULL).
@@ -95,7 +103,7 @@ function linkRows(db: PluginDb, f: LinkFilter, sort: LinkSort | undefined, past:
       `SELECT ${LINK_COLUMNS}, l.first_ts AS ts, l.first_message_id AS messageId,
               l.first_channel_id AS channelId, COALESCE(c.name, l.first_channel_id) AS channelName, COALESCE(g.name, '') AS guildName,
               l.author_name AS authorName
-       FROM archive_links l
+       FROM (${linksSql(previewScope(db, f), 'display')}) l
        LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
        LEFT JOIN archive_all_channels c ON c.id = l.first_channel_id
        LEFT JOIN archive_all_guilds g ON g.id = c.guild_id
@@ -107,20 +115,20 @@ function linkRows(db: PluginDb, f: LinkFilter, sort: LinkSort | undefined, past:
 }
 
 /** Keyset-paged links sorted newest or most worthwhile (#63), with privacy-filtered sharing messages. */
-export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkPageQuery): LinkItem[] {
+export function linkPage(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkPageQuery, linksSql: LinksSql): LinkItem[] {
   const past: Past | null = q.before ? { cursor: q.before, op: '>' } : q.after ? { cursor: q.after, op: '<' } : null;
-  return itemsOf(db, payloads, messagesByIds, linkRows(db, q, q.sort, past, q.limit));
+  return itemsOf(db, payloads, messagesByIds, linkRows(db, q, q.sort, past, q.limit, linksSql), previewScope(db, q));
 }
 
 /** Links around a cursor in sort order: up to `newer` before it, then up to `older` from it (it included). */
-export function linkWindow(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkWindowQuery): LinkWindow {
+export function linkWindow(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkWindowQuery, linksSql: LinksSql): LinkWindow {
   // One beyond each side tells whether that side reaches its end.
-  const newer = linkRows(db, q, q.sort, { cursor: q.around, op: '>' }, q.newer + 1);
-  const older = linkRows(db, q, q.sort, { cursor: q.around, op: '<=' }, q.older + 1);
+  const newer = linkRows(db, q, q.sort, { cursor: q.around, op: '>' }, q.newer + 1, linksSql);
+  const older = linkRows(db, q, q.sort, { cursor: q.around, op: '<=' }, q.older + 1, linksSql);
   const newerKept = newer.slice(Math.max(0, newer.length - q.newer));
   const olderKept = older.slice(0, q.older);
   return {
-    items: itemsOf(db, payloads, messagesByIds, [...newerKept, ...olderKept]),
+    items: itemsOf(db, payloads, messagesByIds, [...newerKept, ...olderKept], previewScope(db, q)),
     reachesNewest: newer.length <= q.newer,
     reachedStart: older.length <= q.older,
     anchorId: (olderKept[0] ?? newerKept.at(-1))?.id ?? null,
@@ -128,8 +136,8 @@ export function linkWindow(db: PluginDb, payloads: ArchivePayloadReader, message
 }
 
 /** Rows as feed items: each with its preview card and the first sharing message carrying it. */
-function itemsOf(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], rows: LinkRow[]): LinkItem[] {
-  const cards = cardsOf(db, payloads, rows);
+function itemsOf(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], rows: LinkRow[], scope: ArchiveToolScope): LinkItem[] {
+  const cards = cardsOf(db, payloads, rows, scope);
   const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
   return cards.map(({ card, source }) => {
     const m = messages.get(card.messageId);
@@ -152,16 +160,17 @@ export function withLinkCard(m: ArchiveMessage, card: LinkCard, source: string |
 }
 
 /** Each row with its preview card, and the share the card came from (null: the link's stored unfurl, or no card). */
-function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[]): { card: LinkCard; source: string | null }[] {
+function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[], scope: ArchiveToolScope): { card: LinkCard; source: string | null }[] {
   const shares = new Map<number, Share[]>();
   if (rows.length) {
+    const scoped = toolScopeSql(scope);
     const all = db
       .prepare(
         `SELECT ml.link_id AS linkId, m.id AS messageId
-         FROM archive_all_message_links ml JOIN archive_all_messages m ON m.id = ml.message_id
-         WHERE ml.link_id IN (${rows.map(() => '?').join(',')}) ORDER BY m.ts`,
+         FROM archive_message_links ml JOIN archive_messages m ON m.id = ml.message_id
+         WHERE ml.link_id IN (${rows.map(() => '?').join(',')}) AND ${scoped.sql} ORDER BY m.ts`,
       )
-      .all(...rows.map((r) => r.id)) as { linkId: number; messageId: string }[];
+      .all(...rows.map((r) => r.id), ...scoped.params) as { linkId: number; messageId: string }[];
     const details = payloads(all.map((s) => s.messageId));
     for (const s of all) shares.set(s.linkId, [...(shares.get(s.linkId) ?? []), { messageId: s.messageId, embedsJson: details.get(s.messageId)?.embedsJson ?? null, bot: details.get(s.messageId)?.bot ?? null }]);
   }
@@ -172,7 +181,7 @@ function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[]):
 }
 
 /** Lists each visible link at the person's latest visible share, newest first. */
-export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: PersonLinksQuery): LinkCard[] {
+export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: PersonLinksQuery, linksSql: LinksSql): LinkCard[] {
   const rows = db
     .prepare(
       // SQLite fills the bare columns of `s` from the MAX(ts) row: their latest share of the link.
@@ -181,14 +190,14 @@ export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: 
        FROM (SELECT ml.link_id AS linkId, m.id AS messageId, m.channel_id AS channelId, MAX(m.ts) AS ts
              FROM archive_messages m JOIN archive_all_message_links ml ON ml.message_id = m.id
              WHERE m.author_id = ? GROUP BY ml.link_id) s
-       JOIN archive_links l ON l.id = s.linkId
+       JOIN (${linksSql()}) l ON l.id = s.linkId
        LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
        LEFT JOIN archive_all_channels c ON c.id = s.channelId
        LEFT JOIN archive_all_guilds g ON g.id = c.guild_id
        ORDER BY s.ts DESC, l.id DESC LIMIT ?`,
     )
     .all(q.userId, q.limit) as LinkRow[];
-  return cardsOf(db, payloads, rows).map((c) => c.card);
+  return cardsOf(db, payloads, rows, previewScope(db, {})).map((c) => c.card);
 }
 
 /** Link counts per platform for a filter (platform filter ignored so every chip shows its count). */

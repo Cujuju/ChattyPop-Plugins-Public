@@ -5,6 +5,9 @@ import { storeLinkText } from '@core/derivedText';
 import { storeLinkImages, type LinkImage } from '@core/messageImages';
 import { adoptBundledData } from '@core/plugins/adoption';
 import { messagesByIds } from '@core/queries/messages';
+import { archiveLinksSql, metadataScopeSql } from '@core/queries/linkMetadata';
+import { hostedMayReadSql } from '@core/channelPolicy';
+import type { CoreContext } from '@plugin-sdk/core';
 import { linkPage, linkWindow, personLinkPage } from '../core/feed';
 import { plugin } from '../shared';
 import type { LinkCard, LinkItem, LinkPageQuery, LinkWindow, LinkWindowQuery, PersonLinksQuery } from '../shared/types';
@@ -16,13 +19,18 @@ export function adoptLinks(db: Db): Db {
 }
 
 /** A page of the Links feed, with the sharing messages as the Archive shows them. */
-export const linkFeed = (db: Db, q: LinkPageQuery): LinkItem[] => linkPage(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q);
+export const linkFeed = (db: Db, q: LinkPageQuery): LinkItem[] => linkPage(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q, linksSql);
 
 /** The Links feed around a cursor. */
-export const linkFeedWindow = (db: Db, q: LinkWindowQuery): LinkWindow => linkWindow(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q);
+export const linkFeedWindow = (db: Db, q: LinkWindowQuery): LinkWindow => linkWindow(db, (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q, linksSql);
 
 /** A person's links, each at their latest share of it. */
-export const personLinks = (db: Db, q: PersonLinksQuery): LinkCard[] => personLinkPage(db, (ids) => archivePayloads(db, ids), q);
+export const personLinks = (db: Db, q: PersonLinksQuery): LinkCard[] => personLinkPage(db, (ids) => archivePayloads(db, ids), q, linksSql);
+
+/** The host contract without activating a plugin; these feed fixtures have no local AI provider. */
+export const linksSql: CoreContext['archive']['linksSql'] = (scope, reader) => archiveLinksSql([
+  scope ? metadataScopeSql(scope) : '1', scope || reader ? reader === 'display' ? '1' : hostedMayReadSql('s.channel_id') : '1',
+].join(' AND '), false, true);
 
 /** The host's link stores for the Links plugin: its text (core wiring judges again the messages it returns) and images. */
 export const hostLinks = (db: Db, onText: (messageIds: string[]) => void = () => undefined) => ({

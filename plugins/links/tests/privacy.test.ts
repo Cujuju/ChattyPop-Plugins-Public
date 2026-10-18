@@ -55,4 +55,19 @@ describe('the links feed in privacy mode', () => {
     setMode(true);
     expect(linkFeed(db, { limit: 10 }).map((l) => l.url)).toEqual(['https://example.com/shared']);
   });
+
+  it('uses neither hidden metadata nor hidden preview cards on a visible first share', () => {
+    const url = 'https://example.com/shared';
+    archive.ingestMessages([rawMessage(MODS, at(6), url, {
+      author: { id: 'fixture-bot', username: 'Preview', bot: true },
+      embeds: [{ url, title: 'classified card', description: 'classified details', provider: { name: 'Secret site' } }],
+    })], ARRIVAL.gateway);
+    setMode(true);
+    const link = linkFeed(db, { limit: 10 }).find((l) => l.url === url)!;
+    expect(link).toMatchObject({ title: null, description: null, site: null, embed: null });
+    expect(JSON.stringify(link)).not.toContain('classified');
+    setMode(false);
+    expect(linkFeed(db, { limit: 10 }).find((l) => l.url === url)?.title).toBe('classified card');
+    expect(linkFeed(db, { channelId: GENERAL, limit: 10 }).find((l) => l.url === url)).toMatchObject({ title: null, embed: null });
+  });
 });

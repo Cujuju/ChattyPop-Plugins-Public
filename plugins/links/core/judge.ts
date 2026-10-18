@@ -12,6 +12,7 @@ import {
   type Answer,
   type PluginDb,
   type PluginDecider,
+  type CoreContext,
   type Question,
 } from '@plugin-sdk/core';
 import { LINK_QUERY as QUERY } from '../shared';
@@ -50,6 +51,7 @@ interface Pending {
   asked: string | null;
   /** Where it was first shared: what Jev reads about it. */
   channelId: string;
+  metadataChannels: string;
 }
 
 /** Judges unjudged recent links in the background. `deciderFor` reads Settings → Jev per call, so toggles apply at once. */
@@ -66,6 +68,7 @@ export class LinkJudge {
     private readonly changed: () => void,
     /** Which channels Jev may read. */
     private readonly sources: Pick<AiSources, 'sql'>,
+    private readonly linksSql: CoreContext['archive']['linksSql'],
   ) {}
 
   /** Coalesces calls (every archive change) into one background loop. */
@@ -102,8 +105,8 @@ export class LinkJudge {
     if (!on.length) return [];
     const rows = this.db
       .prepare(
-        `SELECT l.id, l.url, l.title, l.description, l.site, l.first_channel_id AS channelId, (SELECT content FROM archive_all_messages WHERE id = l.first_message_id) AS content, j.asked
-         FROM archive_all_links l LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
+        `SELECT l.id, l.url, l.title, l.description, l.site, l.metadata_channel_ids AS metadataChannels, l.first_channel_id AS channelId, (SELECT content FROM archive_messages WHERE id = l.first_message_id) AS content, j.asked
+         FROM (${this.linksSql(undefined, 'hosted')}) l LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
          WHERE l.first_ts >= ? AND ${this.sources.sql('l.first_channel_id', 'hosted')} ORDER BY l.first_ts DESC`,
       )
       .all(Date.now() - LOOKBACK_MS) as Pending[];
@@ -136,7 +139,8 @@ export class LinkJudge {
           questions[`${ASKS[f].prefix}_l${k}`] = q;
         }
       });
-      answers = (await jev.decide({ state: NO_SHARED_STATE, questions, reads: links.map((l) => l.channelId) })).answers as typeof answers;
+      const reads = [...new Set(links.flatMap((l) => [l.channelId, ...(fromJson<(string | null)[]>(l.metadataChannels) ?? []).filter((id): id is string => id !== null)]))];
+      answers = (await jev.decide({ state: NO_SHARED_STATE, questions, reads })).answers as typeof answers;
     } catch (err) {
       for (const link of links) this.skipped.add(link.id);
       console.warn('[links] Jev judgment failed:', errorMessage(err));

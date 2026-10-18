@@ -18,13 +18,17 @@ const messages = [0, 1, 2, 3].map((i) => message(i)).concat([message(2, 'c2'), m
 
 function start(seed = messages) {
   let consumer!: CoreContext<typeof reader>;
+  let archive!: CoreContext['archive'];
   const t = testPlugin(core, {
-    with: [defineCorePlugin(reader, (ctx) => { consumer = ctx; })],
+    with: [defineCorePlugin(reader, (ctx) => { consumer = ctx; archive = ctx.archive; })],
+    ai: { providers: [{ id: 'localreader', local: true, provider: {
+      id: 'localreader', maxInputChars: 1000, complete: async () => ({ text: '' }), listModels: async () => [],
+    } }] },
     archive: { channels: [{ id: 'c1' }, { id: 'c2' }, { id: 'thread', parentId: 'c1' }, { id: 'hidden', hidden: true }], messages: seed },
   });
   onTestFinished(() => t.dispose());
   expect(t.status()).toEqual({ status: 'active', error: null });
-  const tools = archiveTools(t.db);
+  const tools = archiveTools(t.db, archive);
   const run = (name: string, args: unknown = {}, window = scope, signal = new AbortController().signal) =>
     tools.find((tool) => tool.name === name)!.run(args, window, signal);
   return { t, tools, run, consumer };
@@ -32,15 +36,56 @@ function start(seed = messages) {
 
 const linked = (index: number, channelId = 'c1'): SeedMessage => ({
   ...message(index, channelId), content: `https://example.com/resource${index}`,
+  extra: { embeds: [{ url: `https://example.com/resource${index}`, title: 'Reference', provider: { name: 'Example' } }] },
 });
 function links(count = 0) {
   const h = start(count ? Array.from({ length: count }, (_, i) => linked(i)) :
     [0, 1, 2, 3].map((i) => linked(i)).concat([linked(2, 'c2'), linked(2, 'thread'), linked(2, 'hidden')]));
-  h.t.db.prepare("UPDATE links SET title = 'Reference', site = 'Example', platform = 'web'").run();
+  h.t.db.prepare("UPDATE links SET platform = 'web'").run();
   return h;
 }
 
 describe('Links archive search', () => {
+  it('never searches or prints metadata from an excluded, hidden or local-only source share', async () => {
+    const url = 'https://example.com/scoped';
+    for (const source of ['c2', 'hidden', 'thread']) {
+      const h = start([
+        { ...message(1), content: url },
+        { ...message(2, source), content: url, extra: { embeds: [{ url, title: 'classified quartz', provider: { name: 'Secret site' } }] } },
+      ]);
+      if (source === 'hidden') h.t.archive.setPrivacyMode(true);
+      if (source === 'thread') h.t.archive.setChannel(source, { localOnly: true });
+      const allowed = source === 'thread' ? { ...unbounded, channelIds: ['c1', 'thread'] } : unbounded;
+      expect((await h.run('search', { query: 'classified' }, allowed)).lines).toEqual([]);
+      const read = await h.run('search', {}, unbounded);
+      expect(read.lines).toHaveLength(1);
+      expect(read.lines[0]!.text).toContain(url);
+      expect(read.lines[0]!.text).not.toMatch(/classified|Secret site/);
+    }
+  });
+
+  it('excludes preview sources outside the clamped time window', async () => {
+    const url = 'https://example.com/old-preview';
+    const h = start([
+      { ...message(0), content: url, extra: { embeds: [{ url, title: 'classified quartz' }] } },
+      { ...message(2), content: url },
+    ]);
+    expect((await h.run('search', { query: 'classified' })).lines).toEqual([]);
+    expect((await h.run('search')).lines[0]!.text).not.toContain('classified');
+  });
+
+  it('preserves provider identity through host scopes and clamping for a local lookup', async () => {
+    const url = 'https://example.com/local';
+    const h = start([
+      { ...message(1), content: url },
+      { ...message(2, 'thread'), content: url, extra: { embeds: [{ url, title: 'quartz local preview' }] } },
+    ]);
+    h.t.archive.setChannel('thread', { localOnly: true });
+    const window: ArchiveToolScope = { ...unbounded, channelIds: ['c1', 'thread'], reader: { provider: 'localreader' } };
+    expect((await h.run('search', { query: 'quartz' }, window)).lines).toHaveLength(2);
+    expect((await h.consumer.ai.tools.run('links_search', { query: 'quartz' }, window, new AbortController().signal)).lines).toHaveLength(2);
+  });
+
   it('uses the sharing message for exact channel and inclusive window confinement', async () => {
     const { t, run, consumer } = links();
     const rows = t.db.prepare("SELECT id FROM archive_messages WHERE channel_id = 'c1' AND ts >= ? AND ts <= ? ORDER BY ts DESC, id DESC")

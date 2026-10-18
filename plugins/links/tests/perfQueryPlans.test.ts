@@ -6,6 +6,7 @@ import { tempDb } from '@chattypop/host-testing';
 import { TEST_ARCHIVE, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
 import { statementPlans } from '@chattypop/host-testing/queryPlan';
 import { linkPage } from '../core/feed';
+import { linksSql } from './linksHarness';
 import { plugin as linksPlugin } from '../shared';
 import type { LinkSort } from '../shared/types';
 
@@ -19,7 +20,7 @@ function seedPluginArchive(db: Db): ReturnType<typeof seedPerfArchive> {
   return seedPerfArchive(db, TEST_ARCHIVE);
 }
 
-const linkPages = (db: Db) => SORTS.map((sort) => linkPage(db, () => new Map(), () => [], { limit: LINK_PAGE, sort }));
+const linkPages = (db: Db) => SORTS.map((sort) => linkPage(db, () => new Map(), () => [], { limit: LINK_PAGE, sort }, linksSql));
 const indexesOn = (db: Db, table: string): string[] =>
   db.prepare("SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL").pluck().all(table) as string[];
 
