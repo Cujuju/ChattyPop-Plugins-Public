@@ -10,7 +10,7 @@ const xQueue = new Set<string>();
 
 export default defineCorePlugin(plugin, (ctx) => {
   const db = ctx.storage.db;
-  ctx.ai.tools.provide(archiveTools(db, ctx.archive));
+  ctx.ai.tools.provide(archiveTools(ctx.storage.read, ctx.archive));
   // A judgment or a fetched post changes no channel: the panel refreshes on this event.
   const updated = (): void => ctx.channels.emit(UPDATED_EVENT, null);
   const judge = new LinkJudge(db, (feature) => ctx.jev.decider(feature), updated, ctx.ai.sources, ctx.archive.linksSql);

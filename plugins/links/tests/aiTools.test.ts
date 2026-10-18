@@ -1,6 +1,6 @@
 // Real activation plus direct tool calls, so host output guards cannot hide scope errors.
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { ARCHIVE_TOOL_LINES_MAX, toolTime, defineCorePlugin, type ArchiveToolScope, type CoreContext } from '@plugin-sdk/core';
+import { ARCHIVE_TOOL_LINES_MAX, toolTime, defineCorePlugin, type ArchiveRead, type ArchiveToolScope, type CoreContext } from '@plugin-sdk/core';
 import { definePlugin, MS_PER_MIN } from '@plugin-sdk/shared';
 import { testPlugin, type SeedMessage } from '@plugin-sdk/core/testing';
 import core from '../core';
@@ -28,10 +28,11 @@ function start(seed = messages) {
   });
   onTestFinished(() => t.dispose());
   expect(t.status()).toEqual({ status: 'active', error: null });
-  const tools = archiveTools(t.db, archive);
+  const read = vi.spyOn(t, 'read');
+  const tools = archiveTools(t.read, archive);
   const run = (name: string, args: unknown = {}, window = scope, signal = new AbortController().signal) =>
     tools.find((tool) => tool.name === name)!.run(args, window, signal);
-  return { t, tools, run, consumer };
+  return { t, tools, run, consumer, read, archive };
 }
 
 const linked = (index: number, channelId = 'c1'): SeedMessage => ({
@@ -113,7 +114,7 @@ describe('Links archive search', () => {
   });
 
   it('caps shares, records omitted results and rejects aborts after a query', async () => {
-    const { t, run, consumer } = links(ARCHIVE_TOOL_LINES_MAX + 2);
+    const { t, run, consumer, archive } = links(ARCHIVE_TOOL_LINES_MAX + 2);
     const read = await run('search', { limit: ARCHIVE_TOOL_LINES_MAX }, unbounded);
     expect(read.lines).toHaveLength(ARCHIVE_TOOL_LINES_MAX);
     expect(read.lines.every((line) => line.messageId)).toBe(true);
@@ -124,17 +125,17 @@ describe('Links archive search', () => {
     expect(guarded.lines).toHaveLength(1);
     const controller = new AbortController();
     const reason = new Error('Cancelled after query.');
-    const prepare = t.db.prepare.bind(t.db);
-    vi.spyOn(t.db, 'prepare').mockImplementation((sql) => {
-      const statement = prepare(sql);
-      const all = statement.all.bind(statement);
-      return { ...statement, all: (...args: unknown[]) => { const rows = all(...args); controller.abort(reason); return rows; } };
-    });
-    await expect(run('search', {}, unbounded, controller.signal)).rejects.toBe(reason);
+    const abortAfterRead: ArchiveRead = async <R,>(sql: string, params?: readonly unknown[] | Record<string, unknown>, options?: { signal?: AbortSignal }) => {
+      const rows = await t.read<R>(sql, params, options);
+      controller.abort(reason);
+      return rows;
+    };
+    const [search] = archiveTools(abortAfterRead, archive);
+    await expect(search!.run({}, unbounded, controller.signal)).rejects.toBe(reason);
   });
 
   it('validates object schemas, rejects unknown or invalid arguments and observes cancellation', async () => {
-    const { t, tools, run } = start();
+    const { t, tools, run, read } = start();
     for (const tool of tools) {
       expect(tool.parameters).toMatchObject({ type: 'object', properties: expect.any(Object), additionalProperties: false });
       const valid: Record<string, unknown> = {};
@@ -146,10 +147,14 @@ describe('Links archive search', () => {
       const controller = new AbortController();
       const reason = new Error('Cancelled lookup.');
       controller.abort(reason);
-      const query = vi.spyOn(t.db, 'prepare');
+      read.mockClear();
       await expect(run(tool.name, valid, scope, controller.signal)).rejects.toBe(reason);
-      expect(query).not.toHaveBeenCalled();
-      query.mockRestore();
+      expect(read).not.toHaveBeenCalled();
+      const midRead = new AbortController();
+      const pending = run(tool.name, valid, scope, midRead.signal);
+      midRead.abort(reason);
+      await expect(pending).rejects.toBe(reason);
+      expect(read).toHaveBeenCalled();
     }
   });
 

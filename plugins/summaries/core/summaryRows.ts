@@ -237,6 +237,12 @@ export function summaryUsageSince(db: PluginDb, provider: ProviderId, sinceTs: n
 
 /** Summary runs newest first, keyset-paged by (created_at, id). */
 export function summaryPage(db: PluginDb, q: SummaryPageQuery, scope?: ArchiveToolScope): Summary[] {
+  const query = summaryPageSql(q, scope);
+  return (db.prepare(query.sql).all(...query.params) as SummaryRow[]).map(toSummary);
+}
+
+/** Newest summaries first; `scope` keeps those whose channels it contains and whose spans overlap its window. */
+export function summaryPageSql(q: SummaryPageQuery, scope?: ArchiveToolScope): { sql: string; params: (string | number)[] } {
   const b = q.before;
   const where = b ? ['(created_at, id) < (?, ?)'] : ['1'];
   const params: (string | number)[] = b ? [b.createdAt, b.id] : [];
@@ -247,10 +253,7 @@ export function summaryPage(db: PluginDb, q: SummaryPageQuery, scope?: ArchiveTo
     if (scope.since !== null) { where.push('s.until_ts >= ?'); params.push(scope.since); }
     if (scope.until !== null) { where.push('s.since_ts <= ?'); params.push(scope.until); }
   }
-  const rows = db
-    .prepare(`SELECT * FROM ${VISIBLE_SUMMARIES} s WHERE ${where.join(' AND ')} ORDER BY created_at DESC, id DESC LIMIT ?`)
-    .all(...params, q.limit) as SummaryRow[];
-  return rows.map(toSummary);
+  return { sql: `SELECT * FROM ${VISIBLE_SUMMARIES} s WHERE ${where.join(' AND ')} ORDER BY created_at DESC, id DESC LIMIT ?`, params: [...params, q.limit] };
 }
 
 /** Returns the earliest continuously covered endpoint across requested channels from sinceTs; null when any channel lacks coverage. */

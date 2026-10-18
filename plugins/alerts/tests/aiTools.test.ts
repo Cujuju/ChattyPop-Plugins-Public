@@ -9,6 +9,8 @@ import { setSetting } from '@core/db';
 import { SETTINGS_KEYS } from '@shared/settings';
 import { PUBLIC_THREAD_TYPE } from '@shared/discord';
 import { listArchiveTools, runArchiveTool } from '@core/ai/archiveTools';
+import { archiveRead } from '@core/plugins/pluginDb';
+import { closeArchiveReads } from '@core/reads/archiveReads';
 import { startAlerts } from './alertsHarness';
 import { plugin } from '../shared';
 import { archiveTools } from '../core/aiTools';
@@ -31,9 +33,10 @@ function start(seed = messages) {
   })), ARRIVAL.sync);
   const { engine } = hostRuleStack(db, () => undefined, () => null);
   let active = startAlerts(db, { kinds: engine.kinds });
-  onTestFinished(() => active.dispose());
+  onTestFinished(async () => { active.dispose(); await closeArchiveReads(db); });
   const t = {
     db,
+    read: archiveRead(() => db),
     archive: { setPrivacyMode: (on: boolean) => setSetting(db, SETTINGS_KEYS.privacyMode, on) },
     off: async () => active.dispose(),
     on: async () => { active = startAlerts(db, { kinds: engine.kinds }); },
@@ -42,10 +45,11 @@ function start(seed = messages) {
     list: () => listArchiveTools(db, 'toolreader'),
     run: (name: string, args: unknown, window: ArchiveToolScope, signal: AbortSignal) => runArchiveTool(db, 'toolreader', name, args, window, signal),
   } } };
-  const tools = archiveTools(t.db, () => new Map());
+  const read = vi.spyOn(t, 'read');
+  const tools = archiveTools(t.read);
   const run = (name: string, args: unknown = {}, window = scope, signal = new AbortController().signal) =>
     tools.find((tool) => tool.name === name)!.run(args, window, signal);
-  return { t, tools, run, consumer };
+  return { t, tools, run, consumer, read };
 }
 
 import { ALERTS } from '../core/tables';
@@ -93,7 +97,7 @@ describe('Alerts archive list', () => {
   });
 
   it('validates object schemas, rejects unknown or invalid arguments and observes cancellation', async () => {
-    const { t, tools, run } = start();
+    const { t, tools, run, read } = start();
     for (const tool of tools) {
       expect(tool.parameters).toMatchObject({ type: 'object', properties: expect.any(Object), additionalProperties: false });
       const valid: Record<string, unknown> = {};
@@ -105,10 +109,14 @@ describe('Alerts archive list', () => {
       const controller = new AbortController();
       const reason = new Error('Cancelled lookup.');
       controller.abort(reason);
-      const query = vi.spyOn(t.db, 'prepare');
+      read.mockClear();
       await expect(run(tool.name, valid, scope, controller.signal)).rejects.toBe(reason);
-      expect(query).not.toHaveBeenCalled();
-      query.mockRestore();
+      expect(read).not.toHaveBeenCalled();
+      const midRead = new AbortController();
+      const pending = run(tool.name, valid, scope, midRead.signal);
+      midRead.abort(reason);
+      await expect(pending).rejects.toBe(reason);
+      expect(read).toHaveBeenCalled();
     }
   });
 

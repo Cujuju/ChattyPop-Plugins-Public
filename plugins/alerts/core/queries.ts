@@ -8,8 +8,23 @@ import type { ArchiveToolScope } from '@plugin-sdk/core';
 /** A stored held reason; one this build doesn't know reads as none. */
 const heldReason = (v: string | null): HeldReason | null => (HELD_REASONS as readonly string[]).includes(v ?? '') ? (v as HeldReason) : null;
 
+type AlertRow = Omit<AlertItem, 'mentions' | 'held'> & { heldDesktop: string | null; heldPhone: string | null };
+export interface AlertToolFilter { scope: ArchiveToolScope; rule?: string; unread?: boolean }
+
 /** Alerts newest first, less those privacy mode hides; `onlyId` narrows to one alert. */
-export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: AlertQuery, onlyId?: number, tool?: { scope: ArchiveToolScope; rule?: string; unread?: boolean }): AlertItem[] {
+export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: AlertQuery, onlyId?: number): AlertItem[] {
+  const query = alertsSql(q, onlyId);
+  const rows = db.prepare(query.sql).all(...query.params) as AlertRow[];
+  const details = payloads(rows.map((row) => row.messageId));
+  return rows.map(({ heldDesktop, heldPhone, ...a }) => ({
+    ...a,
+    mentions: mentionsFrom(details.get(a.messageId)?.mentionsJson ?? null),
+    held: { desktop: heldReason(heldDesktop), phone: heldReason(heldPhone) },
+  }));
+}
+
+/** The inbox statement; `tool` adds an AI tool's scope and filters. */
+export function alertsSql(q: AlertQuery, onlyId?: number, tool?: AlertToolFilter): { sql: string; params: (string | number)[] } {
   const where: string[] = ['1'];
   const params: (string | number)[] = [];
   if (tool) {
@@ -35,9 +50,8 @@ export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: Aler
     where.push('(a.ts, a.id) < (?, ?)');
     params.push(q.after.ts, q.after.id);
   }
-  const rows = db
-    .prepare(
-      `SELECT a.id, a.rule_id AS ruleId, r.name AS sourceName, a.message_id AS messageId, a.channel_id AS channelId,
+  return {
+    sql: `SELECT a.id, a.rule_id AS ruleId, r.name AS sourceName, a.message_id AS messageId, a.channel_id AS channelId,
               COALESCE(c.name, a.channel_id) AS channelName, a.author_id AS authorId,
               COALESCE((SELECT n.name FROM archive_names n WHERE n.channel_id = a.channel_id AND n.user_id = a.author_id), u.display_name, a.author_id) AS authorName, u.avatar AS authorAvatar,
               a.ts, a.snippet, a.read_at AS readAt, a.match_kind AS matchKind,
@@ -47,14 +61,8 @@ export function alertItems(db: PluginDb, payloads: ArchivePayloadReader, q: Aler
        LEFT JOIN archive_channels c ON c.id = a.channel_id LEFT JOIN archive_users u ON u.id = a.author_id
        WHERE ${where.join(' AND ')}
        ORDER BY a.ts DESC, a.id DESC LIMIT ?`,
-    )
-    .all(...params, q.limit) as (Omit<AlertItem, 'mentions' | 'held'> & { heldDesktop: string | null; heldPhone: string | null })[];
-  const details = payloads(rows.map((row) => row.messageId));
-  return rows.map(({ heldDesktop, heldPhone, ...a }) => ({
-    ...a,
-    mentions: mentionsFrom(details.get(a.messageId)?.mentionsJson ?? null),
-    held: { desktop: heldReason(heldDesktop), phone: heldReason(heldPhone) },
-  }));
+    params: [...params, q.limit],
+  };
 }
 
 /** Marks alerts read: the given ids, or every visible unread one (of these rules when any); hidden ones stay unread. */

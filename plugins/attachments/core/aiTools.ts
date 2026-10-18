@@ -1,5 +1,5 @@
 // Scoped file metadata reads reuse the attachment feed's filters and author lookups.
-import { ARCHIVE_TOOL_LINES_MAX, type ArchiveTool, type PluginDb, clampToolScope, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField, toolTimeFields, toolTime } from '@plugin-sdk/core';
+import { ARCHIVE_TOOL_LINES_MAX, type ArchiveRead, type ArchiveTool, clampToolScope, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField, toolTimeFields, toolTime } from '@plugin-sdk/core';
 import { ATTACHMENT_FROM, AUTHOR_ID, AUTHOR_NAME, attachmentWhere } from './filters';
 import type { AttachmentKind } from '../shared/types';
 
@@ -15,7 +15,7 @@ const fields = {
 interface Args { name?: string; kind?: AttachmentKind; author?: string; since?: string; until?: string; limit?: number }
 interface FileRow { messageId: string; channelId: string; filename: string; kind: string; size: number | null; author: string | null; ts: number }
 
-export function archiveTools(db: PluginDb): ArchiveTool[] {
+export function archiveTools(read: ArchiveRead): ArchiveTool[] {
   return [{
     name: 'files',
     description: 'Lists files attached to messages in the chat scope and window, with filename, kind, original byte size, author and timestamp. Use it to find shared images, videos, audio or documents.',
@@ -32,9 +32,9 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
         params.push(args.author, args.author);
       }
       const limit = args.limit ?? FILES_DEFAULT;
-      const rows = db.prepare(`SELECT a.message_id AS messageId, a.channel_id AS channelId, a.filename, a.kind, a.size, ${AUTHOR_NAME} AS author, a.ts
-        ${ATTACHMENT_FROM} WHERE ${parts.join(' AND ')} ORDER BY a.ts DESC, a.id DESC LIMIT ?`)
-        .all(...params, limit + 1) as FileRow[];
+      const rows = await read<FileRow>(`SELECT a.message_id AS messageId, a.channel_id AS channelId, a.filename, a.kind, a.size, ${AUTHOR_NAME} AS author, a.ts
+        ${ATTACHMENT_FROM} WHERE ${parts.join(' AND ')} ORDER BY a.ts DESC, a.id DESC LIMIT ?`,
+        [...params, limit + 1], { signal });
       signal.throwIfAborted();
       const included = rows.slice(0, limit);
       return toolResult(included.map((row) => ({ text: `${row.filename} | ${row.kind} | ${row.size === null ? 'unknown size' : `${row.size} bytes`} | ${row.author ?? 'Unknown author'} | ${toolTime(row.ts)}`, messageId: row.messageId })),

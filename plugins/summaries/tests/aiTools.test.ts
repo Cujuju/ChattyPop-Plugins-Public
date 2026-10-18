@@ -24,10 +24,11 @@ function start(seed = messages) {
   });
   onTestFinished(() => t.dispose());
   expect(t.status()).toEqual({ status: 'active', error: null });
-  const tools = archiveTools(t.db);
+  const read = vi.spyOn(t, 'read');
+  const tools = archiveTools(t.read);
   const run = (name: string, args: unknown = {}, window = scope, signal = new AbortController().signal) =>
     tools.find((tool) => tool.name === name)!.run(args, window, signal);
-  return { t, tools, run, consumer };
+  return { t, tools, run, consumer, read };
 }
 
 import { SUMMARIES_TABLE } from '../core/schema';
@@ -111,7 +112,7 @@ describe('Summaries archive read', () => {
     expect(read.readChannels).toEqual(['c1', 'c2']);
   });
 
-  it('rejects a summary through the host when an extra citation channel becomes hidden mid-run', async () => {
+  it('rejects the lookup through the host when an extra citation channel becomes hidden mid-read', async () => {
     const h = start();
     h.t.archive.setPrivacyMode(true);
     add(h, 'Recap', ['c1'], 1, 2, [item('Combined point', [citation(h, 1), citation(h, 2, 'c2')])]);
@@ -119,7 +120,7 @@ describe('Summaries archive read', () => {
     expect((await h.run('read', {}, window)).lines).toHaveLength(2);
     const pending = h.consumer.ai.tools.run('summaries_read', {}, window, new AbortController().signal);
     h.t.archive.setChannel('c2', { hidden: true });
-    expect(await pending).toEqual({ lines: [], note: "This lookup's results are unavailable." });
+    await expect(pending).rejects.toThrow('Archive visibility changed; repeat the lookup');
   });
 
   it('does not declare channels from items or summaries beyond the returned line cap', async () => {
@@ -135,7 +136,7 @@ describe('Summaries archive read', () => {
   });
 
   it('validates object schemas, rejects unknown or invalid arguments and observes cancellation', async () => {
-    const { t, tools, run } = start();
+    const { t, tools, run, read } = start();
     for (const tool of tools) {
       expect(tool.parameters).toMatchObject({ type: 'object', properties: expect.any(Object), additionalProperties: false });
       const valid: Record<string, unknown> = {};
@@ -147,10 +148,14 @@ describe('Summaries archive read', () => {
       const controller = new AbortController();
       const reason = new Error('Cancelled lookup.');
       controller.abort(reason);
-      const query = vi.spyOn(t.db, 'prepare');
+      read.mockClear();
       await expect(run(tool.name, valid, scope, controller.signal)).rejects.toBe(reason);
-      expect(query).not.toHaveBeenCalled();
-      query.mockRestore();
+      expect(read).not.toHaveBeenCalled();
+      const midRead = new AbortController();
+      const pending = run(tool.name, valid, scope, midRead.signal);
+      midRead.abort(reason);
+      await expect(pending).rejects.toBe(reason);
+      expect(read).toHaveBeenCalled();
     }
   });
 

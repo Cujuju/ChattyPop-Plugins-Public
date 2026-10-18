@@ -24,10 +24,11 @@ function start(seed = messages) {
   });
   onTestFinished(() => t.dispose());
   expect(t.status()).toEqual({ status: 'active', error: null });
-  const tools = archiveTools(t.db);
+  const read = vi.spyOn(t, 'read');
+  const tools = archiveTools(t.read);
   const run = (name: string, args: unknown = {}, window = scope, signal = new AbortController().signal) =>
     tools.find((tool) => tool.name === name)!.run(args, window, signal);
-  return { t, tools, run, consumer };
+  return { t, tools, run, consumer, read };
 }
 
 import { TagStore } from '../core/store';
@@ -85,7 +86,7 @@ describe('Tags archive tools', () => {
   });
 
   it('validates object schemas, rejects unknown or invalid arguments and observes cancellation', async () => {
-    const { t, tools, run } = start();
+    const { t, tools, run, read } = start();
     for (const tool of tools) {
       expect(tool.parameters).toMatchObject({ type: 'object', properties: expect.any(Object), additionalProperties: false });
       const valid: Record<string, unknown> = tool.name === 'messages' ? { tag: 'Focus' } : {};
@@ -97,10 +98,14 @@ describe('Tags archive tools', () => {
       const controller = new AbortController();
       const reason = new Error('Cancelled lookup.');
       controller.abort(reason);
-      const query = vi.spyOn(t.db, 'prepare');
+      read.mockClear();
       await expect(run(tool.name, valid, scope, controller.signal)).rejects.toBe(reason);
-      expect(query).not.toHaveBeenCalled();
-      query.mockRestore();
+      expect(read).not.toHaveBeenCalled();
+      const midRead = new AbortController();
+      const pending = run(tool.name, valid, scope, midRead.signal);
+      midRead.abort(reason);
+      await expect(pending).rejects.toBe(reason);
+      expect(read).toHaveBeenCalled();
     }
   });
 

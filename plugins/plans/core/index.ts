@@ -1,5 +1,5 @@
 // Plans' core side: the per-message plan question, its extraction, and the list the panel shows.
-import { chosenModel, defineCorePlugin, ProviderUnavailableError, type CoreContext } from '@plugin-sdk/core';
+import { chosenModel, defineCorePlugin, privacy, ProviderUnavailableError, type CoreContext } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { planList, planQuestion, type PlanProvider } from './plans';
 import { PLANS_MIGRATIONS } from './schema';
@@ -24,7 +24,7 @@ function planProvider(ctx: CoreContext<typeof plugin>): PlanProvider | string {
 export default defineCorePlugin(plugin, (ctx) => {
   // Hits still to extract are stored, so turning Plans off and on, or quitting, resumes them.
   ctx.storage.migrate(PLANS_MIGRATIONS);
-  ctx.ai.tools.provide(archiveTools(ctx.storage.db));
+  ctx.ai.tools.provide(archiveTools(ctx.storage.read, () => privacy(ctx.storage.db).redact));
   ctx.jev.questions.register(
     planQuestion({
       db: ctx.storage.db,

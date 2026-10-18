@@ -143,19 +143,28 @@ async function extract(deps: PlanDeps, m: TextMessage, kind: PlanKind): Promise<
 
 /** Plans soonest first (undated after dated), then decisions newest first. */
 export function planList(db: PluginDb, limit: number, scope?: ArchiveToolScope, upcoming = false, now = Date.now()): PlanItem[] {
+  const query = planListSql(limit, scope, upcoming, now);
+  return planItems(db.prepare(query.sql).all(...query.params) as PlanRow[], privacy(db).redact);
+}
+
+export type PlanRow = Omit<PlanItem, 'who'> & { whoJson: string };
+
+/** Plans and decisions in display order; `upcoming` drops past dated plans. */
+export function planListSql(limit: number, scope?: ArchiveToolScope, upcoming = false, now = Date.now()): { sql: string; params: (string | number)[] } {
   const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
   const future = upcoming ? " AND (p.kind = 'decision' OR p.when_ts IS NULL OR p.when_ts >= ?)" : '';
   // CROSS JOIN forces plan-driven archive lookups.
-  const rows = db
-    .prepare(
-      `SELECT p.message_id AS messageId, p.channel_id AS channelId, COALESCE(c.name, p.channel_id) AS channelName, p.kind, p.title,
+  return {
+    sql: `SELECT p.message_id AS messageId, p.channel_id AS channelId, COALESCE(c.name, p.channel_id) AS channelName, p.kind, p.title,
               p.when_ts AS whenTs, p.who_json AS whoJson, p.details, m.ts
        FROM ${PLANS_TABLE} p CROSS JOIN archive_messages m ON m.id = p.message_id LEFT JOIN archive_all_channels c ON c.id = p.channel_id
        WHERE ${scoped.sql}${future}
        ORDER BY p.kind = 'decision', CASE WHEN p.kind = 'plan' THEN p.when_ts IS NULL END, CASE WHEN p.kind = 'plan' THEN p.when_ts END, m.ts DESC
        LIMIT ?`,
-    )
-    .all(...scoped.params, ...(upcoming ? [now] : []), limit) as (Omit<PlanItem, 'who'> & { whoJson: string })[];
-  const { redact } = privacy(db);
-  return rows.map(({ whoJson, ...r }) => ({ ...r, title: redact(r.title), details: redact(r.details), who: JSON.parse(whoJson) as string[] }));
+    params: [...scoped.params, ...(upcoming ? [now] : []), limit],
+  };
 }
+
+/** Hidden channel and server names in model-written text read as stand-ins. */
+export const planItems = (rows: readonly PlanRow[], redact: (text: string) => string): PlanItem[] =>
+  rows.map(({ whoJson, ...r }) => ({ ...r, title: redact(r.title), details: redact(r.details), who: JSON.parse(whoJson) as string[] }));

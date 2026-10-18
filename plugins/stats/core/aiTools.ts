@@ -1,5 +1,5 @@
 // Exact-channel word rankings and AFINN sentiment reuse the Activity scanners.
-import { type ArchiveTool, type PluginDb, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField } from '@plugin-sdk/core';
+import { type ArchiveRead, type ArchiveTool, type PluginDb, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField } from '@plugin-sdk/core';
 import { wordStats } from './words';
 import { sentimentStats } from './sentiment';
 import type { ChannelListQuery } from './query';
@@ -12,7 +12,8 @@ const fields = {
   limit: toolLimitField(WORDS_MAX),
 };
 
-export function archiveTools(db: PluginDb): ArchiveTool[] {
+/** `read` runs the unbounded author lookup off the core thread; the scanners use `db` in bounded batches that check the signal between them. */
+export function archiveTools(read: ArchiveRead, db: PluginDb): ArchiveTool[] {
   return [{
     name: 'words',
     description: 'Returns top words with English stopwords removed and AFINN positive, negative and neutral message counts over the chat scope and window. Use it for topics and lexical sentiment, which does not detect sarcasm.',
@@ -24,10 +25,9 @@ export function archiveTools(db: PluginDb): ArchiveTool[] {
       const query: ChannelListQuery = { scope: 'channels', channelIds: scope.channelIds, sinceTs: scope.since, untilTs: scope.until };
       // Resolve names only from messages inside the caller's scope and window.
       const scoped = toolScopeSql(scope);
-      const authors = args.author === undefined ? [null] : db.prepare(`SELECT DISTINCT m.author_id FROM archive_messages m
-        WHERE ${scoped.sql} AND (m.author_id = ? OR instr(lower(m.author_name), lower(?)) > 0)`)
-        .pluck().all(...scoped.params, args.author, args.author) as string[];
-      signal.throwIfAborted();
+      const authors = args.author === undefined ? [null] : (await read<{ authorId: string }>(`SELECT DISTINCT m.author_id AS authorId FROM archive_messages m
+        WHERE ${scoped.sql} AND (m.author_id = ? OR instr(lower(m.author_name), lower(?)) > 0)`,
+        [...scoped.params, args.author, args.author], { signal })).map((row) => row.authorId);
       if (authors.length > 1) throw new Error('Author matches multiple people; use an author id.');
       if (!authors.length) return toolResult([], undefined, scope.channelIds);
       query.authorId = authors[0];

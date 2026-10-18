@@ -30,7 +30,8 @@ export type RuleTagResult = 'applied' | 'shown' | 'removed' | 'noTag';
 /** Parses the stored optional Jev question. */
 export const tagQuestion = (row: TagRow): CustomJevQuestion | null => fromJson<CustomJevQuestion>(row.jev_question);
 
-const toTag = (r: TagRow & { count: number }): Tag => ({
+export type CountedTagRow = TagRow & { count: number };
+export const toTag = (r: CountedTagRow): Tag => ({
   id: r.id,
   name: r.name,
   jevQuestion: tagQuestion(r),
@@ -44,12 +45,8 @@ export class TagStore {
   constructor(private readonly db: PluginDb) {}
 
   list(scope?: ArchiveToolScope): Tag[] {
-    const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
-    return (
-      this.db
-        .prepare(`SELECT t.*, (SELECT COUNT(*) FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id WHERE mt.tag_id = t.id AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql}) AS count FROM ${TAGS} t ORDER BY t.name`)
-        .all(...scoped.params) as (TagRow & { count: number })[]
-    ).map(toTag);
+    const query = tagListSql(scope);
+    return (this.db.prepare(query.sql).all(...query.params) as CountedTagRow[]).map(toTag);
   }
 
   rows(): TagRow[] {
@@ -152,20 +149,36 @@ export class TagStore {
 
   /** Messages carrying a tag, newest first. */
   tagged(tagId: number, limit: number, scope?: ArchiveToolScope): TaggedMessage[] {
-    const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
-    return this.db
-      .prepare(
-      `SELECT m.id AS messageId, m.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS channelName, m.ts,
-                m.author_name AS author, m.content, mt.state AS source, mt.value
-         FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id
-         LEFT JOIN archive_all_channels c ON c.id = m.channel_id
-         WHERE mt.tag_id = ? AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql} ORDER BY m.ts DESC, m.id DESC LIMIT ?`,
-    )
-      .all(tagId, ...scoped.params, limit) as TaggedMessage[];
+    const query = taggedSql(tagId, limit, scope);
+    return this.db.prepare(query.sql).all(...query.params) as TaggedMessage[];
   }
 
   private assertNameFree(name: string, exceptId?: number): void {
     const hit = this.db.prepare(`SELECT id FROM ${TAGS} WHERE name = ? COLLATE NOCASE`).get(name.trim()) as { id: number } | undefined;
     if (hit && hit.id !== exceptId) throw new Error('A tag with that name already exists.');
   }
+}
+
+type Sql = { sql: string; params: (string | number)[] };
+
+/** Every tag by name, counting its shown messages in `scope`. */
+export function tagListSql(scope?: ArchiveToolScope): Sql {
+  const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
+  return {
+    sql: `SELECT t.*, (SELECT COUNT(*) FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id WHERE mt.tag_id = t.id AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql}) AS count FROM ${TAGS} t ORDER BY t.name`,
+    params: scoped.params,
+  };
+}
+
+/** A tag's shown messages in `scope`, newest first. */
+export function taggedSql(tagId: number, limit: number, scope?: ArchiveToolScope): Sql {
+  const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
+  return {
+    sql: `SELECT m.id AS messageId, m.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS channelName, m.ts,
+                m.author_name AS author, m.content, mt.state AS source, mt.value
+         FROM ${MESSAGE_TAGS} mt JOIN archive_messages m ON m.id = mt.message_id
+         LEFT JOIN archive_all_channels c ON c.id = m.channel_id
+         WHERE mt.tag_id = ? AND mt.${SHOWN_TAG_SQL} AND ${scoped.sql} ORDER BY m.ts DESC, m.id DESC LIMIT ?`,
+    params: [tagId, ...scoped.params, limit],
+  };
 }
