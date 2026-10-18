@@ -70,4 +70,17 @@ describe('the links feed in privacy mode', () => {
     expect(linkFeed(db, { limit: 10 }).find((l) => l.url === url)?.title).toBe('classified card');
     expect(linkFeed(db, { channelId: GENERAL, limit: 10 }).find((l) => l.url === url)).toMatchObject({ title: null, embed: null });
   });
+
+  it('keeps identical metadata from a visible in-scope supplier when another supplier is hidden or removed', () => {
+    const url = 'https://example.com/shared';
+    const visible = rawMessage(GENERAL, at(6), url, { embeds: [{ url, title: 'shared quartz', provider: { name: 'Example' } }] });
+    const hidden = rawMessage(MODS, at(7), url, { embeds: [{ url, title: 'shared quartz', provider: { name: 'Example' } }] });
+    archive.ingestMessages([visible, hidden], ARRIVAL.gateway);
+    setMode(true);
+    const read = () => linkFeed(db, { channelId: GENERAL, limit: 10 }).find((l) => l.url === url);
+    expect(read()).toMatchObject({ title: 'shared quartz', site: 'Example' });
+    expect(linkFeed(db, { channelId: MODS, limit: 10 })).toEqual([]);
+    archive.ingestMessages([{ ...hidden, content: 'removed', embeds: [] }], ARRIVAL.gateway);
+    expect(read()).toMatchObject({ title: 'shared quartz', site: 'Example' });
+  });
 });

@@ -37,7 +37,8 @@ type LinkRow = Omit<LinkCard, 'embed' | 'flagged'> & { flagged: number | null };
 type LinksSql = CoreContext['archive']['linksSql'];
 
 /** Display filters constrain preview sources as well as the link's first share. */
-function previewScope(db: PluginDb, f: LinkFilter): ArchiveToolScope {
+function previewScope(db: PluginDb, f: LinkFilter): ArchiveToolScope | undefined {
+  if (!f.channelId && f.sinceTs === undefined && f.untilTs === undefined) return undefined;
   const channelIds = db.prepare(`SELECT id FROM archive_channels ${f.channelId ? 'WHERE id = ? OR (is_thread = 1 AND parent_id = ?)' : ''}`)
     .pluck().all(...(f.channelId ? [f.channelId, f.channelId] : [])) as string[];
   return { channelIds, since: f.sinceTs === undefined ? null : f.sinceTs + 1, until: f.untilTs ?? null };
@@ -136,7 +137,7 @@ export function linkWindow(db: PluginDb, payloads: ArchivePayloadReader, message
 }
 
 /** Rows as feed items: each with its preview card and the first sharing message carrying it. */
-function itemsOf(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], rows: LinkRow[], scope: ArchiveToolScope): LinkItem[] {
+function itemsOf(db: PluginDb, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], rows: LinkRow[], scope: ArchiveToolScope | undefined): LinkItem[] {
   const cards = cardsOf(db, payloads, rows, scope);
   const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
   return cards.map(({ card, source }) => {
@@ -160,10 +161,10 @@ export function withLinkCard(m: ArchiveMessage, card: LinkCard, source: string |
 }
 
 /** Each row with its preview card, and the share the card came from (null: the link's stored unfurl, or no card). */
-function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[], scope: ArchiveToolScope): { card: LinkCard; source: string | null }[] {
+function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[], scope: ArchiveToolScope | undefined): { card: LinkCard; source: string | null }[] {
   const shares = new Map<number, Share[]>();
   if (rows.length) {
-    const scoped = toolScopeSql(scope);
+    const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
     const all = db
       .prepare(
         `SELECT ml.link_id AS linkId, m.id AS messageId
