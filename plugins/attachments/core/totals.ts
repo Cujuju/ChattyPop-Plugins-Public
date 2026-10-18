@@ -20,16 +20,22 @@ export function attachmentTotals(db: PluginDb, f: AttachmentFilter): AttachmentT
   return out;
 }
 
-/** Counts by server and channel, a thread's under its channel as the channel filter scopes it; the place filter is ignored. */
+/**
+ * Counts by server, channel and thread; a thread's also count in its channel, as the channel filter scopes them. The
+ * place filter is ignored.
+ */
 export function attachmentPlaces(db: PluginDb, f: AttachmentFilter): AttachmentPlaces {
   const w = attachmentWhere({ ...f, guildId: undefined, channelId: undefined });
+  const inThread = 'c.is_thread = 1 AND c.parent_id IS NOT NULL';
   const rows = db.prepare(`SELECT COALESCE(c.guild_id, '') AS guildId,
-      CASE WHEN c.is_thread = 1 AND c.parent_id IS NOT NULL THEN c.parent_id ELSE a.channel_id END AS channelId, COUNT(*) AS count
-    ${ATTACHMENT_FROM} WHERE ${w.sql} GROUP BY 1, 2`).all(...w.params) as { guildId: string; channelId: string; count: number }[];
-  const out: AttachmentPlaces = { guilds: {}, channels: {} };
+      CASE WHEN ${inThread} THEN c.parent_id ELSE a.channel_id END AS channelId,
+      CASE WHEN ${inThread} THEN a.channel_id END AS threadId, COUNT(*) AS count
+    ${ATTACHMENT_FROM} WHERE ${w.sql} GROUP BY 1, 2, 3`).all(...w.params) as { guildId: string; channelId: string; threadId: string | null; count: number }[];
+  const out: AttachmentPlaces = { guilds: {}, channels: {}, threads: {} };
   for (const r of rows) {
     out.guilds[r.guildId] = (out.guilds[r.guildId] ?? 0) + r.count;
     out.channels[r.channelId] = (out.channels[r.channelId] ?? 0) + r.count;
+    if (r.threadId !== null) out.threads[r.threadId] = r.count;
   }
   return out;
 }

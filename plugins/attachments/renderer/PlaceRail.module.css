@@ -68,3 +68,11 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* A thread under its channel: a thread row's height, its spine hung under the channel's sigil, which sits past the
+   channel row's inset, fold slot and gap. */
+.place[data-thread] {
+  height: var(--cp-row-h-sm);
+  padding-block: 0;
+  padding-inline-start: calc(var(--cp-space-2) + var(--cp-icon-sm) + var(--cp-space-2) + var(--cp-space-1));
+}

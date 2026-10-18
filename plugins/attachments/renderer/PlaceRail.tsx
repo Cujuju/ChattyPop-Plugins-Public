@@ -1,6 +1,7 @@
 import { For, Show, type JSX } from 'solid-js';
 import { DM_GUILD_ID } from '@plugin-sdk/shared';
-import { DmFace, GuildIcon, Icon, channelById, channelSigil, directory, isDmChannel, isThread, look } from '@plugin-sdk/renderer/kit';
+import type { DirectoryGuild } from '@plugin-sdk/shared';
+import { DmFace, FoldChevron, GuildIcon, Icon, ThreadSpine, ThreadsBadge, channelById, channelSigil, directory, foldGesture, isDmChannel, isThread, look, threadsShown, unseenInThreads } from '@plugin-sdk/renderer/kit';
 import { filesCount } from './actions';
 import { places, setWhere, where } from './state';
 import styles from './PlaceRail.module.css';
@@ -11,6 +12,8 @@ const placeGuild = (): string | null => {
   if (!w) return null;
   return w.by === 'guild' ? w.id : channelById(w.id)?.guildId ?? null;
 };
+type DirectoryChannel = DirectoryGuild['channels'][number];
+
 const pickedChannel = (): string | null => {
   const w = where();
   return w?.by === 'channel' ? w.id : null;
@@ -23,16 +26,48 @@ function ServerButton(props: { label: string; current: boolean; onClick: () => v
   );
 }
 
-/** `count`: undefined for a picked thread, whose files the rail counts in its channel's. `children`: a face before the name (a DM's). */
-function PlaceButton(props: { label: string; count: number | undefined; current: boolean; onClick: () => void; children?: JSX.Element }) {
+/**
+ * A place to pick. `lead`: before the name (a fold slot, a thread's spine, a DM's face); `trail`: before the count.
+ * `fold`: a channel's fold gestures (foldGesture), tried before a click picks it.
+ */
+function PlaceButton(props: { label: string; count: number; current: boolean; onClick: () => void; thread?: boolean; expanded?: boolean;
+  fold?: (e: MouseEvent | KeyboardEvent) => boolean; lead?: JSX.Element; trail?: JSX.Element }) {
+  const fold = (e: MouseEvent | KeyboardEvent): boolean => props.fold?.(e) ?? false;
   return (
-    <button type="button" class={`${styles.place} ${look.navItem}`} aria-current={props.current ? 'page' : undefined} onClick={() => props.onClick()}>
-      {props.children}
-      <span class={`${styles.placeName} ${look.text}`} data-size="sm">{props.label}</span>
-      <Show when={props.count !== undefined}>
-        <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">{props.count}</span>
-      </Show>
+    <button type="button" class={`${styles.place} ${look.navItem}`} data-thread={props.thread ? '' : undefined}
+      aria-current={props.current ? 'page' : undefined} aria-expanded={props.expanded}
+      onClick={(e) => { if (!fold(e)) props.onClick(); }} onDblClick={fold} onKeyDown={fold}>
+      {props.lead}
+      <span class={`${styles.placeName} ${look.text}`} data-size={props.thread ? 'xs' : 'sm'} data-tone={props.thread ? 'secondary' : undefined}>{props.label}</span>
+      {props.trail}
+      <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">{props.count}</span>
     </button>
+  );
+}
+
+/** A channel, then its threads holding matching files; folded (shared with the Archive), only a picked thread shows. */
+function ChannelPlace(props: { channel: DirectoryChannel; threads: DirectoryChannel[]; slot: boolean }) {
+  const c = () => props.channel;
+  const dm = () => { const channel = c(); return isDmChannel(channel) ? channel : null; };
+  const foldable = (): boolean => props.threads.length > 0;
+  const shown = (): boolean => threadsShown(c().id);
+  const unseen = (): number => (foldable() && !shown() ? unseenInThreads(c().id).newCount : 0);
+  return (
+    <>
+      <PlaceButton label={dm() ? c().name : `${channelSigil(c())}${c().name}`} count={places().channels[c().id] ?? 0}
+        current={pickedChannel() === c().id} onClick={() => setWhere({ by: 'channel', id: c().id })}
+        expanded={foldable() ? shown() : undefined} fold={(e) => foldable() && foldGesture(e, c().id)}
+        lead={<>
+          <Show when={props.slot}><FoldChevron foldable={foldable()} open={shown()} /></Show>
+          {/* A DM reads as the DM list shows it: its face and name, no sigil. */}
+          <Show when={dm()}>{(face) => <DmFace channel={face()} />}</Show>
+        </>}
+        trail={<Show when={unseen() > 0}><ThreadsBadge count={unseen()} /></Show>} />
+      <For each={props.threads.filter((t) => shown() || t.id === pickedChannel())}>{(t) => (
+        <PlaceButton label={t.name} count={places().threads[t.id] ?? 0} thread lead={<ThreadSpine />}
+          current={pickedChannel() === t.id} onClick={() => setWhere({ by: 'channel', id: t.id })} />
+      )}</For>
+    </>
   );
 }
 
@@ -40,7 +75,13 @@ function PlaceButton(props: { label: string; count: number | undefined; current:
 export function PlaceRail() {
   const servers = () => directory().filter((g) => places().guilds[g.id] || g.id === placeGuild());
   const guild = () => directory().find((g) => g.id === placeGuild());
-  const channels = () => guild()?.channels.filter((c) => (!isThread(c) && places().channels[c.id]) || c.id === pickedChannel()) ?? [];
+  const channels = () => guild()?.channels.filter((c) => !isThread(c) && (places().channels[c.id] || c.id === pickedChannel())) ?? [];
+  /** A channel's threads holding matching files, most recently active first, as the Archive lists them. */
+  const threadsOf = (channelId: string): DirectoryChannel[] => (guild()?.channels ?? [])
+    .filter((t) => isThread(t) && t.parentId === channelId && places().threads[t.id])
+    .sort((a, b) => (b.lastTs ?? 0) - (a.lastTs ?? 0));
+  /** DMs have no threads: their list keeps no fold slot. */
+  const slot = (): boolean => placeGuild() !== DM_GUILD_ID;
   const total = () => Object.values(places().guilds).reduce((sum, n) => sum + n, 0);
   return (
     <>
@@ -56,14 +97,9 @@ export function PlaceRail() {
       <Show when={guild()}>{(g) => (
         <nav class={`${styles.channels} ${look.ruleEnd}`} aria-label={`Channels in ${g().name}`}>
           <h3 class={`${styles.heading} ${look.text}`} data-size="xs" data-weight="semibold" data-tone="secondary">{g().name}</h3>
-          <PlaceButton label={g().id === DM_GUILD_ID ? 'All conversations' : 'All channels'} count={places().guilds[g().id] ?? 0} current={where()?.by === 'guild'} onClick={() => setWhere({ by: 'guild', id: g().id })} />
-          {/* A DM reads as the DM list shows it: its face and name, no sigil. */}
-          <For each={channels()}>{(c) => (
-            <PlaceButton label={isDmChannel(c) ? c.name : `${channelSigil(c)}${c.name}`} count={isThread(c) ? undefined : places().channels[c.id] ?? 0}
-              current={pickedChannel() === c.id} onClick={() => setWhere({ by: 'channel', id: c.id })}>
-              <Show when={isDmChannel(c) ? c : null}>{(dm) => <DmFace channel={dm()} />}</Show>
-            </PlaceButton>
-          )}</For>
+          <PlaceButton label={g().id === DM_GUILD_ID ? 'All conversations' : 'All channels'} count={places().guilds[g().id] ?? 0} current={where()?.by === 'guild'}
+            onClick={() => setWhere({ by: 'guild', id: g().id })} lead={<Show when={slot()}><FoldChevron foldable={false} open={false} /></Show>} />
+          <For each={channels()}>{(c) => <ChannelPlace channel={c} threads={threadsOf(c.id)} slot={slot()} />}</For>
         </nav>
       )}</Show>
     </>

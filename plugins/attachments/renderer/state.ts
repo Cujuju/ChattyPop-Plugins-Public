@@ -76,7 +76,7 @@ export const people = pluginResource(plugin, 'people', () => {
 export const places = pluginResource(plugin, 'places', () => {
   revision();
   return [unplaced()];
-}, { guilds: {}, channels: {} } as AttachmentPlaces);
+}, { guilds: {}, channels: {}, threads: {} } as AttachmentPlaces);
 /** This viewer's time zone: months and jumps follow the calendar its dates are shown in, wherever the core runs. */
 const viewerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export const months = pluginResource(plugin, 'months', () => { revision(); return [filter(), viewerZone()]; }, [] as AttachmentMonth[]);
