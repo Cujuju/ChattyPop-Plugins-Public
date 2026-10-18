@@ -18,7 +18,7 @@ export const hoverZoomOf = (v: unknown): number => typeof v === 'number' && Numb
 
 export const plugin = definePlugin({
   aiTools: ['files'],
-  manifest: { id: 'attachments', name: 'Attachments', version: '1.9.0', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
+  manifest: { id: 'attachments', name: 'Attachments', version: '1.21.0', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
   channels: defineChannels<{ core: AttachmentsCoreCalls }>()({
     core: {
       page: { audiences: ['renderer'], writes: false },

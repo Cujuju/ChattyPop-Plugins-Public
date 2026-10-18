@@ -5,7 +5,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'claude',
     name: 'Claude',
-    version: '1.5.1',
+    version: '1.6.1',
     description: 'Claude as an AI provider, through your own Claude Code install, sign-in or API key.',
   },
   network: { hosts: ['api.anthropic.com'] },
