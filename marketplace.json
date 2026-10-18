@@ -1029,6 +1029,13 @@
       "description": "Browse archived files, see what uses disk space, compress media and delete local copies.",
       "releases": [
         {
+          "version": "1.21.0",
+          "tag": "attachments-v1.21.0",
+          "asset": "attachments-1.21.0.tar.gz",
+          "sha256": "5dcf50407f042734094adb7999a503786266cc3e9022c008271028e66dd89ecb",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.9.0",
           "tag": "attachments-v1.9.0",
           "asset": "attachments-1.9.0.tar.gz",
