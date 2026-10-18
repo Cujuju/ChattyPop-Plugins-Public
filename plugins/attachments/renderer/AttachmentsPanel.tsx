@@ -1,11 +1,12 @@
 import { For, Match, Show, Switch, createEffect, createMemo, createSignal, on, onMount } from 'solid-js';
 import { onCleanup } from '@plugin-sdk/renderer';
-import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest, PanelHeader, VirtualRows, createFollowBottom, createVirtualLog, dayLabel, formatBytes, isPanelCollapsed } from '@plugin-sdk/renderer/kit';
+import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest, PanelHeader, PlaceRail, VirtualRows, createFollowBottom, createVirtualLog, dayLabel, formatBytes, isPanelCollapsed, isThread, type PlaceCounts } from '@plugin-sdk/renderer/kit';
 import { ATTACHMENTS_PANEL } from '../shared';
 import {
   attachments, failure, filterCount, hasMoreBelow, loadMoreBelow, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, topDown,
   totals, view, jumped,
   spaceView, setSpaceView,
+  channelsHidden, places, setChannelsHidden, setWhere, where,
 } from './state';
 import { compressionJob, selection } from './selection';
 import { attachmentGallery, filesCount, openAttachment, showItemMenu } from './actions';
@@ -14,7 +15,6 @@ import type { Direction } from './gallery';
 import { FilterBar, HeaderTools } from './AttachmentFilters';
 import { AttachmentGrid } from './AttachmentGrid';
 import { AttachmentList, AttachmentListHeader } from './AttachmentList';
-import { PlaceRail } from './PlaceRail';
 import { cutRows, type Row } from './rows';
 import { SelectionBar } from './SelectionBar';
 import { SpaceView } from './SpaceView';
@@ -25,6 +25,14 @@ import styles from './Attachments.module.css';
 const LOAD_OLDER_THRESHOLD_ROWS = 10;
 const INITIAL_TRACK_COUNT = 1;
 const INITIAL_ESTIMATE_PX = 1;
+
+/** The rail's files per place, under every filter but the place. */
+const placeFiles: PlaceCounts = {
+  guild: (id) => places().guilds[id] ?? 0,
+  channel: (id) => places().channels[id] ?? places().threads[id] ?? 0,
+  total: () => Object.values(places().guilds).reduce((sum, n) => sum + n, 0),
+  label: filesCount,
+};
 
 export function AttachmentsPanel() {
   const [cols, setCols] = createSignal(INITIAL_TRACK_COUNT);
@@ -119,7 +127,9 @@ export function AttachmentsPanel() {
         </HeaderActions>
       </PanelHeader>
       <div class={styles.body} hidden={isPanelCollapsed(ATTACHMENTS_PANEL)} style={{ display: isPanelCollapsed(ATTACHMENTS_PANEL) ? 'none' : undefined }}>
-        <PlaceRail />
+        <PlaceRail place={where()} onPlace={setWhere} channelsHidden={channelsHidden()} onChannelsHidden={(hidden) => void setChannelsHidden(hidden)}
+          listsGuild={(g) => !!places().guilds[g.id]} listsChannel={(c) => !!(isThread(c) ? places().threads[c.id] : places().channels[c.id])}
+          counts={placeFiles} allServers />
         <div class={styles.main}>
           <FilterBar />
           <Show when={selection.selecting() || compressionJob() || folderSaveJob()}><SelectionBar /></Show>
