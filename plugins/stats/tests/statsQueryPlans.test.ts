@@ -230,7 +230,8 @@ describe('activity stats under privacy mode', () => {
     if (hiding) hideSome(db, fixture);
     expectCounts(db);
     const details = statementPlans(db, () => activityStats(db, ALL_TIME)).join('\n');
-    expect(details).toMatch(/SCAN message_links\nSEARCH (?:l|m)\b/);
+    // Shares drive the join; SQLite may scan them through a covering index.
+    expect(details).toMatch(/SCAN message_links(?: USING COVERING INDEX \w+)?\nSEARCH (?:l|m)\b/);
     expect(details).toMatch(/SEARCH m USING INDEX sqlite_autoindex_messages_1 \(id=\?\)/);
     expect(details).toMatch(/SEARCH (?:a|attachments).*attachments_message/);
   });
