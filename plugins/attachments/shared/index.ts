@@ -45,6 +45,8 @@ export const plugin = definePlugin({
     view: definePreference<'grid' | 'list'>({ default: 'grid', normalize: (v) => v === 'list' ? 'list' : 'grid' }),
     hoverZoom: definePreference<number>({ default: DEFAULT_HOVER_ZOOM, normalize: hoverZoomOf }),
     anchor: definePreference<AttachmentAnchor>({ default: 'bottom', normalize: (v) => v === 'top' ? 'top' : 'bottom' }),
+    /** The place rail's channel column is folded away; the picked place still filters. */
+    channelsHidden: definePreference<boolean>({ default: false, normalize: (v) => v === true }),
   },
 });
 export default plugin;

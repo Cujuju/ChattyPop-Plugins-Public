@@ -43,9 +43,18 @@
   overflow-y: auto;
 }
 
+/* The server's name, then the button that folds the column away. */
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  padding: 0 0 var(--cp-space-2) var(--cp-space-2);
+}
+
 .heading {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
-  padding: 0 var(--cp-space-2) var(--cp-space-2);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -75,4 +84,13 @@
   height: var(--cp-row-h-sm);
   padding-block: 0;
   padding-inline-start: calc(var(--cp-space-2) + var(--cp-icon-sm) + var(--cp-space-2) + var(--cp-space-1));
+}
+
+.fold {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-content: center;
+  width: var(--cp-btn-h-sm);
+  height: var(--cp-btn-h-sm);
+  padding: 0;
 }

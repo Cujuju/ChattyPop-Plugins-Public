@@ -13,6 +13,7 @@ export const [savedFilters, setSavedFilters] = pluginPreference(plugin, 'savedFi
 export const [view, setView] = pluginPreference(plugin, 'view');
 export const [hoverZoom, setHoverZoom] = pluginPreference(plugin, 'hoverZoom');
 export const [anchor, setAnchor] = pluginPreference(plugin, 'anchor');
+export const [channelsHidden, setChannelsHidden] = pluginPreference(plugin, 'channelsHidden');
 export const [spaceView, setSpaceView] = createSignal(false);
 export const [breakdownBy, setBreakdownBy] = createSignal<BreakdownBy>('guild');
 /** The order runs down from the top (a file browser's), not up from the bottom (a chat's). */
