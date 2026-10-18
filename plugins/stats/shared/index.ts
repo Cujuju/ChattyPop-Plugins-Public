@@ -11,7 +11,7 @@ import type { PeopleStats, PersonHistory } from './personHistory';
 export const manifest = {
   id: 'stats',
   name: 'Analytics',
-  version: '1.23.3',
+  version: '1.23.5',
   description: 'The Analytics panel: message counts by person, day, hour and channel.',
 };
 
