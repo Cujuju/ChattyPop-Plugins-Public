@@ -6,6 +6,7 @@ import type { PagedState } from '@/state/paged';
 /** A core call the test answers when it chooses. */
 interface Pending<T> {
   resolve(value: T): void;
+  query?: unknown;
 }
 
 const env = vi.hoisted(() => ({
@@ -15,13 +16,13 @@ const env = vi.hoisted(() => ({
   partsChanged: null as ((ids: string[] | null) => void) | null,
 }));
 
-vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList }));
+vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList, timeBounds: (await import('@/ui/timeWindow')).timeBounds }));
 vi.mock('@plugin-sdk/renderer', async () => ({
   ...(await import('@plugin-sdk/renderer/containment')),
   ARCHIVE_REFRESH_DEBOUNCE_MS: 0,
   callable: () => true,
   coreClient: () => ({
-    page: () => new Promise<LinkItem[]>((resolve) => env.pages.push({ resolve })),
+    page: (query: unknown) => new Promise<LinkItem[]>((resolve) => env.pages.push({ resolve, query })),
     window: (query: LinkWindowQuery) => new Promise<LinkWindow>((resolve) => env.windows.push({ resolve, query })),
     counts: async () => ({}),
   }),
@@ -39,6 +40,7 @@ const statePath = '../renderer/state.ts';
 const state = (await import(statePath)) as {
   links: PagedState<LinkItem>;
   reloadLinks(place?: LinkPlace | null): Promise<void>;
+  setLinkWindow(window: { last: string } | { since: number | null; until: number | null } | null): void;
   linkAtNewest(): boolean;
   linkOpening(): { place: LinkPlace; anchorId: number | null } | null;
   readLinkPlaceWith(read: () => LinkPlace | undefined): () => void;
@@ -57,6 +59,28 @@ const privateLink = item(2, 'https://private.example');
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
 
 describe('Links feed', () => {
+  it('reads its time window at each load: a preset back from now, a custom range inclusive at both ends', async () => {
+    const now = 100 * 86_400_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      const load = async (): Promise<unknown> => {
+        const done = reloadLinks();
+        const read = env.pages.shift()!;
+        read.resolve([]);
+        await done;
+        return read.query;
+      };
+      state.setLinkWindow({ since: 10, until: 20 });
+      expect(await load()).toMatchObject({ sinceTs: 9, untilTs: 20 });
+      state.setLinkWindow({ last: '1d' });
+      expect(await load()).toMatchObject({ sinceTs: now - 86_400_000 - 1 });
+      state.setLinkWindow(null);
+      expect(await load()).not.toHaveProperty('sinceTs');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it('drops a refresh that a privacy reload superseded', async () => {
     const first = reloadLinks();
     env.pages.shift()!.resolve([privateLink, publicLink]);

@@ -1,8 +1,8 @@
-// The phone's Links filters: a bottom sheet with the platforms, channel, date range, order and flagged filters.
+// The phone's Links filters: a bottom sheet with the platforms, channel, time window, order and flagged filters.
 import { Show, createEffect, type JSX } from 'solid-js';
 import type { Platform } from '@plugin-sdk/shared';
 import { Select, Switch, look } from '@plugin-sdk/renderer/kit';
-import { OrderSegments, PlatformChips, RangeSegments, channelOptions, linkSafety, linkWorth } from './LinkFilters';
+import { OrderSegments, PlatformChips, WindowSelect, channelOptions, linkSafety, linkWorth } from './LinkFilters';
 import { linkChannelId, linkFilterCount, linkHideFlagged, resetLinkFilters, setLinkChannelId, setLinkHideFlagged } from './state';
 import styles from './LinkFilters.module.css';
 
@@ -51,8 +51,8 @@ export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<P
         <Field label="Channel" for="links-filter-channel">
           <Select id="links-filter-channel" class={styles.fieldSelect} value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
         </Field>
-        <Field label="Shared">
-          <RangeSegments class={styles.segments} segmentClass={styles.segment} />
+        <Field label="Shared" for="links-filter-window">
+          <WindowSelect id="links-filter-window" class={styles.fieldSelect} />
         </Field>
         <Show when={linkWorth.on()}>
           <Field label="Order">

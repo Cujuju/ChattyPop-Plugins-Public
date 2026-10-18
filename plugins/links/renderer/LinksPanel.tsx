@@ -29,7 +29,7 @@ import {
   linkLoads,
   linkOpening,
   linkPlatforms,
-  linkRange,
+  linkWindow,
   links,
   linkSort,
   keepLinkPlace,
@@ -92,7 +92,7 @@ export function LinksPanel() {
 
   // The desktop opens where the owner last was (the phone at the newest); a filter change opens at the newest.
   onMount(() => void (inCompanion ? reloadLinks() : reloadAtStoredPlace()));
-  createEffect(on([linkPlatforms, linkChannelId, linkRange, linkSort, linkHideFlagged], () => void reloadLinks(), { defer: true }));
+  createEffect(on([linkPlatforms, linkChannelId, linkWindow, linkSort, linkHideFlagged], () => void reloadLinks(), { defer: true }));
 
   // The reload last placed: until then the rows may be the last one's.
   const [placed, setPlaced] = createSignal(linkLoads());

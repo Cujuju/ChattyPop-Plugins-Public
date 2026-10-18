@@ -1,6 +1,6 @@
 // The Links panel's state: its filter, the paged feed, and the "new since you looked" watermark.
 import { createEffect, createSignal, on } from 'solid-js';
-import { MS_PER_DAY, pluginSetting, type Platform } from '@plugin-sdk/shared';
+import { pluginSetting, type Platform } from '@plugin-sdk/shared';
 import {
   ARCHIVE_REFRESH_DEBOUNCE_MS,
   batchWrites,
@@ -16,7 +16,7 @@ import {
   onMessagePartsChanged,
   pluginPreference,
 } from '@plugin-sdk/renderer';
-import { createPagedList } from '@plugin-sdk/renderer/kit';
+import { createPagedList, timeBounds, type TimeWindow } from '@plugin-sdk/renderer/kit';
 import { UPDATED_EVENT, plugin } from '../shared';
 import type { LinkCursor, LinkFilter, LinkItem, LinkPlace, LinkSort, LinkWindow } from '../shared/types';
 
@@ -24,15 +24,6 @@ import type { LinkCursor, LinkFilter, LinkItem, LinkPlace, LinkSort, LinkWindow 
 const LINK_PAGE_SIZE = 100;
 /** Links read on each side of a restored place: a page in all. */
 const PLACE_SIDE_LINKS = LINK_PAGE_SIZE / 2;
-
-/** `label`: the range on a segment of the phone's filter sheet; `brief`: on the desktop header's, where width is short. */
-export const LINK_RANGES = {
-  all: { label: 'Any time', brief: 'Any', days: null },
-  '1d': { label: '24 hours', brief: '24h', days: 1 },
-  '7d': { label: '7 days', brief: '7d', days: 7 },
-  '30d': { label: '30 days', brief: '30d', days: 30 },
-} as const;
-export type LinkRange = keyof typeof LINK_RANGES;
 
 /** The feed's calls, from the desktop's Links panel or the phone's Links section; they run while feedOn. */
 const client = coreClient(plugin);
@@ -54,33 +45,36 @@ const feedOn = (): boolean => callable(plugin, 'page');
 
 export const [linkPlatforms, setLinkPlatforms] = createSignal<Platform[]>([]);
 export const [linkChannelId, setLinkChannelId] = createSignal<string | null>(null);
-export const [linkRange, setLinkRange] = createSignal<LinkRange>('all');
+/** When links were shared; null is any time. */
+export const [linkWindow, setLinkWindow] = createSignal<TimeWindow | null>(null);
 /** Newest first, or most worth reading first (#63). Either way the panel lists the top item last (at the bottom). */
 export const [linkSort, setLinkSort] = createSignal<LinkSort>('newest');
 /** Leave out links Jev flagged as spam, a scam or NSFW (#62). */
 export const [linkHideFlagged, setLinkHideFlagged] = createSignal(false);
 
-/** How many filters are off their defaults: platforms (as one), channel, range, order and flagged (the phone's sheet holds them). */
+/** How many filters are off their defaults: platforms (as one), channel, time window, order and flagged (the phone's sheet holds them). */
 export const linkFilterCount = (): number =>
-  [linkPlatforms().length > 0, linkChannelId() !== null, linkRange() !== 'all', linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
+  [linkPlatforms().length > 0, linkChannelId() !== null, linkWindow() !== null, linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
 
 /** Puts every filter back; one reload follows. */
 export function resetLinkFilters(): void {
   batchWrites(() => {
     setLinkPlatforms([]);
     setLinkChannelId(null);
-    setLinkRange('all');
+    setLinkWindow(null);
     setLinkSort('newest');
     setLinkHideFlagged(false);
   });
 }
 
 function filter(): LinkFilter {
-  const days = LINK_RANGES[linkRange()].days;
+  // Read at each load, so a preset stays its length back from now; sinceTs is exclusive, the window's start inclusive.
+  const { since, until } = timeBounds(linkWindow(), Date.now());
   return {
     ...(linkPlatforms().length ? { platforms: linkPlatforms() } : {}),
     ...(linkChannelId() ? { channelId: linkChannelId()! } : {}),
-    ...(days !== null ? { sinceTs: Date.now() - days * MS_PER_DAY } : {}),
+    ...(since !== null ? { sinceTs: since - 1 } : {}),
+    ...(until !== null ? { untilTs: until } : {}),
     ...(linkHideFlagged() ? { hideFlagged: true } : {}),
   };
 }

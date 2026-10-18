@@ -1,21 +1,19 @@
 import { For, Show } from 'solid-js';
 import { PLATFORMS, PLATFORM_INFO, type Platform } from '@plugin-sdk/shared';
-import { SegButton, SegGroup, Select, Switch, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
+import { SegButton, SegGroup, Select, Switch, TimeWindowSelect, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { LinkSort } from '../shared/types';
 import {
-  LINK_RANGES,
   linkChannelId,
   linkHideFlagged,
   linkPlatforms,
-  linkRange,
   linkSort,
+  linkWindow,
   setLinkChannelId,
   setLinkHideFlagged,
   setLinkPlatforms,
-  setLinkRange,
   setLinkSort,
-  type LinkRange,
+  setLinkWindow,
 } from './state';
 import { PLATFORM_ICON_PATHS } from './platformIcons';
 import styles from './LinkFilters.module.css';
@@ -73,17 +71,13 @@ export function PlatformChips(props: { counts: Counts; class?: string; chipClass
   );
 }
 
-type SegmentProps = { class?: string; segmentClass?: string; brief?: boolean };
-
-/** The date range as a segmented control; `class` lays the track out, `segmentClass` each option; `brief` shortens the labels. */
-export const RangeSegments = (props: SegmentProps) => (
-  <SegGroup role="radiogroup" ariaLabel="Date range" class={props.class} value={linkRange()} onChange={(v: LinkRange) => setLinkRange(v)}>
-    <For each={Object.entries(LINK_RANGES)}>{([id, r]) => <SegButton value={id} label={props.brief ? r.brief : r.label} size="sm" class={props.segmentClass} />}</For>
-  </SegGroup>
+/** When links were shared, as AI chat's time window picks it; `id` for a label's `for`, `class` sizes it. */
+export const WindowSelect = (props: { id?: string; class?: string }) => (
+  <TimeWindowSelect id={props.id} label="Shared" class={props.class} window={linkWindow()} onChange={setLinkWindow} />
 );
 
-/** The order as a segmented control (shown while Jev rates links); props as RangeSegments, less `brief`. */
-export const OrderSegments = (props: Omit<SegmentProps, 'brief'>) => (
+/** The order as a segmented control (shown while Jev rates links); `class` lays the track out, `segmentClass` each option. */
+export const OrderSegments = (props: { class?: string; segmentClass?: string }) => (
   <SegGroup role="radiogroup" ariaLabel="Order" class={props.class} value={linkSort()} onChange={(v: LinkSort) => setLinkSort(v)}>
     <For each={ORDERS}>{(o) => <SegButton value={o.value} label={o.label} size="sm" class={props.segmentClass} />}</For>
   </SegGroup>
@@ -103,13 +97,13 @@ const OrderButton = () => (
   </button>
 );
 
-/** Header filters: channel, platform icons, range, order, flagged. The channel picker shrinks first; counts contains filtered platform totals. */
+/** Header filters: channel, platform icons, time window, order, flagged. The channel picker shrinks first; counts contains filtered platform totals. */
 export function LinkFilters(props: { counts: Counts }) {
   return (
     <div class={styles.tools}>
       <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
       <PlatformChips counts={props.counts} class={`${styles.tool} ${styles.platforms}`} textSize="xs" brief />
-      <RangeSegments class={styles.tool} brief />
+      <WindowSelect class={`${styles.tool} ${styles.windowSelect}`} />
       <Show when={linkWorth.on()}>
         <OrderButton />
       </Show>

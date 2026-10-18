@@ -10,7 +10,7 @@
   margin-left: auto;
 }
 
-/* The chips, the segments and the switch keep their size; only the picker gives way. */
+/* The chips, the time window and the switch keep their size; only the channel picker gives way. */
 .tool {
   flex: none;
 }
@@ -58,6 +58,12 @@
   height: var(--cp-btn-h-sm);
   max-width: var(--cp-filter-select-max-w);
   min-width: 0;
+}
+
+/* The time window: as wide as its label, at the header's control height. */
+.windowSelect {
+  height: var(--cp-btn-h-sm);
+  max-width: var(--cp-filter-select-max-w);
 }
 
 /* A chip's icon, at a header icon button's icon size. */
