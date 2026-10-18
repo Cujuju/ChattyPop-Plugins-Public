@@ -2,7 +2,6 @@ import { For, Match, Show, Switch, createEffect, createMemo, createSignal, on, o
 import { onCleanup } from '@plugin-sdk/renderer';
 import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest, PanelHeader, VirtualRows, createFollowBottom, createVirtualLog, dayLabel, formatBytes, isPanelCollapsed } from '@plugin-sdk/renderer/kit';
 import { ATTACHMENTS_PANEL } from '../shared';
-import type { AttachmentItem } from '../shared/types';
 import {
   attachments, failure, filterCount, hasMoreBelow, loadMoreBelow, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, topDown,
   totals, view, jumped,
@@ -16,6 +15,7 @@ import { FilterBar, HeaderTools } from './AttachmentFilters';
 import { AttachmentGrid } from './AttachmentGrid';
 import { AttachmentList, AttachmentListHeader } from './AttachmentList';
 import { PlaceRail } from './PlaceRail';
+import { cutRows, type Row } from './rows';
 import { SelectionBar } from './SelectionBar';
 import { SpaceView } from './SpaceView';
 import { PostingsHost } from './PostingsPopover';
@@ -25,7 +25,6 @@ import styles from './Attachments.module.css';
 const LOAD_OLDER_THRESHOLD_ROWS = 10;
 const INITIAL_TRACK_COUNT = 1;
 const INITIAL_ESTIMATE_PX = 1;
-type Row = { kind: 'day'; key: string; label: string } | { kind: 'items'; key: string; items: AttachmentItem[] };
 
 export function AttachmentsPanel() {
   const [cols, setCols] = createSignal(INITIAL_TRACK_COUNT);
@@ -33,22 +32,10 @@ export function AttachmentsPanel() {
   let measure!: HTMLDivElement;
   let scroller!: HTMLDivElement;
   let panel: HTMLElement | undefined;
-  const rows = createMemo<Row[]>(() => {
-    const out: Row[] = [];
-    const count = view() === 'grid' ? cols() : 1;
-    let day = '';
-    let chunk: AttachmentItem[] = [];
-    const flush = (): void => { if (chunk.length) out.push({ kind: 'items', key: chunk[0]!.id, items: chunk }); chunk = []; };
-    for (const item of attachments.items) {
-      const nextDay = dayLabel(item.ts);
-      if (sort().key === 'date' && nextDay !== day) { flush(); out.push({ kind: 'day', key: `day-${item.id}`, label: nextDay }); }
-      day = nextDay;
-      chunk.push(item);
-      if (chunk.length === count) flush();
-    }
-    flush();
-    return out;
-  });
+  /** The window's first file in the order, set as it opens; rows are cut from it (cutRows). */
+  const [origin, setOrigin] = createSignal<string | null>(null);
+  const rows = createMemo<Row[]>(() => cutRows(attachments.items, { count: view() === 'grid' ? cols() : 1, origin: origin(),
+    startAtTop: topDown(), dayOf: sort().key === 'date' ? (item) => dayLabel(item.ts) : null }));
   const vlog = createVirtualLog({ rows, estimatePx: () => trackWidth(), olderThresholdRows: LOAD_OLDER_THRESHOLD_ROWS,
     loadOlder: loadOlderAttachments, hasOlder: () => !attachments.reachedStart, hasNewer: hasMoreBelow, loadNewer: loadMoreBelow,
     // Top-down, the view stays where the reader put it as more loads below.
@@ -114,7 +101,10 @@ export function AttachmentsPanel() {
       });
     }
   };
-  createEffect(on(loads, () => queueMicrotask(toStart)));
+  createEffect(on(loads, () => {
+    setOrigin((topDown() ? attachments.items[0] : attachments.items.at(-1))?.id ?? null);
+    queueMicrotask(toStart);
+  }));
   return (
     <section ref={panel} class="cp-panel" aria-label="Attachments" on:keydown={(e) => { if (e.key === 'Escape') selection.done(); }}>
       <PanelHeader section={ATTACHMENTS_PANEL} collapsible title="Attachments">
