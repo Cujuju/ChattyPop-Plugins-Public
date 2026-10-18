@@ -15,7 +15,7 @@ import type {
 export const manifest = {
   id: 'exchange',
   name: 'Import and export',
-  version: '1.3.1',
+  version: '1.3.2',
   description: 'Imports DiscordChatExporter JSON exports; exports channels (Settings → Archive) or the messages selected in the Archive as an HTML page, JSON, plain text, Markdown or CSV.',
 };
 

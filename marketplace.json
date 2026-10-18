@@ -7,6 +7,13 @@
       "description": "A rule-driven inbox, unread badges and notifications for messages that need your attention.",
       "releases": [
         {
+          "version": "1.4.2",
+          "tag": "alerts-v1.4.2",
+          "asset": "alerts-1.4.2.tar.gz",
+          "sha256": "4286075ce871006984bc6bc1e66cfceca552f5999f7b31b9387743b33eea2af3",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.3.5",
           "tag": "alerts-v1.3.5",
           "asset": "alerts-1.3.5.tar.gz",
@@ -70,6 +77,13 @@
       "description": "Claude as an AI provider, through your own Claude Code install, sign-in or API key.",
       "releases": [
         {
+          "version": "1.6.1",
+          "tag": "claude-v1.6.1",
+          "asset": "claude-1.6.1.tar.gz",
+          "sha256": "a617820a23ba3ecfbff68791964d19b2d2e38f79d33f2d223602dd653d9149ba",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.5.1",
           "tag": "claude-v1.5.1",
           "asset": "claude-1.5.1.tar.gz",
@@ -125,6 +139,13 @@
       "name": "ChatGPT (Codex)",
       "description": "ChatGPT as an AI provider, through your own Codex CLI install, sign-in or API key.",
       "releases": [
+        {
+          "version": "1.4.1",
+          "tag": "codex-v1.4.1",
+          "asset": "codex-1.4.1.tar.gz",
+          "sha256": "d9bf64b5f34faa7979a63a39f740b593b9c4d0a7961901d340223bbfac8bcd55",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.3.1",
           "tag": "codex-v1.3.1",
@@ -182,6 +203,13 @@
       "description": "Imports DiscordChatExporter JSON exports; exports channels (Settings → Archive) or the messages selected in the Archive as an HTML page, JSON, plain text, Markdown or CSV.",
       "releases": [
         {
+          "version": "1.3.2",
+          "tag": "exchange-v1.3.2",
+          "asset": "exchange-1.3.2.tar.gz",
+          "sha256": "58aba5b14c0cfa7eb2142e163046f801355c792e28df2ad0c8cf066821d31f6f",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.3.1",
           "tag": "exchange-v1.3.1",
           "asset": "exchange-1.3.1.tar.gz",
@@ -237,6 +265,13 @@
       "name": "Image text",
       "description": "Reads the text in screenshots and charts on this computer, so rules, Jev, labels and search see it.",
       "releases": [
+        {
+          "version": "1.11.2",
+          "tag": "imagetext-v1.11.2",
+          "asset": "imagetext-1.11.2.tar.gz",
+          "sha256": "0314c9328c009af113c5544267cbdb6365d61653f00c067d8d6bce2e375375dd",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.11.1",
           "tag": "imagetext-v1.11.1",
@@ -307,6 +342,13 @@
       "name": "Links",
       "description": "The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.",
       "releases": [
+        {
+          "version": "1.15.5",
+          "tag": "links-v1.15.5",
+          "asset": "links-1.15.5.tar.gz",
+          "sha256": "392a119a77776f4aba59fa3091dfba0a8492fc81fc6169c160f69cd143ab406e",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.14.7",
           "tag": "links-v1.14.7",
@@ -406,6 +448,13 @@
       "description": "Local models through Ollama, for channels set to local AI only and anything else you point at it.",
       "releases": [
         {
+          "version": "1.5.1",
+          "tag": "ollama-v1.5.1",
+          "asset": "ollama-1.5.1.tar.gz",
+          "sha256": "a34463d6985672d6c7ca84e4c492896ddffd210279eac2baf36ed022f9038772",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.4.5",
           "tag": "ollama-v1.4.5",
           "asset": "ollama-1.4.5.tar.gz",
@@ -483,6 +532,13 @@
       "description": "Any OpenRouter model as an AI provider, paid by the OpenRouter key that lists it.",
       "releases": [
         {
+          "version": "1.2.1",
+          "tag": "openrouter-v1.2.1",
+          "asset": "openrouter-1.2.1.tar.gz",
+          "sha256": "7a30177489a8488bf1d85fcc159b8d5398cb6b6650401858d5443b327ae940a7",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.1.4",
           "tag": "openrouter-v1.1.4",
           "asset": "openrouter-1.1.4.tar.gz",
@@ -531,6 +587,13 @@
       "name": "Plans & decisions",
       "description": "Jev spots plans and decisions in messages; your AI provider extracts the details for the Plans & decisions panel.",
       "releases": [
+        {
+          "version": "1.3.2",
+          "tag": "plans-v1.3.2",
+          "asset": "plans-1.3.2.tar.gz",
+          "sha256": "0dab08b31c7f89e0d1950337268d90e439d51dc99556cf03610d28e8cfe34502",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.2.4",
           "tag": "plans-v1.2.4",
@@ -623,6 +686,13 @@
       "description": "The Analytics panel: message counts by person, day, hour and channel.",
       "releases": [
         {
+          "version": "1.23.3",
+          "tag": "stats-v1.23.3",
+          "asset": "stats-1.23.3.tar.gz",
+          "sha256": "4cd37ba6c18e8a2f54763fc053b89e595af2cdff2157810ce3f2919b9c9bb00e",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.22.0",
           "tag": "stats-v1.22.0",
           "asset": "stats-1.22.0.tar.gz",
@@ -678,6 +748,13 @@
       "name": "Summaries",
       "description": "Cited recaps of archived conversations, on demand or on a schedule.",
       "releases": [
+        {
+          "version": "1.42.2",
+          "tag": "summaries-v1.42.2",
+          "asset": "summaries-1.42.2.tar.gz",
+          "sha256": "badff5ca754e74b465411e260b768a998fc7b90a19ffcbd9ad2151fcc008984d",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.41.1",
           "tag": "summaries-v1.41.1",
@@ -797,6 +874,13 @@
       "name": "Tags",
       "description": "Your own message tags, applied by hand, Jev or rules.",
       "releases": [
+        {
+          "version": "1.3.2",
+          "tag": "tags-v1.3.2",
+          "asset": "tags-1.3.2.tar.gz",
+          "sha256": "824bd5f374957b588e63648352bec61af3408e7cd3350b1bac013b95e03ac08c",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.2.1",
           "tag": "tags-v1.2.1",
@@ -924,6 +1008,13 @@
       "description": "Every enabled AI provider's plan limits side by side, and what ChattyPop used of them.",
       "releases": [
         {
+          "version": "1.2.3",
+          "tag": "usage-v1.2.3",
+          "asset": "usage-1.2.3.tar.gz",
+          "sha256": "182c0348dbc498704da2212605e32333025f5a5e29f3140d90d4109303ed4c86",
+          "sdk": "3.7.0"
+        },
+        {
           "version": "1.2.2",
           "tag": "usage-v1.2.2",
           "asset": "usage-1.2.2.tar.gz",
@@ -1021,6 +1112,13 @@
       "name": "Attachments",
       "description": "Browse archived files, see what uses disk space, compress media and delete local copies.",
       "releases": [
+        {
+          "version": "1.21.0",
+          "tag": "attachments-v1.21.0",
+          "asset": "attachments-1.21.0.tar.gz",
+          "sha256": "5dcf50407f042734094adb7999a503786266cc3e9022c008271028e66dd89ecb",
+          "sdk": "3.7.0"
+        },
         {
           "version": "1.9.0",
           "tag": "attachments-v1.9.0",
