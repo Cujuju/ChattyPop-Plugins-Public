@@ -18,6 +18,8 @@ export default defineCorePlugin(plugin, (ctx) => {
   // New links may be waiting for Jev (#61–#63), or a switch was just turned on.
   ctx.archive.onChanged(() => judge.kick());
   ctx.ai.onSettingsChange(() => judge.kick());
+  // Turning privacy off reveals links the judge skipped while their channels were hidden.
+  ctx.archive.onPrivacyChanged(() => judge.kick());
   ctx.archive.linkIndex.onRebuilt(() => judge.prune());
   // A new message's bare X links: their posts' text is what Jev reads for them.
   ctx.archive.onText((m, _arrived, source) => void (source === 'message' && xPosts.fetchFor(m)));

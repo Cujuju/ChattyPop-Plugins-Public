@@ -56,6 +56,21 @@ describe('Links turned off and on while Jev answers', () => {
   });
 });
 
+describe('Links judgments and privacy', () => {
+  it('judges a link once privacy mode turns off and reveals its channel, with no other archive change', async () => {
+    const jev = heldJev();
+    const t = start(linksCore, {
+      archive: { channels: [{ id: 'c1', hidden: true }], privacyMode: true,
+        messages: [{ channelId: 'c1', ts: Date.now() - MS_PER_MIN, content: 'read https://example.com/hidden-post' }] },
+      ai: { jev, switches: { linkWorth: true } },
+    });
+    await new Promise((r) => setImmediate(r));
+    expect(jev.held).toHaveLength(0);
+    t.archive.setPrivacyMode(false);
+    await vi.waitFor(() => expect(jev.held).toHaveLength(1));
+  });
+});
+
 describe('Links X posts across off and on', () => {
   it("pauses queued fetches when Links turns off, then fetches them and posts shared meanwhile when it's back on", async () => {
     const asked: { id: string; signal: AbortSignal | null | undefined; answer(): void }[] = [];
