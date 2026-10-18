@@ -1,5 +1,5 @@
 // Analytics counts over the visible archive; scope metadata and URL shares retain their existing read grants.
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead, PluginDb } from '@plugin-sdk/core';
 import { POSTERS_PAGE_MAX, POSTERS_TOP, STATS_TOP, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsIdentity, type StatsPoster } from '../shared/types';
 import { type StatsSqlScope, type TextQuery } from './query';
 import { totals } from './overview';
@@ -60,13 +60,25 @@ export const LINKED_MESSAGE = 'EXISTS (SELECT 1 FROM archive_all_message_links m
 
 /** One scoped read supplies archived identities for all requested users. */
 export function readPosterIdentities(db: PluginDb, scope: StatsSqlScope, userIds: readonly string[]): StatsIdentity[] {
-  const ids = [...new Set(userIds)];
-  if (!ids.length) return [];
-  return db.prepare(`SELECT ${POSTER_IDENTITY_COLUMNS}
-    FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id
-    WHERE ${scope.sql} AND m.author_id IN (${ids.map(() => '?').join(', ')}) GROUP BY m.author_id`)
-    .all(...scope.params, ...ids) as StatsIdentity[];
+  const query = posterIdentitiesSql(scope, userIds);
+  return query ? db.prepare(query.sql).all(...query.params) as StatsIdentity[] : [];
 }
+
+/** Identities of selected posters within `scope`; null when none are selected. */
+export function posterIdentitiesSql(scope: StatsSqlScope, userIds: readonly string[]): { sql: string; params: (string | number)[] } | null {
+  const ids = [...new Set(userIds)];
+  if (!ids.length) return null;
+  return { sql: `SELECT ${POSTER_IDENTITY_COLUMNS}
+    FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id
+    WHERE ${scope.sql} AND m.author_id IN (${ids.map(() => '?').join(', ')}) GROUP BY m.author_id`, params: [...scope.params, ...ids] };
+}
+
+/** `db` as an ArchiveRead, for callers that keep scope aggregates on the core thread. */
+export const syncRead = (db: PluginDb): ArchiveRead => async <R,>(sql: string, params: readonly unknown[] | Record<string, unknown> = [], options: { signal?: AbortSignal } = {}) => {
+  options.signal?.throwIfAborted();
+  const statement = db.prepare(sql);
+  return (Array.isArray(params) ? statement.all(...params) : statement.all(params)) as R[];
+};
 
 /** Existing grouped rows can supply identities without another SQL read. */
 export function attachPosterIdentities<T extends { userId: string }>(rows: readonly T[], identities: readonly StatsIdentity[]): (T & StatsIdentity)[] {

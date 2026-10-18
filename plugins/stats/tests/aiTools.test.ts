@@ -109,11 +109,14 @@ describe('Stats archive words', () => {
       const query = vi.spyOn(t.db, 'prepare');
       await expect(run(tool.name, valid, scope, controller.signal)).rejects.toBe(reason);
       expect(read).not.toHaveBeenCalled();
-      const midRead = new AbortController();
-      const pending = run(tool.name, { ...valid, author: 'writer' }, scope, midRead.signal);
-      midRead.abort(reason);
-      await expect(pending).rejects.toBe(reason);
-      expect(read).toHaveBeenCalled();
+      for (const args of [valid, { ...valid, author: 'writer' }]) {
+        read.mockClear();
+        const midRead = new AbortController();
+        const pending = run(tool.name, args, scope, midRead.signal);
+        midRead.abort(reason);
+        await expect(pending).rejects.toBe(reason);
+        expect(read).toHaveBeenCalled();
+      }
       expect(query).not.toHaveBeenCalled();
       query.mockRestore();
     }

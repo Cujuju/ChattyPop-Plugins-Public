@@ -1,17 +1,17 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead, PluginDb } from '@plugin-sdk/core';
 import type { TextQuery } from './query';
-import { scopeSql } from './stats';
+import { scopeSql, syncRead } from './stats';
 import { SCAN_BATCH_SIZE, yieldToQueue } from './scanQueue';
 
 interface OrderedMessage { channel_id: string; ts: number; seq: number }
 interface ChannelCeiling { channelId: string; ceiling: number }
 
-/** Separate equality and later-time branches seek the channel/time index, including its implicit sequence tie-breaker. */
-export async function* scanBatches<T extends OrderedMessage>(db: PluginDb, query: TextQuery, columns: string, signal?: AbortSignal): AsyncGenerator<T[]> {
+/** Separate equality and later-time branches seek the channel/time index, including its implicit sequence tie-breaker. `read` runs the whole-scope ceiling query. */
+export async function* scanBatches<T extends OrderedMessage>(db: PluginDb, query: TextQuery, columns: string, signal?: AbortSignal, read: ArchiveRead = syncRead(db)): AsyncGenerator<T[]> {
   signal?.throwIfAborted();
   const scope = scopeSql(db, query);
-  const channels = db.prepare(`SELECT MAX(m.seq) AS ceiling, m.channel_id AS channelId FROM archive_messages m
-    WHERE ${scope.sql} GROUP BY m.channel_id ORDER BY m.channel_id`).all(...scope.params) as ChannelCeiling[];
+  const channels = await read<ChannelCeiling>(`SELECT MAX(m.seq) AS ceiling, m.channel_id AS channelId FROM archive_messages m
+    WHERE ${scope.sql} GROUP BY m.channel_id ORDER BY m.channel_id`, scope.params, { signal });
   signal?.throwIfAborted();
   if (!channels.length) return;
   const ceiling = channels.reduce((max, channel) => Math.max(max, channel.ceiling), channels[0]!.ceiling);

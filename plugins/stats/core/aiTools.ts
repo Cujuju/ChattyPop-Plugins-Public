@@ -12,7 +12,7 @@ const fields = {
   limit: toolLimitField(WORDS_MAX),
 };
 
-/** `read` runs the unbounded author lookup off the core thread; the scanners use `db` in bounded batches that check the signal between them. */
+/** `read` runs the author lookup and scope aggregates off the core thread; message scans use `db` in bounded batches that check the signal between them. */
 export function archiveTools(read: ArchiveRead, db: PluginDb): ArchiveTool[] {
   return [{
     name: 'words',
@@ -32,8 +32,8 @@ export function archiveTools(read: ArchiveRead, db: PluginDb): ArchiveTool[] {
       if (!authors.length) return toolResult([], undefined, scope.channelIds);
       query.authorId = authors[0];
       signal.throwIfAborted();
-      const words = await wordStats(db, query, signal);
-      const sentiment = await sentimentStats(db, query, signal);
+      const words = await wordStats(db, query, signal, read);
+      const sentiment = await sentimentStats(db, query, signal, read);
       signal.throwIfAborted();
       const limit = args.limit ?? WORDS_DEFAULT;
       const lines = [
