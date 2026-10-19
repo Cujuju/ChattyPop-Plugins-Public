@@ -183,6 +183,9 @@ function cardsOf(db: PluginDb, payloads: ArchivePayloadReader, rows: LinkRow[], 
 
 /** Lists each visible link at the person's latest visible share, newest first. */
 export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: PersonLinksQuery, linksSql: LinksSql): LinkCard[] {
+  const cursor = q.before ?? q.after;
+  const past = cursor ? `WHERE (s.ts, l.id) ${q.before ? '>' : '<'} (?, ?)` : '';
+  const dir = q.before ? 'ASC' : 'DESC';
   const rows = db
     .prepare(
       // SQLite fills the bare columns of `s` from the MAX(ts) row: their latest share of the link.
@@ -195,9 +198,10 @@ export function personLinkPage(db: PluginDb, payloads: ArchivePayloadReader, q: 
        LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
        LEFT JOIN archive_all_channels c ON c.id = s.channelId
        LEFT JOIN archive_all_guilds g ON g.id = c.guild_id
-       ORDER BY s.ts DESC, l.id DESC LIMIT ?`,
+       ${past} ORDER BY s.ts ${dir}, l.id ${dir} LIMIT ?`,
     )
-    .all(q.userId, q.limit) as LinkRow[];
+    .all(q.userId, ...(cursor ? [cursor.ts, cursor.id] : []), q.limit) as LinkRow[];
+  if (q.before) rows.reverse();
   return cardsOf(db, payloads, rows, previewScope(db, {})).map((c) => c.card);
 }
 

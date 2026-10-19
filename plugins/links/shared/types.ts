@@ -46,6 +46,8 @@ export interface LinkItem extends LinkCard {
 export interface PersonLinksQuery {
   userId: string;
   limit: number;
+  before?: LinkCursor;
+  after?: LinkCursor;
 }
 
 /** Keyset cursor: the last item of the previous page. `worth` is part of it when sorting by worth (-1 = unjudged). */

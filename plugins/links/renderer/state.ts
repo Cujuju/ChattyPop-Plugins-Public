@@ -1,22 +1,24 @@
 // The Links panel's state: its filter, the paged feed, and the "new since you looked" watermark.
 import { createEffect, createSignal, on } from 'solid-js';
-import { pluginSetting, type Platform } from '@plugin-sdk/shared';
+import { type Platform } from '@plugin-sdk/shared';
 import {
-  ARCHIVE_REFRESH_DEBOUNCE_MS,
   batchWrites,
   callable,
   containedRoot,
+  coalescedRead,
   coreClient,
   pluginData,
-  lastSeenAt,
   onAppEvent,
-  onAppEventDebounced,
+  onArchiveChange,
+  panelShown,
   onCleanup,
   onEvent,
   onMessagePartsChanged,
   pluginPreference,
 } from '@plugin-sdk/renderer';
-import { createPagedList, timeBounds, type TimeWindow } from '@plugin-sdk/renderer/kit';
+import { createPagedList, inCompanion, timeBounds, type TimeWindow } from '@plugin-sdk/renderer/kit';
+export { linkDivider, newLinkCount, markLinksSeen, onLinksShown } from './seen';
+import { refreshNewCount } from './seen';
 import { UPDATED_EVENT, plugin } from '../shared';
 import type { LinkCursor, LinkFilter, LinkItem, LinkPlace, LinkSort, LinkWindow } from '../shared/types';
 
@@ -27,15 +29,15 @@ const PLACE_SIDE_LINKS = LINK_PAGE_SIZE / 2;
 
 /** The feed's calls, from the desktop's Links panel or the phone's Links section; they run while feedOn. */
 const client = coreClient(plugin);
+const isShown = panelShown('links');
+let privacyEpoch = 0;
 const core = {
   page: (query: Parameters<typeof client.page>[0]) => pluginData(() => client.page(query), []),
   window: (query: Parameters<typeof client.window>[0]) => pluginData(() => client.window(query), NO_WINDOW),
   counts: (query: Parameters<typeof client.counts>[0]) => pluginData(() => client.counts(query), {}),
-  markSeen: () => pluginData(() => client.markSeen(), undefined),
 };
 /** The window while Links is off: nothing loaded, nothing beyond. */
 const NO_WINDOW: LinkWindow = { items: [], reachesNewest: true, reachedStart: true, anchorId: null };
-const sum = (counts: Partial<Record<Platform, number>>): number => Object.values(counts).reduce((a, n) => a + (n ?? 0), 0);
 /** Core pages newest first; the panel lists oldest first (newest at the bottom). */
 const oldestFirst = (page: LinkItem[]): LinkItem[] => [...page].reverse();
 /** The feed's calls are served while the plugin is on. Reactive. */
@@ -79,54 +81,6 @@ function filter(): LinkFilter {
   };
 }
 
-// --- Seen watermark ----------------------------------------------------------
-
-/** New-link watermark advances while Links is visible. Null until loaded; first run starts at the previous app session's end. */
-const [seenUpTo, , { loaded: watermarkLoaded }] = pluginPreference(plugin, 'seenUpTo', {
-  seed: lastSeenAt,
-});
-/** The watermark as it was when the panel last came on screen: the "caught up" divider sits there. */
-export const [linkDivider, setLinkDivider] = createSignal<number | null>(null);
-/** Links shared since the watermark, across every filter. */
-const [newCount, setNewCount] = createSignal(0);
-export { newCount as newLinkCount };
-
-/** Count reads started; only the latest one's answer lands (a privacy change mid-read starts a newer one). */
-let countReads = 0;
-
-async function refreshNewCount(): Promise<void> {
-  const since = seenUpTo();
-  if (!feedOn()) return;
-  const read = ++countReads;
-  const count = since === null ? 0 : sum(await core.counts({ sinceTs: since }));
-  if (read === countReads) setNewCount(count);
-}
-
-export function onLinksShown(): void {
-  setLinkDivider(seenUpTo());
-}
-
-/** Core stores the watermark for desktop and phone. Clears the count immediately, discards stale reads, and recounts after the setting change. */
-export function markLinksSeen(): void {
-  if (newCount() === 0 && seenUpTo() !== null) return;
-  countReads++;
-  setNewCount(0);
-  void core.markSeen();
-}
-
-// Core or another window moved the watermark (createSetting, registered first, has already adopted it).
-onAppEvent('setting-changed', (e) => {
-  if (e.key === pluginSetting(plugin, 'seenUpTo')) void refreshNewCount();
-});
-
-void watermarkLoaded.then(() => {
-  setLinkDivider((d) => d ?? seenUpTo());
-  return refreshNewCount();
-});
-
-// Turned on while the app runs: count what's new.
-containedRoot(() => createEffect(on(feedOn, (isOn) => isOn && void refreshNewCount(), { defer: true })));
-
 // --- History -----------------------------------------------------------------
 
 /** The cursor after a loaded item, in the current sort. */
@@ -138,6 +92,7 @@ const list = createPagedList<LinkItem>(
   LINK_PAGE_SIZE,
   async (oldest) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, after: cursorAt(oldest) })),
   async (newest) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, before: cursorAt(newest) })),
+  { chronological: () => linkSort() === 'newest', atNewest: () => linkAtNewest(), reload: () => reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace() : reloadLinks() },
 );
 /** Loaded links oldest first; `reachedStart` once the oldest matching link is loaded. */
 export const links = list.state;
@@ -165,9 +120,9 @@ export const [linkLoads, setLinkLoads] = createSignal(0);
 export const [linkOpening, setLinkOpening] = createSignal<{ place: LinkPlace; anchorId: number | null } | null>(null);
 
 /** Reloads the counts and the newest page for the current filter, or the links around `place`. */
-export async function reloadLinks(place: LinkPlace | null = null): Promise<void> {
+export const reloadLinks = coalescedRead(async (place: LinkPlace | null = null): Promise<void> => {
   reloadsStarted++;
-  if (!feedOn()) return;
+  if (!feedOn() || !isShown()) return;
   const f = filter();
   const sort = linkSort();
   let counts: Partial<Record<Platform, number>> = {};
@@ -187,7 +142,7 @@ export async function reloadLinks(place: LinkPlace | null = null): Promise<void>
     setLinkOpening(place && { place, anchorId });
     setLinkLoads((n) => n + 1);
   });
-}
+}, (place: LinkPlace | null = null) => JSON.stringify([place, isShown(), feedOn(), privacyEpoch, linkPlatforms(), linkChannelId(), linkWindow(), linkSort(), linkHideFlagged()]));
 
 /** Reads the loaded links again in place (chips, judgments, cards); `withCounts` reads the platform counts too. */
 function rereadLoaded(withCounts: boolean): void {
@@ -225,6 +180,9 @@ export function readLinkPlaceWith(read: () => LinkPlace | undefined): () => void
 const reloadInPlace = (): Promise<void> => reloadLinks(linkPlace() ?? null);
 
 onAppEvent('privacy-changed', () => {
+  privacyEpoch++;
+  list.reset();
+  setLinkCounts({});
   void refreshNewCount();
   void reloadInPlace();
 });
@@ -232,7 +190,7 @@ onAppEvent('privacy-changed', () => {
 /** New links, judgments or fetched X posts: the count and the loaded feed catch up. */
 function refresh(): void {
   void refreshNewCount();
-  if (!links.items.length || !feedOn()) return;
+  if (!links.items.length || !feedOn() || !isShown()) return;
   // Worth order may move any link: reload around where the owner is.
   if (linkSort() === 'worth') return void reloadInPlace();
   // Opened at a place: newer links page in as the owner nears them; the loaded ones catch up in place.
@@ -254,13 +212,17 @@ function refresh(): void {
   ).then((applied) => applied && setLinkCounts(counts));
 }
 
-onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, refresh);
+onArchiveChange({ kinds: ['links', 'deletes', 'names'], scope: () => linkChannelId() ? { channelIds: [linkChannelId()!] } : 'all', shown: isShown }, async (change) => {
+  await list.applyChange(change);
+  if ([...change.channelIds].every((id) => change.insertOnly(id))) setLinkCounts(await core.counts(filter()));
+});
+containedRoot(() => createEffect(on(isShown, (shown) => { if (shown) void (reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace() : reloadInPlace()); }, { defer: true })));
 onEvent(plugin, UPDATED_EVENT, refresh);
 
 // Chips or notes changed on a loaded link's message (a tag, a transcript): re-read the loaded links in place.
 onMessagePartsChanged((ids) => {
   const loaded = links.items;
-  if (!feedOn() || !loaded.length || (ids && !loaded.some((i) => ids.includes(i.messageId)))) return;
+  if (!feedOn() || !isShown() || !loaded.length || (ids && !loaded.some((i) => ids.includes(i.messageId)))) return;
   rereadLoaded(false);
 });
 

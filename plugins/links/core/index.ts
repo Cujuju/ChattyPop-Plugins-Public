@@ -16,7 +16,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   const judge = new LinkJudge(db, (feature) => ctx.jev.decider(feature), updated, ctx.ai.sources, ctx.archive.linksSql);
   const xPosts = new XPosts(db, ctx.net.fetch, ctx.archive, updated, xQueue, ctx.lifetime.signal);
   // New links may be waiting for Jev (#61–#63), or a switch was just turned on.
-  ctx.archive.onChanged(() => judge.kick());
+  ctx.archive.onChanged((change) => { if (Object.values(change.changes).some((kinds) => kinds.includes('links'))) judge.kick(); });
   ctx.ai.onSettingsChange(() => judge.kick());
   // Turning privacy off reveals links the judge skipped while their channels were hidden.
   ctx.archive.onPrivacyChanged(() => judge.kick());

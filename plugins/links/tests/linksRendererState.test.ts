@@ -10,15 +10,16 @@ interface Pending<T> {
 }
 
 const env = vi.hoisted(() => ({
-  handlers: new Map<string, () => void>(),
+  handlers: new Map<string, (change?: unknown) => void>(),
   pages: [] as Pending<LinkItem[]>[],
   windows: [] as (Pending<LinkWindow> & { query: LinkWindowQuery })[],
   partsChanged: null as ((ids: string[] | null) => void) | null,
 }));
 
-vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList, timeBounds: (await import('@/ui/timeWindow')).timeBounds }));
+vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList, inCompanion: false, timeBounds: (await import('@/ui/timeWindow')).timeBounds }));
 vi.mock('@plugin-sdk/renderer', async () => ({
   ...(await import('@plugin-sdk/renderer/containment')),
+  coalescedRead: (await import('@plugin-sdk/renderer/coalescedRead')).coalescedRead,
   ARCHIVE_REFRESH_DEBOUNCE_MS: 0,
   callable: () => true,
   coreClient: () => ({
@@ -30,7 +31,8 @@ vi.mock('@plugin-sdk/renderer', async () => ({
   pluginPreference: () => [() => 0, () => undefined, { loaded: Promise.resolve() }],
   lastSeenAt: async () => 0,
   onAppEvent: (type: string, fn: () => void) => void env.handlers.set(type, fn),
-  onAppEventDebounced: (type: string, _ms: number, fn: () => void) => void env.handlers.set(type, fn),
+  onArchiveChange: (_deps: unknown, fn: (c: unknown) => void) => void env.handlers.set('archive-changed', (change?: unknown) => fn(change ?? { channelIds: new Set(['c']), kinds: new Set(['edits']), insertOnly: () => false })),
+  panelShown: () => () => true,
   onEvent: (_plugin: unknown, name: string, fn: () => void) => void env.handlers.set(name, fn),
   onMessagePartsChanged: (fn: (ids: string[] | null) => void) => void (env.partsChanged = fn),
 }));
@@ -137,10 +139,10 @@ describe('Links feed', () => {
     expect(state.linkAtNewest()).toBe(false);
     expect(state.linkOpening()).toEqual({ place, anchorId: publicLink.id });
 
-    // An arrival re-reads the loaded links in place; it doesn't append the newest page past a gap.
-    env.handlers.get('archive-changed')!();
+    // Inserts remain deferred while this window is detached from the live end.
+    env.handlers.get('archive-changed')!({ channelIds: new Set(['c']), kinds: new Set(['links']), insertOnly: () => true });
     expect(env.pages).toEqual([]);
-    env.windows.shift()!.resolve({ items: [privateLink, publicLink], reachesNewest: false, reachedStart: true, anchorId: publicLink.id });
+    expect(env.windows).toEqual([]);
     await settle();
     expect(links.items.map((i) => i.id)).toEqual([publicLink.id, privateLink.id]);
   });
@@ -162,4 +164,19 @@ describe('Links feed', () => {
       stop();
     }
   });
+  it('reads only past the newest cursor on insert-only arrivals, then reloads on an edit', async () => {
+    const opened = reloadLinks();
+    env.pages.shift()!.resolve([privateLink, publicLink]); await opened;
+    env.handlers.get('archive-changed')!({ channelIds: new Set(['c']), kinds: new Set(['links']), insertOnly: () => true });
+    const newer = env.pages.shift()!;
+    expect(newer.query).toMatchObject({ before: { ts: privateLink.ts, id: privateLink.id } });
+    newer.resolve([item(3, 'https://new.example')]); await settle();
+    expect(env.pages).toEqual([]);
+    expect(links.items.map((row) => row.id)).toEqual([publicLink.id, privateLink.id, 3]);
+    env.handlers.get('archive-changed')!();
+    const reloaded = env.pages.shift()!;
+    expect(reloaded.query).not.toHaveProperty('before');
+    reloaded.resolve([publicLink]); await settle();
+  });
+
 });
