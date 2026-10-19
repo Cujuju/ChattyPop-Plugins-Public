@@ -1,10 +1,12 @@
+import { statementRead } from '@chattypop/host-testing';
+import { privacy } from '@plugin-sdk/core';
 // The plans list over a realistically shaped archive: indexed message lookups, and the same list as the plain join.
 import { describe, expect, it } from 'vitest';
 import type { Db } from '@core/db';
 import { adoptBundledData } from '@core/plugins/adoption';
 import { MS_PER_MIN } from '@shared/units';
 import { tempDb } from '@chattypop/host-testing';
-import { statementPlans } from '@chattypop/host-testing/queryPlan';
+import { readPlans } from '@chattypop/host-testing/queryPlan';
 import { START_TS, TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
 import { planList } from '../core/plans';
 import { PLANS_TABLE } from '../core/schema';
@@ -40,16 +42,16 @@ const plansJoinedByPlanner = (db: Db): string[] => db.prepare(
 ).pluck().all(PLAN_LIMIT) as string[];
 
 describe('plans list', () => {
-  it.each([0, PERF_PLANS])('drives %i plans’ message lookups from the plans table, listing what the join listed', (plans) => {
+  it.each([0, PERF_PLANS])('drives %i plans’ message lookups from the plans table, listing what the join listed', async (plans) => {
     const db = tempDb();
     const fixture = seedPlansArchive(db, plans);
-    const details = statementPlans(db, () => planList(db, PLAN_LIMIT)).join('\n');
+    const details = (await readPlans(db, async () => (await planList(statementRead(db), privacy(db).redact, PLAN_LIMIT)))).join('\n');
     expect(details).toMatch(/SEARCH m USING INDEX/);
     expect(details).not.toMatch(/SCAN m\b/);
-    const listed = (): string[] => planList(db, PLAN_LIMIT).map((plan) => plan.messageId);
-    expect(listed()).toEqual(plansJoinedByPlanner(db));
+    const listed = async (): Promise<string[]> => (await planList(statementRead(db), privacy(db).redact, PLAN_LIMIT)).map((plan) => plan.messageId);
+    expect((await listed())).toEqual(plansJoinedByPlanner(db));
     hideSome(db, fixture);
-    expect(listed()).toEqual(plansJoinedByPlanner(db));
-    if (plans) expect(listed().length).toBeLessThan(plans);
+    expect((await listed())).toEqual(plansJoinedByPlanner(db));
+    if (plans) expect((await listed()).length).toBeLessThan(plans);
   });
 });

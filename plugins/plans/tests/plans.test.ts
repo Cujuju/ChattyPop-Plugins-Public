@@ -1,3 +1,5 @@
+import { statementRead } from '@chattypop/host-testing';
+import { privacy } from '@plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId } from '@shared/settings';
 import { ProviderRegistry } from '@core/ai/registry';
@@ -57,7 +59,7 @@ describe('plans and decisions (#67)', () => {
     q.onAnswer!(msg('open', Date.UTC(2026, 8, 28, 2), 'lol'), answer('neither', 0.99), null);
     await settleAsync();
     expect(prompts).toHaveLength(1);
-    expect(planList(db, 10)).toEqual([
+    expect((await planList(statementRead(db), privacy(db).redact, 10))).toEqual([
       expect.objectContaining({ kind: 'plan', title: 'Game night', whenTs: Date.parse('2026-10-02T19:00:00-07:00'), who: ['Ana', 'Bo'] }),
     ]);
   });
@@ -82,7 +84,7 @@ describe('plans and decisions (#67)', () => {
     await settleAsync();
     expect(warn).toHaveBeenCalledWith(`[plans] not extracted: ${reason}`);
     expect(db.prepare(`SELECT COUNT(*) FROM ${PENDING_TABLE}`).pluck().get()).toBe(0);
-    expect(planList(db, 10)).toEqual([]);
+    expect((await planList(statementRead(db), privacy(db).redact, 10))).toEqual([]);
     warn.mockRestore();
   });
 
@@ -97,7 +99,7 @@ describe('plans and decisions (#67)', () => {
     expect(next.subject).toBe(q.subject);
     await settleAsync();
     expect(prompts).toHaveLength(1);
-    expect(planList(db, 10)).toEqual([expect.objectContaining({ kind: 'plan', title: 'Game night' })]);
+    expect((await planList(statementRead(db), privacy(db).redact, 10))).toEqual([expect.objectContaining({ kind: 'plan', title: 'Game night' })]);
     // Extracted: a later start owes nothing.
     planQuestion({ db, provider: () => ({ complete: async (req) => (prompts.push(req.prompt), { json: {} }) }), changed: () => {} });
     await settleAsync();

@@ -32,11 +32,13 @@ export default defineCorePlugin(plugin, (ctx) => {
       changed: ctx.archive.changed,
     }),
   );
+  let redact = privacy(ctx.storage.db).redact;
+  ctx.archive.onPrivacyChanged(() => { redact = privacy(ctx.storage.db).redact; });
   ctx.channels.serve({
-    list: (limit) => planList(ctx.storage.db, limit),
-    keys: (limit) => {
+    list: (limit) => planList(ctx.storage.read, (text) => redact(text), limit),
+    keys: async (limit) => {
       const query = planListSql(limit);
-      return ctx.storage.db.prepare(`SELECT messageId || ':' || kind FROM (${query.sql})`).pluck().all(...query.params) as string[];
+      return (await ctx.storage.read<{ key: string }>(`SELECT messageId || ':' || kind AS key FROM (${query.sql})`, query.params)).map((row) => row.key);
     },
   });
 });

@@ -69,7 +69,7 @@ const PLAN_QUERY_DEF: JevQueryDecl<'planDetection'> = {
 export const plugin = definePlugin({
   aiTools: ['list'],
   manifest,
-  channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: { audiences: ['renderer', 'phone'], writes: false, decode: decodeList }, keys: { audiences: ['renderer', 'phone'], writes: false, decode: decodeList } } }),
+  channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: { audiences: ['renderer', 'phone'], writes: false, reads: true, decode: decodeList }, keys: { audiences: ['renderer', 'phone'], writes: false, reads: true, decode: decodeList } } }),
   /** The items listed when the panel was last on screen; null until first stored. */
   preferences: {
     seen: definePreference<string[] | null>({ default: null, normalize: stringsOr(null) }),

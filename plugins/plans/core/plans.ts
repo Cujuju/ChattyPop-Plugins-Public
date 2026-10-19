@@ -1,7 +1,7 @@
 // #67: Jev detects plans and decisions; the selected provider extracts details. Code validates dates against message timestamps.
 import type { PlanItem, PlanKind } from '../shared/types';
 import { cutText, errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
-import { clipMessage, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, toolScopeSql } from '@plugin-sdk/core';
+import { clipMessage, type ArchiveRead, type PluginDb, PluginInactiveError, deadline, LocalOnlyError, type PluginMessageQuestion, privacy, queryLabel, queryRequest, type ReadScope, type TextMessage, toolScopeSql } from '@plugin-sdk/core';
 import { PLAN_QUERY, PLAN_SUBJECT } from '../shared';
 import { PENDING_TABLE, PLANS_TABLE } from './schema';
 import type { ArchiveToolScope } from '@plugin-sdk/core';
@@ -142,9 +142,9 @@ async function extract(deps: PlanDeps, m: TextMessage, kind: PlanKind): Promise<
 }
 
 /** Plans soonest first (undated after dated), then decisions newest first. */
-export function planList(db: PluginDb, limit: number, scope?: ArchiveToolScope, upcoming = false, now = Date.now()): PlanItem[] {
+export async function planList(read: ArchiveRead, redact: (text: string) => string, limit: number, scope?: ArchiveToolScope, upcoming = false, now = Date.now()): Promise<PlanItem[]> {
   const query = planListSql(limit, scope, upcoming, now);
-  return planItems(db.prepare(query.sql).all(...query.params) as PlanRow[], privacy(db).redact);
+  return planItems(await read<PlanRow>(query.sql, query.params), redact);
 }
 
 export type PlanRow = Omit<PlanItem, 'who'> & { whoJson: string };
