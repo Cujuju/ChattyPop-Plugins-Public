@@ -110,16 +110,18 @@ export class Transcriber {
 
   /** A message was stored or updated (embeds arrive by edit). Runs inside ingest: only queues; the queue runs after. */
   shown(messageId: string): void {
-    if (AUTO_KINDS.some((kind) => this.settings().auto[kind])) this.discovery.shown(messageId);
+    const auto = this.settings().auto;
+    if (AUTO_KINDS.some((kind) => auto[kind])) this.discovery.shown(messageId);
   }
 
   privacyChanged(): void { this.discovery.invalidate(); }
 
   /** Queues the message's parts automatic transcription covers and that can run now; returns whether any was queued. */
   private queueAutomatic(messageId: string, sources: MediaSource[]): boolean {
-    const auto = this.settings().auto;
+    const settings = this.settings(), auto = settings.auto;
     if (!AUTO_KINDS.some((k) => auto[k])) return false; // every message stored runs this: skip reading its parts
-    const due = sources.filter((s) => s.transcript === null && this.autoCovers(s) && (s.download === null || s.download === DOWNLOAD_STORED));
+    const ready = this.toolchain.ready(settings.model) !== null;
+    const due = sources.filter((s) => s.transcript === null && this.autoCovers(s, settings, ready) && (s.download === null || s.download === DOWNLOAD_STORED));
     const queued = due.filter((s) => enqueue(this.db, s, PRIORITY.automatic, Date.now())).length > 0;
     if (queued) this.changed(messageId);
     return queued;
@@ -128,8 +130,9 @@ export class Transcriber {
   /** A transcript of the message is queued or running, or will be queued once an attachment's file is stored. */
   due(messageId: string): boolean {
     if (this.discovery.due(messageId) || [...(jobStates(this.db, [messageId]).get(messageId)?.values() ?? [])].some((state) => ACTIVE_STATES.has(state))) return true;
-    if (!this.discovery.has(messageId) && !this.signal.aborted && this.toolchain.ready(this.settings().model)
-      && AUTO_KINDS.some((kind) => this.settings().auto[kind])) {
+    const settings = this.settings();
+    if (!this.discovery.has(messageId) && !this.signal.aborted && AUTO_KINDS.some((kind) => settings.auto[kind])
+      && this.toolchain.ready(settings.model)) {
       this.discovery.shown(messageId);
       return true;
     }
@@ -137,10 +140,9 @@ export class Transcriber {
   }
 
   /** Automatic transcription is set up and covers this part: its kind is on, and it was sent since. */
-  private autoCovers(s: MediaSource): boolean {
-    const settings = this.settings();
+  private autoCovers(s: MediaSource, settings = this.settings(), ready?: boolean): boolean {
     const since = settings.since[s.auto];
-    return settings.auto[s.auto] && since !== null && s.ts >= since && !!this.toolchain.ready(settings.model);
+    return settings.auto[s.auto] && since !== null && s.ts >= since && (ready ?? !!this.toolchain.ready(settings.model));
   }
 
   /** The owner asked for transcripts of the message's audio and video (`part`, or each one; however old). */
