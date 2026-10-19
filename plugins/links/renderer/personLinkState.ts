@@ -29,7 +29,7 @@ export function createPersonLinks(userId: Accessor<string>) {
   }, () => JSON.stringify([userId(), pageShown(), privacyEpoch]));
   createEffect(on(userId, () => { list.reset(); needsRead = true; void reload(); }));
   createEffect(on(pageShown, (shown) => { if (shown && needsRead) void reload(); }, { defer: true }));
-  onArchiveChange({ kinds: ['links', 'deletes', 'names'], shown: pageShown }, (change, signal) => load(() => list.applyChange(change, signal)));
+  onArchiveChange({ kinds: ['links', 'edits', 'deletes', 'names'], shown: pageShown }, (change, signal) => load(() => list.applyChange(change, signal)));
   const offs = [onAppEvent('privacy-changed', () => { privacyEpoch++; list.reset(); void reload(); }), onEvent(plugin, UPDATED_EVENT, () => void reload())];
   onCleanup(() => offs.forEach((off) => off()));
   return { state: list.state, failure, older: () => load(() => list.loadOlder()) };

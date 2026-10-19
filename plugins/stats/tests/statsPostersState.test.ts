@@ -20,6 +20,8 @@ vi.mock('@plugin-sdk/renderer', async () => {
   const { createSignal } = await import('solid-js');
   return {
     ...(await import('@plugin-sdk/renderer/containment')),
+    panelShown: () => () => true,
+    visibilitySignal: (await import('@plugin-sdk/renderer/visibilitySignal')).visibilitySignal,
     callable: () => true,
     coreClient: () => ({ postersPage: (query: PostersQuery) => new Promise<StatsPoster[]>((resolve, reject) => env.pending.push({ query, resolve, reject })) }),
     onAppEvent: (name: string, handler: () => void) => env.events.set(name, handler),

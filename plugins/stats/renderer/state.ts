@@ -3,8 +3,8 @@ import { createEffect, createMemo, createSignal, on } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
 import { POSTERS_PAGE_MAX, STATS_RANGES, placeScope, type ActivityQuery, type StatsPlace, type StatsRange, type StatsSection } from '../shared/types';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
-import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource, containedRoot, onCleanup } from '@plugin-sdk/renderer';
-import { directory, isPanelCollapsed, isThread, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource, containedRoot, onCleanup, panelShown, visibilitySignal } from '@plugin-sdk/renderer';
+import { directory, isThread, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { createPosterPages } from './posterPages';
 import { listedPerson, resetPerson } from './personSelection';
 
@@ -42,10 +42,12 @@ export const statsPanelMounted = (): (() => void) => {
   return () => setMounted((n) => n - 1);
 };
 
+const isShown = panelShown(STATS_PANEL);
+
 type Choices = { place: StatsPlace | null; range: StatsRange; authorId?: string | null };
 
 function choices(): Choices | undefined {
-  if (!mounted() || isPanelCollapsed(STATS_PANEL)) return undefined;
+  if (!mounted() || !isShown()) return undefined;
   return { place: statsPlace(), range: statsRange() };
 }
 
@@ -92,8 +94,11 @@ const [privacyChanges, setPrivacyChanges] = createSignal(0);
 
 /** Each mounted People section owns its expanded pages. */
 export function createPosterList() {
+  const signal = visibilitySignal(isShown);
   const pages = createPosterPages(async (q) => {
-    const call = coreClient(plugin).postersPage;
+    const active = signal();
+    active.throwIfAborted();
+    const call = coreClient(plugin, { signal: active, priority: 'interactive' }).postersPage;
     if (!call) throw new Error('Analytics is unavailable in this window.');
     return pluginData(() => call(q), []);
   });

@@ -22,7 +22,7 @@ export const topDown = (): boolean => anchor() === 'top';
 const client = desktopCoreClient(plugin);
 const isShown = panelShown('attachments');
 let privacyEpoch = 0;
-const refreshOn = { kinds: ['attachments', 'deletes', 'names'] as const };
+const refreshOn = { kinds: ['attachments', 'edits', 'deletes', 'names'] as const };
 const scope = () => where() ? where()!.by === 'guild' ? { guildIds: [where()!.id] } : { channelIds: [where()!.id] } : 'all' as const;
 const page = (q: Parameters<typeof client.page>[0], signal?: AbortSignal) => pluginData(() => desktopCoreClient(plugin, { signal, priority: isShown() ? 'interactive' : 'background' }).page(q), []);
 /** Rows top to bottom: from the top, the order as read; from the bottom, its first row last. */
@@ -41,7 +41,7 @@ const pageBefore = async (first: AttachmentItem, signal?: AbortSignal): Promise<
   shown(await page({ ...filter(), sort: sort(), limit: ATTACHMENT_PAGE_SIZE, before: cursorAt(first) }, signal));
 const list = createPagedList<AttachmentItem>(ATTACHMENT_PAGE_SIZE,
   (first, signal) => topDown() ? pageBefore(first, signal) : pageAfter(first, signal), (last, signal) => topDown() ? pageAfter(last, signal) : pageBefore(last, signal), {
-    chronological: () => sort().key === 'date' && sort().dir === 'desc' && !jumped(),
+    shown: isShown, chronological: () => sort().key === 'date' && sort().dir === 'desc' && !jumped(),
     newestAtStart: topDown, newer: pageBefore, reload: (signal) => reloadAttachments(signal),
   });
 export const attachments = list.state;

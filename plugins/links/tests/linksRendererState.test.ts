@@ -31,7 +31,10 @@ vi.mock('@plugin-sdk/renderer', async () => ({
   pluginPreference: () => [() => 0, () => undefined, { loaded: Promise.resolve() }],
   lastSeenAt: async () => 0,
   onAppEvent: (type: string, fn: () => void) => void env.handlers.set(type, fn),
-  onArchiveChange: (_deps: unknown, fn: (c: unknown, signal: AbortSignal) => void) => void env.handlers.set('archive-changed', (change?: unknown) => fn(change ?? { channelIds: new Set(['c']), kinds: new Set(['edits']), insertOnly: () => false }, new AbortController().signal)),
+  onArchiveChange: (deps: { kinds: readonly string[] }, fn: (c: unknown, signal: AbortSignal) => void) => void env.handlers.set('archive-changed', (value?: unknown) => {
+    const change = (value ?? { channelIds: new Set(['c']), kinds: new Set(['edits']), insertOnly: () => false }) as { kinds: Set<string> };
+    if ([...change.kinds].some((kind) => deps.kinds.includes(kind))) fn(change, new AbortController().signal);
+  }),
   panelShown: () => () => true,
   onEvent: (_plugin: unknown, name: string, fn: () => void) => void env.handlers.set(name, fn),
   onMessagePartsChanged: (fn: (ids: string[] | null) => void) => void (env.partsChanged = fn),

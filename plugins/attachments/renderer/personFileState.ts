@@ -28,7 +28,7 @@ export function createPersonFiles(userId: Accessor<string>) {
   }, () => JSON.stringify([userId(), pageShown(), privacyEpoch]));
   createEffect(on(userId, () => { list.reset(); needsRead = true; void reload(); }));
   createEffect(on(pageShown, (shown) => { if (shown && needsRead) void reload(); }, { defer: true }));
-  onArchiveChange({ kinds: ['attachments', 'deletes', 'names'], shown: pageShown }, (change, signal) => load(() => list.applyChange(change, signal)));
+  onArchiveChange({ kinds: ['attachments', 'edits', 'deletes', 'names'], shown: pageShown }, (change, signal) => load(() => list.applyChange(change, signal)));
   const off = onAppEvent('privacy-changed', () => { privacyEpoch++; list.reset(); void reload(); });
   onCleanup(off);
   return { state: list.state, failure, reload, older: () => load(() => list.loadOlder()) };

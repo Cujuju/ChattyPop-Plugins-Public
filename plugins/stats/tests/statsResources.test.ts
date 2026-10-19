@@ -6,6 +6,9 @@ const env = vi.hoisted(() => ({
   events: new Map<string, () => void>(),
   choices: new Map<string, (value: unknown) => void>(),
   pickerIds: ['u1', 'u2'],
+  collapsed: (): boolean => false,
+  setPage: (_value: boolean): void => {},
+  setSelected: (_value: boolean): void => {},
   setChannel: (_value: string | null): void => { throw new Error('Channel signal not initialized.'); },
   setCollapsed: (_value: boolean): void => { throw new Error('Collapsed signal not initialized.'); },
 }));
@@ -22,7 +25,11 @@ vi.mock('@plugin-sdk/renderer/pluginList', () => ({ callable: () => true }));
 vi.mock('@plugin-sdk/renderer', async () => {
   const resourcePath = '@plugin-sdk/renderer/resource';
   const { createSignal } = await import('solid-js');
+  const [page, setPage] = createSignal(true), [selected, setSelected] = createSignal(true);
+  env.setPage = setPage; env.setSelected = setSelected;
   return {
+    visibilitySignal: (await import('@plugin-sdk/renderer/visibilitySignal')).visibilitySignal,
+    panelShown: () => () => page() && selected() && !env.collapsed(),
     ...(await import('@plugin-sdk/renderer/containment')),
     pluginResource: (await import(resourcePath)).pluginResource,
     pluginData: (await import('@plugin-sdk/renderer/data')).pluginData,
@@ -41,7 +48,7 @@ vi.mock('@plugin-sdk/renderer/kit', async () => {
   const [channel, setChannel] = createSignal<string | null>('c1');
   const [collapsed, setCollapsed] = createSignal(false);
   env.setChannel = setChannel;
-  env.setCollapsed = setCollapsed;
+  env.setCollapsed = setCollapsed; env.collapsed = collapsed;
   return { shownChannelId: channel, isPanelCollapsed: collapsed, directory: () => [], isThread: () => false };
 });
 
@@ -176,4 +183,22 @@ describe('Analytics section resources', () => {
     env.pickerIds = ['u1', 'u2'];
     unmount();
   });
+});
+
+
+it('does no reads or manual refreshes while the page or Analytics tab is hidden', async () => {
+  env.setPage(true); env.setSelected(true); env.setCollapsed(false);
+  const unmount = state.statsPanelMounted();
+  await settle();
+  env.setPage(false); await settle();
+  const hidden = env.calls.length;
+  env.setChannel('hidden-selection');
+  await state.refreshStats(); await settle();
+  expect(env.calls).toHaveLength(hidden);
+  env.setSelected(false); env.setPage(true);
+  await state.refreshStats(); await settle();
+  expect(env.calls).toHaveLength(hidden);
+  env.setSelected(true); await settle();
+  expect(env.calls.length).toBeGreaterThan(hidden);
+  unmount();
 });

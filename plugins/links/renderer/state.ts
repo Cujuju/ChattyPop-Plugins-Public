@@ -96,7 +96,7 @@ const list = createPagedList<LinkItem>(
   LINK_PAGE_SIZE,
   async (oldest, signal) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, after: cursorAt(oldest) }, signal)),
   async (newest, signal) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, before: cursorAt(newest) }, signal)),
-  { chronological: () => linkSort() === 'newest', atNewest: () => linkAtNewest(), reload: (signal) => reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace(signal) : reloadLinks(null, signal) },
+  { shown: isShown, chronological: () => linkSort() === 'newest', atNewest: () => linkAtNewest(), reload: (signal) => reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace(signal) : reloadLinks(null, signal) },
 );
 /** Loaded links oldest first; `reachedStart` once the oldest matching link is loaded. */
 export const links = list.state;
@@ -146,7 +146,7 @@ export const reloadLinks = coalescedRead(async (place: LinkPlace | null = null, 
     setLinkOpening(place && { place, anchorId });
     setLinkLoads((n) => n + 1);
   });
-}, (place: LinkPlace | null = null) => JSON.stringify([place, isShown(), feedOn(), privacyEpoch, linkPlatforms(), linkChannelId(), linkWindow(), linkSort(), linkHideFlagged()]));
+}, (place: LinkPlace | null = null) => JSON.stringify([place, isShown(), feedOn(), privacyEpoch, linkPlatforms(), linkWhere(), linkWindow(), linkSort(), linkHideFlagged()]));
 
 /** Reads the loaded links again in place (chips, judgments, cards); `withCounts` reads the platform counts too. */
 function rereadLoaded(withCounts: boolean): void {
@@ -216,7 +216,7 @@ function refresh(): void {
   ).then((applied) => applied && setLinkCounts(counts));
 }
 
-onArchiveChange({ kinds: ['links', 'deletes', 'names'], scope: () => linkChannelId() ? { channelIds: [linkChannelId()!] } : 'all', shown: isShown }, async (change, signal) => {
+onArchiveChange({ kinds: ['links', 'edits', 'deletes', 'names'], scope: () => { const place = linkWhere(); return !place ? 'all' : place.by === 'channel' ? { channelIds: [place.id] } : { guildIds: [place.id] }; }, shown: isShown }, async (change, signal) => {
   await list.applyChange(change, signal);
   if (signal.aborted || ![...change.channelIds].every((id) => change.insertOnly(id))) return;
   const generation = reloadsStarted;

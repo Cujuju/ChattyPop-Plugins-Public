@@ -24,7 +24,7 @@ vi.mock('@plugin-sdk/renderer', async () => ({
   pluginPreference: (_plugin: unknown, name: string) => createSignal<unknown>(name === 'anchor' ? 'bottom' : undefined),
   pluginResource: () => Object.assign(() => [], { refetch: () => undefined }),
   onAppEvent: () => () => undefined,
-  onArchiveChange: (_deps: unknown, fn: (change: unknown, signal: AbortSignal) => Promise<void>) => { refresh.run = (change) => fn(change, new AbortController().signal); return () => undefined; },
+  onArchiveChange: (deps: { kinds: readonly string[] }, fn: (change: unknown, signal: AbortSignal) => Promise<void>) => { refresh.run = (change) => [...(change as { kinds: Set<string> }).kinds].some((kind) => deps.kinds.includes(kind)) ? fn(change, new AbortController().signal) : Promise.resolve(); return () => undefined; },
   panelShown: () => () => true,
 }));
 vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList }));
@@ -212,4 +212,15 @@ it('reads only newer files for inserts and reloads the first page for edits', as
   const edited = refresh.run!({ channelIds: new Set(['c']), kinds: new Set(['attachments']), insertOnly: () => false });
   expect(requests[0]!.q.before).toBeUndefined(); expect(requests[0]!.q.after).toBeUndefined();
   await answer(rows(2, 1)); await edited;
+});
+
+
+it('rereads content edits that can change attachment privacy', async () => {
+  const opened = state.reloadAttachments();
+  await answer(rows(0, 1)); await opened;
+  const edited = refresh.run!({ kinds: new Set(['edits']), channelIds: new Set(['c']), insertOnly: () => false });
+  await settle();
+  expect(requests).toHaveLength(1);
+  await answer([]); await edited;
+  expect(ids()).toEqual([]);
 });
