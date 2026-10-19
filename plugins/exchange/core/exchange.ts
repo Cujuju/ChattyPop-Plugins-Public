@@ -1,14 +1,13 @@
 // Archive import (DiscordChatExporter JSON) and export (DCE-compatible JSON, an HTML page, plain text, Markdown or CSV).
-import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, renameSync, rmSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { attachmentFileName, DM_GROUP_NAME, DM_GUILD_ID, errorMessage, type RawMessage } from '@plugin-sdk/shared';
 import { ARRIVAL, type Importer, type PluginDb, type ArchiveRead, parseRawJson, storedAttachmentPath } from '@plugin-sdk/core';
 import type { ExchangeResult, ExportProgress, ExportRequest, ExportWritten, SelectionExportRequest, SelectionExportResult } from '../shared/types';
-import { dceToRaw, isDceExport, rawToDce, type DceExport } from './dce';
+import { rawToDce, type DceExport } from './dce';
+import { readDceFile } from './importReader';
 import { FORMAT_WRITERS, type ExportHead } from './formats';
 
-/** Bounds mapped payload memory; the host commits smaller slices and yields within each batch. */
-const IMPORT_BATCH = 500;
 /** DCE writes DMs under this pseudo-guild. */
 const DCE_DM_GUILD_ID = '0';
 /** DCE channel type names → Discord channel types. */
@@ -36,21 +35,13 @@ const EXPORT_PAGE = 1000;
 export async function importDceFiles(archive: Importer, paths: string[]): Promise<ExchangeResult> {
   const result: ExchangeResult = { channelIds: [], messages: 0, skippedFiles: [] };
   for (const path of paths) {
-    let data: unknown;
     try {
-      data = JSON.parse(readFileSync(path, 'utf8'));
-    } catch {
-      result.skippedFiles.push(path);
-      continue;
-    }
-    if (!isDceExport(data)) {
-      result.skippedFiles.push(path);
-      continue;
-    }
-    const x = data;
-    try {
-      result.messages += await importOne(archive, x);
-      result.channelIds.push(x.channel.id);
+      let inserted = 0;
+      const header = await readDceFile(path, (x) => importHead(archive, x), async (messages) => {
+        inserted += (await archive.ingestMessagesBatched(messages, ARRIVAL.import)).inserted;
+      });
+      result.messages += inserted;
+      result.channelIds.push(header.channel.id);
     } catch (err) {
       console.warn('[exchange] import failed:', errorMessage(err));
       result.skippedFiles.push(path);
@@ -59,7 +50,7 @@ export async function importDceFiles(archive: Importer, paths: string[]): Promis
   return result;
 }
 
-async function importOne(archive: Importer, x: DceExport): Promise<number> {
+function importHead(archive: Importer, x: Omit<DceExport, 'messages'>): void {
   const isDm = x.guild.id === DCE_DM_GUILD_ID;
   const guildId = isDm ? DM_GUILD_ID : x.guild.id;
   archive.atomically(() => {
@@ -69,11 +60,6 @@ async function importOne(archive: Importer, x: DceExport): Promise<number> {
     ]);
     archive.setOptIn(x.channel.id, true);
   });
-  let inserted = 0;
-  for (let i = 0; i < x.messages.length; i += IMPORT_BATCH) {
-    inserted += (await archive.ingestMessagesBatched(x.messages.slice(i, i + IMPORT_BATCH).map((m) => dceToRaw(m, x.channel.id)), ARRIVAL.import)).inserted;
-  }
-  return inserted;
 }
 
 interface ChannelRow {

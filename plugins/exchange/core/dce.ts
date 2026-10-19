@@ -79,14 +79,18 @@ type FullRaw = RawMessage & {
   message_reference?: { message_id?: string; channel_id?: string; guild_id?: string };
 };
 
-const colorToInt = (hex?: string | null): number | undefined => (hex && /^#[0-9a-f]{6}$/i.test(hex) ? parseInt(hex.slice(1), HEX_RADIX) : undefined);
 const intToColor = (n?: number): string | null => (typeof n === 'number' ? `#${n.toString(HEX_RADIX).padStart(COLOR_HEX_DIGITS, '0')}` : null);
-const media = (m?: { url: string; width?: number; height?: number } | null) =>
-  m ? { url: m.url, proxy_url: m.url, ...(m.width ? { width: m.width } : {}), ...(m.height ? { height: m.height } : {}) } : undefined;
-const user = (u: DceUser): RawUserLike => ({ id: u.id, username: u.name, global_name: u.nickname ?? null, bot: u.isBot ?? false });
 
 /** A DCE message as the Discord payload ChattyPop stores (raw_json), for a channel of the export. */
 export function dceToRaw(m: DceMessage, channelId: string): RawMessage {
+  const HEX_RADIX = 16; // CSS colors are hexadecimal.
+  const REPLY_MESSAGE_TYPE = 19, DEFAULT_MESSAGE_TYPE = 0; // Discord message types.
+  const colorToInt = (hex?: string | null): number | undefined => (hex && /^#[0-9a-f]{6}$/i.test(hex) ? parseInt(hex.slice(1), HEX_RADIX) : undefined);
+  const media = (m?: { url: string; width?: number; height?: number } | null) =>
+    m ? { url: m.url, proxy_url: m.url, ...(m.width ? { width: m.width } : {}), ...(m.height ? { height: m.height } : {}) } : undefined;
+  const user = (u: DceUser): RawUserLike => ({ id: u.id, username: u.name, global_name: u.nickname ?? null, bot: u.isBot ?? false });
+
+
   const embeds: RawEmbed[] = (m.embeds ?? []).map((e) => ({
     ...(e.title ? { title: e.title } : {}),
     ...(e.url ? { url: e.url } : {}),
@@ -176,51 +180,53 @@ export function rawToDce(r: RawMessage, attachmentUrl: (a: RawAttachment) => str
 
 /** A field check; `undefined` is a missing field. */
 type Check = (v: unknown) => boolean;
-const str: Check = (v) => typeof v === 'string';
-const bool: Check = (v) => typeof v === 'boolean';
-const size: Check = (v) => Number.isSafeInteger(v) && (v as number) >= 0;
-const snowflake: Check = (v) => typeof v === 'string' && SNOWFLAKE_ID.test(v);
-const time: Check = (v) => typeof v === 'string' && Number.isFinite(Date.parse(v));
-const opt = (c: Check): Check => (v) => v === undefined || c(v);
-const nullable = (c: Check): Check => (v) => v === undefined || v === null || c(v);
-const list = (c: Check): Check => (v) => v === undefined || (Array.isArray(v) && v.every(c));
-const shape = (fields: Record<string, Check>): Check => (v) =>
-  typeof v === 'object' && v !== null && !Array.isArray(v) && Object.entries(fields).every(([k, c]) => c((v as Record<string, unknown>)[k]));
-
-const dceUser = shape({ id: str, name: str, nickname: nullable(str), isBot: opt(bool) });
-const dceMedia = shape({ url: str, width: nullable(size), height: nullable(size) });
-const dceEmbed = shape({
-  title: nullable(str),
-  url: nullable(str),
-  description: nullable(str),
-  color: nullable(str),
-  author: nullable(shape({ name: nullable(str), url: nullable(str), iconUrl: nullable(str) })),
-  thumbnail: nullable(dceMedia),
-  images: list(dceMedia),
-  video: nullable(dceMedia),
-  footer: nullable(shape({ text: str, iconUrl: nullable(str) })),
-  fields: list(shape({ name: str, value: str, isInline: opt(bool) })),
-});
-const dceMessage = shape({
-  id: snowflake,
-  type: str,
-  timestamp: time,
-  timestampEdited: nullable(time),
-  isPinned: opt(bool),
-  content: str,
-  author: dceUser,
-  attachments: list(shape({ id: str, url: str, fileName: str, fileSizeBytes: opt(size) })),
-  embeds: list(dceEmbed),
-  stickers: list(shape({ id: str, name: str })),
-  reactions: list(shape({ emoji: shape({ id: nullable(str), name: str, isAnimated: opt(bool) }), count: size })),
-  mentions: list(dceUser),
-  reference: nullable(shape({ messageId: nullable(str), channelId: nullable(str), guildId: nullable(str) })),
-});
-const dceExport = shape({
-  guild: shape({ id: str, name: str }),
-  channel: shape({ id: snowflake, type: opt(str), categoryId: nullable(str), name: str }),
-  messages: (v) => Array.isArray(v) && v.every(dceMessage),
-});
-
 /** Checks every field the import reads, before it writes anything: a file failing here imports nothing. */
-export const isDceExport = (v: unknown): v is DceExport => dceExport(v);
+export function isDceExport(v: unknown, idPattern: RegExp = SNOWFLAKE_ID): v is DceExport {
+  const str: Check = (v) => typeof v === 'string';
+  const bool: Check = (v) => typeof v === 'boolean';
+  const size: Check = (v) => Number.isSafeInteger(v) && (v as number) >= 0;
+  const snowflake: Check = (v) => typeof v === 'string' && idPattern.test(v);
+  const time: Check = (v) => typeof v === 'string' && Number.isFinite(Date.parse(v));
+  const opt = (c: Check): Check => (v) => v === undefined || c(v);
+  const nullable = (c: Check): Check => (v) => v === undefined || v === null || c(v);
+  const list = (c: Check): Check => (v) => v === undefined || (Array.isArray(v) && v.every(c));
+  const shape = (fields: Record<string, Check>): Check => (v) =>
+    typeof v === 'object' && v !== null && !Array.isArray(v) && Object.entries(fields).every(([k, c]) => c((v as Record<string, unknown>)[k]));
+
+  const dceUser = shape({ id: str, name: str, nickname: nullable(str), isBot: opt(bool) });
+  const dceMedia = shape({ url: str, width: nullable(size), height: nullable(size) });
+  const dceEmbed = shape({
+    title: nullable(str),
+    url: nullable(str),
+    description: nullable(str),
+    color: nullable(str),
+    author: nullable(shape({ name: nullable(str), url: nullable(str), iconUrl: nullable(str) })),
+    thumbnail: nullable(dceMedia),
+    images: list(dceMedia),
+    video: nullable(dceMedia),
+    footer: nullable(shape({ text: str, iconUrl: nullable(str) })),
+    fields: list(shape({ name: str, value: str, isInline: opt(bool) })),
+  });
+  const dceMessage = shape({
+    id: snowflake,
+    type: str,
+    timestamp: time,
+    timestampEdited: nullable(time),
+    isPinned: opt(bool),
+    content: str,
+    author: dceUser,
+    attachments: list(shape({ id: str, url: str, fileName: str, fileSizeBytes: opt(size) })),
+    embeds: list(dceEmbed),
+    stickers: list(shape({ id: str, name: str })),
+    reactions: list(shape({ emoji: shape({ id: nullable(str), name: str, isAnimated: opt(bool) }), count: size })),
+    mentions: list(dceUser),
+    reference: nullable(shape({ messageId: nullable(str), channelId: nullable(str), guildId: nullable(str) })),
+  });
+  const dceExport = shape({
+    guild: shape({ id: str, name: str }),
+    channel: shape({ id: snowflake, type: opt(str), categoryId: nullable(str), name: str }),
+    messages: (v) => Array.isArray(v) && v.every(dceMessage),
+  });
+
+  return dceExport(v);
+}
