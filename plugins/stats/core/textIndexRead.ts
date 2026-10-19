@@ -1,7 +1,7 @@
 import type { ArchiveRead } from '@plugin-sdk/core';
 
 /** Prefix seeks bound lexical work by vocabulary and boundary days. */
-export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[], midpoint: number | null, choices?: string[]): Promise<any[]> {
+export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[], midpoint: number | null | undefined, choices?: string[]): Promise<any[]> {
   const utc = (ts: number) => Math.floor(ts / data.dayMs) * data.dayMs;
   const day = (ts: number) => new Date(ts).toISOString().slice(0, 'YYYY-MM-DD'.length);
   const excluded = [...new Set(cuts.map((ts) => day(utc(ts))))];
@@ -18,9 +18,9 @@ export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[]
     }
     return [...rows.values()];
   }
-  if (midpoint === null) {
+  if (midpoint == null) {
     const rows = await read<any>(data.indexSql.summary, bind);
-    if (data.section !== 'words') return rows;
+    if (data.section !== 'words' || midpoint === undefined) return rows;
     const edgeMonths = [...new Set(excluded.map((d) => d.slice(0, 'YYYY-MM'.length)))];
     const edges = { ...bind, firstMonth: first.slice(0, 'YYYY-MM'.length), lastMonth: last.slice(0, 'YYYY-MM'.length), edges: JSON.stringify(edgeMonths) };
     const longest = await read<any>(data.indexSql.longest, edges);

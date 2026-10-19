@@ -27,7 +27,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     for (const startTs of days) fragments = fragments.concat(await fold(null, read, signal, { ...config, mode: 'boundary', boundaryChannels, startTs, endTs: startTs + data.dayMs }));
     return fragments;
   };
-  let rows: any[] = indexRead ? await indexRead(read, data, cuts, null) : data.view ? await read(data.rowsSql,
+  let rows: any[] = indexRead ? await indexRead(read, data, cuts, undefined) : data.view ? await read(data.rowsSql,
     [...data.memberParams, JSON.stringify([...days].map(dayName))]) : [];
   rows = rows.concat(await liveRows());
   const lengths = rows.filter((r) => r.kind === 'lengths');

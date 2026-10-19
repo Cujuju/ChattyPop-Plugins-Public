@@ -46,7 +46,7 @@ export function defineStatsRollups(ctx: CoreContext): StatsRollups {
       columns: { day: 'TEXT', author_id: 'TEXT', date: 'TEXT', kind: 'TEXT', term: 'TEXT', n: 'INTEGER', first_ts: 'INTEGER', last_ts: 'INTEGER',
         seq: 'INTEGER', position: 'INTEGER', before_n: 'INTEGER', payload: 'TEXT' },
       key: ['kind', 'author_id', 'term', 'day', 'date'],
-      indexes: [['kind', 'author_id', 'day', 'date'], ['kind', 'author_id', 'term', 'n', 'seq', 'position', 'date']],
+      indexes: [['kind', 'author_id', 'day', 'date'], ['kind', 'day', 'date'], ['kind', 'author_id', 'term', 'n', 'seq', 'position', 'date']],
       data: { top: STATS_TOP, sql: `SELECT * FROM ${TEXT_SOURCE} WHERE channel_id = ? ORDER BY day` }, compute: textIndex,
     },
     dependsOn: ['messages', 'edits', 'deletes', 'names'], timeZoneSensitive: true,

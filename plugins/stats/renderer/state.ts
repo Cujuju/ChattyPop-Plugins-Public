@@ -111,6 +111,7 @@ export function createPosterList() {
 
 onAppEvent('privacy-changed', () => {
   setPrivacyChanges((n) => n + 1);
+  for (const resource of resources) resource.mutate(null);
   void refreshStats();
 });
 

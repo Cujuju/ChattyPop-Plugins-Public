@@ -8,7 +8,8 @@ const MAX_PUBLISHED_READS = 64; // Match the projection cache's bounded set of e
 export function analyticsProgress(rollups: StatsRollups) {
   const states = Object.values(rollups).map((r) => r.status());
   const total = states.reduce((n, s) => n + s.total, 0), dirty = states.reduce((n, s) => n + s.dirty, 0);
-  return { building: states.some((s) => s.building), dirty, total, done: Math.max(0, total - dirty), error: states.find((s) => s.error)?.error ?? null };
+  const done = states.reduce((n, s) => n + (s.building && !s.dirty ? 0 : Math.max(0, s.total - s.dirty)), 0);
+  return { building: states.some((s) => s.building), dirty, total, done, error: states.find((s) => s.error)?.error ?? null };
 }
 
 /** Never start an archive read while building; retain only results safe under current privacy and zone state. */
