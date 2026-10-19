@@ -1,0 +1,152 @@
+{
+  "beforeHost": "7abceb754247e973eddd5bbdf997817130db75cf",
+  "afterHost": "fe300068f11bee4edd62d0b0b28f9296bd1b645a",
+  "tagsCommit": "648af2f26848e860fc1cc0fe48c7be0de0233be4",
+  "node": "v24.21.0",
+  "platform": "win32",
+  "fixture": {
+    "rows": 400000,
+    "textMessages": 384000,
+    "linkedMessages": 64000,
+    "days": 390,
+    "authors": 30,
+    "vocabulary": 40000,
+    "meanCharacters": 83.97233,
+    "ingestion": "reverse timestamp",
+    "encrypted": false
+  },
+  "tags": {
+    "before": {
+      "medianWallMs": 2.986700000001292,
+      "medianCoreMs": 2.9792000000015832,
+      "samples": [{"wallMs":3.7686000000030617,"coreMs":3.7546000000002095},{"wallMs":3.6987000000008265,"coreMs":3.688300000001618},{"wallMs":2.986700000001292,"coreMs":2.9792000000015832},{"wallMs":2.1057999999975436,"coreMs":2.1006999999954132},{"wallMs":2.0265999999974156,"coreMs":2.0225999999966007}]
+    },
+    "after": {
+      "medianWallMs": 21.603599999994913,
+      "medianCoreMs": 0.6923000000024331,
+      "samples": [{"wallMs":22.447699999996985,"coreMs":0.6829999999972642},{"wallMs":21.603599999994913,"coreMs":0.6947000000000116},{"wallMs":23.434000000001106,"coreMs":0.6923000000024331},{"wallMs":20.275699999998324,"coreMs":0.6723999999958323},{"wallMs":20.00329999999667,"coreMs":0.8022999999957392}]
+    },
+    "coldWallMs": 193.561099999999,
+    "beforePlan": [
+      {
+        "id": 10,
+        "parent": 0,
+        "notused": 62,
+        "detail": "SEARCH m USING INDEX messages_channel_ts (channel_id=?)"
+      },
+      {
+        "id": 17,
+        "parent": 0,
+        "notused": 62,
+        "detail": "SEARCH mt USING INDEX sqlite_autoindex_p_tags_message_tags_1 (message_id=?)"
+      },
+      {
+        "id": 47,
+        "parent": 0,
+        "notused": 0,
+        "detail": "USE TEMP B-TREE FOR DISTINCT"
+      }
+    ],
+    "plan": [
+      {
+        "id": 9,
+        "parent": 0,
+        "notused": 62,
+        "detail": "SEARCH m USING INDEX messages_channel_ts (channel_id=?)"
+      },
+      {
+        "id": 16,
+        "parent": 0,
+        "notused": 56,
+        "detail": "SEARCH mt EXISTS USING COVERING INDEX p_tags_message_tags_message_state (message_id=? AND state=?)"
+      }
+    ]
+  },
+  "directory": {
+    "before": {
+      "medianWallMs": 759.2180000000008,
+      "medianCoreMs": 759.2070999999996,
+      "samples": [{"wallMs":732.9122999999963,"coreMs":732.9027999999962},{"wallMs":694.2628999999943,"coreMs":694.2476999999999},{"wallMs":759.2180000000008,"coreMs":759.2070999999996},{"wallMs":811.9291999999987,"coreMs":811.9248000000007},{"wallMs":761.5302000000011,"coreMs":761.5261000000028}]
+    },
+    "after": {
+      "medianWallMs": 723.3090999999986,
+      "medianCoreMs": 0.697199999995064,
+      "samples": [{"wallMs":719.8911000000007,"coreMs":0.9334000000017113},{"wallMs":753.271799999995,"coreMs":1.3096999999979744},{"wallMs":723.3090999999986,"coreMs":0.6457999999984168},{"wallMs":719.6991999999955,"coreMs":0.6929000000018277},{"wallMs":746.2232999999978,"coreMs":0.697199999995064}]
+    }
+  },
+  "unjudged": {
+    "before": {
+      "medianWallMs": 69.43379999999888,
+      "medianCoreMs": 69.42790000000241,
+      "samples": [{"wallMs":63.72750000000087,"coreMs":63.71349999999802},{"wallMs":78.26759999999922,"coreMs":78.25860000000102},{"wallMs":69.43379999999888,"coreMs":69.42790000000241},{"wallMs":57.68419999999605,"coreMs":57.67689999999857},{"wallMs":71.9262000000017,"coreMs":71.91949999999633}]
+    },
+    "after": {
+      "medianWallMs": 5.672899999997753,
+      "medianCoreMs": 0.6140999999988708,
+      "samples": [{"wallMs":39.89860000000044,"coreMs":1.2318999999988591},{"wallMs":5.672899999997753,"coreMs":0.6899999999950523},{"wallMs":4.492899999997462,"coreMs":0.4763999999995576},{"wallMs":5.083099999996193,"coreMs":0.5403999999980442},{"wallMs":7.763199999993958,"coreMs":0.6140999999988708}]
+    },
+    "plan": [
+      {
+        "id": 8,
+        "parent": 0,
+        "notused": 51,
+        "detail": "SEARCH l USING INDEX conversation_links_kind_ts (kind=? AND ts>?)"
+      },
+      {
+        "id": 23,
+        "parent": 0,
+        "notused": 0,
+        "detail": "LIST SUBQUERY 1"
+      },
+      {
+        "id": 26,
+        "parent": 23,
+        "notused": 0,
+        "detail": "SCAN json_each VIRTUAL TABLE INDEX 1:"
+      },
+      {
+        "id": 35,
+        "parent": 23,
+        "notused": 0,
+        "detail": "CREATE BLOOM FILTER"
+      },
+      {
+        "id": 52,
+        "parent": 0,
+        "notused": 0,
+        "detail": "CORRELATED SCALAR SUBQUERY 2"
+      },
+      {
+        "id": 56,
+        "parent": 52,
+        "notused": 39,
+        "detail": "SEARCH k USING PRIMARY KEY (message_id=?)"
+      },
+      {
+        "id": 64,
+        "parent": 0,
+        "notused": 45,
+        "detail": "SEARCH j USING PRIMARY KEY (message_id=?) LEFT-JOIN"
+      }
+    ]
+  },
+  "messagePage": {
+    "medianWallMs": 2.5289000000047963,
+    "medianCoreMs": 2.524600000004284,
+    "samples": [{"wallMs":5.634200000000419,"coreMs":5.628599999996368},{"wallMs":2.5289000000047963,"coreMs":2.524600000004284},{"wallMs":2.3263000000006286,"coreMs":2.3237999999983003},{"wallMs":2.845000000001164,"coreMs":2.842899999996007},{"wallMs":1.9790000000066357,"coreMs":1.9760000000023865}]
+  },
+  "rollupPublication": {
+    "before": {
+      "rowsPerPartition": 1000,
+      "medianMs": 9.340199999998731,
+      "maxMs": 17.69789999999921,
+      "samples": [8.484299999996438,8.71150000000489,8.861799999998766,9.197800000001735,9.239899999993213,9.340199999998731,9.369800000000396,9.424299999998766,10.480999999999767,17.69789999999921]
+    },
+    "after": {
+      "rowsPerPartition": 1000,
+      "medianMs": 8.276300000004994,
+      "maxMs": 15.62489999999525,
+      "samples": [6.66830000000482,6.9997999999977765,7.216599999999744,7.349499999996624,7.578300000001036,8.276300000004994,8.341499999994994,9.604099999996834,9.678700000004028,15.62489999999525]
+    }
+  }
+}
