@@ -16,12 +16,12 @@ export default defineCorePlugin(plugin, (ctx) => {
       return { building: a.building || b.building, dirty: a.dirty + b.dirty, total: a.total + b.total, error: a.error ?? b.error };
     },
     rebuildRollups: (channelIds) => { for (const rollup of Object.values(rollups)) rollup.rebuild(channelIds ? { channelIds } : undefined); },
-    page: (q) => attachmentPage(read, ctx.archive.messages, q),
+    page: (q) => attachmentPage(read, ctx.archive.read.messages, q),
     totals: (f) => attachmentTotals(read, f, rollups),
     people: (q) => attachmentPeople(read, q, rollups),
     places: (f) => attachmentPlaces(read, f, rollups),
     months: (f, timeZone) => attachmentMonths(read, f, timeZone, rollups),
-    sharedBy: (q) => personFiles(read, ctx.archive.messages, q),
+    sharedBy: (q) => personFiles(read, ctx.archive.read.messages, q),
     postings: (sha) => attachmentPostings(read, sha),
     breakdown: (f, by) => attachmentBreakdown(read, f, by, rollups),
   });

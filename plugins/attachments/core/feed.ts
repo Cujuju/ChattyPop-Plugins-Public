@@ -9,7 +9,7 @@ type AttachmentRow = Omit<AttachmentItem, 'compressed' | 'animated' | 'spoiler' 
   compressedAt: number | null;
   removedAt: number | null;
 };
-type MessageReader = (ids: string[]) => ArchiveMessage[];
+type MessageReader = (ids: string[]) => ArchiveMessage[] | Promise<ArchiveMessage[]>;
 
 /** The column an order sorts by ahead of time and id; a date order is time alone. */
 const SORT_COLUMN: Record<AttachmentSortKey, string | null> = { date: null, size: SIZE_KEY, name: 'a.filename COLLATE NOCASE', kind: 'a.kind' };
@@ -56,7 +56,7 @@ export async function attachmentRows(read: ArchiveRead, q: AttachmentPageQuery):
 export async function attachmentPage(read: ArchiveRead, messagesByIds: MessageReader, q: AttachmentPageQuery): Promise<AttachmentItem[]> {
   const rows = (await attachmentRows(read, q));
   const textMatches = (await attachmentTextMatches(read, rows, q.name));
-  const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
+  const messages = new Map((await messagesByIds([...new Set(rows.map((r) => r.messageId))])).map((m) => [m.id, m]));
   return rows.map(({ compressedAt, removedAt, ...row }) => {
     const message = messages.get(row.messageId) ?? null;
     const a = message?.attachments.find((a) => a.id === row.id);
