@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
@@ -11,7 +12,7 @@ const uses = (word: string, n: number) => Array(n).fill(word).join(' ');
 function start(messages: SeedArchive['messages']) {
   const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }, { id: 't1', parentId: 'c1' }, { id: 'c2' }, { id: 'hidden', hidden: true }], messages } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics word trends', () => {

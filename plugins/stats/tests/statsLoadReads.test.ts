@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { expect, it, onTestFinished } from 'vitest';
 import { defineCorePlugin, type ArchiveRead } from '@plugin-sdk/core';
 import { testPlugin } from '@plugin-sdk/core/testing';
@@ -11,7 +12,7 @@ it('admits live lexical work through the archive worker', async () => {
   } }));
   const t = testPlugin(wrapped, { archive: { channels: [{ id: 'c1' }], messages: [{ channelId: 'c1', ts: 1, content: 'good pizza' }] } });
   onTestFinished(() => t.dispose());
-  const c = t.client('renderer');
+  const c = analyticsClient(t);
   expect((await c.wordStats({ scope: 'all', channelId: null, sinceTs: null })).totalWords).toBe(2);
   expect((await c.sentimentStats({ scope: 'all', channelId: null, sinceTs: null })).classes.positive).toBe(1);
   expect(folds.length).toBeGreaterThan(0);

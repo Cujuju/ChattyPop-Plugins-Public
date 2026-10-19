@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
@@ -13,7 +14,7 @@ const RUN_STEP = CONVERSATION_GAP_MS * 3;
 function start(messages: SeedArchive['messages']) {
   const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }, { id: 't1', parentId: 'c1' }, { id: 'c2' }, { id: 'hidden', hidden: true }], messages } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 const run = (opener: string, reply: number, index: number, channelId = 'c1') => [
   { channelId, ts: index * RUN_STEP, content: '', authorId: opener },

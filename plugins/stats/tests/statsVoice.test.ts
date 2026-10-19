@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -9,7 +10,7 @@ const at = (day: number) => new Date(2026, 0, day).getTime();
 function start(messages: SeedArchive['messages']) {
   const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }, { id: 't1', parentId: 'c1' }, { id: 'c2' }, { id: 'hidden', hidden: true }], messages } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics share of voice', () => {

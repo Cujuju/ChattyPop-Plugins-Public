@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY, MS_PER_MIN } from '@plugin-sdk/shared';
@@ -22,7 +23,7 @@ const POSTER_LIMIT = 200; // The complete fixture fits within the supported pick
 it.each([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])('matches a full worker fold after every prefix of arrival order %j', async (...order) => {
   const t = testPlugin(core, { archive: { channels: [{ id: CHANNEL }] } });
   onTestFinished(() => t.dispose());
-  const c = t.client('renderer');
+  const c = analyticsClient(t);
   const history = [
     { channelId: CHANNEL, ts: START, authorId: 'a', content: 'good café café <:first:12345>' },
     { channelId: CHANNEL, ts: START + MS_PER_DAY, authorId: 'b', content: 'bad café café <:second:12345>' },
@@ -42,7 +43,7 @@ it.each([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])('mat
 it('incremental rollups equal rebuilds across reverse arrivals, boundaries, edits, deletes, privacy and restart', async () => {
   let t = testPlugin(core, { archive: { channels: [{ id: CHANNEL }, { id: HIDDEN, hidden: true }] } });
   onTestFinished(async () => { vi.restoreAllMocks(); await t.dispose(); });
-  let c = t.client('renderer');
+  let c = analyticsClient(t);
   const settle = async () => {
     await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
   };
@@ -78,13 +79,13 @@ it('incremental rollups equal rebuilds across reverse arrivals, boundaries, edit
   const incremental = await c.wordStats(ALL);
   await c.rebuildRollups(); await settle();
   expect(await c.wordStats(ALL)).toEqual(incremental); await same();
-  t = t.restart(); c = t.client('renderer'); await settle(); await same();
+  t = t.restart(); c = analyticsClient(t); await settle(); await same();
 });
 
 it('stores cross-midnight runs on their opener day and rebuilds split and merged runs', async () => {
   const t = testPlugin(core, { archive: { channels: [{ id: CHANNEL }] } });
   onTestFinished(() => t.dispose());
-  const c = t.client('renderer');
+  const c = analyticsClient(t);
   const settle = async () => { await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false); };
   const step = MS_PER_MIN;
   const ids = t.archive.arrive(Array.from({ length: 40 }, (_, n) => ({ channelId: CHANNEL, ts: START + MS_PER_DAY - step + n * step, authorId: n % 2 ? 'b' : 'a', content: 'pizza' })).reverse());
@@ -107,7 +108,7 @@ it('rebuilds local calendars after a zone change without reusing old-zone read h
     { channelId: CHANNEL, ts: START + MS_PER_MIN, content: 'bad pizza' },
   ] } });
   onTestFinished(async () => { await t.dispose(); vi.restoreAllMocks(); });
-  const c = t.client('renderer');
+  const c = analyticsClient(t);
   const settle = async () => {
     await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
   };
@@ -125,7 +126,7 @@ it('invalidates opener days when deleting and restoring a cross-midnight bridge'
   const MINUTES_BEFORE_MIDNIGHT = 30;
   const t = testPlugin(core, { archive: { channels: [{ id: CHANNEL }] } });
   onTestFinished(() => t.dispose());
-  const c = t.client('renderer');
+  const c = analyticsClient(t);
   const first = START + MS_PER_DAY - MINUTES_BEFORE_MIDNIGHT * MS_PER_MIN;
   const messages = [0, 1, 2].map((n) => ({ channelId: CHANNEL, ts: first + n * GAP_STEP_MINUTES * MS_PER_MIN, authorId: n % 2 ? 'b' : 'a', content: 'pizza' }));
   const ids = t.archive.arrive(messages);
@@ -149,7 +150,7 @@ it('folds boundary messages whose channel metadata is absent', async () => {
   onTestFinished(() => t.dispose());
   const [id] = t.archive.arrive([{ channelId: CHANNEL, ts: START + MS_PER_MIN, content: 'good pizza' }]);
   t.db.prepare('UPDATE messages SET channel_id = ? WHERE id = ?').run('missing', id);
-  const c = t.client('renderer');
+  const c = analyticsClient(t);
   await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
   const query = { ...ALL, sinceTs: START + 1 };
   expect((await c.activityStats(query)).messages).toBe(1);

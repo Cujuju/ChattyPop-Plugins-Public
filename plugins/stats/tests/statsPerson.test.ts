@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { MS_PER_MIN } from '@plugin-sdk/shared';
@@ -13,7 +14,7 @@ const messages = (authorId: string, day: number, count = 1) => Array.from({ leng
 function start(items: SeedArchive['messages']) {
   const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }], messages: items } });
   onTestFinished(() => t.dispose());
-  return t.client('renderer');
+  return analyticsClient(t);
 }
 
 describe('Analytics person comparisons', () => {

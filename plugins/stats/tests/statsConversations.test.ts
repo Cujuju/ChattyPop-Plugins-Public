@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
@@ -28,7 +29,7 @@ function start() {
     { channelId: 'hidden', ts: 1, content: '', ...BOB },
   ] } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics conversation runs', () => {
@@ -80,7 +81,7 @@ describe('Analytics conversation runs', () => {
       channelId: 'c1', ts, content: '', ...author,
     })) } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').conversationStats(CHANNEL);
+    const stats = await analyticsClient(t).conversationStats(CHANNEL);
     expect([stats.messages, stats.conversations, stats.pairedConversations]).toEqual([authors.length, 1, paired]);
     expect(stats.pairs.map((pair) => [pair.first.userId, pair.second.userId, pair.exchanges])).toEqual(pairs);
     expect(stats.people.map((person) => [person.userId, person.exchanges])).toEqual(people);
@@ -95,7 +96,7 @@ describe('Analytics conversation runs', () => {
       { channelId: 'c1', ts: gap, content: '', ...BOB },
     ] } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').conversationStats(CHANNEL);
+    const stats = await analyticsClient(t).conversationStats(CHANNEL);
     expect([stats.conversations, stats.pairedConversations]).toEqual([runs, paired]);
     expect(stats.pairs.map((pair) => pair.exchanges)).toEqual(exchanges);
   });
@@ -106,7 +107,7 @@ describe('Analytics conversation runs', () => {
       { channelId: 'c2', ts: 1, content: '', ...BOB },
     ] } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').conversationStats({ scope: 'all', channelId: null, sinceTs: null });
+    const stats = await analyticsClient(t).conversationStats({ scope: 'all', channelId: null, sinceTs: null });
     expect([stats.conversations, stats.pairedConversations, stats.pairs, stats.people]).toEqual([2, 0, [], []]);
   });
 
@@ -115,7 +116,7 @@ describe('Analytics conversation runs', () => {
       channelId: 'c1', ts: 0, content: '', ...(index % 2 ? BOB : ALICE),
     })) } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').conversationStats(CHANNEL);
+    const stats = await analyticsClient(t).conversationStats(CHANNEL);
     expect([stats.conversations, stats.pairedConversations, stats.pairs[0]!.exchanges]).toEqual([1, 1, SCAN_BATCH_SIZE]);
     expect(stats.people.map((person) => person.exchanges)).toEqual([SCAN_BATCH_SIZE, SCAN_BATCH_SIZE]);
   });
@@ -127,7 +128,7 @@ describe('Analytics conversation runs', () => {
       { channelId: 'c1', ts: index * 2 + 1, content: '', ...person(`partner-${index}`, `Partner ${index}`) },
     ]).flat() } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').conversationStats(CHANNEL);
+    const stats = await analyticsClient(t).conversationStats(CHANNEL);
     expect(stats.pairs).toHaveLength(CONVERSATION_PAIRS);
     expect(stats.people[0]!.exchanges).toBe(partnerCount * 2 - 1);
     expect(stats.pairs.every((pair) => pair.exchanges === 2)).toBe(true);

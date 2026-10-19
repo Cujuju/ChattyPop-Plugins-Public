@@ -6,6 +6,7 @@ import { wordStats } from '../core/words';
 import { projectCounts } from '../core/countRead';
 import { cachedStats, MAX_CACHE_BYTES } from '../core/readCache';
 import type { StatsRollups } from '../core/rollups';
+import { AnalyticsPending } from '../core/pending';
 
 const ROWS = 200_000; // Exceeds the native argument limit for archive-sized summary and boundary arrays.
 const ALL = { scope: 'all', channelId: null, sinceTs: null } as const;
@@ -48,7 +49,7 @@ it('does not retain a result larger than the cache byte budget', async () => {
   expect(load).toHaveBeenCalledTimes(2);
 });
 
-it('restarts a changed count snapshot with the current time zone', async () => {
+it('defers a superseded count snapshot and uses the current time zone on retry', async () => {
   let zone = 'UTC', snapshot = 'first';
   const original = Intl.DateTimeFormat.prototype.resolvedOptions;
   const spy = vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(function (this: Intl.DateTimeFormat) {
@@ -62,6 +63,7 @@ it('restarts a changed count snapshot with the current time zone', async () => {
     return [{ zone: data.timeZone }] as any;
   };
   const rollups = { counts: { snapshot: () => snapshot }, links: { snapshot: () => snapshot } } as unknown as StatsRollups;
+  await expect(projectCounts(read, ALL, 'peopleStats', rollups)).rejects.toBeInstanceOf(AnalyticsPending);
   expect(await projectCounts(read, ALL, 'peopleStats', rollups)).toEqual({ zone: 'America/Los_Angeles' });
   expect(zones).toEqual(['UTC', 'America/Los_Angeles']);
 });

@@ -6,6 +6,7 @@ import { testPlugin, type SeedMessage } from '@plugin-sdk/core/testing';
 import core from '../core';
 import { plugin } from '../shared';
 import { archiveTools } from '../core/aiTools';
+import { analyticsClient } from './analyticsClient';
 
 const START = Date.UTC(2026, 8, 1);
 const scope: ArchiveToolScope = { channelIds: ['c1'], since: START + 1 * MS_PER_MIN, until: START + 2 * MS_PER_MIN };
@@ -50,6 +51,7 @@ describe('Stats archive words', () => {
     expect(read.lines.every((line) => line.messageId === undefined && !line.text.includes('outside'))).toBe(true);
     expect(read.lines.some((line) => /^(the|and):/.test(line.text))).toBe(false);
     expect(read.readChannels).toEqual(['c1']);
+    await analyticsClient(t).postersPage({ scope: 'all', channelId: null, sinceTs: null, offset: 0, limit: 200 });
     expect((await consumer.ai.tools.run('stats_words', {}, scope, new AbortController().signal)).lines).toEqual(read.lines);
     t.archive.setPrivacyMode(true);
     expect((await run('words', {}, { ...unbounded, channelIds: ['hidden'] })).lines.some((line) => line.text.includes('outsidehidden'))).toBe(false);

@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -14,7 +15,7 @@ function start(messages: SeedArchive['messages']) {
     channels: [{ id: 'c1' }, { id: 't1', parentId: 'c1' }, { id: 'c2' }, { id: 'hidden', hidden: true }], messages,
   } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics streaks and silences', () => {

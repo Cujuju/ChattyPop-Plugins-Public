@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
@@ -13,7 +14,7 @@ const messages = (authorId: string, day: number, count = 1, channelId = 'c1') =>
 function start(items: SeedArchive['messages']) {
   const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }, { id: 't1', parentId: 'c1' }, { id: 'c2' }, { id: 'hidden', hidden: true }], messages: items } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics people history', () => {

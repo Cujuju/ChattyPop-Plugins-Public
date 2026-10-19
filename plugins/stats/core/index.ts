@@ -1,5 +1,6 @@
 // The Analytics plugin's core side: counts for the panel.
 import { defineCorePlugin } from '@plugin-sdk/core';
+import { analyticsProgress, publishedReads } from './publishedReads';
 import { plugin } from '../shared';
 import { activityStats, postersPage } from './stats';
 import { defineStatsRollups } from './rollups';
@@ -14,25 +15,22 @@ import { peopleStats, personHistory } from './personHistory';
 
 export default defineCorePlugin(plugin, (ctx) => {
   const rollups = defineStatsRollups(ctx);
+  const publish = publishedReads(rollups);
   ctx.ai.tools.provide(archiveTools(ctx.storage.read, rollups));
   ctx.channels.serve({
-    rollupStatus: () => {
-      const states = Object.values(rollups).map((r) => r.status());
-      return { building: states.some((s) => s.building), dirty: states.reduce((n, s) => n + s.dirty, 0),
-        total: states.reduce((n, s) => n + s.total, 0), error: states.find((s) => s.error)?.error ?? null };
-    },
+    rollupStatus: () => analyticsProgress(rollups),
     rebuildRollups: (channelIds) => { for (const r of Object.values(rollups)) r.rebuild(channelIds ? { channelIds } : undefined); },
-    activityStats: (q) => activityStats(ctx.storage.read, q, rollups),
-    postersPage: (q) => postersPage(ctx.storage.read, q, rollups),
-    personStreaks: (q) => personStreaks(ctx.storage.read, q, rollups),
-    personHistory: (q) => personHistory(ctx.storage.read, q, rollups),
-    peopleStats: (q) => peopleStats(ctx.storage.read, q, rollups),
-    voiceStats: (q) => voiceStats(ctx.storage.read, q, rollups),
-    repeatedLinks: (q) => repeatedLinks(ctx.storage.read, q, rollups),
-    emojiStats: async (q) => emojiStats(ctx.storage.read, q, undefined, rollups),
-    wordStats: async (q) => wordStats(ctx.storage.read, q, undefined, rollups),
-    sentimentStats: async (q) => sentimentStats(ctx.storage.read, q, undefined, rollups),
-    conversationStats: async (q) => conversationStats(ctx.storage.read, q, rollups),
+    activityStats: (q) => publish('activityStats', q, () => activityStats(ctx.storage.read, q, rollups)),
+    postersPage: (q) => publish('postersPage', q, () => postersPage(ctx.storage.read, q, rollups)),
+    personStreaks: (q) => publish('personStreaks', q, () => personStreaks(ctx.storage.read, q, rollups)),
+    personHistory: (q) => publish('personHistory', q, () => personHistory(ctx.storage.read, q, rollups)),
+    peopleStats: (q) => publish('peopleStats', q, () => peopleStats(ctx.storage.read, q, rollups)),
+    voiceStats: (q) => publish('voiceStats', q, () => voiceStats(ctx.storage.read, q, rollups)),
+    repeatedLinks: (q) => publish('repeatedLinks', q, () => repeatedLinks(ctx.storage.read, q, rollups)),
+    emojiStats: (q) => publish('emojiStats', q, () => emojiStats(ctx.storage.read, q, undefined, rollups)),
+    wordStats: (q) => publish('wordStats', q, () => wordStats(ctx.storage.read, q, undefined, rollups)),
+    sentimentStats: (q) => publish('sentimentStats', q, () => sentimentStats(ctx.storage.read, q, undefined, rollups)),
+    conversationStats: (q) => publish('conversationStats', q, () => conversationStats(ctx.storage.read, q, rollups)),
   });
 });
 import { archiveTools } from './aiTools';

@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -14,7 +15,7 @@ function start() {
     { channelId: 'hidden', ts: 4, content: '<:secret:789> 😀' },
   ] } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics emoji', () => {

@@ -1,6 +1,8 @@
 // #85 Analytics: who posts most, when, and in which channels, for a channel, a server or everything.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
 import { STATS_RANGES, STATS_SECTIONS, isKey, normalizeStatsPick, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPick, type StatsPoster, type StatsRange, type StatsSection } from './types';
+import type { AnalyticsRead } from './readResult';
+export type { AnalyticsRead } from './readResult';
 import type { EmojiStats, WordStats, SentimentStats } from './text';
 import type { ConversationStats } from './conversations';
 import type { PersonStreak } from './streaks';
@@ -23,17 +25,17 @@ export const STATS_PANEL = 'stats' as const;
 export interface StatsCoreCalls {
   rollupStatus(): RollupStatus;
   rebuildRollups(channelIds?: string[]): void;
-  activityStats(q: ActivityQuery): ActivityStats;
-  postersPage(q: PostersQuery): StatsPoster[];
-  personStreaks(q: ActivityQuery): PersonStreak[];
-  personHistory(q: ActivityQuery): PersonHistory;
-  peopleStats(q: ActivityQuery): PeopleStats;
-  voiceStats(q: ActivityQuery): VoiceStats;
-  repeatedLinks(q: ActivityQuery): RepeatedLinksStats;
-  emojiStats(q: ActivityQuery): Promise<EmojiStats>;
-  wordStats(q: ActivityQuery): Promise<WordStats>;
-  sentimentStats(q: ActivityQuery): Promise<SentimentStats>;
-  conversationStats(q: ActivityQuery): Promise<ConversationStats>;
+  activityStats(q: ActivityQuery): Promise<AnalyticsRead<ActivityStats>>;
+  postersPage(q: PostersQuery): Promise<AnalyticsRead<StatsPoster[]>>;
+  personStreaks(q: ActivityQuery): Promise<AnalyticsRead<PersonStreak[]>>;
+  personHistory(q: ActivityQuery): Promise<AnalyticsRead<PersonHistory>>;
+  peopleStats(q: ActivityQuery): Promise<AnalyticsRead<PeopleStats>>;
+  voiceStats(q: ActivityQuery): Promise<AnalyticsRead<VoiceStats>>;
+  repeatedLinks(q: ActivityQuery): Promise<AnalyticsRead<RepeatedLinksStats>>;
+  emojiStats(q: ActivityQuery): Promise<AnalyticsRead<EmojiStats>>;
+  wordStats(q: ActivityQuery): Promise<AnalyticsRead<WordStats>>;
+  sentimentStats(q: ActivityQuery): Promise<AnalyticsRead<SentimentStats>>;
+  conversationStats(q: ActivityQuery): Promise<AnalyticsRead<ConversationStats>>;
 }
 
 export const plugin = definePlugin({

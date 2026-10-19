@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -23,7 +24,7 @@ function start() {
   t.db.prepare('UPDATE channels SET guild_id = NULL WHERE id = ?').run('dm');
   t.archive.setPrivacyMode(true);
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics author scope', () => {

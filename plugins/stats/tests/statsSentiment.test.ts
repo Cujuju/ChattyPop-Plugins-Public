@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
@@ -43,7 +44,7 @@ function start() {
     { channelId: 'hidden', ts: START, content: 'bad' },
   ] } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics sentiment', () => {

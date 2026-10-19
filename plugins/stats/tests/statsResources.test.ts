@@ -17,7 +17,8 @@ vi.mock('solid-js', () => { const client = 'solid-js/dist/solid.js'; return impo
 vi.mock('@plugin-sdk/renderer/clients', () => ({
   coreClient: () => new Proxy({}, { get: (_target, member: string) => async (query: ActivityQuery) => {
     env.calls.push({ member, query });
-    return member === 'postersPage' ? env.pickerIds.map((userId) => ({ userId, name: userId, avatar: null, count: 1 })) : null;
+    return { data: member === 'postersPage' ? env.pickerIds.map((userId) => ({ userId, name: userId, avatar: null, count: 1 })) : null,
+      building: false, done: 1, total: 1 };
   } }),
 }));
 vi.mock('@plugin-sdk/renderer/archiveEvents', () => ({ onArchiveChange: () => () => {} }));

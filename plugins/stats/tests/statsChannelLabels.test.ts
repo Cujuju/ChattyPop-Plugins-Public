@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -31,7 +32,7 @@ describe('Analytics channel labels', () => {
       messages: [{ channelId: 'c1', ts: 0, content: 'hello' }, { channelId: 'c2', ts: 0, content: 'hello' }],
     } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').activityStats({ scope: 'all', channelId: null, sinceTs: null });
+    const stats = await analyticsClient(t).activityStats({ scope: 'all', channelId: null, sinceTs: null });
     expect(stats.channels.map((channel) => statsChannelLabel(channel, stats.query.scope))).toEqual(['#general · Home', '#general · Away']);
   });
 

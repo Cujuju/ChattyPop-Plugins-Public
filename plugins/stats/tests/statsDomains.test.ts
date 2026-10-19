@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -10,7 +11,7 @@ describe('Analytics site tree', () => {
       { channelId: 'c1', ts: 0, content: 'https://bbc.co.uk/a https://news.bbc.co.uk/a https://news.bbc.co.uk/b' },
     ] } });
     onTestFinished(() => t.dispose());
-    const s = await t.client('renderer').activityStats({ scope: 'all', channelId: null, sinceTs: null });
+    const s = await analyticsClient(t).activityStats({ scope: 'all', channelId: null, sinceTs: null });
     expect(s.domains).toEqual([
       { domain: 'bbc.co.uk', count: 3, hosts: [{ host: 'news.bbc.co.uk', count: 2 }, { host: 'bbc.co.uk', count: 1 }] },
       { domain: 'youtube.com', count: 2, hosts: [{ host: 'youtube.com', count: 2 }] },

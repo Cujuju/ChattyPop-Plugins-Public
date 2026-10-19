@@ -6,6 +6,8 @@ import { projectCounts } from './countRead';
 import type { StatsRollups } from './rollups';
 import type { StatsPoster } from '../shared/types';
 import type { ChannelListQuery } from './query';
+import { analyticsProgress } from './publishedReads';
+import { AnalyticsPending } from './pending';
 
 /** Default rankings contain fifteen words; thirty bounds rankings below the host line budget after sentiment. */
 const WORDS_DEFAULT = 15;
@@ -25,6 +27,9 @@ export function archiveTools(read: ArchiveRead, rollups?: StatsRollups): Archive
       signal.throwIfAborted();
       const args = parseToolArgs<{ author?: string; limit?: number }>(raw, fields);
       if (!scope.channelIds.length) return toolResult([], undefined, []);
+      const pending = () => toolResult([{ text: 'Analytics is building. Retry after its rollups finish.' }], undefined, scope.channelIds);
+      if (rollups && analyticsProgress(rollups).building) return pending();
+      try {
       const query: ChannelListQuery = { scope: 'channels', channelIds: scope.channelIds, sinceTs: scope.since, untilTs: scope.until };
       // Resolve names only from messages inside the caller's scope and window.
       const candidates = args.author === undefined ? [] : await projectCounts<(StatsPoster & { aliases: string[] })[]>(read, query, 'identityCandidates', rollups, signal);
@@ -43,6 +48,7 @@ export function archiveTools(read: ArchiveRead, rollups?: StatsRollups): Archive
       ];
       // Every scoped channel contributes to word and sentiment totals, including zero counts.
       return toolResult(lines, undefined, scope.channelIds, words.words.length > limit);
+      } catch (e) { if (e instanceof AnalyticsPending) return pending(); throw e; }
     },
   }];
 }

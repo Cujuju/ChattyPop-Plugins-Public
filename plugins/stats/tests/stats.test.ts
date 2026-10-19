@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 // The Analytics plugin's counts, as a desktop window asks its core side for them over a seeded archive.
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
@@ -30,7 +31,7 @@ function start() {
     },
   });
   onTestFinished(() => t.dispose());
-  return { t, stats: (q: ActivityQuery) => t.client('renderer').activityStats(q) };
+  return { t, stats: (q: ActivityQuery) => analyticsClient(t).activityStats(q) };
 }
 
 describe('activity stats', () => {
@@ -81,7 +82,7 @@ describe('activity stats', () => {
 function analytics() {
   const t = testPlugin(statsCore, { archive: analyticsArchive() });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 const CHANNEL: ActivityQuery = { scope: 'channel', channelId: 'c1', sinceTs: null };

@@ -1,3 +1,4 @@
+import { analyticsResource } from './readResult';
 // #85 Analytics panel: what it counts (the rail's place, range and person) and the counts from core.
 import { createEffect, createMemo, createSignal, on } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
@@ -59,32 +60,33 @@ const queryOf = (c: Choices): ActivityQuery => {
 
 const refreshOn = { kinds: ['messages', 'edits', 'deletes', 'attachments', 'links', 'names', 'channels'] as const, shown: () => Boolean(choices()) };
 
-export const personOptions = pluginResource(plugin, 'postersPage', () => {
+export const personOptions = analyticsResource(pluginResource(plugin, 'postersPage', () => {
   const c = choices();
   return c && [{ ...queryOf(c), offset: 0, limit: POSTERS_PAGE_MAX }];
-}, null, { refreshOn });
+}, null, { refreshOn }));
 containedRoot(() => createEffect(() => {
   const posters = personOptions();
   if (!personOptions.loading && !personOptions.failure && posters) setStatsAuthor((authorId) => listedPerson(authorId, posters));
 }));
 
-export const stats = pluginResource(plugin, 'activityStats', () => {
+export const stats = analyticsResource(pluginResource(plugin, 'activityStats', () => {
   const c = choices();
   return c && [queryOf({ ...c, authorId: statsAuthor() })];
-}, null, { refreshOn });
+}, null, { refreshOn }));
 const sectionQuery = (section: StatsSection): [ActivityQuery] | undefined => {
   if (statsSection() !== section) return undefined;
   const c = choices();
   return c && [queryOf({ ...c, authorId: statsAuthor() })];
 };
 
-export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null, { refreshOn });
-export const words = pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null, { refreshOn });
-export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null, { refreshOn });
-export const conversations = pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null, { refreshOn });
-export const people = pluginResource(plugin, 'peopleStats', () => sectionQuery('people'), null, { refreshOn });
-export const repeats = pluginResource(plugin, 'repeatedLinks', () => sectionQuery('links'), null, { refreshOn });
+export const emoji = analyticsResource(pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null, { refreshOn }));
+export const words = analyticsResource(pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null, { refreshOn }));
+export const sentiment = analyticsResource(pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null, { refreshOn }));
+export const conversations = analyticsResource(pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null, { refreshOn }));
+export const people = analyticsResource(pluginResource(plugin, 'peopleStats', () => sectionQuery('people'), null, { refreshOn }));
+export const repeats = analyticsResource(pluginResource(plugin, 'repeatedLinks', () => sectionQuery('links'), null, { refreshOn }));
 const resources = [stats, emoji, words, sentiment, conversations, people, repeats, personOptions];
+export const statsBuild = () => resources.map((r) => r.result()).find((r) => r?.building) ?? null;
 export const statsLoading = (): boolean => resources.some((resource) => resource.loading);
 export const refreshStats = async (): Promise<void> => {
   await Promise.all(resources.map((resource) => resource.refetch()));
@@ -100,7 +102,7 @@ export function createPosterList() {
     active.throwIfAborted();
     const call = coreClient(plugin, { signal: active, priority: 'interactive' }).postersPage;
     if (!call) throw new Error('Analytics is unavailable in this window.');
-    return pluginData(() => call(q), []);
+    return (await pluginData(() => call(q), null))?.data ?? [];
   });
   createEffect(on(() => [statsPlace(), statsRange(), stats(), privacyChanges(), callable(plugin, 'postersPage')], pages.reset));
   onCleanup(pages.reset);
@@ -110,4 +112,8 @@ export function createPosterList() {
 onAppEvent('privacy-changed', () => {
   setPrivacyChanges((n) => n + 1);
   void refreshStats();
+});
+
+onAppEvent('rollup-progress', (e) => {
+  if (e.pluginId === 'stats' && !e.building) void refreshStats();
 });

@@ -1,3 +1,4 @@
+import { analyticsClient } from './analyticsClient';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -15,7 +16,7 @@ function start() {
     { channelId: 'hidden', ts: 4, content: 'secret' },
   ] } });
   onTestFinished(() => t.dispose());
-  return { t, core: t.client('renderer') };
+  return { t, core: analyticsClient(t) };
 }
 
 describe('Analytics words', () => {
@@ -29,7 +30,7 @@ describe('Analytics words', () => {
   ])('counts sanitized prose and filters normalized stop words: $content', async ({ content, total, unique, words }) => {
     const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }], messages: [{ channelId: 'c1', ts: 0, content }] } });
     onTestFinished(() => t.dispose());
-    const stats = await t.client('renderer').wordStats(CHANNEL);
+    const stats = await analyticsClient(t).wordStats(CHANNEL);
     expect([stats.textMessages, stats.totalWords, stats.uniqueWords, stats.wordsPerMessage, stats.words]).toEqual([1, total, unique, total, words]);
   });
 
