@@ -1,0 +1,1651 @@
+{
+  "date": "2026-10-19",
+  "budgetMs": 100,
+  "source": {
+    "before": {
+      "host": "1d7e6956",
+      "stats": "6ba211d"
+    },
+    "after": {
+      "host": "06b0f62fe63e1c1eb61c69eda47fe4cdf7b42501",
+      "stats": "ead3b56fd069b63774479b325e9ccb336f88ac77"
+    },
+    "hashes": {
+      "core/textIndex.ts": "46b9dc77eb68200cb8b933ad89d7aab19bfd3dd629fd4f08ccc322513f2e6120",
+      "core/textIndexRead.ts": "8a3c35fb2552022b779b8ccb0b8bb86fa6c384323d41ec920869c767aeb87618",
+      "core/textRead.ts": "df72d7adfaf421b8a0bdc6751ee2bae5aff57fe51df3c65602e94c32c4693474",
+      "core/textReadWork.ts": "5474974c0a9d438b3c30496e2e9e9a32b38cb467232a3626cf22cbe0d24035dd",
+      "core/publishedReads.ts": "a29f93ee50e2e9a4d34c884592b8903308dc6245bdf941db3174866669e8761e",
+      "tests/bench/rollupBenchmark.ts": "63ad39d09ccd78013ece685ba12734df96ae99453bc3b2d452dc78814bdcc73d",
+      "tests/bench/fixture.ts": "f38a5733942056f7a2472dc653214b41161efb767c3e14e96b25503ccbe68b3c"
+    }
+  },
+  "method": [
+    "Same deterministic 400000-message synthetic unencrypted fixture; 30 authors, 390 UTC days, 40000-word vocabulary, reverse timestamp arrivals.",
+    "Production Core channel client after all rollups settle. First call has empty activation-local projection and publication caches. OS page cache is not flushed.",
+    "Warm median uses five identical queries. Three fresh disposable test-host activations reuse durable rollups, wait clean and prewarm the helper with SELECT 1, then query every section and variant once.",
+    "Only the synthetic test host restarts. No running-app attachment, restart or real-profile measurement.",
+    "External CPU and disk load are uncontrolled. Dependency restoration overlapped this after run. Before and after are not a controlled throughput comparison."
+  ],
+  "sections": [
+    {
+      "read": "activityStats",
+      "beforeColdMs": 528.8,
+      "afterColdMs": 195.12,
+      "freshActivationMedianMs": 282.51,
+      "freshActivationMaxMs": 334.44,
+      "warmMedianMs": 17.76
+    },
+    {
+      "read": "peopleStats",
+      "beforeColdMs": 116.74,
+      "afterColdMs": 193.79,
+      "freshActivationMedianMs": 157.02,
+      "freshActivationMaxMs": 202.88,
+      "warmMedianMs": 13.49
+    },
+    {
+      "read": "postersPage",
+      "beforeColdMs": 99.28,
+      "afterColdMs": 149.11,
+      "freshActivationMedianMs": 93.19,
+      "freshActivationMaxMs": 115.27,
+      "warmMedianMs": 12.76
+    },
+    {
+      "read": "personStreaks",
+      "beforeColdMs": 164.87,
+      "afterColdMs": 112.24,
+      "freshActivationMedianMs": 104.66,
+      "freshActivationMaxMs": 132.46,
+      "warmMedianMs": 16.05
+    },
+    {
+      "read": "personHistory",
+      "beforeColdMs": 125.16,
+      "afterColdMs": 229.07,
+      "freshActivationMedianMs": 131.42,
+      "freshActivationMaxMs": 156.97,
+      "warmMedianMs": 13.02
+    },
+    {
+      "read": "voiceStats",
+      "beforeColdMs": 175.91,
+      "afterColdMs": 320.95,
+      "freshActivationMedianMs": 171.22,
+      "freshActivationMaxMs": 272.96,
+      "warmMedianMs": 23.04
+    },
+    {
+      "read": "repeatedLinks",
+      "beforeColdMs": 84.32,
+      "afterColdMs": 137.82,
+      "freshActivationMedianMs": 115.19,
+      "freshActivationMaxMs": 167.03,
+      "warmMedianMs": 27.18
+    },
+    {
+      "read": "emojiStats",
+      "beforeColdMs": 465.23,
+      "afterColdMs": 99.81,
+      "freshActivationMedianMs": 71.29,
+      "freshActivationMaxMs": 93.04,
+      "warmMedianMs": 12.02
+    },
+    {
+      "read": "wordStats",
+      "beforeColdMs": 3126.6,
+      "afterColdMs": 516.97,
+      "freshActivationMedianMs": 350.14,
+      "freshActivationMaxMs": 453.51,
+      "warmMedianMs": 16.83
+    },
+    {
+      "read": "sentimentStats",
+      "beforeColdMs": 514.38,
+      "afterColdMs": 89.9,
+      "freshActivationMedianMs": 52.2,
+      "freshActivationMaxMs": 56.69,
+      "warmMedianMs": 13.42
+    },
+    {
+      "read": "conversationStats",
+      "beforeColdMs": 22.45,
+      "afterColdMs": 43.05,
+      "freshActivationMedianMs": 34.76,
+      "freshActivationMaxMs": 41.17,
+      "warmMedianMs": 25.09
+    }
+  ],
+  "variants": [
+    {
+      "read": "words7d",
+      "afterColdMs": 432.15,
+      "freshActivationMedianMs": 200,
+      "freshActivationMaxMs": 240.95
+    },
+    {
+      "read": "words365d",
+      "afterColdMs": 530.18,
+      "freshActivationMedianMs": 405.31,
+      "freshActivationMaxMs": 487.7
+    },
+    {
+      "read": "wordsPerson",
+      "afterColdMs": 268.27,
+      "freshActivationMedianMs": 177.99,
+      "freshActivationMaxMs": 191.87
+    },
+    {
+      "read": "wordsAllScopes",
+      "afterColdMs": 450.51,
+      "freshActivationMedianMs": 305.05,
+      "freshActivationMaxMs": 337.92
+    }
+  ],
+  "pending": [
+    {
+      "kind": "PENDING",
+      "read": "activityStats",
+      "ms": 4.87,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "peopleStats",
+      "ms": 4.91,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "postersPage",
+      "ms": 6.58,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "personStreaks",
+      "ms": 5.82,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "personHistory",
+      "ms": 5.15,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "voiceStats",
+      "ms": 6.96,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "repeatedLinks",
+      "ms": 5.84,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "emojiStats",
+      "ms": 5.97,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "wordStats",
+      "ms": 6.7,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "sentimentStats",
+      "ms": 5.98,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "conversationStats",
+      "ms": 5.91,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    }
+  ],
+  "beforeEvents": [
+    {
+      "kind": "ROLLUP",
+      "seed": {
+        "rows": 400000,
+        "textMessages": 384000,
+        "linkedMessages": 64000,
+        "days": 390,
+        "authors": 30,
+        "vocabulary": 40000,
+        "meanCharacters": 83.97233,
+        "ingestion": "reverse timestamp",
+        "encrypted": false
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "buildMs": 59662.87270000001
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "counts",
+      "rows": {
+        "n": 23400
+      },
+      "bytes": {
+        "bytes": 5664768
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "shares",
+      "rows": {
+        "n": 64000
+      },
+      "bytes": {
+        "bytes": 10919936
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "shares_v1_all_time",
+      "rows": {
+        "n": 1920
+      },
+      "bytes": {
+        "bytes": 352256
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "text",
+      "rows": {
+        "n": 95160
+      },
+      "bytes": {
+        "bytes": 90873856
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "runs",
+      "rows": {
+        "n": 1
+      },
+      "bytes": {
+        "bytes": 4096
+      }
+    },
+    {
+      "kind": "COLD",
+      "read": "activityStats",
+      "ms": 528.8,
+      "snapshotMs": 4.19,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "activityStats",
+      "medianMs": 2.09,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "peopleStats",
+      "ms": 116.74,
+      "snapshotMs": 2.77,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "peopleStats",
+      "medianMs": 2.59,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "postersPage",
+      "ms": 99.28,
+      "snapshotMs": 4.07,
+      "withinBudget": true
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "postersPage",
+      "medianMs": 1.99,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "personStreaks",
+      "ms": 164.87,
+      "snapshotMs": 3.34,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "personStreaks",
+      "medianMs": 1.72,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "personHistory",
+      "ms": 125.16,
+      "snapshotMs": 4.28,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "personHistory",
+      "medianMs": 2.01,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "voiceStats",
+      "ms": 175.91,
+      "snapshotMs": 3.06,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "voiceStats",
+      "medianMs": 1.86,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "repeatedLinks",
+      "ms": 84.32,
+      "snapshotMs": 3.24,
+      "withinBudget": true
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "repeatedLinks",
+      "medianMs": 2.33,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "emojiStats",
+      "ms": 465.23,
+      "snapshotMs": 2.84,
+      "withinBudget": false
+    },
+    {
+      "kind": "PROFILE",
+      "read": "emojiStats",
+      "statements": [
+        {
+          "sql": "WITH source AS MATERIALIZED (SELECT m.kind, m.date, m.term, m.n, m.first_ts, m.last_ts, m.seq, m.position, m.payload FROM p_stats_rollup_text_v1_visible m WHERE m.kind IN ('extent', 'lengths', 'emoji') AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND 1 AND 1 AND m.day NOT IN (SELECT value FROM json_each(?)))\n    SELECT 'extent' AS kind, '' AS date, '' AS term, 0 AS n, MIN(first_ts) AS first_ts, MAX(last_ts) AS last_ts,\n      0 AS seq, 0 AS position, '{}' AS payload FROM source WHERE kind = 'extent' HAVING COUNT(*) > 0\n    UNION ALL SELECT 'lengths', s.date, '', SUM(json_extract(j.value, '$[1]')), MIN(s.first_ts), MAX(s.last_ts), 0, 0,\n      json_array(json_array(0, SUM(json_extract(j.value, '$[1]')), SUM(json_extract(j.value, '$[2]')), SUM(json_extract(j.value, '$[3]'))))\n      FROM source s CROSS JOIN json_each(s.payload) j WHERE s.kind = 'lengths' GROUP BY s.date\n    UNION ALL SELECT kind, date, term, n, first_ts, last_ts, seq, position, payload FROM source WHERE kind = 'emoji'",
+          "rows": 1952,
+          "ms": 427.71020000000135
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.5670000000027358
+        }
+      ]
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "emojiStats",
+      "medianMs": 0.95,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "wordStats",
+      "ms": 3126.6,
+      "snapshotMs": 1.95,
+      "withinBudget": false
+    },
+    {
+      "kind": "PROFILE",
+      "read": "wordStats",
+      "statements": [
+        {
+          "sql": "SELECT * FROM p_stats_rollup_text_v1_visible m WHERE 1 AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND 1 AND 1 AND m.day NOT IN (SELECT value FROM json_each(?))",
+          "rows": 95160,
+          "ms": 512.279300000002
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.7761000000027707
+        },
+        {
+          "sql": "SELECT DISTINCT m.channel_id FROM p_stats_rollup_text_v1_visible m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 1,
+          "ms": 40.792999999997846
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.6541999999972177
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ? AND m.ts < ?",
+          "rows": 1025,
+          "ms": 2.757100000002538
+        },
+        {
+          "sql": "SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))",
+          "rows": 30,
+          "ms": 0.28629999999975553
+        }
+      ]
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "wordStats",
+      "medianMs": 1.7,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "sentimentStats",
+      "ms": 514.38,
+      "snapshotMs": 1.8,
+      "withinBudget": false
+    },
+    {
+      "kind": "PROFILE",
+      "read": "sentimentStats",
+      "statements": [
+        {
+          "sql": "WITH source AS MATERIALIZED (SELECT m.kind, m.date, m.term, m.n, m.first_ts, m.last_ts, m.seq, m.position, m.payload FROM p_stats_rollup_text_v1_visible m WHERE m.kind IN ('extent', 'lengths') AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND 1 AND 1 AND m.day NOT IN (SELECT value FROM json_each(?)))\n    SELECT 'extent' AS kind, '' AS date, '' AS term, 0 AS n, MIN(first_ts) AS first_ts, MAX(last_ts) AS last_ts,\n      0 AS seq, 0 AS position, '{}' AS payload FROM source WHERE kind = 'extent' HAVING COUNT(*) > 0\n    UNION ALL SELECT 'lengths', s.date, '', SUM(json_extract(j.value, '$[1]')), MIN(s.first_ts), MAX(s.last_ts), 0, 0,\n      json_array(json_array(0, SUM(json_extract(j.value, '$[1]')), SUM(json_extract(j.value, '$[2]')), SUM(json_extract(j.value, '$[3]'))))\n      FROM source s CROSS JOIN json_each(s.payload) j WHERE s.kind = 'lengths' GROUP BY s.date\n    ",
+          "rows": 392,
+          "ms": 485.51179999999295
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.7089000000050873
+        }
+      ]
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "sentimentStats",
+      "medianMs": 1.42,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "conversationStats",
+      "ms": 22.45,
+      "snapshotMs": 1.37,
+      "withinBudget": true
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "conversationStats",
+      "medianMs": 6.85,
+      "withinBudget": true
+    }
+  ],
+  "afterEvents": [
+    {
+      "kind": "ROLLUP",
+      "seed": {
+        "rows": 400000,
+        "textMessages": 384000,
+        "linkedMessages": 64000,
+        "days": 390,
+        "authors": 30,
+        "vocabulary": 40000,
+        "meanCharacters": 83.97233,
+        "ingestion": "reverse timestamp",
+        "encrypted": false
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "buildMs": 66252.71800000001
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "counts_v2",
+      "rows": {
+        "n": 23400
+      },
+      "bytes": {
+        "bytes": 5664768
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "shares",
+      "rows": {
+        "n": 64000
+      },
+      "bytes": {
+        "bytes": 10919936
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "shares_v1_all_time",
+      "rows": {
+        "n": 1920
+      },
+      "bytes": {
+        "bytes": 352256
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "text_v2",
+      "rows": {
+        "n": 95160
+      },
+      "bytes": {
+        "bytes": 90873856
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "text_v2_folded",
+      "rows": {
+        "n": 55679
+      },
+      "bytes": {
+        "bytes": 83820544
+      }
+    },
+    {
+      "kind": "ROLLUP",
+      "grain": "runs",
+      "rows": {
+        "n": 1
+      },
+      "bytes": {
+        "bytes": 4096
+      }
+    },
+    {
+      "kind": "COLD",
+      "read": "activityStats",
+      "ms": 195.12,
+      "snapshotMs": 4.59,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "activityStats",
+      "medianMs": 17.76,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "peopleStats",
+      "ms": 193.79,
+      "snapshotMs": 5.71,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "peopleStats",
+      "medianMs": 13.49,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "postersPage",
+      "ms": 149.11,
+      "snapshotMs": 5.57,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "postersPage",
+      "medianMs": 12.76,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "personStreaks",
+      "ms": 112.24,
+      "snapshotMs": 3.04,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "personStreaks",
+      "medianMs": 16.05,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "personHistory",
+      "ms": 229.07,
+      "snapshotMs": 5.98,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "personHistory",
+      "medianMs": 13.02,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "voiceStats",
+      "ms": 320.95,
+      "snapshotMs": 6.36,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "voiceStats",
+      "medianMs": 23.04,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "repeatedLinks",
+      "ms": 137.82,
+      "snapshotMs": 5.28,
+      "withinBudget": false
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "repeatedLinks",
+      "medianMs": 27.18,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "emojiStats",
+      "ms": 99.81,
+      "snapshotMs": 3.74,
+      "withinBudget": true
+    },
+    {
+      "kind": "PROFILE",
+      "read": "emojiStats",
+      "statements": [
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths', 'emoji') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 3120,
+          "ms": 8.237699999997858
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.7442000000010012
+        }
+      ]
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "emojiStats",
+      "medianMs": 12.02,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "wordStats",
+      "ms": 516.97,
+      "snapshotMs": 2.16,
+      "withinBudget": false
+    },
+    {
+      "kind": "PROFILE",
+      "read": "wordStats",
+      "statements": [
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1560,
+          "ms": 7.215700000000652
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.8049000000028173
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1556,
+          "ms": 5.520300000003772
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'longest'\n      AND m.day >= @firstMonth AND m.day <= @lastMonth AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 12,
+          "ms": 0.6664999999920838
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'candidate' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 30,
+          "ms": 0.9398999999975786
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'identity'",
+          "rows": 30,
+          "ms": 0.3787999999913154
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'personMonth' AND m.day >= @firstMonth AND m.day <= @lastMonth\n      AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 360,
+          "ms": 1.6825000000098953
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'person' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 900,
+          "ms": 12.969900000010966
+        },
+        {
+          "sql": "SELECT DISTINCT m.channel_id FROM p_stats_rollup_text_v2_folded_visible m WHERE m.kind = 'extent' AND m.author_id = '' AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 1,
+          "ms": 0.9257000000070548
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 0.43530000001192093
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ? AND m.ts < ?",
+          "rows": 1025,
+          "ms": 4.369000000006054
+        },
+        {
+          "sql": "SELECT m.channel_id, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'dictionary'",
+          "rows": 1,
+          "ms": 3.2985999999946216
+        },
+        {
+          "sql": "SELECT m.channel_id, m.day, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'prefixPack'\n      AND m.day IN (SELECT value FROM json_each(@months))",
+          "rows": 1,
+          "ms": 2.7928000000101747
+        },
+        {
+          "sql": "SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))",
+          "rows": 30,
+          "ms": 0.3392000000021653
+        },
+        {
+          "sql": "SELECT m.term, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'term' AND m.author_id = ''\n      AND m.term IN (SELECT value FROM json_each(@choices))",
+          "rows": 26,
+          "ms": 2.0213999999978114
+        }
+      ]
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "wordStats",
+      "medianMs": 16.83,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "sentimentStats",
+      "ms": 89.9,
+      "snapshotMs": 5.3,
+      "withinBudget": true
+    },
+    {
+      "kind": "PROFILE",
+      "read": "sentimentStats",
+      "statements": [
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1560,
+          "ms": 9.392200000002049
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 0,
+          "ms": 1.3824000000022352
+        }
+      ]
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "sentimentStats",
+      "medianMs": 13.42,
+      "withinBudget": true
+    },
+    {
+      "kind": "COLD",
+      "read": "conversationStats",
+      "ms": 43.05,
+      "snapshotMs": 2.12,
+      "withinBudget": true
+    },
+    {
+      "kind": "ROLLUP",
+      "read": "conversationStats",
+      "medianMs": 25.09,
+      "withinBudget": true
+    },
+    {
+      "kind": "VARIANT",
+      "read": "words7d",
+      "ms": 432.15,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "PROFILE",
+      "read": "words7d",
+      "statements": [
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 28,
+          "ms": 1.2593999999953667
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ?",
+          "rows": 0,
+          "ms": 0.7174999999988358
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 24,
+          "ms": 0.6876999999949476
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'longest'\n      AND m.day >= @firstMonth AND m.day <= @lastMonth AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 0,
+          "ms": 0.5970999999990454
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'candidate' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 6,
+          "ms": 0.4830000000074506
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'identity'",
+          "rows": 30,
+          "ms": 0.33109999999578577
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'personMonth' AND m.day >= @firstMonth AND m.day <= @lastMonth\n      AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 0,
+          "ms": 0.3021000000007916
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'person' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 180,
+          "ms": 1.0960000000050059
+        },
+        {
+          "sql": "SELECT DISTINCT m.channel_id FROM p_stats_rollup_text_v2_folded_visible m WHERE m.kind = 'extent' AND m.author_id = '' AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 1,
+          "ms": 0.9460000000108266
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ?",
+          "rows": 0,
+          "ms": 0.44310000000405125
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ? AND m.ts >= ? AND m.ts < ?",
+          "rows": 1026,
+          "ms": 5.224600000001374
+        },
+        {
+          "sql": "SELECT m.channel_id, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'dictionary'",
+          "rows": 1,
+          "ms": 22.55250000000524
+        },
+        {
+          "sql": "SELECT m.channel_id, m.day, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'prefixPack'\n      AND m.day IN (SELECT value FROM json_each(@months))",
+          "rows": 1,
+          "ms": 4.602700000003097
+        },
+        {
+          "sql": "SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))",
+          "rows": 30,
+          "ms": 0.4215000000112923
+        },
+        {
+          "sql": "SELECT m.term, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'term' AND m.author_id = ''\n      AND m.term IN (SELECT value FROM json_each(@choices))",
+          "rows": 20,
+          "ms": 1.7963000000017928
+        }
+      ]
+    },
+    {
+      "kind": "VARIANT",
+      "read": "words365d",
+      "ms": 530.18,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "PROFILE",
+      "read": "words365d",
+      "statements": [
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1460,
+          "ms": 5.0332000000053085
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ?",
+          "rows": 0,
+          "ms": 0.5002999999996973
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1456,
+          "ms": 3.0491999999940163
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'longest'\n      AND m.day >= @firstMonth AND m.day <= @lastMonth AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 12,
+          "ms": 0.49590000000898726
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'candidate' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 30,
+          "ms": 0.5736000000033528
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'identity'",
+          "rows": 30,
+          "ms": 0.28100000000267755
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'personMonth' AND m.day >= @firstMonth AND m.day <= @lastMonth\n      AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 360,
+          "ms": 0.9525999999896158
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'person' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 900,
+          "ms": 9.029399999999441
+        },
+        {
+          "sql": "SELECT DISTINCT m.channel_id FROM p_stats_rollup_text_v2_folded_visible m WHERE m.kind = 'extent' AND m.author_id = '' AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+          "rows": 1,
+          "ms": 0.9611000000004424
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ?",
+          "rows": 0,
+          "ms": 0.4691000000020722
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.ts >= ? AND m.ts >= ? AND m.ts < ?",
+          "rows": 1026,
+          "ms": 118.05049999999756
+        },
+        {
+          "sql": "SELECT m.channel_id, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'dictionary'",
+          "rows": 1,
+          "ms": 1.6696999999985565
+        },
+        {
+          "sql": "SELECT m.channel_id, m.day, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.author_id = '' AND m.kind = 'prefixPack'\n      AND m.day IN (SELECT value FROM json_each(@months))",
+          "rows": 2,
+          "ms": 4.573300000003655
+        },
+        {
+          "sql": "SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))",
+          "rows": 30,
+          "ms": 0.44100000000617
+        },
+        {
+          "sql": "SELECT m.term, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.channel_id IN (SELECT @scope0 UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = @scope1) AND m.kind = 'term' AND m.author_id = ''\n      AND m.term IN (SELECT value FROM json_each(@choices))",
+          "rows": 26,
+          "ms": 2.0709999999962747
+        }
+      ]
+    },
+    {
+      "kind": "VARIANT",
+      "read": "wordsPerson",
+      "ms": 268.27,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "PROFILE",
+      "read": "wordsPerson",
+      "statements": [
+        {
+          "sql": "SELECT * FROM p_stats_rollup_text_v2_visible m WHERE 1 AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.author_id = ? AND 1 AND 1 AND m.day NOT IN (SELECT value FROM json_each(?))",
+          "rows": 4680,
+          "ms": 60.78209999999672
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.author_id = ?",
+          "rows": 0,
+          "ms": 0.6799000000028173
+        },
+        {
+          "sql": "SELECT DISTINCT m.channel_id FROM p_stats_rollup_text_v2_visible m WHERE m.kind = 'extent' AND 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.author_id = ?",
+          "rows": 1,
+          "ms": 2.341500000009546
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.author_id = ?",
+          "rows": 0,
+          "ms": 0.5172000000020489
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.author_id = ? AND m.ts >= ? AND m.ts < ?",
+          "rows": 34,
+          "ms": 1.044499999989057
+        },
+        {
+          "sql": "SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))",
+          "rows": 1,
+          "ms": 0.3778000000020256
+        }
+      ]
+    },
+    {
+      "kind": "VARIANT",
+      "read": "wordsAllScopes",
+      "ms": 450.51,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "PROFILE",
+      "read": "wordsAllScopes",
+      "statements": [
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1560,
+          "ms": 8.682199999995646
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1",
+          "rows": 0,
+          "ms": 1.161500000001979
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.author_id = '' AND m.kind IN ('extent', 'lengths') AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 1556,
+          "ms": 7.99989999999525
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.author_id = '' AND m.kind = 'longest'\n      AND m.day >= @firstMonth AND m.day <= @lastMonth AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 12,
+          "ms": 1.1298999999999069
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.kind = 'candidate' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 30,
+          "ms": 1.2394999999960419
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.kind = 'identity'",
+          "rows": 30,
+          "ms": 0.4216000000014901
+        },
+        {
+          "sql": "SELECT m.* FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.kind = 'personMonth' AND m.day >= @firstMonth AND m.day <= @lastMonth\n      AND m.day NOT IN (SELECT value FROM json_each(@edges))",
+          "rows": 360,
+          "ms": 1.95690000000468
+        },
+        {
+          "sql": "SELECT m.* FROM json_each(@edges) e CROSS JOIN p_stats_rollup_text_v2_folded_visible m\n      ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')\n      WHERE 1 AND m.kind = 'person' AND m.day >= @first AND m.day < @last AND m.day NOT IN (SELECT value FROM json_each(@excluded))",
+          "rows": 900,
+          "ms": 11.568700000003446
+        },
+        {
+          "sql": "SELECT DISTINCT m.channel_id FROM p_stats_rollup_text_v2_folded_visible m WHERE m.kind = 'extent' AND m.author_id = '' AND 1",
+          "rows": 1,
+          "ms": 1.667700000005425
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM archive_residual_messages m WHERE 1",
+          "rows": 0,
+          "ms": 0.531200000012177
+        },
+        {
+          "sql": "SELECT m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.seq, m.content FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE 1 AND m.ts >= ? AND m.ts < ?",
+          "rows": 1025,
+          "ms": 4.029500000004191
+        },
+        {
+          "sql": "SELECT m.channel_id, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.author_id = '' AND m.kind = 'dictionary'",
+          "rows": 1,
+          "ms": 3.379799999995157
+        },
+        {
+          "sql": "SELECT m.channel_id, m.day, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.author_id = '' AND m.kind = 'prefixPack'\n      AND m.day IN (SELECT value FROM json_each(@months))",
+          "rows": 1,
+          "ms": 3.579700000002049
+        },
+        {
+          "sql": "SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))",
+          "rows": 30,
+          "ms": 0.5032999999966705
+        },
+        {
+          "sql": "SELECT m.term, m.payload FROM p_stats_rollup_text_v2_folded_visible m WHERE 1 AND m.kind = 'term' AND m.author_id = ''\n      AND m.term IN (SELECT value FROM json_each(@choices))",
+          "rows": 26,
+          "ms": 1.2646999999997206
+        }
+      ]
+    },
+    {
+      "kind": "RESTART",
+      "round": 1,
+      "ms": 471.85
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "activityStats",
+      "ms": 334.44,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "peopleStats",
+      "ms": 202.88,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "postersPage",
+      "ms": 115.27,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "personStreaks",
+      "ms": 132.46,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "personHistory",
+      "ms": 131.42,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "voiceStats",
+      "ms": 272.96,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "repeatedLinks",
+      "ms": 167.03,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "emojiStats",
+      "ms": 93.04,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "wordStats",
+      "ms": 453.51,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "sentimentStats",
+      "ms": 56.69,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "conversationStats",
+      "ms": 41.17,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "words7d",
+      "ms": 240.95,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "words365d",
+      "ms": 405.31,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "wordsPerson",
+      "ms": 177.99,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 1,
+      "read": "wordsAllScopes",
+      "ms": 337.92,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTART",
+      "round": 2,
+      "ms": 365.38
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "activityStats",
+      "ms": 189.42,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "peopleStats",
+      "ms": 124.4,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "postersPage",
+      "ms": 75.09,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "personStreaks",
+      "ms": 104.66,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "personHistory",
+      "ms": 156.97,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "voiceStats",
+      "ms": 171.22,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "repeatedLinks",
+      "ms": 115.19,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "emojiStats",
+      "ms": 71.29,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "wordStats",
+      "ms": 298.3,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "sentimentStats",
+      "ms": 35.01,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "conversationStats",
+      "ms": 22.39,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "words7d",
+      "ms": 160.75,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "words365d",
+      "ms": 392.99,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "wordsPerson",
+      "ms": 175.84,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 2,
+      "read": "wordsAllScopes",
+      "ms": 305.05,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTART",
+      "round": 3,
+      "ms": 425.53
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "activityStats",
+      "ms": 282.51,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "peopleStats",
+      "ms": 157.02,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "postersPage",
+      "ms": 93.19,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "personStreaks",
+      "ms": 92.5,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "personHistory",
+      "ms": 108.11,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "voiceStats",
+      "ms": 114.59,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "repeatedLinks",
+      "ms": 77.23,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "emojiStats",
+      "ms": 59.74,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "wordStats",
+      "ms": 350.14,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "sentimentStats",
+      "ms": 52.2,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "conversationStats",
+      "ms": 34.76,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "words7d",
+      "ms": 200,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "words365d",
+      "ms": 487.7,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "wordsPerson",
+      "ms": 191.87,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "RESTARTCOLD",
+      "round": 3,
+      "read": "wordsAllScopes",
+      "ms": 258.47,
+      "building": false,
+      "hasData": true
+    },
+    {
+      "kind": "PENDING",
+      "read": "activityStats",
+      "ms": 4.87,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "peopleStats",
+      "ms": 4.91,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "postersPage",
+      "ms": 6.58,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "personStreaks",
+      "ms": 5.82,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "personHistory",
+      "ms": 5.15,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "voiceStats",
+      "ms": 6.96,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "repeatedLinks",
+      "ms": 5.84,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "emojiStats",
+      "ms": 5.97,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "wordStats",
+      "ms": 6.7,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "sentimentStats",
+      "ms": 5.98,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    },
+    {
+      "kind": "PENDING",
+      "read": "conversationStats",
+      "ms": 5.91,
+      "building": true,
+      "hasData": true,
+      "done": 0,
+      "total": 1560
+    }
+  ],
+  "residuals": [
+    "The 100 ms cold budget is not met by all sections or Words variants. Issue #319 remains open.",
+    "Counts still process packed daily identity/calendar histories; Words still decodes vocabulary prefixes and tokenizes partial UTC boundary days.",
+    "Person-filtered Words uses per-author daily packets. Canonical Unicode trend ties retain the exact legacy ordering scan on a clean snapshot.",
+    "Calendar/selected-term series output and full-channel background index rebuilds grow with history. Multi-channel, dense-day and encrypted live-archive latency is not established."
+  ]
+}

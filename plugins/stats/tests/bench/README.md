@@ -146,3 +146,61 @@ Residual triggers: new or removed channel/guild ids cause channel/day text check
 | sentimentStats | 991.74 | 733.07 |
 
 **Residual: #319 remains open.** These cache misses still exceed 100 ms. Trigger: first section read, or changed scope/data/privacy/time zone. Snapshot checks took 1.81–8.33 ms after the changes. Emoji input returned to JavaScript shrank from 48,360 to 1,952 rows; sentiment from 46,800 to 392. Their worker SQL still scans and aggregates daily input; sentiment's measured SQL was 687.14 ms. Words still read 95,160 daily rows from about 91 MB of lexical storage, then parse/fold word packets and an exact midpoint boundary. Warm hits remain below budget. Wall times vary; external machine load was not controlled; no running-app measurement was performed.
+
+
+## Cold query indexes and publication contract — 2026-10-19
+
+Daily lexical packets previously required expanding the complete selected vocabulary on every cache miss. Daily count rows also repeated chart histograms for each author. The host now maintains optional channel query indexes after daily partitions settle. Publication yields between 256-row writer batches, retains a durable dirty request until complete, and rechecks source revisions, queued changes, activation and metadata. Channel-prefixed and global indexes cover both a chosen place and all places. Data schemas remain additive; the SDK is 4.7.
+
+Analytics retains exact frequencies in an all-time dictionary and cumulative month packets. The read combines prefix counts and bounded UTC boundary days, then fetches time series only for the selected terms. Length/person totals and longest candidates use month summaries with indexed daily edges. No lexical top-N truncation is used. Counts retain packed identity histories and shared chart histograms. Incremental/full rebuild equivalence, every-prefix arrival orders, privacy, time zones, partial days, combined channels, month/year boundaries, mutation races and restart have contract coverage.
+
+Every data member in `StatsCoreCalls` returns the same envelope:
+
+```ts
+interface AnalyticsRead<T> {
+  data: T | null;
+  building: boolean;
+  done: number;
+  total: number;
+}
+```
+
+This covers activityStats, peopleStats, postersPage, personStreaks, personHistory, voiceStats, repeatedLinks, emojiStats, wordStats, sentimentStats and conversationStats. rollupStatus/rebuildRollups remain control methods.
+
+While any host rollup/index builds, reads return the last published result for that exact member and serialized query, or null when none is retained. They start no archive read. A projection superseded while running also returns pending state instead of retrying a full live fold. Only clean, revalidated projections are published. The activation-local published cache is limited to 64 results / 8 MiB; eviction and restart may therefore return null. Privacy/reference/zone token changes revoke retained results. Errors remain available through rollupStatus.error.
+
+Progress aggregates the host rollups' partition work: total is the sum of their totals; done sums nonnegative total-minus-dirty counts, with zero contributed by a building rollup whose backfill has not enumerated dirty work yet. Counts can change as work is discovered. A clean result has building=false. While building, data may be stale; a changed exact query with no prior publication has data=null.
+
+Renderer data selectors preserve their existing data shape through analyticsResource. Each selector exposes `.result()` for the envelope; `statsBuild()` exposes a pending envelope. Completion events refetch shown resources. Privacy changes clear renderer values immediately. The orchestrator owns the pending/progress presentation; no TSX or CSS changes are included.
+
+
+### Cold-read measurements
+
+Sources: host 1d7e6956 / Stats 6ba211d before; host 06b0f62f / Stats ead3b56 after. Both use the existing deterministic 400k fixture (30 authors, 390 days, 40k vocabulary, reverse arrivals, unencrypted). Cold means empty activation-local result/projection caches, with durable rollups ready; it does not mean a flushed OS page cache. Exact events, SQL profiles and source hashes are in [cold-index-results.json](cold-index-results.json).
+
+| Read | Before cold ms | After cold ms | Fresh-activation median ms | Warm median ms |
+| --- | ---: | ---: | ---: | ---: |
+| activityStats | 528.80 | 195.12 | 282.51 | 17.76 |
+| peopleStats | 116.74 | 193.79 | 157.02 | 13.49 |
+| postersPage | 99.28 | 149.11 | 93.19 | 12.76 |
+| personStreaks | 164.87 | 112.24 | 104.66 | 16.05 |
+| personHistory | 125.16 | 229.07 | 131.42 | 13.02 |
+| voiceStats | 175.91 | 320.95 | 171.22 | 23.04 |
+| repeatedLinks | 84.32 | 137.82 | 115.19 | 27.18 |
+| emojiStats | 465.23 | 99.81 | 71.29 | 12.02 |
+| wordStats | 3126.60 | 516.97 | 350.14 | 16.83 |
+| sentimentStats | 514.38 | 89.90 | 52.20 | 13.42 |
+| conversationStats | 22.45 | 43.05 | 34.76 | 25.09 |
+
+Fresh-activation medians use three new disposable test-host activations over the built fixture, with the helper warmed by SELECT 1. Every listed read is a cache miss in each activation. Warm medians use five identical calls. The actual app was not attached, restarted or measured. CPU/disk load was uncontrolled; dependency restoration overlapped the final after run. Some count reads regressed in the first sample, so a uniform speedup is not established.
+
+| New Words query | First cold ms | Fresh-activation median ms | Fresh-activation max ms |
+| --- | ---: | ---: | ---: |
+| words7d | 432.15 | 200.00 | 240.95 |
+| words365d | 530.18 | 405.31 | 487.70 |
+| wordsPerson | 268.27 | 177.99 | 191.87 |
+| wordsAllScopes | 450.51 | 305.05 | 337.92 |
+
+Every measured final read is below 531 ms. Pending reads for all eleven members return stale data in 4.87–6.96 ms, with building=true; first-build/no-data and privacy revocation are covered by contract tests. The initial build took 66,252.72 ms, versus 59,662.87 ms before. Daily lexical storage remains 95,160 rows / 90,873,856 table bytes; the maintained index adds 55,679 rows / 83,820,544 table bytes, excluding indexes.
+
+**#319 stays open:** the 100 ms cold budget is still missed. Counts retain daily identity/calendar histories; Words decodes exact vocabulary prefixes and tokenizes partial UTC days. Midnight-aligned range starts reuse the full daily rollup. Person-filtered Words still uses per-author daily packets. Distinct Unicode spellings with equal ICU collation retain a clean-snapshot scan for the legacy trend order. Calendar and selected-term output and background channel-index rebuilds grow with history. Dense-day, many-channel, encrypted and real-app latency are unverified; these results are not a universal subsecond guarantee.
