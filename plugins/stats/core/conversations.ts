@@ -1,4 +1,4 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { CONVERSATION_GAP_MS, CONVERSATION_PAIRS, type ConversationStats } from '../shared/conversations';
 import { everyoneQuery, type ActivityQuery } from '../shared/types';
 import { conversationMessages, type ConversationMessage } from './conversationScan';
@@ -7,7 +7,7 @@ import { createConversationRoles } from './conversationRoles';
 
 interface PairCount { firstId: string; secondId: string; exchanges: number }
 
-export async function conversationStats(db: PluginDb, query: ActivityQuery): Promise<ConversationStats> {
+export async function conversationStats(read: ArchiveRead, query: ActivityQuery): Promise<ConversationStats> {
   const pairs = new Map<string, PairCount>();
   const exchangesByPerson = new Map<string, number>();
   let previous: ConversationMessage | undefined;
@@ -28,7 +28,7 @@ export async function conversationStats(db: PluginDb, query: ActivityQuery): Pro
   };
 
   const scopeQuery = everyoneQuery(query);
-  for await (const message of conversationMessages(db, scopeQuery)) {
+  for await (const message of conversationMessages(read, scopeQuery)) {
     roles.observe(message.author_id);
     if (!previous || message.channel_id !== previous.channel_id || message.ts - previous.ts > CONVERSATION_GAP_MS) {
       finishRun();
@@ -65,8 +65,8 @@ export async function conversationStats(db: PluginDb, query: ActivityQuery): Pro
     starts: [], closes: [], fastest: [], medianReplyMs: roleCounts.medianReplyMs,
     ...(roleCounts.person ? { person: roleCounts.person } : {}),
   } };
-  const scope = scopeSql(db, scopeQuery);
-  const identities = readPosterIdentities(db, scope, ids);
+  const scope = (await scopeSql(read, scopeQuery));
+  const identities = (await readPosterIdentities(read, scope, ids));
   const known = new Map(identities.map((person) => [person.userId, { ...person, exchanges: exchangesByPerson.get(person.userId) ?? 0 }]));
   const identity = (userId: string) => {
     const { exchanges: _exchanges, ...person } = known.get(userId)!;

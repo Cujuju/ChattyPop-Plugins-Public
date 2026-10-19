@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -62,7 +63,7 @@ describe('Analytics conversation runs', () => {
     })) } });
     onTestFinished(() => t.dispose());
     const prepare = vi.spyOn(t.db, 'prepare');
-    const stats = await conversationStats(t.db, CHANNEL);
+    const stats = await conversationStats(statementRead(t.db), CHANNEL);
     expect([stats.messages, stats.conversations, stats.pairs[0]!.exchanges]).toEqual([SCAN_BATCH_SIZE + 1, 1, 1]);
     const sql = prepare.mock.calls.map(([query]) => query).filter((query) => query.startsWith('SELECT m.channel_id'));
     expect(sql).toHaveLength(2);

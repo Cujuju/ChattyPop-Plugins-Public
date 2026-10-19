@@ -1,12 +1,13 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { everyoneQuery, type ActivityQuery, type StatsPoster } from '../shared/types';
 import { VOICE_PEOPLE, voiceShare, type VoiceStats } from '../shared/voice';
 import { bucketForSpan, bucketStart, filledBuckets } from './histogram';
 import { localDate } from './query';
-import { personDays } from './personDays';
+import { personDays, type PersonDay } from './personDays';
 
 /** One author/day grouping supplies scope totals and poster counts without reading message text. */
-export function voiceStats(db: PluginDb, query: ActivityQuery, days = personDays(db, everyoneQuery(query))): VoiceStats {
+export async function voiceStats(read: ArchiveRead, query: ActivityQuery, supplied?: PersonDay[]): Promise<VoiceStats> {
+  const days = supplied ?? await personDays(read, everyoneQuery(query));
   const rows = days.filter((row) => row.rangeCount > 0);
   let firstTs: number | null = null;
   let lastTs: number | null = null;

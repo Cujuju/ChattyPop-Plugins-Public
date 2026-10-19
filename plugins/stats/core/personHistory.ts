@@ -1,13 +1,14 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { PERSON_SILENCE_DAYS, QUIET_MIN_MESSAGES, type PeopleStats, type PersonHistory } from '../shared/personHistory';
 import { STATS_TOP, everyoneQuery, type ActivityQuery, type StatsPoster } from '../shared/types';
-import { personDays } from './personDays';
+import { personDays, type PersonDay } from './personDays';
 import { dayStreaks, personDayStreaks } from './streaks';
 import { shiftLocalDay } from './query';
 import { voiceStats } from './voice';
 
 /** One whole-scope author/day read supplies both historical lists and the selected range's streaks. */
-export function personHistory(db: PluginDb, query: ActivityQuery, rows = personDays(db, { ...everyoneQuery(query), sinceTs: null }, query.sinceTs)): PersonHistory {
+export async function personHistory(read: ArchiveRead, query: ActivityQuery, supplied?: PersonDay[]): Promise<PersonHistory> {
+  const rows = supplied ?? await personDays(read, { ...everyoneQuery(query), sinceTs: null }, query.sinceTs);
   const people = new Map<string, { poster: StatsPoster; dates: string[] }>();
   let archivedSince: number | null = null;
   let lastDay: string | null = null;
@@ -44,9 +45,9 @@ export function personHistory(db: PluginDb, query: ActivityQuery, rows = personD
 }
 
 /** A single section request shares the history read; each feature retains its own core computation and standalone call. */
-export function peopleStats(db: PluginDb, query: ActivityQuery): PeopleStats {
-  const rows = personDays(db, { ...everyoneQuery(query), sinceTs: null }, query.sinceTs);
-  const stats: PeopleStats = { history: personHistory(db, query, rows), voice: voiceStats(db, query, rows) };
+export async function peopleStats(read: ArchiveRead, query: ActivityQuery): Promise<PeopleStats> {
+  const rows = (await personDays(read, { ...everyoneQuery(query), sinceTs: null }, query.sinceTs));
+  const stats: PeopleStats = { history: (await personHistory(read, query, rows)), voice: (await voiceStats(read, query, rows)) };
   if (query.authorId != null) {
     const counts = new Map<string, StatsPoster>();
     for (const row of rows) {

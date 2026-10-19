@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -29,7 +30,7 @@ describe('Analytics bounded channel/time pages', () => {
     }) as typeof t.db.prepare);
     try {
       const seen: number[] = [];
-      const total = await scanText(t.db, { ...CHANNEL, authorId }, (message) => seen.push(message.seq));
+      const total = await scanText(statementRead(t.db), { ...CHANNEL, authorId }, (message) => seen.push(message.seq));
       expect(total).toBe(SCAN_BATCH_SIZE * 2 + 1);
       expect(new Set(seen).size).toBe(total);
       expect(plans.join('\n')).toMatch(/messages_channel_ts \(channel_id=\? AND ts=\? AND rowid>\? AND rowid<\?\)/);
@@ -50,7 +51,7 @@ describe('Analytics bounded channel/time pages', () => {
     onTestFinished(() => t.dispose());
     let count = 0;
     const seen: string[] = [];
-    await scanText(t.db, CHANNEL, ({ content }) => {
+    await scanText(statementRead(t.db), CHANNEL, ({ content }) => {
       seen.push(content);
       if (++count === SCAN_BATCH_SIZE) setImmediate(() => {
         t.archive.arrive([{ channelId: 't1', ts: -2, content: 'new arrival' }]);
@@ -69,7 +70,7 @@ describe('Analytics bounded channel/time pages', () => {
     onTestFinished(() => t.dispose());
     const messages = [];
     let yielded = false;
-    for await (const message of conversationMessages(t.db, CHANNEL)) {
+    for await (const message of (await conversationMessages(statementRead(t.db), CHANNEL))) {
       messages.push(message);
       if (messages.length === SCAN_BATCH_SIZE) setImmediate(() => { yielded = true; });
       if (messages.length === SCAN_BATCH_SIZE + 1) expect(yielded).toBe(true);
@@ -84,6 +85,6 @@ describe('Analytics bounded channel/time pages', () => {
       { channelId: 'c1', ts: 0, content: '<:OldName:123> <:AnotherName:123>' },
     ] } });
     onTestFinished(() => t.dispose());
-    expect((await emojiStats(t.db, CHANNEL)).emoji).toEqual([{ id: '123', name: 'NewestName', animated: true, count: 3 }]);
+    expect((await emojiStats(statementRead(t.db), CHANNEL)).emoji).toEqual([{ id: '123', name: 'NewestName', animated: true, count: 3 }]);
   });
 });

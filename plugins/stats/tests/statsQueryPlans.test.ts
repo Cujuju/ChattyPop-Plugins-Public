@@ -1,9 +1,10 @@
+import { statementRead } from '@chattypop/host-testing';
 // Analytics stats over a realistically shaped archive: indexed plans, and the same counts as reading outside SQL.
 import { describe, expect, it, vi } from 'vitest';
 import type { Db } from '@core/db';
 import { privacyScope } from '@core/queries/privacy';
 import { tempDb } from '@chattypop/host-testing';
-import { statementPlans } from '@chattypop/host-testing/queryPlan';
+import { readPlans } from '@chattypop/host-testing/queryPlan';
 import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
 import { activityStats, postersPage } from '../core/stats';
 import { hourlyHistogram } from '../core/histogram';
@@ -70,13 +71,13 @@ function ranked(values: string[]): { id: string; count: number }[] {
 }
 
 /** JS grouping over raw fixture rows is independent of the plugin's aggregate SQL. */
-function expectCounts(db: Db): void {
+async function expectCounts(db: Db): Promise<void> {
   const visible = visibleMessages(db);
   const byId = new Map(visible.map((m) => [m.id, m]));
   const attachments = (db.prepare('SELECT message_id, content_type FROM attachments').all() as { message_id: string; content_type: string | null }[])
     .filter((a) => byId.has(a.message_id));
   const shares = (db.prepare('SELECT message_id FROM message_links').all() as { message_id: string }[]).filter((s) => byId.has(s.message_id));
-  const stats = activityStats(db, ALL_TIME);
+  const stats = (await activityStats(statementRead(db), ALL_TIME));
   expect(stats.activeDays).toBe(new Set(visible.map((m) => localStart(m.ts, 'day'))).size);
   const edited = visible.filter((m) => m.edited_ts !== null);
   expect(stats.editedMessages).toBe(edited.length);
@@ -105,24 +106,24 @@ function expectCounts(db: Db): void {
     expect(month.activePosters).toBe(new Set(visible.filter((m) => localStart(m.ts, 'month') === month.start).map((m) => m.author_id)).size);
     expect(month.newPosters).toBe([...firstByPerson.values()].filter((ts) => localStart(ts, 'month') === month.start).length);
   }
-  expect(postersPage(db, { ...ALL_TIME, offset: STATS_TOP, limit: POSTERS_PAGE_MAX }).map((p) => ({ id: p.userId, count: p.count })))
+  expect((await postersPage(statementRead(db), { ...ALL_TIME, offset: STATS_TOP, limit: POSTERS_PAGE_MAX })).map((p) => ({ id: p.userId, count: p.count })))
     .toEqual(ranked(visible.map((m) => m.author_id)).slice(STATS_TOP, STATS_TOP + POSTERS_PAGE_MAX));
 }
 
 describe('activity stats under privacy mode', () => {
-  it.each([false, true])('shares one privacy-aware author/day history read (hiding: %s)', (hiding) => {
+  it.each([false, true])('shares one privacy-aware author/day history read (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
     if (hiding) hideSome(db, fixture);
-    const stats = personHistory(db, ALL_TIME);
+    const stats = (await personHistory(statementRead(db), ALL_TIME));
     const visible = visibleMessages(db);
     expect(stats.archivedSince).toBe(Math.min(...visible.map((m) => m.ts)));
     expect(stats.lastDay).toBe(localStart(Math.max(...visible.map((m) => m.ts)), 'day'));
     const prepare = vi.spyOn(db, 'prepare');
-    peopleStats(db, { ...ALL_TIME, sinceTs: Math.max(...visible.map((m) => m.ts)) });
+    (await peopleStats(statementRead(db), { ...ALL_TIME, sinceTs: Math.max(...visible.map((m) => m.ts)) }));
     expect(prepare.mock.calls.filter(([sql]) => /FROM archive_messages/.test(sql))).toHaveLength(1);
     prepare.mockRestore();
-    const details = statementPlans(db, () => peopleStats(db, ALL_TIME)).join('\n');
+    const details = (await readPlans(db, async () => (await peopleStats(statementRead(db), ALL_TIME)))).join('\n');
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
     expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
@@ -138,13 +139,13 @@ describe('activity stats under privacy mode', () => {
     db.prepare('UPDATE messages SET ts = ?, author_id = ? WHERE id = ?').run(first.ts, 'role-replier', second.id);
     const prepare = vi.spyOn(db, 'prepare');
     try {
-      const stats = await conversationStats(db, ALL_TIME);
+      const stats = await conversationStats(statementRead(db), ALL_TIME);
       expect(stats.messages).toBe(visibleMessages(db).length);
       expect(stats.roles.starts.length).toBeGreaterThan(0);
       const sql = prepare.mock.calls.map(([sql]) => sql).find((sql) => sql.startsWith('SELECT m.author_id AS userId'))!;
       prepare.mockRestore();
       const ids = [...new Set([...stats.people, ...stats.roles.starts, ...stats.roles.closes, ...stats.roles.fastest].map((p) => p.userId))];
-      const details = statementPlans(db, () => db.prepare(sql).all(...ids)).join('\n');
+      const details = (await readPlans(db, () => db.prepare(sql).all(...ids))).join('\n');
       expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
       expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
     } finally { prepare.mockRestore(); }
@@ -156,37 +157,37 @@ describe('activity stats under privacy mode', () => {
     if (hiding) hideSome(db, fixture);
     const prepare = vi.spyOn(db, 'prepare');
     try {
-      const stats = await wordStats(db, ALL_TIME);
+      const stats = await wordStats(statementRead(db), ALL_TIME);
       expect(stats.textMessages).toBe(visibleMessages(db).filter((m) => m.content.trim()).length);
       expect(stats.trends.earlierWords + stats.trends.laterWords).toBe(stats.totalWords);
       const extent = prepare.mock.calls.map(([sql]) => sql).find((sql) => sql.startsWith('SELECT MIN(m.ts)'))!;
       prepare.mockRestore();
-      const details = statementPlans(db, () => db.prepare(extent).get()).join('\n');
+      const details = (await readPlans(db, () => db.prepare(extent).get())).join('\n');
       expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
       expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
     } finally { prepare.mockRestore(); }
   });
 
-  it.each([false, true])('keeps share-of-voice SQL on the privacy-aware archive (hiding: %s)', (hiding) => {
+  it.each([false, true])('keeps share-of-voice SQL on the privacy-aware archive (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
     if (hiding) hideSome(db, fixture);
     const visible = visibleMessages(db);
-    const stats = voiceStats(db, ALL_TIME);
+    const stats = (await voiceStats(statementRead(db), ALL_TIME));
     expect(stats.buckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(visible.length);
     expect(stats.people.map((p) => [p.poster.userId, p.poster.count])).toEqual(ranked(visible.map((m) => m.author_id)).slice(0, VOICE_PEOPLE).map((p) => [p.id, p.count]));
-    const details = statementPlans(db, () => voiceStats(db, ALL_TIME)).join('\n');
+    const details = (await readPlans(db, async () => (await voiceStats(statementRead(db), ALL_TIME)))).join('\n');
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
     expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
   });
 
-  it('runs 12 archive-message statements with one local hourly histogram for Everything', () => {
+  it('runs 12 archive-message statements with one local hourly histogram for Everything', async () => {
     const db = tempDb();
     seedPerfArchive(db, TEST_ARCHIVE);
     const prepare = vi.spyOn(db, 'prepare');
     try {
-      activityStats(db, ALL_TIME);
+      (await activityStats(statementRead(db), ALL_TIME));
       const statements = prepare.mock.calls.map(([sql]) => sql).filter((sql) => /\barchive_messages\b/.test(sql));
       expect(statements).toHaveLength(12);
       expect(prepare.mock.calls).toHaveLength(13);
@@ -196,26 +197,26 @@ describe('activity stats under privacy mode', () => {
     }
   });
 
-  it.each([false, true])('groups the hourly histogram in one privacy-aware message scan (hiding: %s)', (hiding) => {
+  it.each([false, true])('groups the hourly histogram in one privacy-aware message scan (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
     if (hiding) hideSome(db, fixture);
-    const details = statementPlans(db, () => hourlyHistogram(db, { sql: '1', params: [] })).join('\n');
+    const details = (await readPlans(db, async () => (await hourlyHistogram(statementRead(db), { sql: '1', params: [] })))).join('\n');
     expect(details.match(/SCAN m\b/g)).toHaveLength(1);
     expect(details).toMatch(/USE TEMP B-TREE FOR GROUP BY/);
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
   });
 
-  it.each([false, true])('checks the scope once per statement and each message against the hidden ids alone (hiding: %s)', (hiding) => {
+  it.each([false, true])('checks the scope once per statement and each message against the hidden ids alone (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
     seedCounts(db);
     if (hiding) hideSome(db, fixture);
-    const details = statementPlans(db, () => {
-      activityStats(db, ALL_TIME);
-      postersPage(db, { ...ALL_TIME, offset: STATS_TOP, limit: STATS_TOP });
-    }).join('\n');
+    const details = (await readPlans(db, async () => {
+      (await activityStats(statementRead(db), ALL_TIME));
+      (await postersPage(statementRead(db), { ...ALL_TIME, offset: STATS_TOP, limit: STATS_TOP }));
+    })).join('\n');
     // Whether anything is hidden: an uncorrelated subquery, run once.
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     // Per message: a scan of the few hidden ids (#135), never the channels and servers the scope derives from.
@@ -223,32 +224,32 @@ describe('activity stats under privacy mode', () => {
     expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
   });
 
-  it.each([false, true])('matches every new aggregate and poster page to raw fixture rows (hiding: %s)', (hiding) => {
+  it.each([false, true])('matches every new aggregate and poster page to raw fixture rows (hiding: %s)', async (hiding) => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
     seedCounts(db);
     if (hiding) hideSome(db, fixture);
-    expectCounts(db);
-    const details = statementPlans(db, () => activityStats(db, ALL_TIME)).join('\n');
+    (await expectCounts(db));
+    const details = (await readPlans(db, async () => (await activityStats(statementRead(db), ALL_TIME)))).join('\n');
     // Shares drive the join; SQLite may scan them through a covering index.
     expect(details).toMatch(/SCAN message_links(?: USING COVERING INDEX \w+)?\nSEARCH (?:l|m)\b/);
     expect(details).toMatch(/SEARCH m USING INDEX sqlite_autoindex_messages_1 \(id=\?\)/);
     expect(details).toMatch(/SEARCH (?:a|attachments).*attachments_message/);
   });
 
-  it('counts exactly the messages privacy mode leaves visible, on and off', () => {
+  it('counts exactly the messages privacy mode leaves visible, on and off', async () => {
     const db = tempDb();
     const fixture = seedPerfArchive(db, TEST_ARCHIVE);
-    const expectVisible = (): void => {
+    const expectVisible = async (): Promise<void> => {
       const visible = visibleMessages(db);
-      const stats = activityStats(db, ALL_TIME);
+      const stats = (await activityStats(statementRead(db), ALL_TIME));
       expect(stats.messages).toBe(visible.length);
       expect(stats.authors).toBe(new Set(visible.map((m) => m.author_id)).size);
       expect(db.prepare('SELECT id FROM archive_messages ORDER BY id').pluck().all()).toEqual(visible.map((m) => m.id).sort());
     };
-    expectVisible();
+    (await expectVisible());
     hideSome(db, fixture);
-    expectVisible();
+    (await expectVisible());
     expect(visibleMessages(db).length).toBeLessThan(TEST_ARCHIVE.messages);
   });
 });

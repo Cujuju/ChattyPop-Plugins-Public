@@ -1,5 +1,5 @@
 // Exact-channel word rankings and AFINN sentiment reuse the Activity scanners.
-import { type ArchiveRead, type ArchiveTool, type PluginDb, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField } from '@plugin-sdk/core';
+import { type ArchiveRead, type ArchiveTool, toolLimitField, toolScopeSql, parseToolArgs, toolResult, toolSchema, toolTextField } from '@plugin-sdk/core';
 import { wordStats } from './words';
 import { sentimentStats } from './sentiment';
 import type { ChannelListQuery } from './query';
@@ -12,8 +12,8 @@ const fields = {
   limit: toolLimitField(WORDS_MAX),
 };
 
-/** `read` runs the author lookup and scope aggregates off the core thread; message scans use `db` in bounded batches that check the signal between them. */
-export function archiveTools(read: ArchiveRead, db: PluginDb): ArchiveTool[] {
+/** Author lookups, aggregates and bounded message pages use the off-thread reader. */
+export function archiveTools(read: ArchiveRead): ArchiveTool[] {
   return [{
     name: 'words',
     description: 'Returns top words with English stopwords removed and AFINN positive, negative and neutral message counts over the chat scope and window. Use it for topics and lexical sentiment, which does not detect sarcasm.',
@@ -32,8 +32,8 @@ export function archiveTools(read: ArchiveRead, db: PluginDb): ArchiveTool[] {
       if (!authors.length) return toolResult([], undefined, scope.channelIds);
       query.authorId = authors[0];
       signal.throwIfAborted();
-      const words = await wordStats(db, query, signal, read);
-      const sentiment = await sentimentStats(db, query, signal, read);
+      const words = await wordStats(read, query, signal);
+      const sentiment = await sentimentStats(read, query, signal);
       signal.throwIfAborted();
       const limit = args.limit ?? WORDS_DEFAULT;
       const lines = [

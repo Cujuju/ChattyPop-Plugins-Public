@@ -37,8 +37,8 @@ export const plugin = definePlugin({
   aiTools: ['words'],
   manifest,
   channels: defineChannels<{ core: StatsCoreCalls }>()({ core: {
-    activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'], personHistory: ['renderer'], peopleStats: ['renderer'], voiceStats: ['renderer'], repeatedLinks: ['renderer'],
-    emojiStats: ['renderer'], wordStats: ['renderer'], sentimentStats: ['renderer'], conversationStats: ['renderer'],
+    activityStats: { audiences: ['renderer'], reads: true }, postersPage: { audiences: ['renderer'], reads: true }, personStreaks: { audiences: ['renderer'], reads: true }, personHistory: { audiences: ['renderer'], reads: true }, peopleStats: { audiences: ['renderer'], reads: true }, voiceStats: { audiences: ['renderer'], reads: true }, repeatedLinks: { audiences: ['renderer'], reads: true },
+    emojiStats: { audiences: ['renderer'], reads: true }, wordStats: { audiences: ['renderer'], reads: true }, sentimentStats: { audiences: ['renderer'], reads: true }, conversationStats: { audiences: ['renderer'], reads: true },
   } }),
   // The panel's scope, range and open section.
   preferences: {

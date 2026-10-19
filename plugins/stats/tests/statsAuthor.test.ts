@@ -31,12 +31,12 @@ describe('Analytics author scope', () => {
     { scope: 'all', channelId: null }, { scope: 'channel', channelId: 'c1' },
     { scope: 'server', channelId: 'c1' }, { scope: 'server', channelId: 'dm' },
     { scope: 'channel', channelId: null }, { scope: 'server', channelId: null },
-  ] as const)('binds the author for $scope anchored at $channelId', (choice) => {
+  ] as const)('binds the author for $scope anchored at $channelId', async (choice) => {
     const { t } = start();
-    const scope = scopeSql(t.db, { ...PERSON, ...choice, sinceTs: 0 });
+    const scope = (await scopeSql(t.read, { ...PERSON, ...choice, sinceTs: 0 }));
     expect(scope.sql).toContain('m.author_id = ?');
     expect(scope.params.at(-1)).toBe('a');
-    for (const authorId of [null, undefined]) expect(scopeSql(t.db, { ...ALL, ...choice, authorId }).sql).not.toContain('m.author_id');
+    for (const authorId of [null, undefined]) expect((await scopeSql(t.read, { ...ALL, ...choice, authorId })).sql).not.toContain('m.author_id');
   });
 
   it('narrows every core section and keeps the hidden channel excluded', async () => {

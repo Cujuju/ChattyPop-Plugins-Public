@@ -70,7 +70,7 @@ describe('Analytics compact word history', () => {
       { channelId: 'c1', ts: 10, content: 'and' },
     ] } });
     onTestFinished(() => t.dispose());
-    const result = await wordStats(t.db, { scope: 'channel', channelId: 'c1', sinceTs: null });
+    const result = await wordStats(t.read, { scope: 'channel', channelId: 'c1', sinceTs: null });
     expect(result.words.map((row) => row.word)).toEqual([first, second]);
     expect(result.trends.fading.map((row) => row.word)).toEqual([first, second]);
 

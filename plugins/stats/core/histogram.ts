@@ -1,4 +1,4 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import type { ActivityStats, StatsPeriod } from '../shared/types';
 import { dateStart, localDate, localPart, local, type StatsSqlScope } from './query';
@@ -20,11 +20,10 @@ interface HourCount {
 }
 
 /** One local-date/hour grouping supplies all message-time aggregates. */
-export function hourlyHistogram(db: PluginDb, scope: StatsSqlScope): HourCount[] {
-  return db.prepare(`SELECT date(${local('m.ts')}) AS date,
+export async function hourlyHistogram(read: ArchiveRead, scope: StatsSqlScope): Promise<HourCount[]> {
+  return (await read(`SELECT date(${local('m.ts')}) AS date,
     CAST(strftime('%H', ${local('m.ts')}) AS INTEGER) AS hour, COUNT(*) AS count
-    FROM archive_messages m WHERE ${scope.sql} GROUP BY date, hour ORDER BY date, hour`)
-    .all(...scope.params) as HourCount[];
+    FROM archive_messages m WHERE ${scope.sql} GROUP BY date, hour ORDER BY date, hour`, [...scope.params])) as HourCount[];
 }
 
 export function bucketForSpan(start: number | null, last: number | null): ActivityStats['bucket'] {

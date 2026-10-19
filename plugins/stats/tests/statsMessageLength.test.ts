@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { snowflakeFromMs } from '@shared/discord';
@@ -23,7 +24,7 @@ describe('Analytics message length', () => {
     const { t } = start(lengths.map((words, index) => ({ id: snowflakeFromMs(index), channelId: 'c1', ts: index, content: prose(words) })));
     const prepare = vi.spyOn(t.db, 'prepare');
     onTestFinished(() => prepare.mockRestore());
-    const stats = await wordStats(t.db, CHANNEL);
+    const stats = await wordStats(statementRead(t.db), CHANNEL);
     expect(stats.wordsPerMessage).toBe(19.5);
     expect(stats.length.medianWords).toBe(13);
     expect(stats.length.distribution).toEqual(MESSAGE_WORD_BUCKETS.map(({ id }, index) => ({ id, count: index === 0 || index === 4 ? 1 : 2 })));
@@ -31,7 +32,7 @@ describe('Analytics message length', () => {
       lengths.map((words, index) => [snowflakeFromMs(index), words, 'u1', 'c1', index]).reverse(),
     );
     expect(prepare.mock.calls.filter(([sql]) => sql.includes('SELECT MAX(m.seq)'))).toHaveLength(1);
-    expect(prepare.mock.calls.filter(([sql]) => sql.startsWith('SELECT m.id, m.content'))).toHaveLength(2);
+    expect(prepare.mock.calls.filter(([sql]) => sql.startsWith('SELECT m.id, m.content'))).toHaveLength(1);
   });
 
   it('keeps zero-token retained text in the average and even median, while excluding empty content', async () => {

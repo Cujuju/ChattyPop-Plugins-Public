@@ -1,4 +1,4 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { STATS_TOP, type ActivityQuery } from '../shared/types';
 import type { EmojiCount, EmojiStats } from '../shared/text';
 import { scanText } from './scan';
@@ -13,7 +13,7 @@ function unicodePattern(): { pattern: RegExp; name: EmojiStats['unicodeMatcher']
   catch { return { pattern: FALLBACK_EMOJI, name: 'Extended_Pictographic' }; }
 }
 
-export async function emojiStats(db: PluginDb, query: ActivityQuery): Promise<EmojiStats> {
+export async function emojiStats(read: ArchiveRead, query: ActivityQuery): Promise<EmojiStats> {
   const unicode = unicodePattern();
   const counts = new Map<string, EmojiCount>();
   const firstSequences = new Map<string, number>();
@@ -30,7 +30,7 @@ export async function emojiStats(db: PluginDb, query: ActivityQuery): Promise<Em
     if (!firstSequences.has(key) || seq < firstSequences.get(key)!) firstPositions.set(key, position);
     firstSequences.set(key, Math.min(firstSequences.get(key) ?? seq, seq));
   };
-  const textMessages = await scanText(db, query, ({ content, seq }) => {
+  const textMessages = await scanText(read, query, ({ content, seq }) => {
     let position = 0;
     for (const match of content.matchAll(CUSTOM_EMOJI)) {
       add(`custom:${match[3]}`, { id: match[3]!, name: match[2]!, animated: match[1] === 'a' }, seq, position++);

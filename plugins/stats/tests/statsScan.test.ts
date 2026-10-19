@@ -28,7 +28,7 @@ describe('Analytics retained text', () => {
     onTestFinished(() => t.dispose());
     const events: string[] = [];
     let count = 0;
-    const coverage = await scanText(t.db, { scope: 'all', channelId: null, sinceTs: null }, () => {
+    const coverage = await scanText(t.read, { scope: 'all', channelId: null, sinceTs: null }, () => {
       count++;
       if (count === SCAN_BATCH_SIZE) setImmediate(() => {
         events.push('yield');

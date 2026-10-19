@@ -25,7 +25,7 @@ function start(seed = messages) {
   onTestFinished(() => t.dispose());
   expect(t.status()).toEqual({ status: 'active', error: null });
   const read = vi.spyOn(t, 'read');
-  const tools = archiveTools(t.read, t.db);
+  const tools = archiveTools(t.read);
   const run = (name: string, args: unknown = {}, window = scope, signal = new AbortController().signal) =>
     tools.find((tool) => tool.name === name)!.run(args, window, signal);
   return { t, tools, run, consumer, read };

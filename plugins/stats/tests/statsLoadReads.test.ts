@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -34,23 +35,23 @@ describe('Analytics section SQL reads', () => {
     { count: 0, wordReads: 2, conversationReads: 1, batches: 0 },
   ])('keeps one Words scan, one Conversations scan and one shared People read ($count messages)', async ({ count, wordReads, conversationReads, batches }) => {
     const { db, reads } = fixture(count);
-    await wordStats(db, ALL);
+    await wordStats(statementRead(db), ALL);
     expect(reads).toHaveLength(wordReads);
     expect(reads.filter((sql) => sql.startsWith('SELECT m.id, m.content'))).toHaveLength(batches);
     reads.length = 0;
-    await conversationStats(db, ALL);
+    await conversationStats(statementRead(db), ALL);
     expect(reads).toHaveLength(conversationReads);
     expect(reads.every((sql) => !/\bcontent\b/.test(sql))).toBe(true);
     expect(reads.filter((sql) => sql.startsWith('SELECT m.channel_id'))).toHaveLength(batches);
     reads.length = 0;
-    peopleStats(db, ALL);
+    (await peopleStats(statementRead(db), ALL));
     expect(reads).toHaveLength(1);
     expect(reads[0]).not.toMatch(/\bcontent\b/);
   });
 
-  it('leaves the common all-time aggregate at thirteen reads with no added section scans', () => {
+  it('leaves the common all-time aggregate at thirteen reads with no added section scans', async () => {
     const { db, reads } = fixture(2);
-    activityStats(db, ALL);
+    (await activityStats(statementRead(db), ALL));
     expect(reads).toHaveLength(13);
     expect(reads.every((sql) => !/SELECT m.id, m.content|SELECT m.channel_id, m.ts|AS rangeCount/.test(sql))).toBe(true);
   });

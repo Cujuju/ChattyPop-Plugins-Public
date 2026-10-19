@@ -1,4 +1,4 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import type { PersonStreak, StreakStats } from '../shared/streaks';
 import { STATS_TOP, type ActivityQuery, type StatsIdentity } from '../shared/types';
 import { shiftLocalDay } from './query';
@@ -28,8 +28,8 @@ export function dayStreaks(dates: Iterable<string>, includeSilences = true): Str
 }
 
 /** One distinct author/date read supplies the People section's longest runs. */
-export function personStreaks(db: PluginDb, query: ActivityQuery): PersonStreak[] {
-  return personDayStreaks(personDays(db, query));
+export async function personStreaks(read: ArchiveRead, query: ActivityQuery): Promise<PersonStreak[]> {
+  return personDayStreaks((await personDays(read, query)));
 }
 
 /** History feeds the same ranking after filtering days by their last message's exact timestamp. */

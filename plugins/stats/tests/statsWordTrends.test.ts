@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
@@ -21,7 +22,7 @@ describe('Analytics word trends', () => {
       { channelId: 'c1', ts: at(100), content: ' \t\n' },
     ]);
     const prepare = vi.spyOn(t.db, 'prepare');
-    const stats = await wordStats(t.db, CHANNEL);
+    const stats = await wordStats(statementRead(t.db), CHANNEL);
     expect(prepare.mock.calls.filter(([sql]) => /^SELECT m.id, m.content/.test(sql))).toHaveLength(2);
     expect(stats.trends.midpointTs).toBe(at(2));
     expect([stats.trends.earlierWords, stats.trends.laterWords]).toEqual([24, 24]);

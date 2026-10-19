@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { MS_PER_S, MS_PER_MIN, MS_PER_HOUR } from '@plugin-sdk/shared';
@@ -27,7 +28,7 @@ describe('Analytics conversation roles', () => {
       ...run('a', MS_PER_MIN, 0), ...run('b', 3 * MS_PER_MIN, 1),
     ]);
     const prepare = vi.spyOn(t.db, 'prepare');
-    const roles = (await conversationStats(t.db, CHANNEL)).roles;
+    const roles = (await conversationStats(statementRead(t.db), CHANNEL)).roles;
     expect(roles.starts.map((p) => [p.userId, p.count])).toEqual([['a', 1], ['b', 1]]);
     expect(roles.closes.map((p) => [p.userId, p.count])).toEqual([['a', 1], ['b', 1]]);
     expect(roles.medianReplyMs).toBe(2 * MS_PER_MIN);
