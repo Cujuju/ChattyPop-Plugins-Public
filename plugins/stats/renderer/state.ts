@@ -17,7 +17,7 @@ containedRoot(() => createEffect(on(() => ({ scope: statsScope(), channelId: sho
   setStatsAuthor((authorId) => resetPerson(authorId, previous, next));
 })));
 
-/** Open Analytics panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
+/** Open Analytics panels; counts are only fetched while one is mounted and unfolded (resources defer work while hidden). */
 const [mounted, setMounted] = createSignal(0);
 export const statsPanelMounted = (): (() => void) => {
   setMounted((n) => n + 1);
@@ -37,10 +37,12 @@ const queryOf = (c: Choices): ActivityQuery => {
   return { scope: c.scope, channelId: c.channelId, sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY, authorId: c.authorId ?? null };
 };
 
+const refreshOn = { kinds: ['messages', 'edits', 'deletes', 'attachments', 'links', 'names', 'channels'] as const, shown: () => Boolean(choices()) };
+
 export const personOptions = pluginResource(plugin, 'postersPage', () => {
   const c = choices();
   return c && [{ ...queryOf(c), offset: 0, limit: POSTERS_PAGE_MAX }];
-}, null);
+}, null, { refreshOn });
 containedRoot(() => createEffect(() => {
   const posters = personOptions();
   if (!personOptions.loading && !personOptions.failure && posters) setStatsAuthor((authorId) => listedPerson(authorId, posters));
@@ -49,19 +51,19 @@ containedRoot(() => createEffect(() => {
 export const stats = pluginResource(plugin, 'activityStats', () => {
   const c = choices();
   return c && [queryOf({ ...c, authorId: statsAuthor() })];
-}, null);
+}, null, { refreshOn });
 const sectionQuery = (section: StatsSection): [ActivityQuery] | undefined => {
   if (statsSection() !== section) return undefined;
   const c = choices();
   return c && [queryOf({ ...c, authorId: statsAuthor() })];
 };
 
-export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null);
-export const words = pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null);
-export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null);
-export const conversations = pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null);
-export const people = pluginResource(plugin, 'peopleStats', () => sectionQuery('people'), null);
-export const repeats = pluginResource(plugin, 'repeatedLinks', () => sectionQuery('links'), null);
+export const emoji = pluginResource(plugin, 'emojiStats', () => sectionQuery('emoji'), null, { refreshOn });
+export const words = pluginResource(plugin, 'wordStats', () => sectionQuery('words'), null, { refreshOn });
+export const sentiment = pluginResource(plugin, 'sentimentStats', () => sectionQuery('sentiment'), null, { refreshOn });
+export const conversations = pluginResource(plugin, 'conversationStats', () => sectionQuery('conversations'), null, { refreshOn });
+export const people = pluginResource(plugin, 'peopleStats', () => sectionQuery('people'), null, { refreshOn });
+export const repeats = pluginResource(plugin, 'repeatedLinks', () => sectionQuery('links'), null, { refreshOn });
 const resources = [stats, emoji, words, sentiment, conversations, people, repeats, personOptions];
 export const statsLoading = (): boolean => resources.some((resource) => resource.loading);
 export const refreshStats = async (): Promise<void> => {

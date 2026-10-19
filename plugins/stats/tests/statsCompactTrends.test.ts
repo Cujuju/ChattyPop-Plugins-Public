@@ -2,7 +2,7 @@ import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { createWordTrends } from '../core/wordTrends';
-import { SCAN_BATCH_SIZE } from '../core/scan';
+import { SCAN_BATCH_SIZE } from '../core/scanQueue';
 import { bucketStart, filledBuckets } from '../core/histogram';
 import { WORD_RATE_BASE, WORD_TREND_TOP } from '../shared/wordTrends';
 import { tokenize } from '../core/tokenize';

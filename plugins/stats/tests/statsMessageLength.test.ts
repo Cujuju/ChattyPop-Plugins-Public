@@ -31,8 +31,6 @@ describe('Analytics message length', () => {
     expect(stats.length.longest.map((m) => [m.messageId, m.words, m.userId, m.channelId, m.ts])).toEqual(
       lengths.map((words, index) => [snowflakeFromMs(index), words, 'u1', 'c1', index]).reverse(),
     );
-    expect(prepare.mock.calls.filter(([sql]) => sql.includes('SELECT MAX(m.seq)'))).toHaveLength(1);
-    expect(prepare.mock.calls.filter(([sql]) => sql.startsWith('SELECT m.id, m.content'))).toHaveLength(1);
   });
 
   it('keeps zero-token retained text in the average and even median, while excluding empty content', async () => {

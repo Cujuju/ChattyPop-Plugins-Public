@@ -5,6 +5,7 @@ import type { EmojiStats, WordStats, SentimentStats } from './text';
 import type { ConversationStats } from './conversations';
 import type { PersonStreak } from './streaks';
 import type { RepeatedLinksStats } from './repeatedLinks';
+import type { RollupStatus } from '@plugin-sdk/shared';
 import type { VoiceStats } from './voice';
 import type { PeopleStats, PersonHistory } from './personHistory';
 
@@ -20,6 +21,8 @@ export const STATS_PANEL = 'stats' as const;
 
 /** Core's calls, from the panel. */
 export interface StatsCoreCalls {
+  rollupStatus(): RollupStatus;
+  rebuildRollups(channelIds?: string[]): void;
   activityStats(q: ActivityQuery): ActivityStats;
   postersPage(q: PostersQuery): StatsPoster[];
   personStreaks(q: ActivityQuery): PersonStreak[];
@@ -37,6 +40,7 @@ export const plugin = definePlugin({
   aiTools: ['words'],
   manifest,
   channels: defineChannels<{ core: StatsCoreCalls }>()({ core: {
+    rollupStatus: { audiences: ['renderer'] }, rebuildRollups: { audiences: ['renderer'], ownerOnly: true },
     activityStats: { audiences: ['renderer'], reads: true }, postersPage: { audiences: ['renderer'], reads: true }, personStreaks: { audiences: ['renderer'], reads: true }, personHistory: { audiences: ['renderer'], reads: true }, peopleStats: { audiences: ['renderer'], reads: true }, voiceStats: { audiences: ['renderer'], reads: true }, repeatedLinks: { audiences: ['renderer'], reads: true },
     emojiStats: { audiences: ['renderer'], reads: true }, wordStats: { audiences: ['renderer'], reads: true }, sentimentStats: { audiences: ['renderer'], reads: true }, conversationStats: { audiences: ['renderer'], reads: true },
   } }),

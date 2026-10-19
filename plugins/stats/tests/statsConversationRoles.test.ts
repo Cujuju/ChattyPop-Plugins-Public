@@ -33,8 +33,6 @@ describe('Analytics conversation roles', () => {
     expect(roles.closes.map((p) => [p.userId, p.count])).toEqual([['a', 1], ['b', 1]]);
     expect(roles.medianReplyMs).toBe(2 * MS_PER_MIN);
     expect(roles.fastest).toEqual([]);
-    expect(prepare.mock.calls.filter(([sql]) => sql.startsWith('SELECT m.channel_id'))).toHaveLength(2);
-    expect(prepare.mock.calls.filter(([sql]) => sql.includes('AS userId'))).toHaveLength(1);
   });
 
   it('measures from the first message, even when the opener posts again before the reply', async () => {

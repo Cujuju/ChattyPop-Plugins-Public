@@ -1,7 +1,7 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
-import { SCAN_BATCH_SIZE, scanText } from '../core/scan';
+import { wordStats } from '../core/words';
 import { tokenize } from '../core/tokenize';
 
 describe('Analytics retained text', () => {
@@ -23,20 +23,10 @@ describe('Analytics retained text', () => {
     expect(tokenize('Hi ```unfinished Hidden')).toEqual(['hi']);
   });
 
-  it('yields between fixed-size keyset batches and excludes arrivals beyond its sequence ceiling', async () => {
-    const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }], messages: Array.from({ length: SCAN_BATCH_SIZE + 1 }, (_, ts) => ({ channelId: 'c1', ts, content: 'word' })) } });
+  it('honors cancellation before a text fold is admitted', async () => {
+    const t = testPlugin(statsCore);
     onTestFinished(() => t.dispose());
-    const events: string[] = [];
-    let count = 0;
-    const coverage = await scanText(t.read, { scope: 'all', channelId: null, sinceTs: null }, () => {
-      count++;
-      if (count === SCAN_BATCH_SIZE) setImmediate(() => {
-        events.push('yield');
-        t.archive.arrive([{ channelId: 'c1', ts: SCAN_BATCH_SIZE + 1, content: 'arrived later' }]);
-      });
-      if (count === SCAN_BATCH_SIZE + 1) events.push('last original');
-    });
-    expect(coverage).toBe(SCAN_BATCH_SIZE + 1);
-    expect(events).toEqual(['yield', 'last original']);
+    const abort = new AbortController(); abort.abort(new Error('superseded'));
+    await expect(wordStats(t.read, { scope: 'all', channelId: null, sinceTs: null }, abort.signal)).rejects.toThrow('superseded');
   });
 });

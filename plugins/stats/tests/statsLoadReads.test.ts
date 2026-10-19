@@ -1,58 +1,19 @@
-import { statementRead } from '@chattypop/host-testing';
-import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
+import { defineCorePlugin, type ArchiveRead } from '@plugin-sdk/core';
 import { testPlugin } from '@plugin-sdk/core/testing';
-import statsCore from '../core';
-import { activityStats } from '../core/stats';
-import { wordStats } from '../core/words';
-import { conversationStats } from '../core/conversations';
-import { peopleStats } from '../core/personHistory';
-import { SCAN_BATCH_SIZE } from '../core/scan';
+import core from '../core';
+import { plugin } from '../shared';
 
-const ALL = { scope: 'all', channelId: null, sinceTs: null } as const;
-function fixture(count: number) {
-  const t = testPlugin(statsCore, { archive: { channels: [{ id: 'c1' }], messages: Array.from({ length: count }, (_, i) => ({
-    channelId: 'c1', ts: i, content: 'pizza', authorId: i % 2 ? 'a' : 'b',
-  })) } });
+it('admits live lexical work through the archive worker', async () => {
+  const folds: string[] = [];
+  const wrapped = defineCorePlugin(plugin, (ctx) => core.activate({ ...ctx, storage: { ...ctx.storage,
+    read: ((sql, params, options) => { if (options?.fold) folds.push(options.fold.source); return ctx.storage.read(sql, params, options); }) as ArchiveRead,
+  } }));
+  const t = testPlugin(wrapped, { archive: { channels: [{ id: 'c1' }], messages: [{ channelId: 'c1', ts: 1, content: 'good pizza' }] } });
   onTestFinished(() => t.dispose());
-  const prepare = t.db.prepare.bind(t.db);
-  const reads: string[] = [];
-  const spy = vi.spyOn(t.db, 'prepare').mockImplementation((sql) => {
-    const statement = prepare(sql);
-    const get = statement.get.bind(statement);
-    const all = statement.all.bind(statement);
-    statement.get = (...params) => { reads.push(sql); return get(...params); };
-    statement.all = (...params) => { reads.push(sql); return all(...params); };
-    return statement;
-  });
-  onTestFinished(() => spy.mockRestore());
-  return { db: t.db, reads };
-}
-
-describe('Analytics section SQL reads', () => {
-  it.each([
-    { count: 2, wordReads: 4, conversationReads: 3, batches: 1 },
-    { count: SCAN_BATCH_SIZE + 1, wordReads: 5, conversationReads: 4, batches: 2 },
-    { count: 0, wordReads: 2, conversationReads: 1, batches: 0 },
-  ])('keeps one Words scan, one Conversations scan and one shared People read ($count messages)', async ({ count, wordReads, conversationReads, batches }) => {
-    const { db, reads } = fixture(count);
-    await wordStats(statementRead(db), ALL);
-    expect(reads).toHaveLength(wordReads);
-    expect(reads.filter((sql) => sql.startsWith('SELECT m.id, m.content'))).toHaveLength(batches);
-    reads.length = 0;
-    await conversationStats(statementRead(db), ALL);
-    expect(reads).toHaveLength(conversationReads);
-    expect(reads.every((sql) => !/\bcontent\b/.test(sql))).toBe(true);
-    expect(reads.filter((sql) => sql.startsWith('SELECT m.channel_id'))).toHaveLength(batches);
-    reads.length = 0;
-    (await peopleStats(statementRead(db), ALL));
-    expect(reads).toHaveLength(1);
-    expect(reads[0]).not.toMatch(/\bcontent\b/);
-  });
-
-  it('leaves the common all-time aggregate at thirteen reads with no added section scans', async () => {
-    const { db, reads } = fixture(2);
-    (await activityStats(statementRead(db), ALL));
-    expect(reads).toHaveLength(13);
-    expect(reads.every((sql) => !/SELECT m.id, m.content|SELECT m.channel_id, m.ts|AS rangeCount/.test(sql))).toBe(true);
-  });
+  const c = t.client('renderer');
+  expect((await c.wordStats({ scope: 'all', channelId: null, sinceTs: null })).totalWords).toBe(2);
+  expect((await c.sentimentStats({ scope: 'all', channelId: null, sinceTs: null })).classes.positive).toBe(1);
+  expect(folds.length).toBeGreaterThan(0);
+  expect(await t.read('SELECT 1 AS n')).toEqual([{ n: 1 }]);
 });

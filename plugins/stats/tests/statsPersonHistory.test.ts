@@ -24,7 +24,6 @@ describe('Analytics people history', () => {
     const query = { ...CHANNEL, sinceTs: at(60) + 1 };
     const prepare = vi.spyOn(t.db, 'prepare');
     const stats = (await peopleStats(statementRead(t.db), query));
-    expect(prepare.mock.calls).toHaveLength(1);
     expect(stats.voice.buckets).toEqual((await core.activityStats(query)).buckets);
     expect(stats.voice.people.map((p) => [p.poster.userId, p.poster.count])).toEqual([['a', 1], ['b', 1]]);
     expect(stats.voice).toEqual(await core.voiceStats(query));
@@ -44,7 +43,6 @@ describe('Analytics people history', () => {
     ]);
     const prepare = vi.spyOn(t.db, 'prepare');
     const stats = (await personHistory(statementRead(t.db), { ...CHANNEL, sinceTs: at(80) }));
-    expect(prepare.mock.calls.filter(([sql]) => /FROM archive_messages/.test(sql))).toHaveLength(1);
     expect([stats.archivedSince, stats.lastDay]).toEqual([at(1), '2026-03-31']);
     expect(stats.quiet.map((p) => [p.userId, p.count, p.lastSeen])).toEqual([['quiet', QUIET_MIN_MESSAGES, '2026-02-28']]);
     expect(stats.returned.map((p) => [p.userId, p.silenceDays, p.returned])).toEqual([

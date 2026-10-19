@@ -17,6 +17,7 @@ vi.mock('@plugin-sdk/renderer/clients', () => ({
     return member === 'postersPage' ? env.pickerIds.map((userId) => ({ userId, name: userId, avatar: null, count: 1 })) : null;
   } }),
 }));
+vi.mock('@plugin-sdk/renderer/archiveEvents', () => ({ onArchiveChange: () => () => {} }));
 vi.mock('@plugin-sdk/renderer/pluginList', () => ({ callable: () => true }));
 vi.mock('@plugin-sdk/renderer', async () => {
   const resourcePath = '@plugin-sdk/renderer/resource';

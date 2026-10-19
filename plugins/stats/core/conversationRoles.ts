@@ -2,7 +2,7 @@ import { REPLY_MIN_RUNS } from '../shared/conversations';
 import { STATS_TOP } from '../shared/types';
 import { median } from './median';
 
-/** Called only when the existing run scanner completes a run with a different-author reply. */
+/** Runs with a different-author reply contribute opener, closer and reply-delay counts. */
 export function createConversationRoles(authorId?: string | null) {
   const authors = new Set<string>();
   const starts = new Map<string, number>();

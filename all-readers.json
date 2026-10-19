@@ -1,0 +1,6 @@
+{
+  "stats/core/countWork.ts": "Background partition summaries retain hidden-channel counts; live fragments filter messages before joining attachments and URL shares.",
+  "stats/core/textWork.ts": "Background lexical partitions retain hidden-channel text; known channel/server references remain live.",
+  "stats/core/runWork.ts": "Background run partitions include hidden-channel headers; visible residual runs are folded from the current message view.",
+  "stats/core/countProjection.ts": "Channel display names describe already visible message summaries."
+}

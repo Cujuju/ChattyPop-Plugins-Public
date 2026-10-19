@@ -1,8 +1,9 @@
+import type { StatsRollups } from './rollups';
 import type { ArchiveRead } from '@plugin-sdk/core';
 import type { PersonStreak, StreakStats } from '../shared/streaks';
 import { STATS_TOP, type ActivityQuery, type StatsIdentity } from '../shared/types';
 import { shiftLocalDay } from './query';
-import { personDays } from './personDays';
+import { projectCounts } from './countRead';
 import { attachPosterIdentities } from './stats';
 
 /** Local calendar increments count active runs and the inactive dates between them. Ties retain the earlier start. */
@@ -28,8 +29,8 @@ export function dayStreaks(dates: Iterable<string>, includeSilences = true): Str
 }
 
 /** One distinct author/date read supplies the People section's longest runs. */
-export async function personStreaks(read: ArchiveRead, query: ActivityQuery): Promise<PersonStreak[]> {
-  return personDayStreaks((await personDays(read, query)));
+export async function personStreaks(read: ArchiveRead, query: ActivityQuery, rollups?: StatsRollups): Promise<PersonStreak[]> {
+  return projectCounts(read, query, 'personStreaks', rollups);
 }
 
 /** History feeds the same ranking after filtering days by their last message's exact timestamp. */

@@ -19,13 +19,6 @@ interface HourCount {
   count: number;
 }
 
-/** One local-date/hour grouping supplies all message-time aggregates. */
-export async function hourlyHistogram(read: ArchiveRead, scope: StatsSqlScope): Promise<HourCount[]> {
-  return (await read(`SELECT date(${local('m.ts')}) AS date,
-    CAST(strftime('%H', ${local('m.ts')}) AS INTEGER) AS hour, COUNT(*) AS count
-    FROM archive_messages m WHERE ${scope.sql} GROUP BY date, hour ORDER BY date, hour`, [...scope.params])) as HourCount[];
-}
-
 export function bucketForSpan(start: number | null, last: number | null): ActivityStats['bucket'] {
   const spanDays = start === null || last === null ? 0 : (last - start) / MS_PER_DAY;
   return spanDays > DAY_BUCKETS_MAX_DAYS ? 'week' : 'day';

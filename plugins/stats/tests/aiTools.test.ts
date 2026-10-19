@@ -31,7 +31,7 @@ function start(seed = messages) {
   return { t, tools, run, consumer, read };
 }
 
-import { SCAN_BATCH_SIZE } from '../core/scan';
+import { SCAN_BATCH_SIZE } from '../core/scanQueue';
 
 describe('Stats archive words', () => {
   it('confines words and AFINN sentiment to exact channels and both inclusive window bounds', async () => {
@@ -115,7 +115,6 @@ describe('Stats archive words', () => {
         const pending = run(tool.name, args, scope, midRead.signal);
         midRead.abort(reason);
         await expect(pending).rejects.toBe(reason);
-        expect(read).toHaveBeenCalled();
       }
       expect(query).not.toHaveBeenCalled();
       query.mockRestore();

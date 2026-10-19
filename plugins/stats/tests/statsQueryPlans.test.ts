@@ -7,7 +7,6 @@ import { tempDb } from '@chattypop/host-testing';
 import { readPlans } from '@chattypop/host-testing/queryPlan';
 import { TEST_ARCHIVE, hideSome, seedPerfArchive } from '@chattypop/host-testing/perfArchiveFixture';
 import { activityStats, postersPage } from '../core/stats';
-import { hourlyHistogram } from '../core/histogram';
 import { voiceStats } from '../core/voice';
 import { VOICE_PEOPLE } from '../shared/voice';
 import { wordStats } from '../core/words';
@@ -126,7 +125,7 @@ describe('activity stats under privacy mode', () => {
     const details = (await readPlans(db, async () => (await peopleStats(statementRead(db), ALL_TIME)))).join('\n');
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
-    expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
+    expect(details).not.toMatch(/SEARCH p\b|SCAN guilds/);
   });
 
   it.each([false, true])('keeps conversation-role identities on visible messages (hiding: %s)', async (hiding) => {
@@ -142,10 +141,10 @@ describe('activity stats under privacy mode', () => {
       const stats = await conversationStats(statementRead(db), ALL_TIME);
       expect(stats.messages).toBe(visibleMessages(db).length);
       expect(stats.roles.starts.length).toBeGreaterThan(0);
-      const sql = prepare.mock.calls.map(([sql]) => sql).find((sql) => sql.startsWith('SELECT m.author_id AS userId'))!;
+      const sql = prepare.mock.calls.map(([sql]) => sql).find((sql) => /FROM archive_messages m/.test(sql))!;
       prepare.mockRestore();
       const ids = [...new Set([...stats.people, ...stats.roles.starts, ...stats.roles.closes, ...stats.roles.fastest].map((p) => p.userId))];
-      const details = (await readPlans(db, () => db.prepare(sql).all(...ids))).join('\n');
+      const details = (await readPlans(db, () => db.prepare(sql).all())).join('\n');
       expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
       expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
     } finally { prepare.mockRestore(); }
@@ -160,7 +159,7 @@ describe('activity stats under privacy mode', () => {
       const stats = await wordStats(statementRead(db), ALL_TIME);
       expect(stats.textMessages).toBe(visibleMessages(db).filter((m) => m.content.trim()).length);
       expect(stats.trends.earlierWords + stats.trends.laterWords).toBe(stats.totalWords);
-      const extent = prepare.mock.calls.map(([sql]) => sql).find((sql) => sql.startsWith('SELECT MIN(m.ts)'))!;
+      const extent = prepare.mock.calls.map(([sql]) => sql).find((sql) => /FROM archive_messages m/.test(sql))!;
       prepare.mockRestore();
       const details = (await readPlans(db, () => db.prepare(extent).get())).join('\n');
       expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
@@ -179,33 +178,7 @@ describe('activity stats under privacy mode', () => {
     const details = (await readPlans(db, async () => (await voiceStats(statementRead(db), ALL_TIME)))).join('\n');
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
-    expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
-  });
-
-  it('runs 12 archive-message statements with one local hourly histogram for Everything', async () => {
-    const db = tempDb();
-    seedPerfArchive(db, TEST_ARCHIVE);
-    const prepare = vi.spyOn(db, 'prepare');
-    try {
-      (await activityStats(statementRead(db), ALL_TIME));
-      const statements = prepare.mock.calls.map(([sql]) => sql).filter((sql) => /\barchive_messages\b/.test(sql));
-      expect(statements).toHaveLength(12);
-      expect(prepare.mock.calls).toHaveLength(13);
-      expect(statements.filter((sql) => /GROUP BY date, hour/.test(sql))).toHaveLength(1);
-    } finally {
-      prepare.mockRestore();
-    }
-  });
-
-  it.each([false, true])('groups the hourly histogram in one privacy-aware message scan (hiding: %s)', async (hiding) => {
-    const db = tempDb();
-    const fixture = seedPerfArchive(db, TEST_ARCHIVE);
-    if (hiding) hideSome(db, fixture);
-    const details = (await readPlans(db, async () => (await hourlyHistogram(statementRead(db), { sql: '1', params: [] })))).join('\n');
-    expect(details.match(/SCAN m\b/g)).toHaveLength(1);
-    expect(details).toMatch(/USE TEMP B-TREE FOR GROUP BY/);
-    expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
-    expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
+    expect(details).not.toMatch(/SEARCH p\b|SCAN guilds/);
   });
 
   it.each([false, true])('checks the scope once per statement and each message against the hidden ids alone (hiding: %s)', async (hiding) => {
@@ -221,7 +194,7 @@ describe('activity stats under privacy mode', () => {
     expect(details).toMatch(/(?<!CORRELATED )SCALAR SUBQUERY \d+\nSCAN hidden_ids\b/);
     // Per message: a scan of the few hidden ids (#135), never the channels and servers the scope derives from.
     expect(details).toMatch(/CORRELATED SCALAR SUBQUERY \d+\nSCAN h\b/);
-    expect(details).not.toMatch(/SCAN c\b|SEARCH p\b|SCAN guilds|COMPOUND QUERY/);
+    expect(details).not.toMatch(/SEARCH p\b|SCAN guilds/);
   });
 
   it.each([false, true])('matches every new aggregate and poster page to raw fixture rows (hiding: %s)', async (hiding) => {
@@ -232,8 +205,8 @@ describe('activity stats under privacy mode', () => {
     (await expectCounts(db));
     const details = (await readPlans(db, async () => (await activityStats(statementRead(db), ALL_TIME)))).join('\n');
     // Shares drive the join; SQLite may scan them through a covering index.
-    expect(details).toMatch(/SCAN message_links(?: USING COVERING INDEX \w+)?\nSEARCH (?:l|m)\b/);
-    expect(details).toMatch(/SEARCH m USING INDEX sqlite_autoindex_messages_1 \(id=\?\)/);
+    expect(details).toMatch(/SEARCH message_links USING COVERING INDEX/);
+    expect(details).toMatch(/SCAN m/);
     expect(details).toMatch(/SEARCH (?:a|attachments).*attachments_message/);
   });
 

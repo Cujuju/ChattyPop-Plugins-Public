@@ -14,6 +14,7 @@ import { Emoji } from './Emoji';
 import { Words } from './Words';
 import { Sentiment } from './Sentiment';
 import { Conversations } from './Conversations';
+import { RollupControls } from './RollupControls';
 import { countLabel } from './section';
 import styles from './Stats.module.css';
 
@@ -34,6 +35,7 @@ export function StatsPanel() {
         meta={stats() ? `${countLabel(stats()!.messages, 'message')} · ${countLabel(stats()!.authors, 'person', 'people')}` : undefined}
       >
         <HeaderActions>
+          <RollupControls onRebuilt={refreshStats} />
           <HeaderButton variant="icon" aria-label="Refresh analytics" title="Refresh" disabled={statsLoading()} onClick={() => void refreshStats()}>
             <Icon name="refresh" />
           </HeaderButton>
