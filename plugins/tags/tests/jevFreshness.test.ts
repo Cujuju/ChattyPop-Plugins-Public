@@ -45,8 +45,8 @@ it('does not store an automatic tag answer that arrives after Tags turned off, s
   await settleAsync();
   expect(judgments(h.db, m.id)).toEqual([]);
   hold.holding = false;
-  const tags = startTags(h.db, { kinds: h.engine.kinds, jev: () => h.jev, catchUp: () => h.matcher.catchUpJudgments() });
-  h.matcher.catchUpJudgments();
+  const tags = startTags(h.db, { kinds: h.engine.kinds, jev: () => h.jev, catchUp: () => h.matcher.requestCatchUp() });
+  await h.matcher.catchUpJudgments();
   await settleAsync();
   expect(tags.forMessage(m.id).map((c) => c.tagId)).toEqual([id]);
 });
@@ -57,7 +57,7 @@ it('drops a range answer for a tag deleted and replaced under the same id while 
   jev.on['tags.customTags'] = true;
   jev.answer = yesAbout('');
   const { matcher } = hostRuleStack(db, () => undefined, jev.forFeature);
-  const tags = startTags(db, { jev: () => jev, catchUp: () => matcher.catchUpJudgments() });
+  const tags = startTags(db, { jev: () => jev, catchUp: () => matcher.requestCatchUp() });
   const archive = seedArchive(db, [{ id: 'c1' }]);
   const m = rawMessage('c1', nextTs(), 'my salary went up');
   archive.ingestMessages([m], ARRIVAL.sync);

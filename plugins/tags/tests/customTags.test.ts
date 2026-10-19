@@ -27,7 +27,7 @@ beforeEach(() => {
   events = [];
   const emit = (e: AppEvent): void => void events.push(e);
   const { matcher: w } = hostRuleStack(db, emit, jev.forFeature);
-  tags = startTags(db, { emit, jev: () => jev.on['tags.customTags'] ? jev : null, catchUp: () => w.catchUpJudgments() });
+  tags = startTags(db, { emit, jev: () => jev.on['tags.customTags'] ? jev : null, catchUp: () => w.requestCatchUp() });
   archive = seedArchive(db, [{ id: 'c1' }], { onText: (m, a) => w.check(m, a) });
 });
 

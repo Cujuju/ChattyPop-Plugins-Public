@@ -44,7 +44,7 @@ function ruleStack(db: Db, emit: (e: AppEvent) => void, jevFor: (feature: JevFea
     emit,
     kinds: stack.engine.kinds,
     jev: () => jevFor(TAGS_JEV_FEATURE),
-    catchUp: () => stack.matcher.catchUpJudgments(),
+    catchUp: () => stack.matcher.requestCatchUp(),
   });
   return { ...stack, tags };
 }

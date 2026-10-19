@@ -10,6 +10,7 @@ import tagsCore from '../core';
 import { plugin as tags } from '../shared';
 import { tagSubject, type TagInput } from '../shared/types';
 
+const CATCH_UP_TIMEOUT_MS = 10_000; // Re-enable schedules an off-thread read; wait for its observable result.
 const AUTO_TAG: TagInput = {
   name: 'Stocks',
   auto: true,
@@ -71,6 +72,8 @@ it('judges messages that arrived while Tags was off once it is turned back on', 
   await h.host.setEnabled('tags', true);
   await settleAsync();
   expect(h.catchUps() - before).toBe(1);
-  const chips = (await h.host.call('renderer', 'tags', 'messageTags', [m.id])) as { tagId: number }[];
-  expect(chips.map((c) => c.tagId)).toEqual([id]);
+  await expect.poll(async () => {
+    const chips = (await h.host.call('renderer', 'tags', 'messageTags', [m.id])) as { tagId: number }[];
+    return chips.map((c) => c.tagId);
+  }, { timeout: CATCH_UP_TIMEOUT_MS }).toEqual([id]);
 });
