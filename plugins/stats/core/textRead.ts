@@ -13,6 +13,7 @@ import { textWork } from './textWork';
 import { cachedStats } from './readCache';
 import { textReadWork } from './textReadWork';
 import type { TextQuery } from './query';
+import { summaryRowsSql } from './summaryRows';
 
 const HALVES = 2; // Midpoints and even-sample medians divide their interval into two halves.
 const WEEK_DAYS = 7; // Weekly charts start on Monday in the viewer's local calendar.
@@ -29,7 +30,9 @@ export async function readTextStats<T>(read: ArchiveRead, query: TextQuery, sect
   const kinds = section === 'words' ? '1' : section === 'sentiment' ? "m.kind IN ('extent', 'lengths')" : "m.kind IN ('extent', 'lengths', 'emoji')";
   const bounds = [query.sinceTs === null ? '1' : `m.day >= '${new Date(query.sinceTs).toISOString().slice(0, 'YYYY-MM-DD'.length)}'`,
     query.scope !== 'channels' || query.untilTs === null ? '1' : `m.day <= '${new Date(query.untilTs).toISOString().slice(0, 'YYYY-MM-DD'.length)}'`].join(' AND ');
-  const rowsSql = `SELECT * FROM ${TEXT_VIEW} m WHERE ${kinds} AND ${members.sql} AND ${bounds} AND m.day NOT IN (SELECT value FROM json_each(?))`;
+  const columns = section === 'words' ? '*' : 'm.kind, m.date, m.term, m.n, m.first_ts, m.last_ts, m.seq, m.position, m.payload';
+  const source = `SELECT ${columns} FROM ${TEXT_VIEW} m WHERE ${kinds} AND ${members.sql} AND ${bounds} AND m.day NOT IN (SELECT value FROM json_each(?))`;
+  const rowsSql = section === 'words' ? source : summaryRowsSql(source, section === 'emoji');
   const load = async (view?: string) => (await read<T>('SELECT 1', [], { signal, priority: view ? 'interactive' : 'background', fold: {
     source: textReadWork.toString(), data: { compute: textWork.toString(), config: { ...TEXT_DATA, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }, view, sql: scope.sql, params: scope.params,
       rowsSql, channelsSql: `SELECT DISTINCT m.channel_id FROM ${TEXT_VIEW} m WHERE ${members.sql}`, memberSql: members.sql, memberParams: members.params, section, cuts, sinceTs: query.sinceTs,
