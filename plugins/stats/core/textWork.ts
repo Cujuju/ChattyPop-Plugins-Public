@@ -4,7 +4,7 @@ export interface TextRow {
   channel_id?: string; day?: string; author_id: string; date: string; kind: string; term: string;
   n: number; first_ts: number; last_ts: number; seq: number; position: number; payload: string;
 }
-export interface TextData { boundaryChannels?: string[]; timeZone?: string; mode?: 'residual' | 'boundary' | 'order'; orderWords?: string[]; midpoint?: number; startTs?: number; endTs?: number; afinn: Record<string, number>; top: number; cuts?: number[]; sql?: string; params?: (string | number)[] }
+export interface TextData { bounds?: boolean; boundaryChannels?: string[]; timeZone?: string; mode?: 'residual' | 'boundary' | 'order'; orderWords?: string[]; midpoint?: number; startTs?: number; endTs?: number; afinn: Record<string, number>; top: number; cuts?: number[]; sql?: string; params?: (string | number)[] }
 
 /** Closure-free lexical fold shared by durable partitions and privacy-visible boundary fragments. */
 export async function textWork(part: RollupPartition | null, read: ArchiveRead, signal: AbortSignal, data: TextData): Promise<Omit<TextRow, 'channel_id' | 'day'>[]> {
@@ -16,6 +16,11 @@ export async function textWork(part: RollupPartition | null, read: ArchiveRead, 
     : data.mode === 'residual' ? `SELECT ${columns} FROM archive_residual_messages m WHERE ${where}`
     : data.mode === 'boundary' ? `SELECT ${columns} FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE ${where} AND m.ts >= ? AND m.ts < ?`
     : `SELECT ${columns} FROM archive_messages m WHERE ${where}`, data.mode === 'boundary' ? [JSON.stringify(data.boundaryChannels), ...params, data.startTs!, data.endTs!] : params);
+  if (data.bounds) {
+    let first = Infinity, last = -Infinity;
+    for (const m of rows) if (m.content.trim()) { first = Math.min(first, m.ts); last = Math.max(last, m.ts); }
+    return first === Infinity ? [] : [{ kind: 'lengths', first_ts: first, last_ts: last, payload: '[]' } as any];
+  }
   const calendar = new Intl.DateTimeFormat('sv-SE', { timeZone: part?.timeZone ?? data.timeZone, year: 'numeric', month: '2-digit', day: '2-digit' });
   for (const m of rows) m.date = calendar.format(m.ts);
   const segmenter = new Intl.Segmenter('en', { granularity: 'word' });

@@ -18,9 +18,9 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const cuts: number[] = data.cuts;
   const days = new Set(cuts.map(utcDay));
   let boundaryChannels: string[] | undefined;
-  const liveRows = async (extra: number[] = []) => {
+  const liveRows = async (extra: number[] = [], bounds = false) => {
     extra.forEach((ts) => days.add(utcDay(ts)));
-    const config = { ...data.config, sql: data.sql, params: data.params, cuts: [...cuts, ...extra] };
+    const config = { ...data.config, sql: data.sql, params: data.params, cuts: [...cuts, ...extra], bounds };
     if (!data.view) return fold(null, read, signal, config);
     if (days.size && !boundaryChannels) boundaryChannels = (await read<any>(data.channelsSql, data.memberParams)).map((r) => r.channel_id);
     let fragments = await fold(null, read, signal, { ...config, mode: 'residual' });
@@ -29,7 +29,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   };
   let rows: any[] = indexRead ? await indexRead(read, data, cuts, undefined) : data.view ? await read(data.rowsSql,
     [...data.memberParams, JSON.stringify([...days].map(dayName))]) : [];
-  rows = rows.concat(await liveRows());
+  rows = rows.concat(await liveRows([], Boolean(indexRead && data.section === 'words')));
   const lengths = rows.filter((r) => r.kind === 'lengths');
   const first = lengths.reduce((v, r) => Math.min(v, r.first_ts), Infinity);
   const last = lengths.reduce((v, r) => Math.max(v, r.last_ts), -Infinity);

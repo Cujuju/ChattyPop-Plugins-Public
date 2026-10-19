@@ -68,6 +68,8 @@ export async function main(rows: number) {
     ] as const) {
       const start = performance.now(), result = await client.wordStats(query);
       report('variant', { read: name, ms: Number((performance.now() - start).toFixed(2)), building: result.building, hasData: result.data !== null });
+      const profile = result.data as { benchmarkSql?: unknown } | null;
+      if (profile?.benchmarkSql) report('profile', { read: name, statements: profile.benchmarkSql });
     }
     await client.rebuildRollups();
     for (const member of SECTIONS) {
