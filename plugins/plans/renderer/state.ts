@@ -2,11 +2,11 @@
 import { plugin } from '../shared';
 import type { PlanItem } from '../shared/types';
 import {
-  ARCHIVE_REFRESH_DEBOUNCE_MS,
   callable,
   coreClient,
   onAppEvent,
-  onAppEventDebounced,
+  panelShown,
+  pageShown,
   pluginPreference,
   pluginResource,
 } from '@plugin-sdk/renderer';
@@ -15,19 +15,18 @@ import {
 const PLAN_LIMIT = 200;
 
 /** Fetched while this window may call core's list (the plugin is on). */
-export const plans = pluginResource(plugin, 'list', () => [PLAN_LIMIT], []);
+export const plans = pluginResource(plugin, 'list', () => [PLAN_LIMIT], [], { refreshOn: { kinds: ['plugin', 'deletes', 'names'], pluginIds: [plugin.manifest.id] }, shown: panelShown('plans') });
 
-// New plans arrive with archive changes.
-onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, () => void plans.refetch());
-onAppEvent('privacy-changed', () => void plans.refetch());
 
 /** Detection can reach older messages (backfill), so seen items are tracked by identity, not by a time watermark. */
 const planKey = (p: PlanItem): string => `${p.messageId}:${p.kind}`;
+const keys = pluginResource(plugin, 'keys', () => [PLAN_LIMIT], [] as string[], { refreshOn: { kinds: ['plugin', 'deletes'], pluginIds: [plugin.manifest.id] }, shown: pageShown });
+onAppEvent('privacy-changed', () => { plans.mutate([]); keys.mutate([]); void plans.refetch(); void keys.refetch(); });
 /** Last-visible Plans items; null until loaded. First successful read marks existing items seen. Inactive reads store nothing. */
 const [seenPlans, setSeenPlans] = pluginPreference(plugin, 'seen', {
   // Seeding waits until this window can read the list.
-  seed: async () => (await coreClient(plugin).list(PLAN_LIMIT)).map(planKey),
-  seedWhen: () => callable(plugin, 'list'),
+  seed: async () => await coreClient(plugin).keys(PLAN_LIMIT),
+  seedWhen: () => callable(plugin, 'keys') && pageShown(),
 });
 
 /** Plans' settings: the provider that extracts each detected plan. */
@@ -38,7 +37,7 @@ export const unseenPlanCount = (): number => {
   const seen = seenPlans();
   if (seen === null) return 0;
   const known = new Set(seen);
-  return plans().filter((p) => !known.has(planKey(p))).length;
+  return keys().filter((key) => !known.has(key)).length;
 };
 
 export function markPlansSeen(): void {

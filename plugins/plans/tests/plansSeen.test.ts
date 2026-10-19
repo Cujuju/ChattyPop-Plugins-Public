@@ -9,6 +9,8 @@ vi.mock('solid-js', () => {
   return import(client);
 });
 
+vi.mock('@plugin-sdk/renderer/panelShown', () => ({ panelShown: () => () => true, pageShown: () => true }));
+
 const env = vi.hoisted(() => ({
   on: false,
   emit: null as null | ((e: { type: string }) => void),
@@ -31,9 +33,10 @@ vi.stubGlobal('window', {
     plugins: {
       callCore: async (pluginId: string, name: string) => {
         const inactive = { status: 'inactive', pluginId };
-        if (!env.on || name !== 'list') return inactive;
+        if (!env.on || !['list', 'keys'].includes(name)) return inactive;
         try {
-          return { status: 'ok', value: await env.list!() };
+          const value = await env.list!();
+          return { status: 'ok', value: name === 'keys' ? value.map((p) => `${p.messageId}:${p.kind}`) : value };
         } catch (error) {
           if (error instanceof PluginInactiveError) return inactive;
           throw error;
@@ -82,6 +85,12 @@ describe('Plans seen baseline', () => {
     expect(env.stored.get(SEEN_KEY)).toEqual(['a:plan', 'b:plan']);
 
     existing = [...existing, plan('c')];
+    const changed = { type: 'archive-changed', changes: { c: ['plugin'] }, pluginIds: ['plans'], insertOnlyChannelIds: [] };
+    env.emit!(changed);
+    // The badge observes the SDK's archive debounce even while the panel is hidden.
+    const eventPath = '@plugin-sdk/renderer/appEvents';
+    const { ARCHIVE_REFRESH_DEBOUNCE_MS } = await import(eventPath);
+    await new Promise((resolve) => setTimeout(resolve, ARCHIVE_REFRESH_DEBOUNCE_MS));
     await state.plans.refetch();
     await settle();
     expect(state.unseenPlanCount()).toBe(1);

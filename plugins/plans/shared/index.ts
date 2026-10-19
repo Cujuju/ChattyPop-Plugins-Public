@@ -30,6 +30,7 @@ export const normalizePlansSettings = (v: unknown): PlansSettings => ({ defaultP
 export interface PlansCoreCalls {
   /** Plans soonest first (undated after dated), then decisions newest first; privacy mode applies. */
   list(limit: number): PlanItem[];
+  keys(limit: number): string[];
 }
 
 const PLAN_QUERY_DEF: JevQueryDecl<'planDetection'> = {
@@ -68,7 +69,7 @@ const PLAN_QUERY_DEF: JevQueryDecl<'planDetection'> = {
 export const plugin = definePlugin({
   aiTools: ['list'],
   manifest,
-  channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: { audiences: ['renderer', 'phone'], writes: false, decode: decodeList } } }),
+  channels: defineChannels<{ core: PlansCoreCalls }>()({ core: { list: { audiences: ['renderer', 'phone'], writes: false, decode: decodeList }, keys: { audiences: ['renderer', 'phone'], writes: false, decode: decodeList } } }),
   /** The items listed when the panel was last on screen; null until first stored. */
   preferences: {
     seen: definePreference<string[] | null>({ default: null, normalize: stringsOr(null) }),

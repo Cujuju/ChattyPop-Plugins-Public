@@ -1,7 +1,7 @@
 // Plans' core side: the per-message plan question, its extraction, and the list the panel shows.
 import { chosenModel, defineCorePlugin, privacy, ProviderUnavailableError, type CoreContext } from '@plugin-sdk/core';
 import { plugin } from '../shared';
-import { planList, planQuestion, type PlanProvider } from './plans';
+import { planList, planListSql, planQuestion, type PlanProvider } from './plans';
 import { PLANS_MIGRATIONS } from './schema';
 
 /** Why a hit isn't extracted while Plans has no provider chosen. */
@@ -32,6 +32,12 @@ export default defineCorePlugin(plugin, (ctx) => {
       changed: ctx.archive.changed,
     }),
   );
-  ctx.channels.serve({ list: (limit) => planList(ctx.storage.db, limit) });
+  ctx.channels.serve({
+    list: (limit) => planList(ctx.storage.db, limit),
+    keys: (limit) => {
+      const query = planListSql(limit);
+      return ctx.storage.db.prepare(`SELECT messageId || ':' || kind FROM (${query.sql})`).pluck().all(...query.params) as string[];
+    },
+  });
 });
 import { archiveTools } from './aiTools';
