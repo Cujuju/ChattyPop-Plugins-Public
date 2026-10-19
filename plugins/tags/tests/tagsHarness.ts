@@ -13,8 +13,10 @@ import { createCoreContext } from '@core/plugins/context';
 import { RuleKinds } from '@core/rules/kinds';
 import tagsCore from '../core';
 import { plugin, type TagsCoreCalls } from '../shared';
+import { tagRangeCount } from '../core/questions';
 import { TagStore } from '../core/store';
 import { tempDir } from '@chattypop/host-testing';
+import type { ArchiveRead } from '@plugin-sdk/core';
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -33,6 +35,7 @@ export function startTags(db: Db, options: {
   kinds?: RuleKinds;
   jev?: () => DecisionProvider | null;
   catchUp?: () => void;
+  read?: ArchiveRead;
 } = {}) {
   adoptTags(db);
   const reg = emptyRegistrations();
@@ -76,6 +79,7 @@ export function startTags(db: Db, options: {
     new CompletionLedger(plugin.channels),
   );
   let calls!: TagsCoreCalls;
+  if (options.read) ctx.storage.read = options.read;
   const serve = ctx.channels.serve;
   ctx.channels.serve = (impl) => { calls = impl as TagsCoreCalls; serve(impl); };
   const stop = tagsCore.activate(ctx);
@@ -91,15 +95,15 @@ export function startTags(db: Db, options: {
     calls,
     dispose,
     store,
-    list: calls.tags,
+    list: () => store.list(),
     create: calls.createTag,
     update: calls.updateTag,
     remove: calls.deleteTag,
     setManual: calls.setMessageTag,
-    forMessage: calls.messageTags,
-    taggedMessages: calls.taggedMessages,
+    forMessage: (id: string) => store.chips([id]).get(id) ?? [],
+    taggedMessages: (id: number, limit: number) => store.tagged(id, limit),
     range: calls.tagRange,
-    rangeCount: calls.tagRangeCount,
+    rangeCount: (req: Parameters<typeof tagRangeCount>[1]) => tagRangeCount(db, req),
     applyByRule: (id: string, tagId: number) => store.applyRule(id, tagId),
   };
 }

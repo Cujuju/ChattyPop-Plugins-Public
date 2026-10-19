@@ -1,17 +1,20 @@
 // Tags' core side: storage, Jev, rules and contributions to host reads.
 import { TAGS, MESSAGE_TAGS } from './tables';
-import { defineCorePlugin } from '@plugin-sdk/core';
+import { defineCorePlugin, type TextMessage } from '@plugin-sdk/core';
 import { plugin } from '../shared';
 import { tagSubject, TAG_SOURCE_TITLE } from '../shared/types';
 import { SHOWN_TAG_SQL } from './store';
 import { TagService } from './service';
 import { registerTagKinds } from './rules';
-import { personTags } from './person';
+import { personTagsRead } from './person';
+import { liveChipsRead, manualMessageRead, messageChipsRead, rangeCountRead, taggedRead, tagsRead } from './reads';
 
 export default defineCorePlugin(
   plugin,
   (ctx) => {
     const db = ctx.storage.db;
+    ctx.storage.migrate([`CREATE INDEX IF NOT EXISTS ${MESSAGE_TAGS}_message_state ON ${MESSAGE_TAGS}(message_id, state, tag_id)`]);
+    const read = ctx.storage.read;
     ctx.ai.tools.provide(archiveTools(ctx.storage.read));
     const trigger = ctx.rules.trigger('tags.applied');
     const tags = new TagService(
@@ -57,17 +60,20 @@ export default defineCorePlugin(
       }),
     );
     ctx.channels.serve({
-      tags: () => tags.list(),
+      tags: () => tagsRead(read),
       createTag: (input) => tags.create(input),
       updateTag: (id, input) => tags.update(id, input),
       deleteTag: (id) => tags.remove(id),
-      setMessageTag: (id, tag, on) => tags.setManual(id, tag, on),
-      messageTags: (id) => tags.forMessage(id),
-      taggedMessages: (id, limit) => tags.taggedMessages(id, limit),
-      tagRangeCount: (req) => tags.rangeCount(req),
-      tagRange: (req) => tags.range(req),
-      liveTagChips: (id) => tags.liveChips(id),
-      personTags: ctx.people.section((id) => personTags(db, id)),
+      setMessageTag: async (id, tag, on) => {
+        const message = on ? await manualMessageRead(read, id) : undefined;
+        tags.applyManual(id, tag, on, message);
+      },
+      messageTags: async (id) => (await messageChipsRead(read, [id]))[id] ?? [],
+      taggedMessages: (id, limit) => taggedRead(read, id, limit),
+      tagRangeCount: (req) => rangeCountRead(read, req),
+      tagRange: (req) => tags.range(req, read),
+      liveTagChips: (id) => liveChipsRead(read, id),
+      personTags: ctx.people.section((id) => personTagsRead(read, id)),
     });
     return () => tags.dispose();
   },

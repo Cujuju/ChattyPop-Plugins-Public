@@ -11,10 +11,10 @@ import {
   type TagRangeResult,
 } from '../shared/types';
 import type { AiSources, PluginDecider } from '@plugin-sdk/core';
-import type { PluginDb } from '@plugin-sdk/core';
-import { syncTagQuestions, tagRange, tagRangeCount, type TagApplied, type TagEvents, type TagQuestion, type TagQuestions } from './questions';
+import type { PluginDb, ArchiveRead } from '@plugin-sdk/core';
+import { syncTagQuestions, tagRange, type TagApplied, type TagEvents, type TagQuestion, type TagQuestions } from './questions';
 import type { TextMessage } from '@plugin-sdk/core';
-import { TagStore, type RuleTagResult } from './store';
+import { TagStore, type TagRow, type RuleTagResult } from './store';
 
 /** Tagged messages the live client decorates per channel: the newest ones are the ones on screen. */
 const LIVE_CHIPS_MAX = 500;
@@ -22,6 +22,7 @@ const LIVE_CHIPS_MAX = 500;
 /** Coordinates tag storage, dynamic questions, trigger events and view refreshes. */
 export class TagService {
   private readonly store: TagStore;
+  private readonly definitions = new Map<number, TagRow>();
   private active = true;
   private readonly questions: TagQuestions = new Map();
   /** Each tag's revision: bumped when it is created, deleted or its question changes, from one never-reused counter. */
@@ -44,6 +45,7 @@ export class TagService {
     private readonly sources: Pick<AiSources, 'permitted'>,
   ) {
     this.store = new TagStore(db);
+    for (const row of this.store.rows()) this.definitions.set(row.id, row);
     this.sync();
   }
 
@@ -66,7 +68,7 @@ export class TagService {
   };
 
   private sync(): void {
-    this.disposeQuestions = syncTagQuestions(this.store, this.events, this.register, this.questions);
+    this.disposeQuestions = syncTagQuestions(this.store, [...this.definitions.values()], this.events, this.register, this.questions);
   }
 
   /** Drops this service's dynamically registered questions. */
@@ -75,9 +77,7 @@ export class TagService {
     this.disposeQuestions();
   }
 
-  list(): Tag[] {
-    return this.store.list();
-  }
+
 
   /** A tag's current revision (0: unchanged since this service started). */
   private readonly revision = (tagId: number): number => this.revisions.get(tagId) ?? 0;
@@ -88,6 +88,7 @@ export class TagService {
 
   create(input: TagInput): number {
     const id = this.store.create(input);
+    this.definitions.set(id, this.store.row(id)!);
     this.revise(id); // SQLite may reuse a deleted tag's id
     this.sync();
     if (input.auto) this.catchUp();
@@ -97,6 +98,8 @@ export class TagService {
 
   update(id: number, input: TagInput): void {
     const { questionChanged } = this.store.update(id, input);
+    const row = this.store.row(id);
+    if (row) this.definitions.set(id, row);
     if (questionChanged) {
       this.revise(id);
       this.judge.forget(tagSubject(id));
@@ -108,6 +111,7 @@ export class TagService {
 
   remove(id: number): void {
     this.store.remove(id);
+    this.definitions.delete(id);
     this.revise(id);
     this.judge.forget(tagSubject(id));
     this.sync();
@@ -115,10 +119,9 @@ export class TagService {
   }
 
   /** The owner's add is live: they are acting on the message now. */
-  setManual(messageId: string, tagId: number, on: boolean): void {
+  applyManual(messageId: string, tagId: number, on: boolean, m: TextMessage | undefined): void {
     this.store.setManual(messageId, tagId, on);
     this.changed([messageId]);
-    const m = on ? this.db.prepare('SELECT id, channel_id AS channelId, author_id AS authorId, ts, text AS content, linked FROM archive_all_messages WHERE id = ?').get(messageId) as TextMessage | undefined : undefined;
     if (m) this.applied({
       m,
       tagId,
@@ -142,19 +145,13 @@ export class TagService {
     return this.store.chips(messageIds);
   }
 
-  taggedMessages(tagId: number, limit: number): TaggedMessage[] {
-    return this.store.tagged(tagId, limit);
+
+
+
+
+  range(req: TagRangeRequest, read: ArchiveRead): Promise<TagRangeResult> {
+    return tagRange(read, this.store, this.judge, this.requireJev(), this.sources, req, this.events, () => this.active, this.revision);
   }
 
-  rangeCount(req: TagRangeRequest): number {
-    return tagRangeCount(this.db, req);
-  }
 
-  range(req: TagRangeRequest): Promise<TagRangeResult> {
-    return tagRange(this.db, this.store, this.judge, this.requireJev(), this.sources, req, this.events, () => this.active, this.revision);
-  }
-
-  liveChips(channelId: string): Record<string, MessageTagChip[]> {
-    return this.store.channelChips(channelId, LIVE_CHIPS_MAX);
-  }
 }

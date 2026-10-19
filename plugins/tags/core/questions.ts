@@ -1,7 +1,7 @@
 // #78 Jev questions for automatic owner tags and explicit range runs.
 import { TAG_RANGE_MAX, tagSubject, type TagRangeRequest, type TagRangeResult } from '../shared/types';
 import { LocalOnlyError, sumCosts, type AiSources, type Answer, type PluginDecider, type Question } from '@plugin-sdk/core';
-import type { PluginDb } from '@plugin-sdk/core';
+import type { PluginDb, ArchiveRead } from '@plugin-sdk/core';
 import { assertRange, clampCount } from '@plugin-sdk/core';
 import { tagQuestion, type TagRow, type TagStore } from './store';
 import type { LiveAt, TextMessage } from '@plugin-sdk/core';
@@ -33,9 +33,9 @@ export type TagQuestions = Map<string, { signature: string; dispose: () => void 
 export type TagQuestion = PluginMessageQuestion<'customTags'>;
 
 /** Registers each auto tag's question for new messages (and drops deleted or manual-only ones). */
-export function syncTagQuestions(store: TagStore, events: TagEvents, register: (q: TagQuestion) => () => void, current: TagQuestions = new Map()): () => void {
+export function syncTagQuestions(store: TagStore, rows: readonly TagRow[], events: TagEvents, register: (q: TagQuestion) => () => void, current: TagQuestions = new Map()): () => void {
   const retained = new Set<string>();
-  for (const row of store.rows()) {
+  for (const row of rows) {
     const q = tagQuestion(row);
     if (!q || !row.auto) continue;
     const subject = tagSubject(row.id);
@@ -79,22 +79,27 @@ const LOCAL_ONLY = 'This channel is set to local AI only, so Jev (hosted) may no
 
 const RANGE_SQL = `SELECT m.id, m.channel_id AS channelId, m.author_id AS authorId, m.ts, m.text AS content, m.linked FROM archive_all_messages m WHERE m.text != '' AND (m.channel_id = @channel OR m.channel_id IN (SELECT id FROM archive_all_channels WHERE parent_id = @channel))`;
 
-function rangeMessages(db: PluginDb, req: TagRangeRequest): TextMessage[] {
+export function rangeMessagesSql(req: TagRangeRequest): { sql: string; params: Record<string, string | number> } {
   const s = req.scope;
   if (s.kind === 'latest') {
     const limit = clampCount(s.count, TAG_RANGE_MAX);
-    return db.prepare(`${RANGE_SQL} ORDER BY m.ts DESC LIMIT @limit`).all({
+    return { sql: `${RANGE_SQL} ORDER BY m.ts DESC LIMIT @limit`, params: {
       channel: req.channelId,
       limit,
-    }) as TextMessage[];
+    } };
   }
   assertRange(s.fromTs, s.toTs);
-  return db.prepare(`${RANGE_SQL} AND m.ts >= @from AND m.ts < @to ORDER BY m.ts DESC LIMIT @limit`).all({
+  return { sql: `${RANGE_SQL} AND m.ts >= @from AND m.ts < @to ORDER BY m.ts DESC LIMIT @limit`, params: {
     channel: req.channelId,
     from: s.fromTs,
     to: s.toTs,
     limit: TAG_RANGE_MAX,
-  }) as TextMessage[];
+  } };
+}
+
+function rangeMessages(db: PluginDb, req: TagRangeRequest): TextMessage[] {
+  const q = rangeMessagesSql(req);
+  return db.prepare(q.sql).all(q.params) as TextMessage[];
 }
 
 /** How many messages a range run would ask about (capped at TAG_RANGE_MAX), for the cost estimate. */
@@ -120,17 +125,19 @@ function askable(store: TagStore, tagIds: number[]): {
 }
 
 /** Asks each selected tag question per message. Rejects local-only channels, skips failed requests, and discards answers when the tag's revision changed. */
-export async function tagRange(db: PluginDb, store: TagStore, judge: RangeJudgments, jev: PluginDecider, sources: Pick<AiSources, 'permitted'>, req: TagRangeRequest, events: TagEvents, active: () => boolean, revision: (tagId: number) => number): Promise<TagRangeResult> {
+export async function tagRange(read: ArchiveRead, store: TagStore, judge: RangeJudgments, jev: PluginDecider, sources: Pick<AiSources, 'permitted'>, req: TagRangeRequest, events: TagEvents, active: () => boolean, revision: (tagId: number) => number): Promise<TagRangeResult> {
   const tags = askable(store, req.tagIds);
   if (!tags.length) throw new Error('Pick at least one tag with a Jev question.');
   if (!sources.permitted([req.channelId], 'hosted').length) throw new LocalOnlyError(LOCAL_ONLY);
-  const messages = rangeMessages(db, req);
   const questions = Object.fromEntries(tags.map((t) => [tagSubject(t.row.id), t.question]));
   const asked = new Map(tags.map((t) => [tagSubject(t.row.id), { tagId: t.row.id, revision: revision(t.row.id) }]));
   const fresh: Fresh = (subject) => {
     const was = asked.get(subject);
     return was !== undefined && revision(was.tagId) === was.revision;
   };
+  const q = rangeMessagesSql(req);
+  const messages = await read<TextMessage>(q.sql, q.params);
+  if (!active() || ![...asked.keys()].some(fresh)) return { asked: 0, applied: 0, failed: 0, costUsd: null };
   const changed: string[] = [];
   const costs: number[] = [];
   let failed = 0;

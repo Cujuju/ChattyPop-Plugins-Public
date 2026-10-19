@@ -22,7 +22,7 @@ describe('rule engine', () => {
     const other = h.tags.create({ name: 'other', jevQuestion: null, auto: false });
     const id = h.rules.create(ruleInput([tag()], { gates: { edits: true }, narrow: { tagIds: [other] } }));
     const m = h.say('first');
-    h.tags.setManual(m.id, other, true);
+    (await h.tags.setManual(m.id, other, true));
     h.archive.ingestMessages([{ ...m, content: 'edited' }], ARRIVAL.gateway);
     await settleAsync();
     expect(runsOf(h, id).map((r) => r[0])).toEqual([m.id]);
@@ -33,7 +33,7 @@ describe('rule engine', () => {
       ruleInput([tag()], { gates: { edits: true }, match: { text: { pattern: 'cjj', spec: null } } }),
     );
     const m = h.say('hello');
-    h.tags.setManual(m.id, tagId, false);
+    (await h.tags.setManual(m.id, tagId, false));
     h.archive.ingestMessages([{ ...m, content: 'hello cjj' }], ARRIVAL.gateway);
     await settleAsync();
     expect(tagged(m.id)).toBe(false);

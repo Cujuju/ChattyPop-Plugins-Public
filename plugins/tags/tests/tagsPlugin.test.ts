@@ -60,7 +60,7 @@ it(
 
 it(
   'unregisters every read and rule kind when off, and restores preserved data when activated again',
-  () => {
+  async () => {
     const db = tempDb();
     const archive = seedArchive(db, [{ id: 'c1' }]);
     const raw = rawMessage('c1', Date.now(), 'hello');
@@ -78,12 +78,12 @@ it(
         minProbability: 0.5,
       },
     });
-    tags.setManual(raw.id, id, true);
-    expect(tags.calls.personTags(raw.author.id)).toEqual([{
+    (await tags.setManual(raw.id, id, true));
+    expect((await tags.calls.personTags(raw.author.id))).toEqual([{
       name: 'Mine',
       count: 1,
     }]);
-    expect(tags.calls.liveTagChips('c1')[raw.id]).toEqual([{
+    expect((await tags.calls.liveTagChips('c1'))[raw.id]).toEqual([{
       tagId: id,
       name: 'Mine',
       source: 'manual',

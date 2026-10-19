@@ -30,8 +30,8 @@ describe('rule triggers', () => {
       ruleInput([tag(flag)], { trigger: { kind: 'tagApplied', tagIds: [mark], sources: ['jev'] } }),
     );
     const m = h.say('hello');
-    h.tags.setManual(m.id, mark, true);
-    h.tags.setManual(m.id, mark, true); // again: the rule already fired on it
+    (await h.tags.setManual(m.id, mark, true));
+    (await h.tags.setManual(m.id, mark, true)); // again: the rule already fired on it
     await settleAsync();
     expect(runsOf(h, manual)).toEqual([[m.id, true, ['done']]]);
     expect(runsOf(h, byJev)).toEqual([]);

@@ -34,14 +34,14 @@ beforeEach(() => {
 const chipsOf = (id: string) => messagePage(db, { channelId: 'c1', limit: 50 }).find((m) => m.id === id)?.labels.filter((l) => l.pluginId === 'tags') ?? [];
 
 describe('#78 manual tags', () => {
-  it('a manual add or removal sticks: Jev never overrides it', () => {
+  it('a manual add or removal sticks: Jev never overrides it', async () => {
     const id = tags.create(tagInput({ jevQuestion: null, name: 'Mine' }));
     const q = tags.create(tagInput());
     const m = rawMessage('c1', nextTs(), 'NVDA to the moon');
     archive.ingestMessages([m], ARRIVAL.gateway);
-    tags.setManual(m.id, id, true);
+    (await tags.setManual(m.id, id, true));
     expect(chipsOf(m.id)).toEqual([{ subject: tagSubject(id), text: 'Mine', pluginId: 'tags', key: String(id), variant: 'manual', title: 'Your tag, added by you' }]);
-    tags.setManual(m.id, q, false); // removed by hand before Jev saw it
+    (await tags.setManual(m.id, q, false)); // removed by hand before Jev saw it
     const store = (tags as unknown as { store: { applyJev: (m: string, t: number, v: number | null) => boolean } }).store;
     expect(store.applyJev(m.id, q, 0.95)).toBe(false);
     expect(store.applyJev(m.id, id, null)).toBe(false);
@@ -85,7 +85,7 @@ describe('#78 Jev tags on new messages', () => {
     const hand = rawMessage('c1', nextTs(), 'my pick');
     archive.ingestMessages([hit, hand], ARRIVAL.gateway);
     await settleAsync();
-    tags.setManual(hand.id, id, true);
+    (await tags.setManual(hand.id, id, true));
     jev.values = {};
     tags.update(id, tagInput({ auto: true, jevQuestion: { ...YES, question: 'Does `message` name a ticker?' } }));
     await settleAsync();

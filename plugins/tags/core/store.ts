@@ -134,18 +134,6 @@ export class TagStore {
     return out;
   }
 
-  /** The newest `limit` tagged messages of one channel, for the live client's chips. */
-  channelChips(channelId: string, limit: number): Record<string, MessageTagChip[]> {
-    const ids = (
-      this.db
-        .prepare(
-        `SELECT DISTINCT m.id FROM ${MESSAGE_TAGS} mt JOIN archive_all_messages m ON m.id = mt.message_id
-           WHERE m.channel_id = ? AND mt.${SHOWN_TAG_SQL} ORDER BY m.ts DESC LIMIT ?`,
-      )
-        .all(channelId, limit) as { id: string }[]
-    ).map((r) => r.id);
-    return Object.fromEntries(this.chips(ids));
-  }
 
   /** Messages carrying a tag, newest first. */
   tagged(tagId: number, limit: number, scope?: ArchiveToolScope): TaggedMessage[] {
@@ -160,6 +148,13 @@ export class TagStore {
 }
 
 type Sql = { sql: string; params: (string | number)[] };
+
+/** Seek newest channel messages and probe memberships, preserving the newest tagged-message limit. */
+export function channelChipsSql(): string {
+  return `SELECT m.id FROM archive_all_messages m WHERE m.channel_id = ?
+    AND EXISTS (SELECT 1 FROM ${MESSAGE_TAGS} mt WHERE mt.message_id = m.id AND mt.${SHOWN_TAG_SQL})
+    ORDER BY m.ts DESC LIMIT ?`;
+}
 
 /** Every tag by name, counting its shown messages in `scope`. */
 export function tagListSql(scope?: ArchiveToolScope): Sql {

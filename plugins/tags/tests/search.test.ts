@@ -23,13 +23,13 @@ describe('archive search', () => {
     archive.ingestMessages([rawMessage('c1', sept(1), 'alpha one'), rawMessage('c1', sept(2), 'alpha two')], ARRIVAL.gateway);
   });
 
-  it('filters by a shown tag, case-insensitively', () => {
+  it('filters by a shown tag, case-insensitively', async () => {
     const tags = startTags(db);
     const id = tags.create({ name: 'Calls', jevQuestion: null, auto: false });
     const [one] = searchMessages(db, 'one', 1, 'relevance');
-    tags.setManual(one!.messageId, id, true);
+    (await tags.setManual(one!.messageId, id, true));
     expect(hits('tag:calls')).toEqual(['alpha one']);
-    tags.setManual(one!.messageId, id, false);
+    (await tags.setManual(one!.messageId, id, false));
     expect(hits('tag:calls')).toEqual([]);
   });
 });
