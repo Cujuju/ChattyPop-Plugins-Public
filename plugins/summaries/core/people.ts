@@ -89,15 +89,26 @@ export function withPeople(db: PluginDb, s: Summary): Summary {
 }
 
 export async function withPeopleRead(read: ArchiveRead, s: Summary): Promise<Summary> {
-  const messageIds = [...new Set([...s.items, ...s.actions].flatMap(pointCitations).concat((s.themes ?? []).flatMap((t) => t.citations)).map((c) => c.messageId))];
-  const authors: Record<string, string> = messageIds.length
-    ? Object.fromEntries((await read(`SELECT id, author_id FROM archive_messages WHERE id IN (${placeholders(messageIds.length)})`, [...messageIds])).map(row => Object.values(row as Record<string, unknown>)) as [string, string][])
-    : {};
-  const userIds = [...new Set([...textsOf(s).flatMap(referencedPeople), ...Object.values(authors)])];
-  const people: Record<string, string> = userIds.length
-    ? Object.fromEntries((await read(`SELECT u.id, COALESCE((SELECT n.name FROM archive_names n WHERE n.user_id = u.id AND n.name IS NOT NULL
-           AND n.channel_id IN (${placeholders(s.channelIds.length)}) LIMIT 1), u.display_name)
-         FROM archive_users u WHERE u.id IN (${placeholders(userIds.length)})`, [...s.channelIds, ...userIds])).map(row => Object.values(row as Record<string, unknown>)) as [string, string][])
-    : {};
-  return { ...s, people, authors };
+  return (await withPeoplePageRead(read, [s]))[0]!;
+}
+
+/** Two reads per page; the correlated nickname lookup keeps each summary's exact channel preference. */
+export async function withPeoplePageRead(read: ArchiveRead, summaries: Summary[]): Promise<Summary[]> {
+  if (!summaries.length) return [];
+  const citations = summaries.map((s) => [...new Set([...s.items, ...s.actions].flatMap(pointCitations)
+    .concat((s.themes ?? []).flatMap((t) => t.citations)).map((c) => c.messageId))]);
+  const ids = [...new Set(citations.flat())];
+  const allAuthors = new Map((ids.length ? await read<{ id: string; authorId: string }>(
+    'SELECT id, author_id AS authorId FROM archive_messages WHERE id IN (SELECT value FROM json_each(?))', [JSON.stringify(ids)]) : [])
+    .map((r) => [r.id, r.authorId]));
+  const authors = citations.map((ids) => Object.fromEntries(ids.flatMap((id) => allAuthors.has(id) ? [[id, allAuthors.get(id)!]] : [])));
+  const requests = summaries.map((s, index) => ({ index, channels: s.channelIds,
+    users: [...new Set([...textsOf(s).flatMap(referencedPeople), ...Object.values(authors[index]!)])] }));
+  const rows = await read<{ index: number; id: string; name: string }>(`SELECT CAST(json_extract(s.value, '$.index') AS INTEGER) AS "index", u.id,
+    COALESCE((SELECT n.name FROM archive_names n WHERE n.user_id = u.id AND n.name IS NOT NULL
+      AND n.channel_id IN (SELECT value FROM json_each(json_extract(s.value, '$.channels'))) LIMIT 1), u.display_name) AS name
+    FROM json_each(?) s JOIN archive_users u ON u.id IN (SELECT value FROM json_each(json_extract(s.value, '$.users')))`, [JSON.stringify(requests)]);
+  const people = summaries.map(() => ({} as Record<string, string>));
+  for (const row of rows) people[row.index]![row.id] = row.name;
+  return summaries.map((s, index) => ({ ...s, people: people[index]!, authors: authors[index]! }));
 }

@@ -9,7 +9,7 @@ import type { SummarySettings, SummaryTrigger } from '../shared/settings';
 import type { PluginDb, ArchiveRead, ArchiveReplyReader, CoverageQuery } from '@plugin-sdk/core';
 import { readPrivacy } from '@plugin-sdk/core';
 import { shownSummary } from './privacy';
-import { withPeopleRead } from './people';
+import { withPeopleRead, withPeoplePageRead } from './people';
 import { FILLER_RULES_VERSION } from './filler';
 import type { SummaryProviders as ProviderRegistry } from './providers';
 import { SUMMARIES_TABLE } from './schema';
@@ -237,7 +237,7 @@ export class Summarizer {
   /** Summary runs newest first, keyset-paged by (created_at, id), as privacy mode shows them. */
   async page(q: SummaryPageQuery): Promise<Summary[]> {
     const p = await readPrivacy(this.read);
-    return Promise.all((await summaryPageRead(this.read, q)).map((s) => withPeopleRead(this.read, shownSummary(s, p))));
+    return withPeoplePageRead(this.read, (await summaryPageRead(this.read, q)).map((s) => shownSummary(s, p)));
   }
 
   /** `s` as privacy mode shows it, with its people named as they are now: how every summary leaves core. */

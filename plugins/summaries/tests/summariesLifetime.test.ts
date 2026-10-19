@@ -35,12 +35,15 @@ describe('Summaries turned off mid-run', () => {
 
   it('sends no further model request, and the run settles as inactive', async () => {
     const requests: Held<CompletionResult>[] = [];
+    let started!: () => void;
+    const modelStarted = new Promise<void>((resolve) => { started = resolve; });
     // Ignores its signal, as a CLI provider mid-request may: the answer still arrives after the abort.
-    const complete = (req: CompletionRequest) => new Promise<CompletionResult>((resolve) => requests.push({ signal: req.signal, answer: resolve }));
+    const complete = (req: CompletionRequest) => new Promise<CompletionResult>((resolve) => { requests.push({ signal: req.signal, answer: resolve }); started(); });
     const messages = Array.from({ length: 6 }, (_, i) => ({ channelId: 'c1', ts: Date.now() - MS_PER_MIN + i, content: `message ${i} ${'x'.repeat(60)}` }));
     const t = start(summariesCore, { archive: { messages }, ai: claude(complete, CHUNK_CHARS), preferences: { settings: { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'claude' } } });
     const run = t.client('renderer').summarize({ sinceTs: 0 });
-    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    await modelStarted;
+    expect(requests).toHaveLength(1);
     await t.off();
     expect(requests[0]!.signal?.aborted).toBe(true);
     requests[0]!.answer({ text: JSON.stringify(DRAFT), json: DRAFT });

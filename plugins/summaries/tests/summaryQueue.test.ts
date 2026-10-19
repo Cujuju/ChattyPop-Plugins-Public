@@ -27,12 +27,15 @@ describe('queued summaries', () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const used: string[] = [];
+    let started!: () => void;
+    const modelStarted = new Promise<void>((resolve) => { started = resolve; });
     const impl = (id: string, wait: boolean): ProviderImpl => ({
       create: () => ({
         id,
         maxInputChars: 100_000,
         complete: async () => {
           used.push(id);
+          started();
           if (wait) await gate;
           return { text: ANSWER, json: JSON.parse(ANSWER) };
         },
@@ -52,7 +55,8 @@ describe('queued summaries', () => {
     const prefs = { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'codex' as const };
     const first = summarizer.run({ sinceTs: 0 }, settings, prefs, 'manual');
     const queued = summarizer.run({ sinceTs: 1 }, settings, prefs, 'manual');
-    await expect.poll(() => used).toEqual(['codex']);
+    await modelStarted;
+    expect(used).toEqual(['codex']);
     offCodex();
     release();
     await expect(first).rejects.toThrow(/which is off/);
