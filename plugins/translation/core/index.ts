@@ -98,10 +98,13 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     status: async (): Promise<TranslationStatus> => ({ translator: statusOf(translator(null)), providers: await providerModels(ctx), counts: await countsRead(ctx.storage.read) }),
     // Normalized: a pick that isn't one is refused, not read as Settings' model.
-    translate: (messageId, pick) => {
+    translate: async (messageId, pick) => {
       const picked = pick === null ? null : normalizeTranslatePick(pick);
       if (pick !== null && !picked) throw new Error('Not a model Translation translates with.');
-      queue.request(messageId, picked);
+      const chosen = translator(picked);
+      if ('unavailable' in chosen) throw new Error(chosen.unavailable);
+      const { parts, texts } = await ctx.archive.read.parts([messageId]);
+      queue.request(messageId, picked, messageSources(plugin.manifest.id, settings().translateLanguage, parts, texts));
     },
     retryFailed: () => queue.retryFailedRead(ctx.storage.read),
   });

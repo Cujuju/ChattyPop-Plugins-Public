@@ -116,11 +116,11 @@ export class TranslationQueue {
   }
 
   /** The owner asked: every part of the message with text is translated again, however old, with `pick` or Settings' model (null). */
-  request(messageId: string, pick: TranslatePick | null): void {
+  request(messageId: string, pick: TranslatePick | null, selected?: ReadonlyMap<string, PartSource[]>): void {
     const t = this.d.translator(pick);
     if ('unavailable' in t) throw new Error(t.unavailable);
     const m = this.message(messageId);
-    const sources = m && this.d.sources([messageId]).get(messageId);
+    const sources = m && (selected ?? this.d.sources([messageId])).get(messageId);
     if (!m || !sources) throw new Error('This message has no image text, transcript or link preview text to translate.');
     enqueue(this.d.db, messageId, m.channelId, sources, PRIORITY.requested, Date.now(), pick);
     this.d.events.changed(messageId);
