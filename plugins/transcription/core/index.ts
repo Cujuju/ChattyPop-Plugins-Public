@@ -16,7 +16,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   registerTranscriptFilter(ctx.rules, ctx.storage.db);
   const t = setupTranscription({
     db: ctx.storage.db,
-    archive: { payloads: ctx.archive.payloads, parts: (ids) => ctx.archive.parts.of(ids) },
+    archive: { read: ctx.storage.read, payloads: ctx.archive.read.payloads, parts: async (ids, options) => (await ctx.archive.read.parts(ids, options)).parts },
     toolsDir: ctx.storage.dataDir,
     fetch: ctx.net.fetch,
     attachmentsDir: ctx.archive.attachmentsDir,

@@ -1,8 +1,10 @@
+import { closeArchiveReads } from '@core/reads/archiveReads';
+import { archiveRead } from '@core/plugins/pluginDb';
 // Transcripts of every audio and video part: video attachments, embeds' videos, per-kind automatic switches, notes and
 // derived text by part.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { attachmentFileName } from '@shared/media';
 import { VOICE_MESSAGE_FLAG } from '@shared/discord';
 import { MS_PER_MIN } from '@shared/units';
@@ -27,6 +29,10 @@ import { transcriptNotes } from '../core/store';
 import { Toolchain } from '../core/toolchain';
 import { Transcriber } from '../core/transcriber';
 import type { TranscriptResult } from '../core/whisper';
+
+/** Discovery starts a native helper; concurrent contract suites can take several seconds to start it. */
+const DISCOVERY_WAIT_MS = 10_000;
+afterEach(async () => { transcriber.dispose(); await closeArchiveReads(db); db.close(); });
 
 const MODEL = 'ggml-base.bin';
 /** An FxTwitter post's video, as Discord's media proxy serves it (an embed's video.proxy_url). */
@@ -72,7 +78,7 @@ beforeEach(() => {
   fakeTool(toolsDir, 'whisper-cli', 'Release');
   fakeModel(toolsDir, MODEL);
   const toolchain = new Toolchain(toolsDir, () => undefined, () => Promise.reject(new Error('offline')));
-  const reads = { payloads: (ids: readonly string[]) => archivePayloads(db, ids), parts: (ids: readonly string[]) => messageParts(db, ids) };
+  const reads = { read: archiveRead(() => db), payloads: (ids: readonly string[]) => archivePayloads(db, ids), parts: (ids: readonly string[]) => messageParts(db, ids) };
   transcriber = new Transcriber(db, reads, toolchain, () => settings, attachmentsDir, join(toolsDir, 'work'), {
     changed: () => undefined,
     fetchAudio: (r) => void fetches.push(r),
@@ -111,7 +117,7 @@ function withEmbedVideo(type = 'rich'): string {
 const job = (messageId: string) =>
   db.prepare(`SELECT seq, part_key AS part, kind, state, text, error FROM ${JOBS_TABLE} WHERE message_id = ?`).get(messageId) as
     { seq: number; part: string; kind: string; state: string; text: string | null; error: string | null } | undefined;
-const settle = (): Promise<void> => vi.waitFor(() => expect(transcriber.busy).toBe(false));
+const settle = (): Promise<void> => vi.waitFor(() => expect(transcriber.busy).toBe(false), { timeout: DISCOVERY_WAIT_MS });
 /** Main downloads the requested media, which says `speech`. */
 const download = (r: TranscriptMediaRequest, speech: string): void => {
   mkdirSync(join(r.path, '..'), { recursive: true });
@@ -140,7 +146,7 @@ describe("an embed's video", () => {
 
   it('fails with the reason when main cannot fetch it', async () => {
     const messageId = withEmbedVideo();
-    transcriber.request(messageId, partKey.embed(PROXIED_VIDEO));
+    await transcriber.request(messageId, partKey.embed(PROXIED_VIDEO));
     await vi.waitFor(() => expect(fetches).toHaveLength(1));
     transcriber.audioFetched(fetches[0]!.requestId, 'HTTP 404');
     expect(job(messageId)).toMatchObject({ state: 'failed', error: 'It could not be downloaded: HTTP 404' });
@@ -152,7 +158,7 @@ describe("an embed's video", () => {
     transcriber.shown(messageId);
     await settle();
     expect(job(messageId)).toBeUndefined();
-    expect(() => transcriber.request(messageId, null)).toThrow('no audio or video');
+    await expect(transcriber.request(messageId, null)).rejects.toThrow('no audio or video');
   });
 });
 
@@ -174,12 +180,12 @@ describe('a video attachment', () => {
     expect(db.prepare('SELECT source, part FROM derived_texts WHERE message_id = ?').get(messageId)).toEqual({ source: `transcription:${attachmentId}`, part: partKey.attachment(attachmentId) });
   });
 
-  it('keeps its message pending while its file downloads', () => {
+  it('keeps its message pending while its file downloads', async () => {
     settings = autoFor('video');
     const { messageId } = withAttachment('video/mp4', 'clip.mp4', '', { store: false });
     expect(transcriber.due(messageId)).toBe(true);
     settings = autoFor('voice');
-    expect(transcriber.due(messageId)).toBe(false);
+    await vi.waitFor(() => expect(transcriber.due(messageId)).toBe(false), { timeout: DISCOVERY_WAIT_MS });
   });
 });
 

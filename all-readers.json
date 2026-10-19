@@ -3,5 +3,6 @@
   "stats/core/textWork.ts": "Background lexical partitions retain hidden-channel text; known channel/server references remain live.",
   "stats/core/runWork.ts": "Background run partitions include hidden-channel headers; visible residual runs are folded from the current message view.",
   "stats/core/countProjection.ts": "Channel display names describe already visible message summaries.",
-  "stats/core/runRead.ts": "Scope resolution includes thread and server membership; rollup views still enforce message visibility."
+  "stats/core/runRead.ts": "Scope resolution includes thread and server membership; rollup views still enforce message visibility.",
+  "transcription/core/sources.ts": "Selected source timestamps and transcript states retain background transcription scope; payload discovery runs off Core."
 }

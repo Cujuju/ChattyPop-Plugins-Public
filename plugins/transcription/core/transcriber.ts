@@ -7,7 +7,8 @@ import { type PluginDb, SerialLoop, storedAttachmentPath } from '@plugin-sdk/cor
 import { AUDIO_FETCHES_MAX } from '../shared';
 import { AUTO_KINDS, type TranscriptMediaRequest, type TranscriptState, type TranscriptionSettings } from '../shared/types';
 import { mediaSources, type MediaSource, type TranscriptionArchive } from './sources';
-import { PRIORITY, attachmentMessage, enqueue, fail, finish, jobOf, nextJob, resetInterrupted, setState, transcriptKey, type TranscriptJob } from './store';
+import { MediaDiscovery } from './discovery';
+import { PRIORITY, attachmentMessage, enqueue, fail, finish, jobOf, jobStates, nextJob, resetInterrupted, setState, transcriptKey, type TranscriptJob } from './store';
 import type { Toolchain, ToolPaths } from './toolchain';
 import { transcribe } from './whisper';
 
@@ -20,7 +21,6 @@ export const NOT_SET_UP = 'Set up transcription first: Settings → Transcriptio
 /** Transcript states still heading for done or failed. */
 const ACTIVE_STATES: ReadonlySet<TranscriptState> = new Set(['queued', 'fetching', 'running']);
 /** attachments.status before the file is downloaded, and once it is. */
-const DOWNLOAD_PENDING = 'pending';
 const DOWNLOAD_STORED = 'stored';
 
 /**
@@ -77,6 +77,7 @@ export class Transcriber {
   private readonly stop = new AbortController();
   /** `stop` or the activation's lifetime: work after an await stops once either ends. */
   private readonly signal: AbortSignal;
+  private readonly discovery: MediaDiscovery;
 
   constructor(
     private readonly db: PluginDb,
@@ -94,6 +95,9 @@ export class Transcriber {
     private readonly reports: DownloadReports = { dispatch: (_, send) => (send(), true), withdraw: () => undefined },
   ) {
     this.signal = lifetime ? AbortSignal.any([this.stop.signal, lifetime]) : this.stop.signal;
+    this.discovery = new MediaDiscovery(this.signal, (ids) => mediaSources(this.archive, ids, this.signal),
+      (id, sources) => { if (this.queueAutomatic(id, sources)) this.kick(); }, (source) => this.autoCovers(source),
+      (id) => { if (!this.due(id)) this.events.settled({ messageId: id, ok: false }); });
     resetInterrupted(db, [...session.fetches.values()].map((f) => f.seq));
     session.latest = this;
   }
@@ -101,19 +105,19 @@ export class Transcriber {
   /** An attachment was stored: queues what automatic transcription covers of its message. */
   attachmentStored(attachmentId: string): void {
     const messageId = attachmentMessage(this.db, attachmentId);
-    if (messageId && this.queueAutomatic(messageId)) this.kick();
+    if (messageId) this.shown(messageId);
   }
 
   /** A message was stored or updated (embeds arrive by edit). Runs inside ingest: only queues; the queue runs after. */
   shown(messageId: string): void {
-    if (this.queueAutomatic(messageId)) setImmediate(() => this.kick());
+    if (AUTO_KINDS.some((kind) => this.settings().auto[kind])) this.discovery.shown(messageId);
   }
 
   /** Queues the message's parts automatic transcription covers and that can run now; returns whether any was queued. */
-  private queueAutomatic(messageId: string): boolean {
+  private queueAutomatic(messageId: string, sources: MediaSource[]): boolean {
     const auto = this.settings().auto;
     if (!AUTO_KINDS.some((k) => auto[k])) return false; // every message stored runs this: skip reading its parts
-    const due =this.sources(messageId).filter((s) => s.transcript === null && this.autoCovers(s) && (s.download === null || s.download === DOWNLOAD_STORED));
+    const due = sources.filter((s) => s.transcript === null && this.autoCovers(s) && (s.download === null || s.download === DOWNLOAD_STORED));
     const queued = due.filter((s) => enqueue(this.db, s, PRIORITY.automatic, Date.now())).length > 0;
     if (queued) this.changed(messageId);
     return queued;
@@ -121,13 +125,13 @@ export class Transcriber {
 
   /** A transcript of the message is queued or running, or will be queued once an attachment's file is stored. */
   due(messageId: string): boolean {
-    return this.sources(messageId).some(
-      (s) => (s.transcript !== null && ACTIVE_STATES.has(s.transcript)) || (s.transcript === null && s.download === DOWNLOAD_PENDING && this.autoCovers(s)),
-    );
-  }
-
-  private sources(messageId: string): MediaSource[] {
-    return mediaSources(this.db, this.archive, [messageId]);
+    if (this.discovery.due(messageId) || [...(jobStates(this.db, [messageId]).get(messageId)?.values() ?? [])].some((state) => ACTIVE_STATES.has(state))) return true;
+    if (!this.discovery.has(messageId) && !this.signal.aborted && this.toolchain.ready(this.settings().model)
+      && AUTO_KINDS.some((kind) => this.settings().auto[kind])) {
+      this.discovery.shown(messageId);
+      return true;
+    }
+    return false;
   }
 
   /** Automatic transcription is set up and covers this part: its kind is on, and it was sent since. */
@@ -138,9 +142,10 @@ export class Transcriber {
   }
 
   /** The owner asked for transcripts of the message's audio and video (`part`, or each one; however old). */
-  request(messageId: string, part: string | null): void {
+  async request(messageId: string, part: string | null): Promise<void> {
     if (!this.toolchain.ready(this.settings().model)) throw new Error(NOT_SET_UP);
-    const sources = this.sources(messageId).filter((s) => part === null || s.partKey === part);
+    const sources = (await mediaSources(this.archive, [messageId], this.signal)).filter((s) => part === null || s.partKey === part);
+    this.signal.throwIfAborted();
     if (!sources.length) throw new Error(part === null ? 'This message has no audio or video.' : 'Not audio or video of this message.');
     if (sources.filter((s) => enqueue(this.db, s, PRIORITY.requested, Date.now())).length) this.changed(messageId);
     this.kick();
@@ -178,7 +183,7 @@ export class Transcriber {
 
   /** A transcript is being made (its programs are in use). */
   get busy(): boolean {
-    return this.loop.busy;
+    return this.loop.busy || this.discovery.busy;
   }
 
   /** Safe to call often; coalesces into one drain loop. */

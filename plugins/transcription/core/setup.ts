@@ -94,7 +94,7 @@ export function setupTranscription(o: {
       // Checked: a renderer's arguments reach core as sent.
       request: (messageId, part) => {
         if (typeof messageId !== 'string' || (part !== null && typeof part !== 'string')) throw new Error('Not a message part to transcribe.');
-        transcriber.request(messageId, part);
+        return transcriber.request(messageId, part);
       },
     },
     audioFetched: (requestId, error, done) => transcriber.audioFetched(requestId, error, done),

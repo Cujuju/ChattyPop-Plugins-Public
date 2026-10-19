@@ -1,7 +1,9 @@
+import { closeArchiveReads } from '@core/reads/archiveReads';
+import { archiveRead } from '@core/plugins/pluginDb';
 // Transcription across off and on: a retired activation's continuations, main's download reports, and installs.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { VOICE_MESSAGE_FLAG } from '@shared/discord';
 import { MS_PER_MIN } from '@shared/units';
 
@@ -57,6 +59,7 @@ const MODEL = 'ggml-base.bin';
 
 describe('the transcript queue across off and on', () => {
   let db: ReturnType<typeof tempDb>;
+  afterEach(async () => { await closeArchiveReads(db); db.close(); });
   let attachmentId: string;
   let fetches: TranscriptMediaRequest[];
   let events: TranscriberEvents;
@@ -72,7 +75,7 @@ describe('the transcript queue across off and on', () => {
   const state = () => db.prepare(`SELECT state FROM ${JOBS_TABLE} WHERE attachment_id = ?`).pluck().get(attachmentId);
   /** A transcriber for one activation, sharing the core process's session. */
   const activation = (session: ReturnType<typeof newTranscriptionSession>, lifetime: AbortController, on: TranscriberEvents = events) =>
-    new Transcriber(db, { payloads: (ids) => archivePayloads(db, ids), parts: (ids) => messageParts(db, ids) }, toolchain, settings, tempDir(), workDir, on, run, session, lifetime.signal);
+    new Transcriber(db, { read: archiveRead(() => db), payloads: (ids) => archivePayloads(db, ids), parts: (ids) => messageParts(db, ids) }, toolchain, settings, tempDir(), workDir, on, run, session, lifetime.signal);
   /** Main downloads the requested audio. */
   const download = (r: TranscriptMediaRequest, text: string): void => {
     mkdirSync(join(r.path, '..'), { recursive: true });
@@ -106,7 +109,7 @@ describe('the transcript queue across off and on', () => {
     io.hold = new Promise((r) => (release = r));
     const oldLife = new AbortController();
     const old = activation(session, oldLife);
-    old.request(messageOf(attachmentId), null);
+    await old.request(messageOf(attachmentId), null);
     oldLife.abort();
     old.dispose();
     const fresh = activation(session, new AbortController());
@@ -124,7 +127,7 @@ describe('the transcript queue across off and on', () => {
     const session = newTranscriptionSession();
     const oldLife = new AbortController();
     const old = activation(session, oldLife);
-    old.request(messageOf(attachmentId), null);
+    await old.request(messageOf(attachmentId), null);
     await vi.waitFor(() => expect(fetches).toHaveLength(1));
     oldLife.abort();
     old.dispose();
@@ -141,7 +144,7 @@ describe('the transcript queue across off and on', () => {
 
   it('ignores a report of a download it never asked for', async () => {
     const t = activation(newTranscriptionSession(), new AbortController());
-    t.request(messageOf(attachmentId), null);
+    await t.request(messageOf(attachmentId), null);
     await vi.waitFor(() => expect(fetches).toHaveLength(1));
     t.audioFetched(fetches[0]!.requestId + 1, 'from an earlier run');
     expect(state()).toBe('fetching');
@@ -152,7 +155,7 @@ describe('the transcript queue across off and on', () => {
     try {
       const settled: boolean[] = [];
       const t = activation(newTranscriptionSession(), new AbortController(), { ...events, settled: (s) => void settled.push(s.ok) });
-      t.request(messageOf(attachmentId), null);
+      await t.request(messageOf(attachmentId), null);
       await vi.waitFor(() => expect(fetches).toHaveLength(1));
       await vi.advanceTimersByTimeAsync(DOWNLOAD_REPORT_MAX_MS);
       expect(state()).toBe('failed');
@@ -171,7 +174,7 @@ describe('the transcript queue across off and on', () => {
       const session = newTranscriptionSession();
       const oldLife = new AbortController();
       const old = activation(session, oldLife);
-      old.request(messageOf(attachmentId), null);
+      await old.request(messageOf(attachmentId), null);
       await vi.waitFor(() => expect(fetches).toHaveLength(1));
       oldLife.abort();
       old.dispose();
@@ -192,7 +195,7 @@ describe('the transcript queue across off and on', () => {
       attachments: [{ id, filename: 'voice-message.ogg', content_type: 'audio/ogg', url: `https://cdn.example/${id}` }],
     })), ARRIVAL.gateway);
     const t = activation(newTranscriptionSession(), new AbortController());
-    for (const id of [attachmentId, ...more]) t.request(messageOf(id), null);
+    for (const id of [attachmentId, ...more]) await t.request(messageOf(id), null);
     await vi.waitFor(() => expect(fetches).toHaveLength(AUDIO_FETCHES_MAX));
     await vi.waitFor(() => expect(t.busy).toBe(false));
     expect(fetches).toHaveLength(AUDIO_FETCHES_MAX);
