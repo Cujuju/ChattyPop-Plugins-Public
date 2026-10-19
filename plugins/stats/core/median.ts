@@ -1,7 +1,8 @@
 /** An even sample's median averages its two central observations. */
-const MEDIAN_HALVES = 2;
+
 
 export function median(frequencies: Map<number, number>, observations: number): number {
+  const MEDIAN_HALVES = 2; // The two central observations define an even median.
   if (!observations) return 0;
   const lower = Math.floor((observations - 1) / MEDIAN_HALVES);
   const upper = Math.floor(observations / MEDIAN_HALVES);

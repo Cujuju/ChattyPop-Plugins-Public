@@ -1,9 +1,7 @@
-import { REPLY_MIN_RUNS } from '../shared/conversations';
-import { STATS_TOP } from '../shared/types';
-import { median } from './median';
 
 /** Runs with a different-author reply contribute opener, closer and reply-delay counts. */
-export function createConversationRoles(authorId?: string | null) {
+export function createConversationRoles(authorId: string | null | undefined, config: any) {
+  const median = new Function(`return (${config.median})`)();
   const authors = new Set<string>();
   const starts = new Map<string, number>();
   const closes = new Map<string, number>();
@@ -11,7 +9,7 @@ export function createConversationRoles(authorId?: string | null) {
   const allDelays = new Map<number, number>();
   let runs = 0;
   const ranking = (counts: Map<string, number>) => [...counts].map(([userId, count]) => ({ userId, count }))
-    .sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId)).slice(0, STATS_TOP);
+    .sort((a, b) => b.count - a.count || a.userId.localeCompare(b.userId)).slice(0, config.top);
   const scopeMedian = (counts: Map<string, number>) => {
     const frequencies = new Map<number, number>();
     for (const id of authors) {
@@ -39,9 +37,9 @@ export function createConversationRoles(authorId?: string | null) {
           medianReplyMs: delays.has(authorId) ? median(delays.get(authorId)!, starts.get(authorId)!) : null,
           scopeMedianStarts: scopeMedian(starts), scopeMedianCloses: scopeMedian(closes),
         } }),
-        fastest: authorId != null ? [] : [...delays].filter(([userId]) => starts.get(userId)! >= REPLY_MIN_RUNS)
+        fastest: authorId != null ? [] : [...delays].filter(([userId]) => starts.get(userId)! >= config.minRuns)
           .map(([userId, values]) => ({ userId, count: starts.get(userId)!, medianReplyMs: median(values, starts.get(userId)!) }))
-          .sort((a, b) => a.medianReplyMs - b.medianReplyMs || a.userId.localeCompare(b.userId)).slice(0, STATS_TOP),
+          .sort((a, b) => a.medianReplyMs - b.medianReplyMs || a.userId.localeCompare(b.userId)).slice(0, config.top),
       };
     },
   };
