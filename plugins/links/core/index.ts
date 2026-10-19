@@ -15,7 +15,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.ai.tools.provide(archiveTools(ctx.storage.read, ctx.archive));
   // A judgment or a fetched post changes no channel: the panel refreshes on this event.
   const updated = (): void => ctx.channels.emit(UPDATED_EVENT, null);
-  const judge = new LinkJudge(db, (feature) => ctx.jev.decider(feature), updated, ctx.ai.sources, ctx.archive.linksSql);
+  const judge = new LinkJudge(db, (feature) => ctx.jev.decider(feature), updated, ctx.ai.sources, ctx.archive.linksSql, ctx.storage.read);
   const xPosts = new XPosts(db, ctx.storage.read, ctx.net.fetch, ctx.archive, updated, xQueue, ctx.lifetime.signal);
   // New links may be waiting for Jev (#61–#63), or a switch was just turned on.
   ctx.archive.onChanged((change) => { if (Object.values(change.changes).some((kinds) => kinds.includes('links'))) judge.kick(); });
@@ -28,13 +28,13 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     rollupStatus: () => rollup.status(),
     rebuildRollups: (channelIds) => rollup.rebuild(channelIds ? { channelIds } : undefined),
-    page: async (q) => xPosts.fill(await linkPage(ctx.storage.read, ctx.archive.read.payloads, ctx.archive.read.messages, q, ctx.archive.linksSql)),
+    page: async (q) => xPosts.fill(await linkPage(ctx.storage.read, ctx.archive.read.linkPreviews, ctx.archive.read.messages, q, ctx.archive.linksSql)),
     window: async (q) => {
-      const w = await linkWindow(ctx.storage.read, ctx.archive.read.payloads, ctx.archive.read.messages, q, ctx.archive.linksSql);
+      const w = await linkWindow(ctx.storage.read, ctx.archive.read.linkPreviews, ctx.archive.read.messages, q, ctx.archive.linksSql);
       return { ...w, items: await xPosts.fill(w.items) };
     },
     counts: (f) => linkCounts(ctx.storage.read, f, rollup),
-    sharedBy: async (q) => xPosts.fill(await personLinkPage(ctx.storage.read, ctx.archive.read.payloads, q, ctx.archive.linksSql)),
+    sharedBy: async (q) => xPosts.fill(await personLinkPage(ctx.storage.read, ctx.archive.read.linkPreviews, q, ctx.archive.linksSql)),
     // Core's clock, not the caller's: a phone's may differ from the PC's.
     markSeen: () => ctx.preferences.set('seenUpTo', Date.now()),
   });

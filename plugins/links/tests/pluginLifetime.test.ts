@@ -8,6 +8,9 @@ import type { DecisionProvider, DecisionRequest, DecisionResult, Question } from
 import linksCore from '../core';
 import { JUDGMENTS, X_POSTS } from '../core/tables';
 
+/** Discovery starts a native helper before Jev is called. */
+const DISCOVERY_WAIT_MS = 10_000;
+
 /** Starts `core` under the test harness with channel c1 archived, and disposes it after the test. */
 function start<D extends PluginDescriptor>(core: CorePlugin<D>, o: TestOptions<D> = {}) {
   const t = testPlugin(core, { ...o, archive: { channels: [{ id: 'c1' }], ...o.archive } });
@@ -43,10 +46,10 @@ describe('Links turned off and on while Jev answers', () => {
       ai: { jev, switches: { linkWorth: true } },
     });
     const judged = () => t.db.prepare<[], number>(`SELECT worth FROM ${JUDGMENTS}`).pluck().get();
-    await vi.waitFor(() => expect(jev.held).toHaveLength(1));
+    await vi.waitFor(() => expect(jev.held).toHaveLength(1), { timeout: DISCOVERY_WAIT_MS });
     await t.off();
     await t.on();
-    await vi.waitFor(() => expect(jev.held).toHaveLength(2));
+    await vi.waitFor(() => expect(jev.held).toHaveLength(2), { timeout: DISCOVERY_WAIT_MS });
     jev.held[1]!.answer(worth(4));
     await vi.waitFor(() => expect(judged()).toBe(4));
     expect(jev.held[0]!.signal?.aborted).toBe(true);
@@ -67,7 +70,7 @@ describe('Links judgments and privacy', () => {
     await new Promise((r) => setImmediate(r));
     expect(jev.held).toHaveLength(0);
     t.archive.setPrivacyMode(false);
-    await vi.waitFor(() => expect(jev.held).toHaveLength(1));
+    await vi.waitFor(() => expect(jev.held).toHaveLength(1), { timeout: DISCOVERY_WAIT_MS });
   });
 });
 

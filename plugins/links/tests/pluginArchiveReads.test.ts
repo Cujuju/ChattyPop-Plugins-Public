@@ -3,7 +3,7 @@ import { statementRead } from '@chattypop/host-testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setSetting, type Db } from '@core/db';
 import { adoptBundledData } from '@core/plugins/adoption';
-import { archivePayloads } from '@core/plugins/archivePayloads';
+import { linkPreviews } from '@core/queries/linkPreviews';
 import { tempDb } from '@chattypop/host-testing';
 import { seedArchiveViews } from '@chattypop/host-testing/archiveViewsFixture';
 import { linkPage } from '../core/feed';
@@ -38,7 +38,7 @@ describe('plugin archive read parity', () => {
     setSetting(db, 'privacyMode', true);
     const embed = { type: 'rich', url: 'https://example.com/open', title: 'Bot card' };
     db.prepare('UPDATE messages SET raw_json = ? WHERE id = ?').run(JSON.stringify({ author: { bot: true }, embeds: [embed] }), 'm-hide');
-    const rows = (await linkPage(statementRead(db), (ids) => archivePayloads(db, ids), () => [], { limit: 100 }, linksSql));
+    const rows = (await linkPage(statementRead(db), async (ids, scope) => linkPreviews(db, ids, scope), () => [], { limit: 100 }, linksSql));
     expect(rows.map((row) => row.id)).toEqual([5, 1]);
     const shared = rows.find((row) => row.id === 1)!;
     expect(shared.shares).toBe(2);

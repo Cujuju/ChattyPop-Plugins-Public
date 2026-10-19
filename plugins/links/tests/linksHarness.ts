@@ -1,6 +1,6 @@
 import { statementRead } from '@chattypop/host-testing';
 // The Links plugin's core over a test archive: its tables adopted as core init does, and its feed.
-import { archivePayloads } from '@core/plugins/archivePayloads';
+import { linkPreviews } from '@core/queries/linkPreviews';
 import type { Db } from '@core/db';
 import { storeLinkText } from '@core/derivedText';
 import { storeLinkImages, type LinkImage } from '@core/messageImages';
@@ -20,13 +20,13 @@ export function adoptLinks(db: Db): Db {
 }
 
 /** A page of the Links feed, with the sharing messages as the Archive shows them. */
-export const linkFeed = async (db: Db, q: LinkPageQuery): Promise<LinkItem[]> => (await linkPage(statementRead(db), (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q, linksSql));
+export const linkFeed = async (db: Db, q: LinkPageQuery): Promise<LinkItem[]> => (await linkPage(statementRead(db), async (ids, scope) => linkPreviews(db, ids, scope), (ids) => messagesByIds(db, ids), q, linksSql));
 
 /** The Links feed around a cursor. */
-export const linkFeedWindow = async (db: Db, q: LinkWindowQuery): Promise<LinkWindow> => (await linkWindow(statementRead(db), (ids) => archivePayloads(db, ids), (ids) => messagesByIds(db, ids), q, linksSql));
+export const linkFeedWindow = async (db: Db, q: LinkWindowQuery): Promise<LinkWindow> => (await linkWindow(statementRead(db), async (ids, scope) => linkPreviews(db, ids, scope), (ids) => messagesByIds(db, ids), q, linksSql));
 
 /** A person's links, each at their latest share of it. */
-export const personLinks = async (db: Db, q: PersonLinksQuery): Promise<LinkCard[]> => (await personLinkPage(statementRead(db), (ids) => archivePayloads(db, ids), q, linksSql));
+export const personLinks = async (db: Db, q: PersonLinksQuery): Promise<LinkCard[]> => (await personLinkPage(statementRead(db), async (ids, scope) => linkPreviews(db, ids, scope), q, linksSql));
 
 /** The host contract without activating a plugin; these feed fixtures have no local AI provider. */
 export const linksSql: CoreContext['archive']['linksSql'] = (scope, reader) => archiveLinksSql([

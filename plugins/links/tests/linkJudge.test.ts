@@ -1,14 +1,19 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@core/db';
 import { LinkJudge } from '../core/judge';
 import { JUDGMENTS } from '../core/tables';
 import { adoptLinks, linkFeed, linksSql } from './linksHarness';
-import { FakeJev, type JevRequest, rawMessage, seedArchive, settleAsync, tempDb } from '@chattypop/host-testing';
+import { FakeJev, type JevRequest, rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
 import { ARRIVAL } from '@core/arrival';
 import { aiSources, scopedDecider } from '@core/ai/readScope';
+import { archiveRead, type ArchiveRead } from '@core/plugins/pluginDb';
+import { closeArchiveReads } from '@core/reads/archiveReads';
 
 const OPEN = '200000000000000001';
 const PRIVATE = '200000000000000002';
+/** Jev's link request cap, exercised with three full batches and a remainder. */
+const REQUEST_MAX = 8;
+const EXTRA_CANDIDATES = 25;
 
 /** Answers per link URL, read from the link each question carries: a URL with "scam" in it is bad. */
 function byUrl(req: JevRequest): Record<string, unknown> {
@@ -25,6 +30,8 @@ function byUrl(req: JevRequest): Record<string, unknown> {
 let db: Db;
 let jev: FakeJev;
 let judge: LinkJudge;
+let batchSizes: number[];
+let priorities: unknown[];
 beforeEach(() => {
   db = adoptLinks(tempDb());
   const a = seedArchive(db, [{ id: OPEN }, { id: PRIVATE }]);
@@ -42,48 +49,59 @@ beforeEach(() => {
     const d = jev.forPlugin('links')(f);
     return d && scopedDecider(d, () => db);
   };
-  judge = new LinkJudge(db, decider, () => {}, aiSources(() => db, () => false), linksSql);
+  batchSizes = []; priorities = [];
+  const read = archiveRead(() => db);
+  const tracked: ArchiveRead = async <R,>(sql: string, params: Parameters<ArchiveRead>[1], options: Parameters<ArchiveRead>[2]) => {
+    const rows = await read<R>(sql, params, options);
+    batchSizes.push(rows.length); priorities.push(options?.priority);
+    return rows;
+  };
+  judge = new LinkJudge(db, decider, () => {}, aiSources(() => db, () => false), linksSql, tracked);
 });
+afterEach(async () => { judge.stop(); await closeArchiveReads(db); db.close(); });
 
 describe('link judgments (#61–#63)', () => {
+  it('bounds candidate replies before they reach Core and drains them in the background lane', async () => {
+    const a = seedArchive(db, [{ id: OPEN }]);
+    a.ingestMessages(Array.from({ length: EXTRA_CANDIDATES }, (_, n) => rawMessage(OPEN, Date.now() + n, `https://example.com/${n}`)), ARRIVAL.gateway);
+    await judge.kick();
+    expect(batchSizes.length).toBeGreaterThan(1);
+    expect(Math.max(...batchSizes)).toBe(REQUEST_MAX);
+    expect(batchSizes.reduce((sum, n) => sum + n, 0)).toBe(EXTRA_CANDIDATES + 2);
+    expect(priorities.every((priority) => priority === 'background')).toBe(true);
+  });
   it('omits metadata supplied by a local-only later share of an eligible link', async () => {
     const a = seedArchive(db, [{ id: OPEN }, { id: PRIVATE }]);
     a.ingestMessages([rawMessage(PRIVATE, Date.now(), 'https://youtu.be/abc123', {
       embeds: [{ url: 'https://youtu.be/abc123', title: 'classified title', provider: { name: 'Secret site' } }],
     })], ARRIVAL.gateway);
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     expect(jev.requests).toHaveLength(1);
     expect(JSON.stringify(jev.requests)).not.toContain('classified');
     expect(JSON.stringify(jev.requests)).not.toContain('Secret site');
   });
 
   it('asks about all pending links in one request, each question carrying its link, never for local-only channels', async () => {
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     expect(jev.requests).toHaveLength(1);
     expect(Object.keys(jev.requests[0]!.questions).sort()).toEqual(['category_l0', 'category_l1', 'flagged_l0', 'flagged_l1', 'worth_l0', 'worth_l1']);
     // Each question carries its own link; no link sits in a state every question reads.
     expect(jev.requests[0]!.state).toEqual({});
     expect(jev.requests[0]!.questions['flagged_l0']!.instructions).toMatchObject({ link: { url: 'https://scam.example/win' }, question: expect.stringContaining('`link`') });
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     expect(jev.requests).toHaveLength(1);
   });
 
   it('asks only the newly enabled question later', async () => {
     Object.assign(jev.on, { 'links.linkSafety': false, 'links.linkWorth': false });
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     jev.on['links.linkWorth'] = true;
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     expect(jev.requests.slice(1).map((r) => Object.keys(r.questions).sort())).toEqual([['worth_l0', 'worth_l1']]);
   });
 
   it('feeds the Links view: category, flag, worth sort and hide-flagged', async () => {
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     const byWorth = (await linkFeed(db, { limit: 10, sort: 'worth' }));
     expect(byWorth.map((l) => [l.category, l.flagged])).toEqual([
       ['video', false],
@@ -97,8 +115,7 @@ describe('link judgments (#61–#63)', () => {
   });
 
   it('drops judgments whose link left the index when the host rebuilds it', async () => {
-    judge.kick();
-    await settleAsync();
+    await judge.kick();
     db.prepare("DELETE FROM links WHERE url LIKE '%scam%'").run();
     judge.prune();
     expect(db.prepare(`SELECT url FROM ${JUDGMENTS}`).pluck().all()).toEqual(db.prepare("SELECT url FROM links WHERE url LIKE '%youtu%'").pluck().all());

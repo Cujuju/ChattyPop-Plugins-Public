@@ -11,6 +11,7 @@ import {
   type AiSources,
   type Answer,
   type PluginDb,
+  type ArchiveRead,
   type PluginDecider,
   type CoreContext,
   type Question,
@@ -56,11 +57,15 @@ interface Pending {
 
 /** Judges unjudged recent links in the background. `deciderFor` reads Settings → Jev per call, so toggles apply at once. */
 export class LinkJudge {
-  private readonly loop = new SerialLoop(() => this.drain());
+  private readonly loop = new SerialLoop(async () => {
+    try { await this.drain(); }
+    catch (error) { if (!this.stopped) console.warn('[links] Discovery failed:', errorMessage(error)); }
+  });
   /** Links whose request failed this session; retried next start rather than in a tight loop. */
   private readonly skipped = new Set<number>();
   /** The plugin turned off: no further requests (one in flight still lands). */
   private stopped = false;
+  private readonly cancellation = new AbortController();
 
   constructor(
     private readonly db: PluginDb,
@@ -69,15 +74,17 @@ export class LinkJudge {
     /** Which channels Jev may read. */
     private readonly sources: Pick<AiSources, 'sql'>,
     private readonly linksSql: CoreContext['archive']['linksSql'],
+    private readonly read: ArchiveRead,
   ) {}
 
   /** Coalesces calls (every archive change) into one background loop. */
-  kick(): void {
-    if (!this.stopped) void this.loop.kick();
+  async kick(): Promise<void> {
+    if (!this.stopped) await this.loop.kick();
   }
 
   stop(): void {
     this.stopped = true;
+    this.cancellation.abort();
   }
 
   /** Judgments are keyed by URL: drops those whose URL left the link index (a rebuild merged it into another). */
@@ -86,7 +93,7 @@ export class LinkJudge {
   }
 
   private async drain(): Promise<void> {
-    for (let batch = this.pending(); batch.length && !this.stopped; batch = this.pending()) {
+    for (let batch = await this.pending(); batch.length && !this.stopped; batch = await this.pending()) {
       await this.judge(batch);
       this.changed();
     }
@@ -100,16 +107,19 @@ export class LinkJudge {
   }
 
   /** Recent links missing an answer for an enabled feature that wasn't asked yet (a failed ask is retried next start). */
-  private pending(): (Pending & { features: Feature[] })[] {
+  private async pending(): Promise<(Pending & { features: Feature[] })[]> {
     const on = this.features().map((f) => f.feature);
     if (!on.length) return [];
-    const rows = this.db
-      .prepare(
+    const rows = await this.read<Pending>(
         `SELECT l.id, l.url, l.title, l.description, l.site, l.metadata_channel_ids AS metadataChannels, l.first_channel_id AS channelId, (SELECT content FROM archive_messages WHERE id = l.first_message_id) AS content, j.asked
          FROM (${this.linksSql(undefined, 'hosted')}) l LEFT JOIN ${JUDGMENTS} j ON j.url = l.url
-         WHERE l.first_ts >= ? AND ${this.sources.sql('l.first_channel_id', 'hosted')} ORDER BY l.first_ts DESC`,
-      )
-      .all(Date.now() - LOOKBACK_MS) as Pending[];
+         WHERE l.first_ts >= ? AND ${this.sources.sql('l.first_channel_id', 'hosted')}
+           AND l.id NOT IN (SELECT value FROM json_each(?))
+           AND EXISTS (SELECT 1 FROM json_each(?) feature WHERE NOT EXISTS (
+             SELECT 1 FROM json_each(CASE WHEN json_valid(j.asked) THEN j.asked ELSE '[]' END) asked WHERE asked.value = feature.value))
+         ORDER BY l.first_ts DESC LIMIT ?`,
+      [Date.now() - LOOKBACK_MS, JSON.stringify([...this.skipped]), JSON.stringify(on), LINKS_PER_REQUEST],
+      { signal: this.cancellation.signal, priority: 'background' });
     const out: (Pending & { features: Feature[] })[] = [];
     for (const r of rows) {
       if (this.skipped.has(r.id)) continue;

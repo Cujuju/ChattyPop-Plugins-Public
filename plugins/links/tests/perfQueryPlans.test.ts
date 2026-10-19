@@ -21,7 +21,7 @@ function seedPluginArchive(db: Db): ReturnType<typeof seedPerfArchive> {
   return seedPerfArchive(db, TEST_ARCHIVE);
 }
 
-const linkPages = async (db: Db) => Promise.all(SORTS.map(async (sort) => (await linkPage(statementRead(db), () => new Map(), () => [], { limit: LINK_PAGE, sort }, linksSql))));
+const linkPages = async (db: Db) => Promise.all(SORTS.map(async (sort) => (await linkPage(statementRead(db), async () => new Map(), () => [], { limit: LINK_PAGE, sort }, linksSql))));
 const indexesOn = (db: Db, table: string): string[] =>
   db.prepare("SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL").pluck().all(table) as string[];
 
