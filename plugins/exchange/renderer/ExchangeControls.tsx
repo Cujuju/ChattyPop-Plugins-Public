@@ -41,7 +41,7 @@ const fieldTime = (value: string): number | undefined => {
 };
 
 const imported = (r: ExchangeResult): string =>
-  `Imported ${r.messages} messages in ${countText(r.channelIds.length, 'channel')}.${r.skippedFiles.length ? ` Skipped ${r.skippedFiles.length} file(s) that couldn't be imported as DiscordChatExporter JSON.` : ''}`;
+  `Imported ${r.messages} messages in ${countText(r.channelIds.length, 'channel')}.${r.skippedFiles.length ? ` Couldn't fully import ${countText(r.skippedFiles.length, 'file')} (not DiscordChatExporter JSON, or stopped partway). Importing them again keeps what was imported.` : ''}`;
 const exported = (r: ExportResult): string =>
   [
     `${r.cancelled ? 'Stopped after' : 'Exported'} ${r.messages} messages in ${countText(r.channelIds.length, 'file')}.`,
