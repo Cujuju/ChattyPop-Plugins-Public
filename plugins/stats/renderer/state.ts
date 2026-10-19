@@ -55,7 +55,7 @@ function choices(): Choices | undefined {
 /** The query for `c`. A read takes the range start then (a refetch re-reads its arguments), so a refresh counts up to now. */
 const queryOf = (c: Choices): ActivityQuery => {
   const days = STATS_RANGES[c.range].days;
-  return { ...placeScope(c.place), sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY, authorId: c.authorId ?? null };
+  return { ...placeScope(c.place), range: c.range, sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY, authorId: c.authorId ?? null };
 };
 
 const refreshOn = { kinds: ['messages', 'edits', 'deletes', 'attachments', 'links', 'names', 'channels'] as const, shown: () => Boolean(choices()) };
@@ -116,5 +116,5 @@ onAppEvent('privacy-changed', () => {
 });
 
 onAppEvent('rollup-progress', (e) => {
-  if (e.pluginId === 'stats' && !e.building) void refreshStats();
+  if (e.pluginId === 'stats' && !e.building && !e.maintaining) void refreshStats();
 });

@@ -52,6 +52,8 @@ export const isKey =
 
 /** Analytics messages to count: 'channel' counts `channelId` with its threads, 'server' every channel in `guildId`. */
 export interface ActivityQuery {
+  /** Panel range identity; exact timestamps still govern every read. */
+  range?: StatsRange;
   scope: StatsScope;
   channelId: string | null;
   guildId?: string | null;

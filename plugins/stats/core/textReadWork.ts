@@ -17,14 +17,24 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const dayName = (ts: number) => new Date(ts).toISOString().slice(0, 'YYYY-MM-DD'.length);
   const cuts: number[] = data.cuts;
   const days = new Set(cuts.map(utcDay));
+  const dirty = data.view && data.liveSql ? await read<any>(data.liveSql, data.liveParams) : [];
   let boundaryChannels: string[] | undefined;
   const liveRows = async (extra: number[] = [], bounds = false) => {
     extra.forEach((ts) => days.add(utcDay(ts)));
     const config = { ...data.config, sql: data.sql, params: data.params, cuts: [...cuts, ...extra], bounds };
     if (!data.view) return fold(null, read, signal, config);
-    if (days.size && !boundaryChannels) boundaryChannels = (await read<any>(data.channelsSql, data.memberParams)).map((r) => r.channel_id);
+    if (days.size && !boundaryChannels) boundaryChannels = (await read<any>(data.channelsSql, data.channelsParams)).map((r) => r.channel_id);
     let fragments = await fold(null, read, signal, { ...config, mode: 'residual' });
-    for (const startTs of days) fragments = fragments.concat(await fold(null, read, signal, { ...config, mode: 'boundary', boundaryChannels, startTs, endTs: startTs + data.dayMs }));
+    const parts = new Map(dirty.map((p: any) => [JSON.stringify([p.channel_id, p.day]), p]));
+    for (const channel_id of boundaryChannels ?? []) for (const ts of days) {
+      const day = dayName(ts); parts.set(JSON.stringify([channel_id, day]), { channel_id, day });
+    }
+    const byDay = new Map<string, string[]>();
+    for (const p of parts.values() as Iterable<any>) { const channels = byDay.get(p.day) ?? []; channels.push(p.channel_id); byDay.set(p.day, channels); }
+    for (const [day, channels] of byDay) {
+      const startTs = Date.parse(day + 'T00:00:00Z');
+      fragments = fragments.concat(await fold(null, read, signal, { ...config, mode: 'boundary', boundaryChannels: channels, startTs, endTs: startTs + data.dayMs }));
+    }
     return fragments;
   };
   let rows: any[] = indexRead ? await indexRead(read, data, cuts, undefined) : data.view ? await read(data.rowsSql,

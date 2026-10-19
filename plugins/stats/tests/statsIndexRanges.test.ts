@@ -28,7 +28,7 @@ it('matches full folds across months, years, partial days, people and combined c
   const t = testPlugin(observed, { archive: { channels: [{ id: 'a' }, { id: 'b' }] } });
   onTestFinished(() => t.dispose());
   const c = analyticsClient(t);
-  const settle = async () => expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
+  const settle = async () => expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false);
   t.archive.arrive(DAYS.flatMap((day, i) => ['a', 'b'].map((channelId) => ({ channelId, ts: START + day * MS_PER_DAY + i,
     authorId: i % 2 ? 'one' : 'two', content: `${'pizza '.repeat(i + 1)}good café café 😀 <:wave:12345>` }))).reverse());
   await settle();

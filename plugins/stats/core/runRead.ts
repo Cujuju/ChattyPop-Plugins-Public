@@ -11,9 +11,9 @@ import { runReadWork } from './runReadWork';
 import { conversationProjection } from './conversationProjection';
 import { createConversationRoles } from './conversationRoles';
 import { median } from './median';
-import { AnalyticsPending } from './pending';
 
 export const RUN_DATA = { gapMs: CONVERSATION_GAP_MS, pageSize: RUN_PAGE_SIZE };
+const RUN_LIVE = rollupView(plugin, 'runs', ROLLUP_VERSION, 'live');
 const RUN_VIEW = rollupView(plugin, 'runs', ROLLUP_VERSION);
 
 export async function projectRuns(read: ArchiveRead, query: ActivityQuery, rollups?: StatsRollups): Promise<ConversationStats> {
@@ -26,19 +26,21 @@ export async function projectRuns(read: ArchiveRead, query: ActivityQuery, rollu
   const firstDay = query.sinceTs === null ? undefined : new Date(Math.floor(query.sinceTs / MS_PER_DAY) * MS_PER_DAY).toISOString().slice(0, 'YYYY-MM-DD'.length);
   const snapshotScope = { channelIds, firstDay };
   const token = rollups?.runs?.snapshot(snapshotScope);
-  if (rollups && !token) throw new AnalyticsPending();
   const current = () => Boolean(token && rollups!.runs!.snapshot(snapshotScope) === token);
   const load = async (view?: string) => (await read<ConversationStats>('SELECT 1', [], { priority: view ? 'interactive' : 'background', fold: {
     source: runReadWork.toString(), data: { ...RUN_DATA, sql: scope.sql, params: scope.params, view, firstDay,
       rowsSql: `SELECT * FROM ${RUN_VIEW} m WHERE ${scope.sql} ${firstDay ? 'AND m.day >= ?' : ''}`, rowsParams: [...scope.params, ...(firstDay ? [firstDay] : [])],
-      compute: runWork.toString(), projector: conversationProjection.toString(),
+      residualPartsSql: `SELECT DISTINCT r.channel_id, r.day FROM json_each(?) i CROSS JOIN ${RUN_VIEW} r
+        ON r.channel_id = json_extract(i.value, '$.channel_id') WHERE r.last_ts >= json_extract(i.value, '$.ts') - ?
+          AND r.first_ts <= json_extract(i.value, '$.ts') + ? ${firstDay ? 'AND r.day >= ?' : ''}`,
+      liveSql: `SELECT m.channel_id, m.day FROM ${RUN_LIVE} m WHERE ${scope.sql} ${firstDay ? 'AND m.day >= ?' : ''}`,
+      dayMs: MS_PER_DAY, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, compute: runWork.toString(), projector: conversationProjection.toString(),
       config: { query, pairLimit: CONVERSATION_PAIRS, roles: createConversationRoles.toString(),
         roleConfig: { top: STATS_TOP, minRuns: REPLY_MIN_RUNS, median: median.toString() } } },
   } }))[0]!;
   // Cache bounded projections; author filters affect the projection and never duplicate stored run histories on Core.
   return cachedStats(read, token ? JSON.stringify(['conversations', scope, query.sinceTs, query.authorId ?? null, token]) : null, current, async () => {
-    const value = await load(token ? RUN_VIEW : undefined);
-    if (token && !current()) throw new AnalyticsPending();
+    const value = await load(rollups ? RUN_VIEW : undefined);
     return value;
   }).then((value) => ({ ...value, query }));
 }

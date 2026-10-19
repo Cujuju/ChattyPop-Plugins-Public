@@ -18,7 +18,7 @@ it('uses one bounded pending contract for every panel read and revokes stale dat
     storage: { ...ctx.storage, read: ((...args) => { read(...args); return ctx.storage.read(...args); }) as ArchiveRead },
     rollups: { define: (name, spec) => {
       const r = ctx.rollups.define(name, spec), status = r.status.bind(r);
-      r.status = () => forced ? { building: true, dirty: 1, total: 2, error: null } : status();
+      r.status = () => forced ? { building: true, maintaining: true, dirty: 1, total: 2, error: null } : status();
       return r;
     } },
   }));

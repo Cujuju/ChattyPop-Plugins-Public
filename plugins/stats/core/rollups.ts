@@ -1,5 +1,5 @@
 import { rollupView, type CoreContext, type Rollup } from '@plugin-sdk/core';
-import { pluginTable, MS_PER_DAY } from '@plugin-sdk/shared';
+import { MS_PER_DAY, MS_PER_S } from '@plugin-sdk/shared';
 import { plugin } from '../shared';
 import { ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS } from '../shared/types';
 import { countWork, type CountData } from './countWork';
@@ -8,16 +8,12 @@ import { runWork, RUN_PAGE_SIZE } from './runWork';
 import { CONVERSATION_GAP_MS } from '../shared/conversations';
 import { afinn165 } from 'afinn-165';
 import { STATS_TOP } from '../shared/types';
-import { textIndex } from './textIndex';
-import { countIndex } from './countIndex';
 
 export const ROLLUP_VERSION = 1; // Counts and lexical summaries start at the first maintained schema.
 export const TEXT_ROLLUP_VERSION = 2; // Query indexes accompany the packed daily lexical grain.
-const TEXT_SOURCE = pluginTable(plugin, 'rollup_text_v2');
 export const COUNT_ROLLUP_VERSION = 2; // Packed identity histories and shared calendar histograms.
 export const COUNT_VIEW = rollupView(plugin, 'counts', COUNT_ROLLUP_VERSION);
-const COUNT_SOURCE = pluginTable(plugin, 'rollup_counts_v2');
-export const COUNT_DATA: CountData = { dayMs: MS_PER_DAY, editLimits: EDIT_DELAY_BUCKETS.map((b) => b.beforeMs), kinds: ATTACHMENT_KINDS };
+export const COUNT_DATA: CountData = { secondMs: MS_PER_S, dayMs: MS_PER_DAY, editLimits: EDIT_DELAY_BUCKETS.map((b) => b.beforeMs), kinds: ATTACHMENT_KINDS };
 export interface StatsRollups { counts: Rollup; links: Rollup; text: Rollup; runs: Rollup }
 export function defineStatsRollups(ctx: CoreContext): StatsRollups {
   const counts = ctx.rollups.define('counts', {
@@ -25,8 +21,6 @@ export function defineStatsRollups(ctx: CoreContext): StatsRollups {
     columns: { author_id: 'TEXT', date: 'TEXT', kind: 'TEXT', url: 'TEXT', n: 'INTEGER', text_n: 'INTEGER', edited_n: 'INTEGER',
       attachment_n: 'INTEGER', linked_n: 'INTEGER', first_ts: 'INTEGER', last_ts: 'INTEGER', first_id: 'TEXT', name: 'TEXT', payload: 'TEXT' },
     dependsOn: ['messages', 'edits', 'deletes', 'attachments', 'links', 'names'], timeZoneSensitive: true,
-    fold: { columns: { author_id: 'TEXT', kind: 'TEXT', payload: 'TEXT' }, key: ['kind', 'author_id'],
-      data: { sql: `SELECT * FROM ${COUNT_SOURCE} WHERE channel_id = ?` }, compute: countIndex },
     data: { ...COUNT_DATA, outputKind: 'message' }, compute: countWork,
   });
   const links = ctx.rollups.define('shares', {
@@ -42,13 +36,6 @@ export function defineStatsRollups(ctx: CoreContext): StatsRollups {
     version: TEXT_ROLLUP_VERSION, key: ['author_id', 'date', 'kind', 'term'],
     columns: { author_id: 'TEXT', date: 'TEXT', kind: 'TEXT', term: 'TEXT', n: 'INTEGER', first_ts: 'INTEGER', last_ts: 'INTEGER', seq: 'INTEGER', position: 'INTEGER', payload: 'TEXT' },
     indexes: [['kind', 'author_id', 'term']],
-    fold: {
-      columns: { day: 'TEXT', author_id: 'TEXT', date: 'TEXT', kind: 'TEXT', term: 'TEXT', n: 'INTEGER', first_ts: 'INTEGER', last_ts: 'INTEGER',
-        seq: 'INTEGER', position: 'INTEGER', before_n: 'INTEGER', payload: 'TEXT' },
-      key: ['kind', 'author_id', 'term', 'day', 'date'],
-      indexes: [['kind', 'author_id', 'day', 'date'], ['kind', 'day', 'date'], ['kind', 'author_id', 'term', 'n', 'seq', 'position', 'date']],
-      data: { top: STATS_TOP, sql: `SELECT * FROM ${TEXT_SOURCE} WHERE channel_id = ? ORDER BY day` }, compute: textIndex,
-    },
     dependsOn: ['messages', 'edits', 'deletes', 'names'], timeZoneSensitive: true,
     data: { afinn: afinn165, top: STATS_TOP }, compute: textWork,
   });

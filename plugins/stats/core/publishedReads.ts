@@ -9,7 +9,7 @@ export function analyticsProgress(rollups: StatsRollups) {
   const states = Object.values(rollups).map((r) => r.status());
   const total = states.reduce((n, s) => n + s.total, 0), dirty = states.reduce((n, s) => n + s.dirty, 0);
   const done = states.reduce((n, s) => n + (s.building && !s.dirty ? 0 : Math.max(0, s.total - s.dirty)), 0);
-  return { building: states.some((s) => s.building), dirty, total, done, error: states.find((s) => s.error)?.error ?? null };
+  return { building: states.some((s) => s.building), maintaining: states.some((s) => s.maintaining), dirty, total, done, error: states.find((s) => s.error)?.error ?? null };
 }
 
 /** Never start an archive read while building; retain only results safe under current privacy and zone state. */
@@ -22,7 +22,8 @@ export function publishedReads(rollups: StatsRollups) {
     return token;
   };
   return async <T>(member: string, query: unknown, load: () => Promise<T>): Promise<AnalyticsRead<T>> => {
-    const token = syncVisibility(), key = JSON.stringify([member, query]);
+    const relative = query && typeof query === 'object' && 'range' in query && query.range;
+    const token = syncVisibility(), key = JSON.stringify([member, relative ? { ...query as object, sinceTs: undefined } : query]);
     const pending = (): AnalyticsRead<T> => {
       syncVisibility();
       const { done, total } = analyticsProgress(rollups);

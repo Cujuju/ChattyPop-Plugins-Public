@@ -31,7 +31,7 @@ it.each([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])('mat
   ];
   for (const index of order) {
     t.archive.arrive([history[index]!]);
-    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
+    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false);
     expect(await c.activityStats(ALL)).toEqual(await activityStats(t.read, ALL));
     expect(await c.wordStats(ALL)).toEqual(await wordStats(t.read, ALL));
     expect(await c.emojiStats(ALL)).toEqual(await emojiStats(t.read, ALL));
@@ -45,7 +45,7 @@ it('incremental rollups equal rebuilds across reverse arrivals, boundaries, edit
   onTestFinished(async () => { vi.restoreAllMocks(); await t.dispose(); });
   let c = analyticsClient(t);
   const settle = async () => {
-    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
+    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false);
   };
   const same = async (q: ActivityQuery = ALL) => {
     const clock = vi.spyOn(Date, 'now').mockReturnValue(START + MS_PER_DAY);
@@ -86,7 +86,7 @@ it('stores cross-midnight runs on their opener day and rebuilds split and merged
   const t = testPlugin(core, { archive: { channels: [{ id: CHANNEL }] } });
   onTestFinished(() => t.dispose());
   const c = analyticsClient(t);
-  const settle = async () => { await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false); };
+  const settle = async () => { await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false); };
   const step = MS_PER_MIN;
   const ids = t.archive.arrive(Array.from({ length: 40 }, (_, n) => ({ channelId: CHANNEL, ts: START + MS_PER_DAY - step + n * step, authorId: n % 2 ? 'b' : 'a', content: 'pizza' })).reverse());
   await settle();
@@ -110,7 +110,7 @@ it('rebuilds local calendars after a zone change without reusing old-zone read h
   onTestFinished(async () => { await t.dispose(); vi.restoreAllMocks(); });
   const c = analyticsClient(t);
   const settle = async () => {
-    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
+    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false);
   };
   await settle();
   expect((await c.activityStats(ALL)).buckets[0]!.start).toBe('2026-03-01');
@@ -131,7 +131,7 @@ it('invalidates opener days when deleting and restoring a cross-midnight bridge'
   const messages = [0, 1, 2].map((n) => ({ channelId: CHANNEL, ts: first + n * GAP_STEP_MINUTES * MS_PER_MIN, authorId: n % 2 ? 'b' : 'a', content: 'pizza' }));
   const ids = t.archive.arrive(messages);
   const settle = async () => {
-    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
+    await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false);
   };
   await settle();
   expect((await c.conversationStats(ALL)).conversations).toBe(1);
@@ -151,7 +151,7 @@ it('folds boundary messages whose channel metadata is absent', async () => {
   const [id] = t.archive.arrive([{ channelId: CHANNEL, ts: START + MS_PER_MIN, content: 'good pizza' }]);
   t.db.prepare('UPDATE messages SET channel_id = ? WHERE id = ?').run('missing', id);
   const c = analyticsClient(t);
-  await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.building; }, { timeout: SETTLE_MS }).toBe(false);
+  await expect.poll(async () => { const s = await c.rollupStatus(); if (s.error) throw new Error(s.error); return s.maintaining; }, { timeout: SETTLE_MS }).toBe(false);
   const query = { ...ALL, sinceTs: START + 1 };
   expect((await c.activityStats(query)).messages).toBe(1);
   expect((await c.wordStats(query)).totalWords).toBe(2);

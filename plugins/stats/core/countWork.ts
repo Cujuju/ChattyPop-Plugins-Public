@@ -6,9 +6,10 @@ export interface CountRow {
   first_ts: number; last_ts: number; first_id: string; name: string; payload: string;
 }
 export interface CountData {
+  liveSql?: string; liveParams?: unknown[]; channelsParams?: unknown[];
   indexSql?: string | null; histSql?: string | null; linkSql?: string | null; linkParams?: unknown[];
   outputKind?: string; mode?: 'read'; view?: string; rowsSql?: string; channelsSql?: string; rowsParams?: unknown[]; sql?: string; params?: (string | number)[]; cuts?: number[];
-  timeZone?: string; projector?: string; config?: unknown; dayMs: number; editLimits: (number | null)[]; kinds: readonly string[];
+  timeZone?: string; projector?: string; config?: unknown; secondMs: number; dayMs: number; editLimits: (number | null)[]; kinds: readonly string[];
 }
 
 /** Runs in the archive worker; daily rows retain local-day histograms and exact timestamp bounds. */
@@ -21,6 +22,8 @@ export async function countWork(part: RollupPartition | null, read: ArchiveRead,
 
   let live = where;
   let histograms: any[] | undefined;
+  const dirty = !part && data.view && data.liveSql ? await read<any>(data.liveSql, data.liveParams) : [];
+  const liveParts = new Set(dirty.map((p) => JSON.stringify([p.channel_id, p.day])));
   if (!part && data.view) {
     const days = boundaryDays.map((ts) => new Date(ts).toISOString().slice(0, 'YYYY-MM-DD'.length));
     if (data.indexSql) {
@@ -34,15 +37,25 @@ export async function countWork(part: RollupPartition | null, read: ArchiveRead,
       if (data.linkSql) summaries = summaries.concat(await read<any>(data.linkSql, data.linkParams));
     } else summaries = summaries.concat(await read<any>(data.rowsSql!, data.rowsParams ?? [...params, JSON.stringify(days)]));
 
+    summaries = summaries.filter((r) => !liveParts.has(JSON.stringify([r.channel_id, r.day])));
   }
   const columns = `m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.edited_ts,
     trim(m.content, char(9) || char(10) || char(13) || ' ') != '' AS text_n
    `;
   let messages = await read<any>(part ? `SELECT ${columns} FROM archive_all_rollup_messages m WHERE ${live}`
     : data.view ? `SELECT ${columns} FROM archive_residual_messages m WHERE ${where}` : `SELECT ${columns} FROM archive_messages m WHERE ${live}`, params);
-  const boundaryChannels = !part && data.view && boundaryDays.length ? await read<{ channel_id: string }>(data.channelsSql!, params) : [];
-  if (!part && data.view) for (const start of boundaryDays) messages = messages.concat(await read<any>(`SELECT ${columns}
-    FROM json_each(?) c CROSS JOIN archive_rollup_messages m ON m.channel_id = c.value WHERE ${where} AND m.ts >= ? AND m.ts < ?`, [JSON.stringify(boundaryChannels.map((c) => c.channel_id)), ...params, start, start + data.dayMs]));
+  const boundaryChannels = !part && data.view && boundaryDays.length ? await read<{ channel_id: string }>(data.channelsSql!, data.channelsParams ?? params) : [];
+  if (!part && data.view) {
+    const parts = new Map(dirty.map((p) => [JSON.stringify([p.channel_id, p.day]), p]));
+    for (const c of boundaryChannels) for (const start of boundaryDays) {
+      const day = new Date(start).toISOString().slice(0, 'YYYY-MM-DD'.length);
+      parts.set(JSON.stringify([c.channel_id, day]), { channel_id: c.channel_id, day });
+    }
+    if (parts.size) messages = messages.concat(await read<any>(`SELECT ${columns} FROM json_each(?) p
+      CROSS JOIN archive_rollup_messages m ON m.channel_id = json_extract(p.value, '$.channel_id')
+      WHERE ${where} AND m.ts >= unixepoch(json_extract(p.value, '$.day')) * ?
+        AND m.ts < unixepoch(json_extract(p.value, '$.day'), '+1 day') * ?`, [JSON.stringify([...parts.values()]), ...params, data.secondMs, data.secondMs]));
+  }
   const calendar = new Intl.DateTimeFormat('sv-SE', { timeZone: part?.timeZone ?? data.timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' });
   for (const m of messages) { const local = calendar.format(m.ts); m.date = local.slice(0, 'YYYY-MM-DD'.length); m.hour = Number(local.slice(-'HH'.length)); }
   const ids = JSON.stringify(messages.map((m) => m.id));
