@@ -1,13 +1,13 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { BREAKDOWN_LIMIT, type AttachmentBreakdown, type AttachmentFilter, type AttachmentPosting, type BreakdownBy } from '../shared/types';
 import { ATTACHMENT_FROM, AUTHOR_ID, AUTHOR_NAME, DISK_BYTES, attachmentWhere, messageColumn } from './filters';
 
-export function attachmentPostings(db: PluginDb, sha256: string): AttachmentPosting[] {
+export async function attachmentPostings(read: ArchiveRead, sha256: string): Promise<AttachmentPosting[]> {
   if (typeof sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(sha256)) throw new Error('Not an attachment hash.');
-  return db.prepare(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
+  return (await read(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
     COALESCE(c.name, a.channel_id) AS channelName, c.guild_id AS guildId, COALESCE(g.name, '') AS guildName,
     ${AUTHOR_ID} AS authorId, COALESCE(${AUTHOR_NAME}, '') AS authorName, a.ts
-    ${ATTACHMENT_FROM} WHERE a.sha256 = ? ORDER BY a.ts DESC, a.id DESC`).all(sha256) as AttachmentPosting[];
+    ${ATTACHMENT_FROM} WHERE a.sha256 = ? ORDER BY a.ts DESC, a.id DESC`, [sha256])) as AttachmentPosting[];
 }
 
 const GROUP_KEY: Record<BreakdownBy, string> = {
@@ -23,11 +23,11 @@ const GROUP_LABEL: Record<BreakdownBy, string> = {
 };
 
 /** One materialized filtered pass; each hash counts once within a group, and once across the remainder. */
-export function attachmentBreakdown(db: PluginDb, f: AttachmentFilter, by: BreakdownBy): AttachmentBreakdown[] {
+export async function attachmentBreakdown(read: ArchiveRead, f: AttachmentFilter, by: BreakdownBy): Promise<AttachmentBreakdown[]> {
   if (!Object.hasOwn(GROUP_KEY, by)) throw new Error('Not a breakdown dimension.');
   const w = attachmentWhere(f);
   const label = GROUP_LABEL[by];
-  return db.prepare(`WITH matched AS MATERIALIZED (
+  return (await read(`WITH matched AS MATERIALIZED (
       SELECT ${GROUP_KEY[by]} AS key, a.sha256, ${DISK_BYTES} AS bytes, a.ts, a.message_id AS messageId
       ${ATTACHMENT_FROM} WHERE ${w.sql}
     ), files AS (SELECT key, sha256, MAX(bytes) AS bytes FROM matched WHERE bytes > 0 GROUP BY key, sha256),
@@ -44,6 +44,5 @@ export function attachmentBreakdown(db: PluginDb, f: AttachmentFilter, by: Break
       SUM(count), COUNT(*) AS groups FROM rest HAVING COUNT(*) > 0)
     SELECT *, (SELECT COUNT(*) FROM matched) AS totalCount,
       (SELECT COALESCE(SUM(bytes), 0) FROM (SELECT MAX(bytes) AS bytes FROM files GROUP BY sha256)) AS totalBytes
-    FROM result ORDER BY groups IS NOT NULL, bytes DESC, count DESC, key`)
-    .all(...w.params, BREAKDOWN_LIMIT) as AttachmentBreakdown[];
+    FROM result ORDER BY groups IS NOT NULL, bytes DESC, count DESC, key`, [...w.params, BREAKDOWN_LIMIT])) as AttachmentBreakdown[];
 }

@@ -21,14 +21,14 @@ export const plugin = definePlugin({
   manifest: { id: 'attachments', name: 'Attachments', version: '1.21.2', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
   channels: defineChannels<{ core: AttachmentsCoreCalls }>()({
     core: {
-      page: { audiences: ['renderer'], writes: false },
-      totals: { audiences: ['renderer'], writes: false },
-      people: { audiences: ['renderer'], writes: false },
-      places: { audiences: ['renderer'], writes: false },
-      months: { audiences: ['renderer'], writes: false },
-      sharedBy: { audiences: ['renderer'], writes: false },
-      postings: { audiences: ['renderer'], writes: false },
-      breakdown: { audiences: ['renderer'], writes: false },
+      page: { audiences: ['renderer'], writes: false, reads: true },
+      totals: { audiences: ['renderer'], writes: false, reads: true },
+      people: { audiences: ['renderer'], writes: false, reads: true },
+      places: { audiences: ['renderer'], writes: false, reads: true },
+      months: { audiences: ['renderer'], writes: false, reads: true },
+      sharedBy: { audiences: ['renderer'], writes: false, reads: true },
+      postings: { audiences: ['renderer'], writes: false, reads: true },
+      breakdown: { audiences: ['renderer'], writes: false, reads: true },
     },
   }),
   panels: [{

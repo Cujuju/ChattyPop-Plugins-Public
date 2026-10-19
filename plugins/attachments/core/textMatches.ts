@@ -1,4 +1,4 @@
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import type { AttachmentItem } from '../shared/types';
 
 const SNIPPET_CHARS = 60;
@@ -15,12 +15,11 @@ export function textSnippet(text: string, query: string): string {
 }
 
 /** One indexed batch over the loaded messages, in the derived texts' stable order. */
-export function attachmentTextMatches(db: PluginDb, items: readonly Pick<AttachmentItem, 'id' | 'messageId' | 'filename'>[], query?: string): Map<string, NonNullable<AttachmentItem['textMatch']>> {
+export async function attachmentTextMatches(read: ArchiveRead, items: readonly Pick<AttachmentItem, 'id' | 'messageId' | 'filename'>[], query?: string): Promise<Map<string, NonNullable<AttachmentItem['textMatch']>>> {
   const matches = new Map<string, NonNullable<AttachmentItem['textMatch']>>();
   if (!query || !items.length) return matches;
-  const texts = db.prepare(`SELECT message_id AS messageId, source, part, text FROM archive_derived_texts
-    WHERE message_id IN (SELECT value FROM json_each(?)) ORDER BY message_id, ord, seq`)
-    .all(JSON.stringify([...new Set(items.map((i) => i.messageId))])) as TextRow[];
+  const texts = (await read(`SELECT message_id AS messageId, source, part, text FROM archive_derived_texts
+    WHERE message_id IN (SELECT value FROM json_each(?)) ORDER BY message_id, ord, seq`, [JSON.stringify([...new Set(items.map((i) => i.messageId))])])) as TextRow[];
   const byMessage = new Map<string, TextRow[]>();
   for (const text of texts) {
     const rows = byMessage.get(text.messageId) ?? [];

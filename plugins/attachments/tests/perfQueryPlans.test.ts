@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it } from 'vitest';
 import type { PluginDb } from '@plugin-sdk/core';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
@@ -29,14 +30,14 @@ function planDb(db: PluginDb, plans: string[]): PluginDb {
 }
 
 describe('newest attachment query plan', () => {
-  it('walks attachments_ts without a full attachment sort, including keyset cursors', () => {
+  it('walks attachments_ts without a full attachment sort, including keyset cursors', async () => {
     const t = start({ archive: { channels: [{ id: '200000000000000001' }], messages: Array.from({ length: ARCHIVE_ROWS }, (_, n) =>
       seedMessage({ id: String(n), channelId: '200000000000000001', ts: at(n), filename: 'image.png', contentType: 'image/png', size: 100 })) } });
     const plans: string[] = [];
     const db = planDb(t.db, plans);
-    const first = attachmentRows(db, { limit: PAGE_SIZE });
-    const next = attachmentRows(db, { limit: PAGE_SIZE, after: { ts: first.at(-1)!.ts, id: first.at(-1)!.id } });
-    attachmentRows(db, { limit: PAGE_SIZE, before: { ts: next[0]!.ts, id: next[0]!.id } });
+    const first = (await attachmentRows(statementRead(db), { limit: PAGE_SIZE }));
+    const next = (await attachmentRows(statementRead(db), { limit: PAGE_SIZE, after: { ts: first.at(-1)!.ts, id: first.at(-1)!.id } }));
+    (await attachmentRows(statementRead(db), { limit: PAGE_SIZE, before: { ts: next[0]!.ts, id: next[0]!.id } }));
     const details = plans.join('\n');
     expect(details).toMatch(/USING (?:COVERING )?INDEX attachments_ts/);
     expect(details).not.toMatch(/USE TEMP B-TREE FOR ORDER BY/);
@@ -47,19 +48,19 @@ describe('newest attachment query plan', () => {
 });
 
 describe('message author lookups', () => {
-  it('never materialize the archive_messages view, in any read', () => {
+  it('never materialize the archive_messages view, in any read', async () => {
     const t = start({ archive: { channels: [{ id: '200000000000000001' }], messages: Array.from({ length: PAGE_SIZE }, (_, n) =>
       seedMessage({ id: String(n), channelId: '200000000000000001', ts: at(n), filename: 'image.png', contentType: 'image/png', size: 100 })) } });
     const plans: string[] = [];
     const db = planDb(t.db, plans);
     const scoped = { channelId: '200000000000000001', authorId: 'alice' };
-    attachmentRows(db, { ...scoped, limit: PAGE_SIZE });
-    attachmentTotals(db, scoped);
-    attachmentPeople(db, { ...scoped, limit: PAGE_SIZE });
-    attachmentPlaces(db, scoped);
-    attachmentPostings(db, 'a'.repeat(64));
-    attachmentRows(db, { ...scoped, repeated: true, limit: PAGE_SIZE });
-    for (const by of ['guild', 'channel', 'person', 'kind'] as BreakdownBy[]) attachmentBreakdown(db, { ...scoped, repeated: true }, by);
+    (await attachmentRows(statementRead(db), { ...scoped, limit: PAGE_SIZE }));
+    (await attachmentTotals(statementRead(db), scoped));
+    (await attachmentPeople(statementRead(db), { ...scoped, limit: PAGE_SIZE }));
+    (await attachmentPlaces(statementRead(db), scoped));
+    (await attachmentPostings(statementRead(db), 'a'.repeat(64)));
+    (await attachmentRows(statementRead(db), { ...scoped, repeated: true, limit: PAGE_SIZE }));
+    for (const by of ['guild', 'channel', 'person', 'kind'] as BreakdownBy[]) (await attachmentBreakdown(statementRead(db), { ...scoped, repeated: true }, by));
     expect(plans.length).toBeGreaterThan(0);
     expect(plans.join('\n')).not.toMatch(/MATERIALIZE archive_messages/);
     expect(plans.join('\n')).toMatch(/USING (?:COVERING )?INDEX attachments_sha256/);
@@ -68,7 +69,7 @@ describe('message author lookups', () => {
 });
 
 describe('finding query plans', () => {
-  it('indexes date windows and per-message derived reads without materializing the archive', () => {
+  it('indexes date windows and per-message derived reads without materializing the archive', async () => {
     const t = start({ archive: { channels: [{ id: '200000000000000001' }], messages: Array.from({ length: ARCHIVE_ROWS }, (_, n) =>
       seedMessage({ id: String(n), channelId: '200000000000000001', ts: at(n) + MID_MONTH_DAYS * MS_PER_DAY, filename: 'image.png', contentType: 'image/png', size: 100 })) } });
     t.db.prepare(`INSERT INTO derived_texts (message_id, source, ord, text, part)
@@ -76,16 +77,16 @@ describe('finding query plans', () => {
     const plans: string[] = [];
     const db = planDb(t.db, plans);
     for (const dir of ['asc', 'desc'] as const) {
-      const rows = attachmentRows(db, { limit: PAGE_SIZE, sort: { key: 'date', dir }, startMonth: '2026-01', name: 'nebula' });
+      const rows = (await attachmentRows(statementRead(db), { limit: PAGE_SIZE, sort: { key: 'date', dir }, startMonth: '2026-01', name: 'nebula' }));
       expect(rows).toHaveLength(PAGE_SIZE);
-      attachmentRows(db, { limit: PAGE_SIZE, sort: { key: 'date', dir }, startAt: { ts: rows[0]!.ts, id: rows[0]!.id }, name: 'nebula' });
-      expect(attachmentTextMatches(db, rows, 'nebula').size).toBe(PAGE_SIZE);
+      (await attachmentRows(statementRead(db), { limit: PAGE_SIZE, sort: { key: 'date', dir }, startAt: { ts: rows[0]!.ts, id: rows[0]!.id }, name: 'nebula' }));
+      expect((await attachmentTextMatches(statementRead(db), rows, 'nebula')).size).toBe(PAGE_SIZE);
     }
     expect(plans.join('\n')).toMatch(/USING (?:COVERING )?INDEX attachments_ts/);
     expect(plans.join('\n')).toMatch(/USING INDEX derived_texts_message/);
     expect(plans.join('\n')).not.toMatch(/MATERIALIZE archive_messages|SCAN (?:d|p)(?:\s|$)/);
     plans.length = 0;
-    expect(attachmentMonths(db, { sinceTs: at(0), name: 'nebula' })).toHaveLength(1);
+    expect((await attachmentMonths(statementRead(db), { sinceTs: at(0), name: 'nebula' }))).toHaveLength(1);
     expect(plans.join('\n')).toMatch(/USING (?:COVERING )?INDEX attachments_ts/);
     expect(plans.join('\n')).not.toMatch(/MATERIALIZE archive_messages|SCAN (?:d|p)(?:\s|$)/);
   });

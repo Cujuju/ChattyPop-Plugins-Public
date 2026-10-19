@@ -1,5 +1,5 @@
 import type { ArchiveMessage } from '@plugin-sdk/shared';
-import type { PluginDb } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
 import { NEWEST, type AttachmentCursor, type AttachmentItem, type AttachmentPageQuery, type AttachmentSortKey, type PersonFilesQuery } from '../shared/types';
 import { ATTACHMENT_FROM, AUTHOR_ID, AUTHOR_NAME, DISK_BYTES, SIZE_KEY, attachmentWhere } from './filters';
 import { attachmentTextMatches } from './textMatches';
@@ -15,7 +15,7 @@ type MessageReader = (ids: string[]) => ArchiveMessage[];
 const SORT_COLUMN: Record<AttachmentSortKey, string | null> = { date: null, size: SIZE_KEY, name: 'a.filename COLLATE NOCASE', kind: 'a.kind' };
 
 /** Row-value cursors over (key, time, id), all one direction; before reads run backwards, then reverse to return the nearest rows. */
-export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): AttachmentRow[] {
+export async function attachmentRows(read: ArchiveRead, q: AttachmentPageQuery): Promise<AttachmentRow[]> {
   const w = attachmentWhere(q);
   const sort = q.sort ?? NEWEST;
   if (sort.key === 'date' && q.startMonth) {
@@ -35,28 +35,27 @@ export function attachmentRows(db: PluginDb, q: AttachmentPageQuery): Attachment
   const past = cursor ? ` AND (${column ? `${column}, ` : ''}a.ts, a.id) ${op} (${column ? '?, ' : ''}?, ?)` : '';
   const args = !cursor ? [] : column ? [cursor.key ?? null, cursor.ts, cursor.id] : [cursor.ts, cursor.id];
   const dir = ascending ? 'ASC' : 'DESC';
-  const rows = db.prepare(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
+  const rows = (await read(`SELECT a.id, a.message_id AS messageId, a.channel_id AS channelId,
       COALESCE(c.name, a.channel_id) AS channelName, c.guild_id AS guildId, COALESCE(g.name, '') AS guildName,
       ${AUTHOR_ID} AS authorId, COALESCE(${AUTHOR_NAME}, '') AS authorName, a.ts,
       a.filename, a.content_type AS contentType, a.kind, a.size, ${DISK_BYTES} AS bytes, ${SIZE_KEY} AS sortBytes,
       a.width, a.height, a.sha256, a.stored_ext AS storedExt, a.status,
       a.compressed_at AS compressedAt, a.removed_at AS removedAt
     ${ATTACHMENT_FROM} WHERE ${w.sql}${past}
-    ORDER BY ${column ? `${column} ${dir}, ` : ''}a.ts ${dir}, a.id ${dir} LIMIT ?`)
-    .all(...w.params, ...args, q.limit) as Omit<AttachmentRow, 'postings'>[];
+    ORDER BY ${column ? `${column} ${dir}, ` : ''}a.ts ${dir}, a.id ${dir} LIMIT ?`, [...w.params, ...args, q.limit])) as Omit<AttachmentRow, 'postings'>[];
   const hashes = [...new Set(rows.flatMap((r) => r.sha256 ?? []))];
   // Count each page hash once, through the SHA index and privacy view; no full-archive grouping per page.
-  const counts = hashes.length ? db.prepare(`SELECT sha256, COUNT(*) AS postings FROM archive_attachments
-    WHERE sha256 IN (SELECT value FROM json_each(?)) GROUP BY sha256`).all(JSON.stringify(hashes)) as { sha256: string; postings: number }[] : [];
+  const counts = hashes.length ? (await read(`SELECT sha256, COUNT(*) AS postings FROM archive_attachments
+    WHERE sha256 IN (SELECT value FROM json_each(?)) GROUP BY sha256`, [JSON.stringify(hashes)])) as { sha256: string; postings: number }[] : [];
   const postings = new Map(counts.map((r) => [r.sha256, r.postings]));
   const items = rows.map((r) => ({ ...r, postings: r.sha256 ? postings.get(r.sha256) ?? 1 : 1 }));
   return q.before ? items.reverse() : items;
 }
 
 /** Archive attachment metadata supplies local edits and animation flags; orphan rows retain safe filename/MIME fallbacks. */
-export function attachmentPage(db: PluginDb, messagesByIds: MessageReader, q: AttachmentPageQuery): AttachmentItem[] {
-  const rows = attachmentRows(db, q);
-  const textMatches = attachmentTextMatches(db, rows, q.name);
+export async function attachmentPage(read: ArchiveRead, messagesByIds: MessageReader, q: AttachmentPageQuery): Promise<AttachmentItem[]> {
+  const rows = (await attachmentRows(read, q));
+  const textMatches = (await attachmentTextMatches(read, rows, q.name));
   const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
   return rows.map(({ compressedAt, removedAt, ...row }) => {
     const message = messages.get(row.messageId) ?? null;
@@ -75,5 +74,5 @@ export function attachmentPage(db: PluginDb, messagesByIds: MessageReader, q: At
   });
 }
 
-export const personFiles = (db: PluginDb, messagesByIds: MessageReader, q: PersonFilesQuery): AttachmentItem[] =>
-  attachmentPage(db, messagesByIds, { authorId: q.userId, limit: q.limit, before: q.before, after: q.after });
+export const personFiles = async (read: ArchiveRead, messagesByIds: MessageReader, q: PersonFilesQuery): Promise<AttachmentItem[]> =>
+  (await attachmentPage(read, messagesByIds, { authorId: q.userId, limit: q.limit, before: q.before, after: q.after }));
