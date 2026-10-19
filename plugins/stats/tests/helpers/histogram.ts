@@ -1,8 +1,8 @@
 import type { ArchiveRead } from '@plugin-sdk/core';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
-import type { ActivityStats, StatsPeriod } from '../shared/types';
-import { dateStart, localDate, localPart, local, type StatsSqlScope } from './query';
-import { dayStreaks } from './streaks';
+import type { ActivityStats, StatsPeriod } from '../../shared/types';
+import { dateStart, localDate, localPart, local, type StatsSqlScope } from '../../core/query';
+import { dayStreaks } from '../../core/streaks';
 
 /** Spans longer than four months use weekly bars to remain legible. */
 const DAY_BUCKETS_MAX_DAYS = 120;

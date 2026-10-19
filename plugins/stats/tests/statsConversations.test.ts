@@ -3,7 +3,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { CONVERSATION_GAP_MS, CONVERSATION_PAIRS } from '../shared/conversations';
-import { SCAN_BATCH_SIZE } from '../core/scanQueue';
+import { SCAN_BATCH_SIZE } from './helpers/scanQueue';
 import { conversationStats } from '../core/conversations';
 
 const CHANNEL = { scope: 'channel', channelId: 'c1', sinceTs: null } as const;

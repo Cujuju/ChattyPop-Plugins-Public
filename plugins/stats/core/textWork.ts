@@ -4,7 +4,7 @@ export interface TextRow {
   channel_id?: string; day?: string; author_id: string; date: string; kind: string; term: string;
   n: number; first_ts: number; last_ts: number; seq: number; position: number; payload: string;
 }
-export interface TextData { boundaryChannels?: string[]; timeZone?: string; mode?: 'residual' | 'boundary'; startTs?: number; endTs?: number; afinn: Record<string, number>; top: number; cuts?: number[]; sql?: string; params?: (string | number)[] }
+export interface TextData { boundaryChannels?: string[]; timeZone?: string; mode?: 'residual' | 'boundary' | 'order'; orderWords?: string[]; midpoint?: number; startTs?: number; endTs?: number; afinn: Record<string, number>; top: number; cuts?: number[]; sql?: string; params?: (string | number)[] }
 
 /** Closure-free lexical fold shared by durable partitions and privacy-visible boundary fragments. */
 export async function textWork(part: RollupPartition | null, read: ArchiveRead, signal: AbortSignal, data: TextData): Promise<Omit<TextRow, 'channel_id' | 'day'>[]> {
@@ -23,6 +23,32 @@ export async function textWork(part: RollupPartition | null, read: ArchiveRead, 
   let unicode: RegExp;
   try { unicode = new RegExp('\\p{RGI_Emoji}', 'gv'); }
   catch { unicode = /(?:\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}[\uFE0E\uFE0F]?\p{Emoji_Modifier}?(?:\u200D\p{Extended_Pictographic}[\uFE0E\uFE0F]?\p{Emoji_Modifier}?)*)/gu; }
+  const wordsOf = (content: string): string[] => {
+    const prose = content.replace(/```[\s\S]*?(?:```|$)/g, ' ').replace(/\[[^\]\r\n]*\]\((?:<[^>\r\n]*>|(?:[^()\r\n]|\([^()\r\n]*\))*)\)/g, ' ')
+      .replace(/\b(?:https?:\/\/|www\.)[^\s<>]+/giu, ' ').replace(/<(?:@!?|@&|#)\d+>/g, ' ').replace(custom, ' ').replace(/[\u2018\u2019]/g, "'");
+    const words: string[] = [];
+    for (const segment of segmenter.segment(prose)) if (segment.isWordLike) words.push(segment.segment.toLowerCase());
+    return words;
+  };
+  if (data.mode === 'order') {
+    const times = new Map<number, number>(), orders = new Map<string, number[]>(), wanted = new Set(data.orderWords);
+    for (const m of rows) if (m.content.trim()) times.set(m.ts, Math.min(times.get(m.ts) ?? m.seq, m.seq));
+    const compare = (a: number[], b: number[]) => {
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i]! - b[i]!;
+      return 0;
+    };
+    for (const m of rows) {
+      signal.throwIfAborted();
+      if (![...wanted].some((word) => m.content.toLowerCase().includes(word))) continue;
+      const words = wordsOf(m.content);
+      words.forEach((word, position) => {
+        if (!wanted.has(word)) return;
+        const order = [Number(m.ts >= data.midpoint!), times.get(m.ts)!, m.seq, position];
+        if (!orders.has(word) || compare(order, orders.get(word)!) < 0) orders.set(word, order);
+      });
+    }
+    return [{ payload: JSON.stringify([...orders]) } as any];
+  }
   const groups = new Map<string, any>();
   const add = (m: any, kind: string, term: string, position = 0, payload: any = {}) => {
     const segment = (data.cuts ?? []).filter((ts) => m.ts >= ts).length;
@@ -41,10 +67,7 @@ export async function textWork(part: RollupPartition | null, read: ArchiveRead, 
     const extent = add(m, 'extent', '', 0, { name: m.name });
     if (m.name < extent.payload.name) extent.payload.name = m.name;
     if (!m.content.trim()) continue;
-    const prose = m.content.replace(/```[\s\S]*?(?:```|$)/g, ' ').replace(/\[[^\]\r\n]*\]\((?:<[^>\r\n]*>|(?:[^()\r\n]|\([^()\r\n]*\))*)\)/g, ' ')
-      .replace(/\b(?:https?:\/\/|www\.)[^\s<>]+/giu, ' ').replace(/<(?:@!?|@&|#)\d+>/g, ' ').replace(custom, ' ').replace(/[\u2018\u2019]/g, "'");
-    const words: string[] = [];
-    for (const segment of segmenter.segment(prose)) if (segment.isWordLike) words.push(segment.segment.toLowerCase());
+    const words = wordsOf(m.content);
     const length = add(m, 'length', String(words.length), 0, { positive: 0, negative: 0, longest: [] });
     const score = words.reduce((sum, word) => sum + (Object.hasOwn(data.afinn, word) ? data.afinn[word]! : 0), 0);
     if (score > 0) length.payload.positive++; else if (score < 0) length.payload.negative++;
@@ -69,7 +92,7 @@ export async function textWork(part: RollupPartition | null, read: ArchiveRead, 
       const topKey = key + '/longest';
       let top = packed.get(topKey);
       if (!top) { top = { ...row, kind: 'longest', term: '', payload: [] }; packed.set(topKey, top); }
-      top.payload.push(...row.payload.longest);
+      for (const candidate of row.payload.longest) top.payload.push(candidate);
       top.payload.sort((a: any, b: any) => b.words - a.words || a.ts - b.ts || a.messageId.localeCompare(b.messageId));
       top.payload.length = Math.min(top.payload.length, data.top);
     }

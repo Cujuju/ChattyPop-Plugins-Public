@@ -1,6 +1,6 @@
-import { WORD_TREND_MIN_USES, WORD_TREND_TOP, wordRate, type WordChange, type WordTrends } from '../shared/wordTrends';
-import type { WordCount } from '../shared/text';
-import type { ActivityStats } from '../shared/types';
+import { WORD_TREND_MIN_USES, WORD_TREND_TOP, wordRate, type WordChange, type WordTrends } from '../../shared/wordTrends';
+import type { WordCount } from '../../shared/text';
+import type { ActivityStats } from '../../shared/types';
 import { bucketStart, filledBuckets } from './histogram';
 import { SCAN_BATCH_SIZE, yieldToQueue } from './scanQueue';
 import { rankedTop } from './rankedTop';

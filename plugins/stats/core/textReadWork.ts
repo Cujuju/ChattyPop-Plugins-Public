@@ -22,13 +22,13 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     const config = { ...data.config, sql: data.sql, params: data.params, cuts: [...cuts, ...extra] };
     if (!data.view) return fold(null, read, signal, config);
     if (days.size && !boundaryChannels) boundaryChannels = (await read<any>(data.channelsSql, data.memberParams)).map((r) => r.channel_id);
-    const fragments = await fold(null, read, signal, { ...config, mode: 'residual' });
-    for (const startTs of days) fragments.push(...await fold(null, read, signal, { ...config, mode: 'boundary', boundaryChannels, startTs, endTs: startTs + data.dayMs }));
+    let fragments = await fold(null, read, signal, { ...config, mode: 'residual' });
+    for (const startTs of days) fragments = fragments.concat(await fold(null, read, signal, { ...config, mode: 'boundary', boundaryChannels, startTs, endTs: startTs + data.dayMs }));
     return fragments;
   };
   let rows: any[] = data.view ? await read(data.rowsSql,
     [...data.memberParams, JSON.stringify([...days].map(dayName))]) : [];
-  rows.push(...await liveRows());
+  rows = rows.concat(await liveRows());
   const lengths = rows.filter((r) => r.kind === 'lengths');
   const first = lengths.reduce((v, r) => Math.min(v, r.first_ts), Infinity);
   const last = lengths.reduce((v, r) => Math.max(v, r.last_ts), -Infinity);
@@ -36,7 +36,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   if (midpoint !== null && data.section === 'words') {
     const midpointDay = dayName(midpoint);
     rows = rows.filter((r) => r.day && r.day !== midpointDay && !days.has(utcDay(r.first_ts)));
-    rows.push(...await liveRows([midpoint]));
+    rows = rows.concat(await liveRows([midpoint]));
   }
   const expanded: any[] = [];
   for (const r of rows) {
@@ -139,7 +139,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
       const start = bucketName(r.date), period = periods.get(start) ?? { start, totalWords: 0, words: new Map() };
       period.totalWords += words; periods.set(start, period);
       if (r.first_ts < midpoint!) earlierWords += words; else laterWords += words;
-    } else if (r.kind === 'longest') longest.push(...JSON.parse(r.payload));
+    } else if (r.kind === 'longest') { for (const candidate of JSON.parse(r.payload)) longest.push(candidate); }
     else if (r.kind === 'words') for (const [word, n, seq, position] of r.tokens) {
       const old = counts.get(word);
       const c = old ?? { word, count: 0, earlier: 0, later: 0, seq, position };
@@ -153,10 +153,23 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const words = top(ranked, data.cloudWords, (a, b) => b.count - a.count || a.word.localeCompare(b.word) || order(a, b)).map(({ word, count }) => ({ word, count }));
   const changes = ranked.filter((r) => r.count >= data.trendMinUses).map((r) => ({ ...r,
     earlierRate: earlierWords ? r.earlier * data.rateScale / earlierWords : 0, laterRate: laterWords ? r.later * data.rateScale / laterWords : 0 }));
+  // ICU can collate distinct spellings equally; legacy trend ties follow timestamp-group ingestion order.
+  const lexical = [...changes].sort((a, b) => a.word.localeCompare(b.word));
+  const tied = new Set<string>();
+  for (let i = 1; i < lexical.length; i++) if (lexical[i - 1].word.localeCompare(lexical[i].word) === 0) {
+    tied.add(lexical[i - 1].word); tied.add(lexical[i].word);
+  }
+  const trendOrders = tied.size ? new Map<string, number[]>(JSON.parse((await fold(null, read, signal,
+    { ...data.config, sql: data.sql, params: data.params, mode: 'order', orderWords: [...tied], midpoint }))[0].payload)) : new Map<string, number[]>();
+  const trendOrder = (a: any, b: any) => {
+    const x = trendOrders.get(a.word), y = trendOrders.get(b.word);
+    if (x && y) for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i]! - y[i]!;
+    return order(a, b);
+  };
   const delta = (r: any) => r.laterRate - r.earlierRate;
   const change = ({ word, earlierRate, laterRate }: any) => ({ word, earlierRate, laterRate });
-  const rising = top(changes.filter((r) => delta(r) > 0), data.trendTop, (a, b) => delta(b) - delta(a) || a.word.localeCompare(b.word) || order(a, b)).map(change);
-  const fading = top(changes.filter((r) => delta(r) < 0), data.trendTop, (a, b) => delta(a) - delta(b) || a.word.localeCompare(b.word) || order(a, b)).map(change);
+  const rising = top(changes.filter((r) => delta(r) > 0), data.trendTop, (a, b) => delta(b) - delta(a) || a.word.localeCompare(b.word) || trendOrder(a, b)).map(change);
+  const fading = top(changes.filter((r) => delta(r) < 0), data.trendTop, (a, b) => delta(a) - delta(b) || a.word.localeCompare(b.word) || trendOrder(a, b)).map(change);
   const choices = [...new Set([...words.slice(0, data.trendTop).map((r) => r.word), ...rising.map((r) => r.word), ...fading.map((r) => r.word)])];
   const chosen = new Set(choices);
   for (const r of rows) if (r.kind === 'words') for (const [word, n] of r.tokens) if (chosen.has(word)) {
