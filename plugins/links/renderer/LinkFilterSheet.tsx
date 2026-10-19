@@ -46,7 +46,7 @@ export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<P
           </Show>
         </header>
         <Field label="Platforms">
-          <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} textSize="md" />
+          <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} />
         </Field>
         <Field label="Channel" for="links-filter-channel">
           <Select id="links-filter-channel" class={styles.fieldSelect} value={linkWhere()?.by === 'channel' ? linkWhere()!.id : ''} options={channelOptions()} onChange={(v) => setLinkWhere(v ? { by: 'channel', id: v } : null)} />
