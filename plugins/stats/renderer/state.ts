@@ -1,21 +1,39 @@
-// #85 Analytics panel: what it counts (scope follows the shown channel) and the counts from core.
-import { createEffect, createSignal, on } from 'solid-js';
+// #85 Analytics panel: what it counts (the rail's place, range and person) and the counts from core.
+import { createEffect, createMemo, createSignal, on } from 'solid-js';
 import { STATS_PANEL, plugin } from '../shared';
-import { POSTERS_PAGE_MAX, STATS_RANGES, type ActivityQuery, type StatsRange, type StatsScope, type StatsSection } from '../shared/types';
+import { POSTERS_PAGE_MAX, STATS_RANGES, placeScope, type ActivityQuery, type StatsPlace, type StatsRange, type StatsSection } from '../shared/types';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import { callable, coreClient, onAppEvent, pluginData, pluginPreference, pluginResource, containedRoot, onCleanup } from '@plugin-sdk/renderer';
-import { isPanelCollapsed, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { directory, isPanelCollapsed, isThread, shownChannelId } from '@plugin-sdk/renderer/kit';
 import { createPosterPages } from './posterPages';
 import { listedPerson, resetPerson } from './personSelection';
 
-export const [statsScope, setStatsScope] = pluginPreference(plugin, 'scope');
+const [statsPick, setStatsPick] = pluginPreference(plugin, 'place');
+/** Where Analytics counts (null: everything). Until the owner picks, the channel shown in the Archive. */
+export const statsPlace = containedRoot(() => createMemo((): StatsPlace | null => {
+  const pick = statsPick();
+  if (pick === 'all') return null;
+  if (pick) return pick;
+  const shown = shownChannelId();
+  return shown ? { by: 'channel', id: shown } : null;
+}, null, { equals: (a, b) => a?.by === b?.by && a?.id === b?.id }));
+export const setStatsPlace = (place: StatsPlace | null): void => void setStatsPick(place ?? 'all');
+export const [statsChannelsHidden, setStatsChannelsHidden] = pluginPreference(plugin, 'channelsHidden');
 export const [statsRange, setStatsRange] = pluginPreference(plugin, 'range');
 export const [statsSection, setStatsSection] = pluginPreference(plugin, 'section');
 /** A person choice lasts only for this renderer session, never a stored preference. */
 export const [statsAuthor, setStatsAuthor] = createSignal<string | null>(null);
-containedRoot(() => createEffect(on(() => ({ scope: statsScope(), channelId: shownChannelId() }), (next, previous) => {
+containedRoot(() => createEffect(on(statsPlace, (next, previous) => {
   setStatsAuthor((authorId) => resetPerson(authorId, previous, next));
 })));
+
+/** The channel people are named as in: the place's, or for a server one of its channels (a server names people alike in all). */
+export function namesChannelId(): string | null {
+  const place = statsPlace();
+  if (!place) return null;
+  if (place.by === 'channel') return place.id;
+  return directory().find((g) => g.id === place.id)?.channels.find((c) => !isThread(c))?.id ?? null;
+}
 
 /** Open Analytics panels; counts are only fetched while one is mounted and unfolded (a whole-archive count is a full scan). */
 const [mounted, setMounted] = createSignal(0);
@@ -24,17 +42,17 @@ export const statsPanelMounted = (): (() => void) => {
   return () => setMounted((n) => n - 1);
 };
 
-type Choices = { scope: StatsScope; channelId: string | null; range: StatsRange; authorId?: string | null };
+type Choices = { place: StatsPlace | null; range: StatsRange; authorId?: string | null };
 
 function choices(): Choices | undefined {
   if (!mounted() || isPanelCollapsed(STATS_PANEL)) return undefined;
-  return { scope: statsScope(), channelId: shownChannelId(), range: statsRange() };
+  return { place: statsPlace(), range: statsRange() };
 }
 
 /** The query for `c`. A read takes the range start then (a refetch re-reads its arguments), so a refresh counts up to now. */
 const queryOf = (c: Choices): ActivityQuery => {
   const days = STATS_RANGES[c.range].days;
-  return { scope: c.scope, channelId: c.channelId, sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY, authorId: c.authorId ?? null };
+  return { ...placeScope(c.place), sinceTs: days === null ? null : Date.now() - days * MS_PER_DAY, authorId: c.authorId ?? null };
 };
 
 export const personOptions = pluginResource(plugin, 'postersPage', () => {
@@ -77,7 +95,7 @@ export function createPosterList() {
     if (!call) throw new Error('Analytics is unavailable in this window.');
     return pluginData(() => call(q), []);
   });
-  createEffect(on(() => [statsScope(), statsRange(), shownChannelId(), stats(), privacyChanges(), callable(plugin, 'postersPage')], pages.reset));
+  createEffect(on(() => [statsPlace(), statsRange(), stats(), privacyChanges(), callable(plugin, 'postersPage')], pages.reset));
   onCleanup(pages.reset);
   return pages;
 }

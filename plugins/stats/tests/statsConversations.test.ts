@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { testPlugin } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { CONVERSATION_GAP_MS, CONVERSATION_PAIRS } from '../shared/conversations';
 import { SCAN_BATCH_SIZE } from '../core/scan';
@@ -48,7 +48,7 @@ describe('Analytics conversation runs', () => {
     expect([ranged.messages, ranged.conversations, ranged.pairedConversations]).toEqual([2, 1, 1]);
     expect(ranged.pairs.map((pair) => pair.exchanges)).toEqual([1]);
     expect((await core.conversationStats({ ...CHANNEL, channelId: 't1' })).pairs).toEqual([]);
-    expect((await core.conversationStats({ ...CHANNEL, scope: 'server' })).pairs[0]!.exchanges).toBe(4);
+    expect((await core.conversationStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).pairs[0]!.exchanges).toBe(4);
     t.archive.setPrivacyMode(true);
     const visible = await core.conversationStats({ scope: 'all', channelId: null, sinceTs: null });
     expect([visible.messages, visible.conversations, visible.pairedConversations, visible.pairs[0]!.exchanges]).toEqual([9, 4, 3, 3]);

@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { MS_PER_S, MS_PER_MIN, MS_PER_HOUR } from '@plugin-sdk/shared';
 import statsCore from '../core';
 import { conversationStats } from '../core/conversations';
@@ -66,7 +66,7 @@ describe('Analytics conversation roles', () => {
     const { t, core } = start([...run('a', MS_PER_S, 0, 't1'), ...run('other', 0, 1, 'c2'), ...run('private', 0, 2, 'hidden')]);
     expect((await core.conversationStats(CHANNEL)).roles.starts.map((p) => p.userId)).toEqual(['a']);
     t.archive.setPrivacyMode(true);
-    expect((await core.conversationStats({ ...CHANNEL, scope: 'server' })).roles.starts.map((p) => p.userId)).toEqual(['a', 'other']);
+    expect((await core.conversationStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).roles.starts.map((p) => p.userId)).toEqual(['a', 'other']);
     for (const query of [{ ...CHANNEL, channelId: null }, { ...CHANNEL, sinceTs: MS_PER_S + 1 }]) {
       expect((await core.conversationStats(query)).roles).toEqual({ starts: [], closes: [], fastest: [], medianReplyMs: null });
     }

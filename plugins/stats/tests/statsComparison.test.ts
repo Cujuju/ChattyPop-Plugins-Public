@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import statsCore from '../core';
 import { comparisonDelta } from '../renderer/comparison';
@@ -39,7 +39,7 @@ describe('Analytics preceding period', () => {
       messages: 2, authors: 1, activeDays: 2, editedMessages: 1, textMessages: 1, linkedMessages: 1, attachmentMessages: 1,
     } });
     expect([stats.messages, stats.authors, stats.activeDays, stats.textMessages, stats.linkedMessages]).toEqual([3, 2, 2, 2, 1]);
-    expect((await core.activityStats({ ...CHANNEL, scope: 'server' })).comparison?.totals?.messages).toBe(3);
+    expect((await core.activityStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).comparison?.totals?.messages).toBe(3);
   });
 
   it('requires coverage in the same visible scope, including the exact start boundary', async () => {

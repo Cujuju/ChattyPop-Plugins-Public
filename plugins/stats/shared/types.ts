@@ -2,9 +2,30 @@ import { MS_PER_MIN, MS_PER_HOUR, MS_PER_DAY } from '@plugin-sdk/shared';
 import type { PeriodComparison } from './comparison';
 import type { StreakStats } from './streaks';
 
-/** The panel's scope choices and their labels. */
-export const STATS_SCOPES = { channel: 'This channel', server: 'This server', all: 'Everything' } as const;
-export type StatsScope = keyof typeof STATS_SCOPES;
+/** What a query counts: one channel with its threads, one server, or the whole archive. */
+export type StatsScope = 'channel' | 'server' | 'all';
+
+/** The panel's place, as the kit's place rail picks it: a server or one channel (with its threads); null is everything. */
+export interface StatsPlace {
+  by: 'guild' | 'channel';
+  id: string;
+}
+
+/** The stored pick: a place, or 'all' for everything; null until the owner picks (the open channel stands in). */
+export type StatsPick = StatsPlace | 'all' | null;
+
+export function normalizeStatsPick(v: unknown): StatsPick {
+  if (v === 'all') return 'all';
+  if (!v || typeof v !== 'object') return null;
+  const { by, id } = v as Partial<StatsPlace>;
+  return (by === 'guild' || by === 'channel') && typeof id === 'string' && id ? { by, id } : null;
+}
+
+/** A place's scope fields for a query. */
+export const placeScope = (place: StatsPlace | null): Pick<ActivityQuery, 'scope' | 'channelId' | 'guildId'> =>
+  !place ? { scope: 'all', channelId: null, guildId: null }
+    : place.by === 'channel' ? { scope: 'channel', channelId: place.id, guildId: null }
+      : { scope: 'server', channelId: null, guildId: place.id };
 
 /** The panel's range choices: label and span in days (null: all archived). */
 export const STATS_RANGES = {
@@ -29,10 +50,11 @@ export const isKey =
   (v: unknown): v is keyof T =>
     typeof v === 'string' && Object.hasOwn(o, v);
 
-/** Analytics messages to count. `channelId` anchors 'channel' (with its threads) and 'server' (its server). */
+/** Analytics messages to count: 'channel' counts `channelId` with its threads, 'server' every channel in `guildId`. */
 export interface ActivityQuery {
-  scope: 'channel' | 'server' | 'all';
+  scope: StatsScope;
   channelId: string | null;
+  guildId?: string | null;
   /** Count messages from this time on; null for the whole archive. */
   sinceTs: number | null;
   /** Absent or null counts everyone; an id narrows ordinary section reads. */

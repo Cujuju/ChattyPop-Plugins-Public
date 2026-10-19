@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { wordStats } from '../core/words';
 import { WORD_TREND_MIN_USES, WORD_TREND_TOP, wordStrip } from '../shared/wordTrends';
@@ -75,7 +75,7 @@ describe('Analytics word trends', () => {
     expect(stats.trends.buckets.slice(1, -1).every((b) => b.totalWords === 0)).toBe(true);
     expect((await core.wordStats({ ...CHANNEL, sinceTs: at(200) })).trends.fading).toEqual([]);
     t.archive.setPrivacyMode(true);
-    expect((await core.wordStats({ ...CHANNEL, scope: 'server' })).trends.choices).not.toContain('private');
+    expect((await core.wordStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).trends.choices).not.toContain('private');
     for (const query of [{ ...CHANNEL, channelId: null }, { ...CHANNEL, sinceTs: at(301) }]) {
       expect((await core.wordStats(query)).trends).toEqual({ midpointTs: null, earlierWords: 0, laterWords: 0, rising: [], fading: [], choices: [], bucket: 'day', buckets: [] });
     }

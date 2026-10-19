@@ -1,13 +1,11 @@
-import type { StatsPoster, StatsScope } from '../shared/types';
+import type { StatsPlace, StatsPoster } from '../shared/types';
 
-export interface PersonScope { scope: StatsScope; channelId: string | null }
-
-/** Scope switches always reset; changing the shown channel resets channel and server views only. */
-export function resetPerson(authorId: string | null, previous: PersonScope | undefined, next: PersonScope): string | null {
-  if (!previous) return authorId;
-  return previous.scope !== next.scope || (next.scope !== 'all' && previous.channelId !== next.channelId) ? null : authorId;
+/** Moving to another place resets the person; the first observation keeps them. */
+export function resetPerson(authorId: string | null, previous: StatsPlace | null | undefined, next: StatsPlace | null): string | null {
+  if (previous === undefined) return authorId;
+  return previous?.by === next?.by && previous?.id === next?.id ? authorId : null;
 }
 
-/** A completed scope/range picker read cannot retain a person absent from its bounded list. */
+/** A completed place/range picker read cannot retain a person absent from its bounded list. */
 export const listedPerson = (authorId: string | null, posters: Pick<StatsPoster, 'userId'>[]): string | null =>
   authorId !== null && posters.some((poster) => poster.userId === authorId) ? authorId : null;

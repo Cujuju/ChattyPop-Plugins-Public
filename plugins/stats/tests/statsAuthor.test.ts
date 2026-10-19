@@ -29,9 +29,9 @@ function start() {
 describe('Analytics author scope', () => {
   it.each([
     { scope: 'all', channelId: null }, { scope: 'channel', channelId: 'c1' },
-    { scope: 'server', channelId: 'c1' }, { scope: 'server', channelId: 'dm' },
-    { scope: 'channel', channelId: null }, { scope: 'server', channelId: null },
-  ] as const)('binds the author for $scope anchored at $channelId', (choice) => {
+    { scope: 'server', channelId: null, guildId: 'away' }, { scope: 'channel', channelId: 'dm' },
+    { scope: 'channel', channelId: null }, { scope: 'server', channelId: null, guildId: null },
+  ] as const)('binds the author for $scope at $channelId / $guildId', (choice) => {
     const { t } = start();
     const scope = scopeSql(t.db, { ...PERSON, ...choice, sinceTs: 0 });
     expect(scope.sql).toContain('m.author_id = ?');

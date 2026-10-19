@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { testPlugin } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_DAY } from '@plugin-sdk/shared';
 import statsCore from '../core';
 import { sentimentScale, uncancelledShare, type SentimentBucket } from '../shared/text';
@@ -61,7 +61,7 @@ describe('Analytics sentiment', () => {
   it('honors scope, range and privacy with empty-range results', async () => {
     const { t, core } = start();
     expect((await core.sentimentStats({ ...CHANNEL, sinceTs: START + MS_PER_DAY })).classes).toEqual({ positive: 0, negative: 0, neutral: 2 });
-    expect((await core.sentimentStats({ ...CHANNEL, scope: 'server' })).textMessages).toBe(6);
+    expect((await core.sentimentStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).textMessages).toBe(6);
     t.archive.setPrivacyMode(true);
     expect((await core.sentimentStats({ scope: 'all', channelId: null, sinceTs: null })).classes).toEqual({ positive: 2, negative: 1, neutral: 2 });
     const empty = await core.sentimentStats({ ...CHANNEL, channelId: null });

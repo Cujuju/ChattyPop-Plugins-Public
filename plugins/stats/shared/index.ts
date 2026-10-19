@@ -1,6 +1,6 @@
-// #85 Analytics: who posts most, when, and in which channels, for the shown channel, its server or everything.
+// #85 Analytics: who posts most, when, and in which channels, for a channel, a server or everything.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, isKey, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster, type StatsRange, type StatsScope, type StatsSection } from './types';
+import { STATS_RANGES, STATS_SECTIONS, isKey, normalizeStatsPick, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPick, type StatsPoster, type StatsRange, type StatsSection } from './types';
 import type { EmojiStats, WordStats, SentimentStats } from './text';
 import type { ConversationStats } from './conversations';
 import type { PersonStreak } from './streaks';
@@ -40,14 +40,15 @@ export const plugin = definePlugin({
     activityStats: ['renderer'], postersPage: ['renderer'], personStreaks: ['renderer'], personHistory: ['renderer'], peopleStats: ['renderer'], voiceStats: ['renderer'], repeatedLinks: ['renderer'],
     emojiStats: ['renderer'], wordStats: ['renderer'], sentimentStats: ['renderer'], conversationStats: ['renderer'],
   } }),
-  // The panel's scope, range and open section.
+  // The panel's place, range and open section, and whether its rail's channel column is folded.
   preferences: {
-    scope: definePreference<StatsScope>({ default: 'channel', normalize: (v) => (isKey(STATS_SCOPES)(v) ? v : 'channel') }),
+    place: definePreference<StatsPick>({ default: null, normalize: normalizeStatsPick }),
+    channelsHidden: definePreference<boolean>({ default: false, normalize: (v) => v === true }),
     range: definePreference<StatsRange>({ default: '30d', normalize: (v) => (isKey(STATS_RANGES)(v) ? v : '30d') }),
     section: definePreference<StatsSection>({ default: 'overview', normalize: (v) => (isKey(STATS_SECTIONS)(v) ? v : 'overview') }),
   },
   // The panel's choices from when it was built in.
-  adopts: { settings: { 'stats.scope': 'scope', 'stats.range': 'range' } },
+  adopts: { settings: { 'stats.range': 'range' } },
   // A bar chart's baseline and three bars.
   panels: [{ id: STATS_PANEL, title: 'Analytics', importance: 'reference', dialog: true, after: 'tags', iconPath: 'M4 20h16M7 16v-5M12 16V6M17 16v-8' }],
 });
