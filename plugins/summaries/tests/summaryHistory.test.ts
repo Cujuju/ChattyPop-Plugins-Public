@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Contract tests for summary history.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { SUMMARIES_TABLE } from '../core/schema';
@@ -15,16 +16,16 @@ const insertRun = (db: ReturnType<typeof tempDb>, createdAt: number, headline: s
 };
 
 describe('summary history', () => {
-  it('pages every run once, newest first, including runs that share a timestamp', () => {
+  it('pages every run once, newest first, including runs that share a timestamp', async () => {
     const db = adoptSummaries(tempDb());
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), {} as SummaryProviders, () => undefined);
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), {} as SummaryProviders, () => undefined);
     ['a', 'b', 'c'].forEach((h) => insertRun(db, 1000, h));
     ['d', 'e'].forEach((h, i) => insertRun(db, 2000 + i, h));
 
     const seen: string[] = [];
     let before: { createdAt: number; id: number } | undefined;
     for (;;) {
-      const page = s.page({ limit: 2, ...(before ? { before } : {}) });
+      const page = (await s.page({ limit: 2, ...(before ? { before } : {}) }));
       if (!page.length) break;
       seen.push(...page.map((r) => r.headline));
       const last = page.at(-1)!;

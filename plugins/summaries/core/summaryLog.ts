@@ -2,7 +2,8 @@
 import { USER_MENTION } from '@plugin-sdk/core';
 import { createHash } from 'node:crypto';
 import type { SummaryGrouping } from '../shared/settings';
-import type { PluginDb, ArchiveReplyReader } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
+import { REPLY_MESSAGE_TYPE } from '@plugin-sdk/shared';
 import { clipMessage } from '@plugin-sdk/core';
 import { isFiller } from './filler';
 import type { LogLine } from './summaryJev';
@@ -13,16 +14,15 @@ import { markedTag, personTag, type TaggedPerson } from './people';
 const LINKED_MARK = '↳ links to:';
 
 /** Builds chronological or channel-grouped logs with short message refs, person tags, resolved mentions, multi-day dates, and clipped linked text. */
-export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: string[], sinceTs: number, untilTs: number, grouping: SummaryGrouping, skipObviousFiller = false): LogLine[] {
+export async function readLog(read: ArchiveRead, channelIds: string[], sinceTs: number, untilTs: number, grouping: SummaryGrouping, skipObviousFiller = false): Promise<LogLine[]> {
   if (!channelIds.length) return [];
-  const rows = db.prepare(`SELECT m.id, m.channel_id AS channelId, c.name AS channelName, m.ts, m.text AS content, m.linked,
+  const rows = await read<{ id: string; channelId: string; channelName: string; ts: number; content: string; linked: string;
+    deletedAt: number | null; author: string; authorId: string; isReply: number | null }>(`SELECT m.id, m.channel_id AS channelId, c.name AS channelName, m.ts, m.text AS content, m.linked,
+    ${skipObviousFiller ? `json_extract(msg_json(m.raw_json), '$.type') = ${REPLY_MESSAGE_TYPE}` : 'NULL'} AS isReply,
     m.deleted_at AS deletedAt, m.author_plain_name AS author, m.author_id AS authorId
     FROM archive_all_messages m JOIN archive_all_channels c ON c.id = m.channel_id
     WHERE m.channel_id IN (${channelIds.map(() => '?').join(',')}) AND m.ts >= ? AND m.ts <= ? AND (m.text != '' OR m.linked != '')
-    ORDER BY m.ts, length(m.id), m.id`).all(...channelIds, sinceTs, untilTs) as {
-      id: string; channelId: string; channelName: string; ts: number; content: string; linked: string;
-      deletedAt: number | null; author: string; authorId: string;
-    }[];
+    ORDER BY m.ts, length(m.id), m.id`, [...channelIds, sinceTs, untilTs]);
   if (!rows.length) return [];
   if (grouping === 'channel') {
     const firstAt = new Map<string, number>();
@@ -30,9 +30,8 @@ export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: 
     rows.sort((a, b) => firstAt.get(a.channelId)! - firstAt.get(b.channelId)!); // stable: chronological within a channel
   }
   const ids = [...new Set(rows.flatMap((r) => [...r.content.matchAll(USER_MENTION)].map((m) => m[1]!)))];
-  const names: Record<string, string> = Object.fromEntries(ids.length ? db.prepare(
-    `SELECT id, display_name FROM archive_users WHERE id IN (${ids.map(() => '?').join(',')})`,
-  ).raw().all(...ids) as [string, string][] : []);
+  const names: Record<string, string> = Object.fromEntries(ids.length ? (await read<{ id: string; display_name: string }>(
+    `SELECT id, display_name FROM archive_users WHERE id IN (${ids.map(() => '?').join(',')})`, ids)).map((r) => [r.id, r.display_name]) : []);
   const tags = new Map<string, TaggedPerson>();
   const person = (userId: string, name: string): TaggedPerson => {
     const known = tags.get(userId) ?? { tag: personTag(tags.size + 1), userId, name };
@@ -41,7 +40,6 @@ export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: 
   };
   const named = (text: string, tagged: boolean): string =>
     text.replace(USER_MENTION, (raw, id: string) => (names[id] ? `@${names[id]}${tagged ? ` ${markedTag(person(id, names[id]).tag)}` : ''}` : raw));
-  const details = skipObviousFiller ? payloads(rows.map((r) => r.id)) : new Map();
   const withDate = new Date(sinceTs).toDateString() !== new Date(untilTs).toDateString();
   const said = (r: (typeof rows)[number], tagged: boolean): string => {
     const own = clipMessage(named(r.content, tagged));
@@ -58,7 +56,7 @@ export function readLog(db: PluginDb, payloads: ArchiveReplyReader, channelIds: 
       text: `[${ref}] #${r.channelName} ${stamp(r.ts, withDate)} ${tagged}`,
       plain: `${r.author}${deleted}: ${said(r, false)}`,
       // A bare link is no filler when its post has text.
-      filler: skipObviousFiller && !r.linked && isFiller(r.content, details.get(r.id)?.isReply === 1),
+      filler: skipObviousFiller && !r.linked && isFiller(r.content, r.isReply === 1),
       people: [author, ...[...r.content.matchAll(USER_MENTION)].flatMap((m) => (names[m[1]!] ? [tags.get(m[1]!)!] : []))],
     };
   });

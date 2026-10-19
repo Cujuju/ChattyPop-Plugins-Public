@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // The Summarizer sends the effort set for the provider, or for the model Jev routes to.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { adoptSummaries } from './summariesHarness';
@@ -31,7 +32,7 @@ describe('Summarizer effort', () => {
     seedArchive(db, [{ id: 'c1' }]).ingestMessages(Array.from({ length: 3 }, (_, i) => rawMessage('c1', Date.now() - MS_PER_MIN + i, `message ${i}`)), ARRIVAL.gateway);
     const fake = fakeRegistry(() => db, () => ({ headline: 'h', items: [{ parts: [{ text: 'p', refs: ['m1'] }] }] }), (_s, f) => jev.forPlugin('summaries')(f));
     calls = fake.calls;
-    summarizer = new Summarizer(db, (ids) => archivePayloads(db, ids), fake.registry, () => {});
+    summarizer = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), fake.registry, () => {});
   });
 
   it('sends the chosen effort, none when unset, and a different effort is not served from cache', async () => {

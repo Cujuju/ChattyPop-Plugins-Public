@@ -191,7 +191,7 @@ export function coverageSpans(db: PluginDb): CoverageSpan[] {
 }
 
 /** Priced-run sample size for cost-per-message averaging. */
-const RATE_RUNS = 10;
+export const RATE_RUNS = 10;
 
 /** The model's cost per message read over its last RATE_RUNS priced runs, in USD; null when none was priced. */
 export function costPerMessage(db: PluginDb, provider: ProviderId, model: string | null): number | null {

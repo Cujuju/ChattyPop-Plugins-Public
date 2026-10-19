@@ -1,3 +1,4 @@
+import type { ArchiveRead } from '@plugin-sdk/core';
 // Comparison rows as stored, and each model's column read back as a summary.
 import { sumCosts, type PluginDb } from '@plugin-sdk/core';
 import type { TokenUsage } from '@plugin-sdk/shared';
@@ -128,3 +129,50 @@ export function readComparison(db: PluginDb, id: number, shown: (s: Summary) => 
 
 /** Whether a comparison was there to delete. */
 export const deleteComparison = (db: PluginDb, id: number): boolean => db.prepare(`DELETE FROM ${COMPARISONS_TABLE} WHERE id = ?`).run(id).changes > 0;
+
+export async function comparisonHeadsRead(read: ArchiveRead): Promise<ComparisonHead[]> {
+  const rows = (await read(`SELECT * FROM ${VISIBLE_COMPARISONS} ORDER BY created_at DESC, id DESC`, [])) as ComparisonRow[];
+  return rows.map((r) => headOf(r, JSON.parse(r.results_json) as StoredResult[]));
+}
+
+export async function readComparisonRead(read: ArchiveRead, id: number, shown: (s: Summary) => Summary): Promise<Comparison | null> {
+  const r = (await read(`SELECT * FROM ${VISIBLE_COMPARISONS} WHERE id = ?`, [id]))[0] as ComparisonRow | undefined;
+  if (!r) return null;
+  const stored = JSON.parse(r.results_json) as StoredResult[];
+  const channelIds = JSON.parse(r.channel_ids) as string[];
+  const head = headOf(r, stored);
+  const summaryOf = (x: StoredResult): Summary => ({
+    id: r.id,
+    createdAt: r.created_at,
+    provider: x.model.provider,
+    model: x.model.model,
+    sinceTs: r.since_ts,
+    untilTs: r.until_ts,
+    channelIds,
+    scope: head.scope,
+    messageCount: r.message_count,
+    skippedCount: r.skipped_count,
+    durationMs: x.durationMs,
+    headline: x.headline ?? '',
+    items: x.items ?? [],
+    actions: x.actions ?? [],
+    grouping: r.grouping,
+    trigger: 'manual',
+    usage: x.usage ?? null,
+    apiCostUsd: x.apiCostUsd ?? null,
+    apiCostEstimated: false,
+    jevCostUsd: x.jevCostUsd ?? null,
+    themes: x.themes ?? null,
+    people: {},
+    authors: {},
+  });
+  return {
+    ...head,
+    channelIds,
+    skippedCount: r.skipped_count,
+    grouping: r.grouping,
+    jevCostUsd: r.jev_cost_usd,
+    inputDigest: r.input_digest,
+    results: stored.map((x) => ({ model: x.model, error: x.error, inputDigest: x.inputDigest ?? null, summary: x.error === null ? summaryOf(x) : null })),
+  };
+}

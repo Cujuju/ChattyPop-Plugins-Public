@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Contract: a scope narrows what a run reads (a server's channels, a channel with its threads) and stays on the run.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiSettingsFrom } from '@shared/aiProviders';
@@ -42,7 +43,7 @@ beforeEach(() => {
 /** Runs one summary over `scope` and returns what the model read and the stored run. */
 async function run(req: { scope?: SummaryScope; channelIds?: string[] }) {
   const { calls, registry } = fakeRegistry(() => db, () => DRAFT);
-  const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => undefined);
+  const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => undefined);
   const summary = await s.run({ sinceTs: 0, ...req }, FRESH_AI, TEST_PREFS, 'manual');
   return { prompt: calls.map((c) => c.prompt).join('\n'), summary };
 }

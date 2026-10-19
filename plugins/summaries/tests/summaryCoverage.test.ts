@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // A catch-up skips only time every channel it reads was already summarized, from its start without a gap.
 import { expect, it } from 'vitest';
 import { newRuleAction } from '@shared/ruleSpec';
@@ -59,7 +60,7 @@ it('counts only the channels a hosted run would read: local-AI-only ones stay ou
   const h = summaryRuleHarness();
   h.db.prepare("UPDATE channels SET local_ai_only = 1 WHERE id = 'c2'").run();
   summarized(h.db, ['c1'], at(0), at(6));
-  const s = new Summarizer(h.db, (ids) => archivePayloads(h.db, ids), fakeRegistry(() => h.db, () => ({})).registry, () => {});
+  const s = new Summarizer(h.db, archiveRead(() => h.db), (ids) => archivePayloads(h.db, ids), fakeRegistry(() => h.db, () => ({})).registry, () => {});
   // TEST_PREFS picks Claude, which runs hosted.
   expect(s.coveredFrom({ sinceTs: at(0), channelIds: null }, TEST_PREFS)).toBe(at(6));
   expect(s.coveredFrom({ sinceTs: at(1), channelIds: ['c1'] }, TEST_PREFS)).toBe(at(6));

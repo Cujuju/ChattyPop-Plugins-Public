@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Contract tests for summary options.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { adoptSummaries } from './summariesHarness';
@@ -57,7 +58,7 @@ describe('summary options reach the prompt and the stored run', () => {
   it('names mentions, dates a multi-day log, asks for and stores actions', async () => {
     const { calls, registry } = fakeProvider();
     const events: SummaryEvent[] = [];
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, (e) => events.push(e), () => ['Alice']);
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, (e) => events.push(e), () => ['Alice']);
     const summary = await run(s, { focus: 'release dates' });
 
     const [call] = calls;
@@ -74,7 +75,7 @@ describe('summary options reach the prompt and the stored run', () => {
 
   it('leaves actions out of the schema when off, and groups the log by channel', async () => {
     const { calls, registry } = fakeProvider();
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {});
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {});
     const summary = await run(s, { actionItems: false, grouping: 'channel' });
     expect(calls[0]!.schema!['required']).toEqual(['headline', 'items']);
     expect(summary.actions).toEqual([]);
@@ -85,7 +86,7 @@ describe('summary options reach the prompt and the stored run', () => {
 
   it('reuses a cached run only when the options match', async () => {
     const { calls, registry } = fakeProvider();
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {});
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {});
     const a = await run(s);
     expect((await run(s)).id).toBe(a.id);
     expect(calls).toHaveLength(1);
@@ -95,7 +96,7 @@ describe('summary options reach the prompt and the stored run', () => {
 
   it("sends the owner's template with its placeholders filled, and doesn't reuse a run made with another", async () => {
     const { calls, registry } = fakeProvider();
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {});
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {});
     const a = await run(s);
     const template = 'Summarize tersely.\n{bullets}\n\n{refs}\n{focus}\nPlain words only.';
     const b = await run(s, { prompts: { summarize: template, merge: null } });
@@ -112,12 +113,12 @@ describe('summary options reach the prompt and the stored run', () => {
 
   it('reads a run stored before points had parts as one part per point', async () => {
     const { registry } = fakeProvider();
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {});
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {});
     const a = await run(s);
     const cite = a.items[0]!.parts[0]!.citations[0]!;
     const legacy = [{ text: 'whole point', citations: [cite], check: { verdict: 'supported', confidence: 1 } }];
     db.prepare(`UPDATE ${SUMMARIES_TABLE} SET items_json = ?, actions_json = ? WHERE id = ?`).run(JSON.stringify(legacy), JSON.stringify([{ text: 'act', citations: [] }]), a.id);
-    const [read] = s.page({ limit: 1 });
+    const [read] = (await s.page({ limit: 1 }));
     expect(read!.items).toEqual([{ parts: [{ text: 'whole point', citations: [cite] }], check: { verdict: 'supported', confidence: 1 } }]);
     expect(read!.actions).toEqual([{ parts: [{ text: 'act', citations: [] }] }]);
   });
@@ -139,7 +140,7 @@ describe('summary options reach the prompt and the stored run', () => {
     vi.useFakeTimers({ toFake: ['Date'] }); // the prompt states the time to the minute
     try {
       const { calls, registry } = fakeProvider();
-      const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {}, () => ['Alice']);
+      const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {}, () => ['Alice']);
       const prefs = { ...TEST_PREFS, focus: 'release dates', grouping: 'channel' as const };
       const shown = s.prompts(FRESH_AI, prefs);
       await run(s, prefs);

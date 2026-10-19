@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Contract: a comparison sends every model the same log, parts and prompts; only the model and its thinking level differ.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_AI_SETTINGS } from '@shared/settings';
@@ -57,7 +58,7 @@ function setup(budgets: Partial<Record<ProviderId, number>>, failing: ProviderId
     permitted: (ids, reader) => ids.filter((c) => c !== LOCAL_ONLY || (reader !== 'hosted' && reader.provider === 'ollama')),
     localNames: () => ['Ollama'],
   };
-  const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => undefined);
+  const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => undefined);
   return { calls, comparer: new Comparer(db, s, registry, () => undefined) };
 }
 
@@ -103,7 +104,7 @@ describe('model comparison', () => {
     const c = await comparer.run({ sinceTs: 0, scope, models: [model('claude'), model('ollama')] }, DEFAULT_AI_SETTINGS, PREFS);
     expect(c.channelIds).toEqual([HOSTED]);
     expect(c.scope).toEqual(scope);
-    expect(comparer.list()[0]!.scope).toEqual(scope);
+    expect((await comparer.list())[0]!.scope).toEqual(scope);
     expect(c.results.every((r) => r.summary?.scope?.channelIds[0] === HOSTED)).toBe(true);
   });
 
@@ -114,7 +115,7 @@ describe('model comparison', () => {
     expect(comparer.cancel()).toBe(true);
     await expect(run).rejects.toThrow(COMPARE_CANCELED);
     expect(calls['codex']![0]!.signal?.aborted).toBe(true);
-    expect(comparer.list()).toEqual([]);
+    expect((await comparer.list())).toEqual([]);
     expect(comparer.cancel()).toBe(false);
   });
 
@@ -122,12 +123,12 @@ describe('model comparison', () => {
     const before = Date.now();
     const { comparer } = setup({}, ['codex']);
     const { id } = await comparer.run({ sinceTs: 0, models: [model('claude'), model('codex')] }, DEFAULT_AI_SETTINGS, PREFS);
-    expect(comparer.list().map((h) => h.id)).toEqual([id]);
+    expect((await comparer.list()).map((h) => h.id)).toEqual([id]);
     expect(summarySpend(db, before).providers).toEqual([
       { provider: 'claude', runs: 1, ...USAGE, apiCostUsd: CALL_USD, unpricedRuns: 0 },
     ]);
     expect(comparer.delete(id)).toBe(true);
-    expect(comparer.list()).toEqual([]);
-    expect(comparer.get(id)).toBeNull();
+    expect((await comparer.list())).toEqual([]);
+    expect((await comparer.get(id))).toBeNull();
   });
 });

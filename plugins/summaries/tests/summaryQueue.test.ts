@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // A summary queued behind another checks its provider when it starts, not when it was queued.
 import { describe, expect, it, vi } from 'vitest';
 import { normalizeAiSettings } from '@shared/settings';
@@ -41,7 +42,7 @@ describe('queued summaries', () => {
     });
     registry.register('claude', impl('claude', false));
     const offCodex = registry.register('codex', impl('codex', true));
-    const summarizer = new Summarizer(db, (ids) => archivePayloads(db, ids), {
+    const summarizer = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), {
       get: (id, s) => registry.get(id, s),
       decider: () => null,
       permitted: aiSources(() => db, (id) => registry.isLocal(id)).permitted,
@@ -66,7 +67,7 @@ describe('queued summaries', () => {
     registry.register('claude', { create: () => ({ id: 'claude', maxInputChars: 100_000, complete, listModels: async () => [] }), status: async () => ({ available: true, detail: '', models: [] }) });
     const settings = normalizeAiSettings({ providers: { claude: { enabled: true } }, accounts: [] }, declaredProviders());
     registry.bindAccounts(() => settings, () => undefined);
-    const summarizer = new Summarizer(db, (ids) => archivePayloads(db, ids), {
+    const summarizer = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), {
       get: (id, ai) => registry.get(id, ai), decider: () => null,
       permitted: aiSources(() => db, (id) => registry.isLocal(id)).permitted, localNames: () => [],
     }, () => undefined);

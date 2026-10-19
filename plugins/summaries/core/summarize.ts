@@ -1,3 +1,4 @@
+import { costPerMessageRead, summaryPageRead } from './summaryReads';
 // Queued summary generation, caching and progress.
 import { createHash } from 'node:crypto';
 import type { Summary, SummaryEstimate, SummaryPageQuery, SummaryPrompts, SummaryRequest, SummaryScope } from '../shared/types';
@@ -5,10 +6,10 @@ import type { AppUsage } from '@plugin-sdk/shared';
 import type { SummaryEvent as AppEvent } from '../shared/types';
 import { orList, type AiSettings, type ProviderId } from '@plugin-sdk/shared';
 import type { SummarySettings, SummaryTrigger } from '../shared/settings';
-import type { PluginDb, ArchiveReplyReader, CoverageQuery } from '@plugin-sdk/core';
-import { privacy } from '@plugin-sdk/core';
+import type { PluginDb, ArchiveRead, ArchiveReplyReader, CoverageQuery } from '@plugin-sdk/core';
+import { readPrivacy } from '@plugin-sdk/core';
 import { shownSummary } from './privacy';
-import { withPeople } from './people';
+import { withPeopleRead } from './people';
 import { FILLER_RULES_VERSION } from './filler';
 import type { SummaryProviders as ProviderRegistry } from './providers';
 import { SUMMARIES_TABLE } from './schema';
@@ -17,7 +18,7 @@ import { summaryJevFingerprint } from './summaryJev';
 import { logDigest, readLog } from './summaryLog';
 import { PROMPT_VERSION, THEMES_VERSION, mergePrompt, systemPrompt, type PromptOptions } from './summaryPrompt';
 import { maxJevQuestions, type RunInput, type RunPlan } from './summaryEstimate';
-import { costPerMessage, coveredFrom, insertSummary, summaryPage, summaryUsageSince, toSummary, type NewSummary, type SummaryRow } from './summaryRows';
+import { coveredFrom, insertSummary, summaryUsageSince, toSummary, type NewSummary, type SummaryRow } from './summaryRows';
 import { rateComplexity, summaryShapeFingerprint } from './summaryShape';
 import { chunkLog, prepareLog, writeSummary, type Progress } from './summaryWrite';
 
@@ -60,6 +61,7 @@ export class Summarizer {
 
   constructor(
     private readonly db: PluginDb,
+    readonly read: ArchiveRead,
     private readonly payloads: ArchiveReplyReader,
     private readonly providers: ProviderRegistry,
     private readonly emit: (e: AppEvent) => void,
@@ -96,16 +98,16 @@ export class Summarizer {
   }
 
   /** Estimates maximum Jev questions and model cost; null when the provider or message range is unavailable. */
-  estimate(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): SummaryEstimate | null {
+  async estimate(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): Promise<SummaryEstimate | null> {
     let p: RunPlan;
     try {
-      p = this.plan(req, settings, prefs);
+      p = await this.plan(req, settings, prefs);
     } catch {
       return null;
     }
-    const cached = this.db.prepare(`SELECT 1 FROM ${SUMMARIES_TABLE} WHERE cache_key = ?`).get(p.cacheKey) !== undefined;
+    const cached = (await this.read(`SELECT 1 FROM ${SUMMARIES_TABLE} WHERE cache_key = ?`, [p.cacheKey])).length > 0;
     if (cached) return { messages: p.lines.length, cached, questions: 0, modelUsd: null };
-    const perMessage = costPerMessage(this.db, p.providerId, p.model);
+    const perMessage = await costPerMessageRead(this.read, p.providerId, p.model);
     return { messages: p.lines.length, cached, questions: maxJevQuestions(p, prefs), modelUsd: perMessage === null ? null : perMessage * p.afterRules.length };
   }
 
@@ -124,18 +126,19 @@ export class Summarizer {
    * What every one of `providerIds` reads for `req`: the channels, the log and Jev's steps. Throws when they would read
    * different channels, so a comparison always sends each model the same log.
    */
-  input(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, providerIds: readonly ProviderId[]): RunInput {
+  async input(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings, providerIds: readonly ProviderId[]): Promise<RunInput> {
     const untilTs = req.untilTs ?? Date.now();
     // Local-AI-only channels: only a local provider may see them; with any other they're left out.
-    const [first, ...rest] = providerIds.map((id) => this.channels(req, id));
-    const { requested, readable: channelIds } = first!;
+    const requested = req.channelIds ?? (await this.read<{ id: string }>(qChannelSql(req.scope), qChannelParams(req.scope))).map((r) => r.id);
+    const [first, ...rest] = providerIds.map((id) => this.channels({ channelIds: requested }, id));
+    const { readable: channelIds } = first!;
     if (rest.some((r) => r.readable.length !== channelIds.length || r.readable.some((id) => !channelIds.includes(id)))) throw new Error(MIXED_READERS);
     if (requested.length && !channelIds.length) {
       throw new Error(`These channels are set to local AI only. Summarize them with ${orList(this.providers.localNames()) || 'a local AI provider'}.`);
     }
     const includesLocalOnly = this.providers.permitted(channelIds, 'hosted').length < channelIds.length;
 
-    const lines = readLog(this.db, this.payloads, channelIds, req.sinceTs, untilTs, prefs.grouping, prefs.skipObviousFiller);
+    const lines = await readLog(this.read, channelIds, req.sinceTs, untilTs, prefs.grouping, prefs.skipObviousFiller);
     if (!lines.length) throw new EmptyRangeError();
     // Applies rule-based filler filtering before Jev. If all messages are filler, restores the full input.
     const afterRules = prefs.skipObviousFiller && lines.some((l) => !l.filler) ? lines.filter((l) => !l.filler) : lines;
@@ -156,13 +159,13 @@ export class Summarizer {
   }
 
   /** Everything a run is decided by before any model is called: provider, log, Jev steps, prompt options and cache key. */
-  private plan(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): RunPlan {
+  private async plan(req: SummaryRequest, settings: AiSettings, prefs: SummarySettings): Promise<RunPlan> {
     const providerId: ProviderId | null = req.provider ?? prefs.defaultProvider;
     if (!providerId) throw new Error(NO_PROVIDER);
     // Throws, naming why, while it can't run or is turned off in Settings → AI; so its choice is stored.
     const provider = this.providers.get(providerId, settings);
     const { model, effort } = settings.providers[providerId]!;
-    const input = this.input(req, settings, prefs, [providerId]);
+    const input = await this.input(req, settings, prefs, [providerId]);
     const { cheapModel, premiumModel, cheapEffort, premiumEffort } = prefs.jevRouting;
     const route = providerId === ROUTED_PROVIDER && cheapModel && premiumModel && !input.includesLocalOnly ? this.providers.decider(settings, 'modelRouting') : null;
     const jev: RunPlan['jev'] = { ...input.jev, route: route && boundDecider(route, input.channelIds) };
@@ -186,8 +189,8 @@ export class Summarizer {
     this.lifetime.throwIfAborted();
     const progress: Progress = (phase, done, total) => this.emit({ type: 'summary-progress', phase, done, total });
     progress('reading', 0, 0);
-    const p = this.plan(req, settings, prefs);
-    const cached = this.db.prepare(`SELECT * FROM ${SUMMARIES_TABLE} WHERE cache_key = ?`).get(p.cacheKey);
+    const p = await this.plan(req, settings, prefs);
+    const [cached] = await this.read<SummaryRow>(`SELECT * FROM ${SUMMARIES_TABLE} WHERE cache_key = ?`, [p.cacheKey]);
     if (cached) return toSummary(cached as SummaryRow);
     const { providerId, untilTs, channelIds, lines, opts, cacheKey, jev } = p;
     const { cheapModel, premiumModel, cheapEffort, premiumEffort } = prefs.jevRouting;
@@ -217,12 +220,12 @@ export class Summarizer {
     return this.store({ ...base, ...w, model, jevCosts: [...jevCosts, ...chunkCosts, ...w.jevCosts], chunkCount: chunks.length });
   }
 
-  private store(r: NewSummary & { chunkCount: number; quiet: boolean }): Summary {
+  private async store(r: NewSummary & { chunkCount: number; quiet: boolean }): Promise<Summary> {
     this.lifetime.throwIfAborted();
     const { chunkCount, quiet, ...row } = r;
     const summary = insertSummary(this.db, row);
     this.emit({ type: 'summary-progress', phase: 'done', done: chunkCount, total: chunkCount });
-    this.emit({ type: 'summary-added', summary: this.shown(summary), ...(quiet && { quiet }) });
+    this.emit({ type: 'summary-added', summary: await this.shown(summary), ...(quiet && { quiet }) });
     return summary;
   }
 
@@ -232,13 +235,16 @@ export class Summarizer {
   }
 
   /** Summary runs newest first, keyset-paged by (created_at, id), as privacy mode shows them. */
-  page(q: SummaryPageQuery): Summary[] {
-    const p = privacy(this.db);
-    return summaryPage(this.db, q).map((s) => withPeople(this.db, shownSummary(s, p)));
+  async page(q: SummaryPageQuery): Promise<Summary[]> {
+    const p = await readPrivacy(this.read);
+    return Promise.all((await summaryPageRead(this.read, q)).map((s) => withPeopleRead(this.read, shownSummary(s, p))));
   }
 
   /** `s` as privacy mode shows it, with its people named as they are now: how every summary leaves core. */
-  shown(s: Summary): Summary {
-    return withPeople(this.db, shownSummary(s, privacy(this.db)));
+  async shown(s: Summary): Promise<Summary> {
+    return withPeopleRead(this.read, shownSummary(s, await readPrivacy(this.read)));
   }
 }
+
+const qChannelSql = (scope: SummaryScope | undefined): string => `SELECT id FROM archive_all_channels WHERE opted_in = 1${scope ? ' AND (id IN (SELECT value FROM json_each(@channels)) OR parent_id IN (SELECT value FROM json_each(@channels)) OR guild_id IN (SELECT value FROM json_each(@guilds)))' : ''}`;
+const qChannelParams = (scope: SummaryScope | undefined) => scope ? { channels: JSON.stringify(scope.channelIds), guilds: JSON.stringify(scope.guildIds) } : [];

@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Contract: a run stores its calls' API-rate cost only when every call reported one.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_AI_SETTINGS } from '@shared/settings';
@@ -42,7 +43,7 @@ async function runWithCosts(costs: (number | undefined)[], sinceTs = 0) {
     listModels: async () => [],
   };
   const registry: SummaryProviders = { get: () => provider, decider: () => null, permitted: (ids) => [...ids], localNames: () => [] };
-  const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => undefined);
+  const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => undefined);
   const summary = await s.run({ sinceTs }, CODEX, PREFS, 'manual');
   return { summary, calls: call, s, settings: CODEX };
 }
@@ -74,7 +75,7 @@ describe('summary API-rate cost', () => {
 
   it("projects the model's cost from what its priced runs cost per message, and nothing for a cached range", async () => {
     const { s, settings } = await runWithCosts([0.01, 0.02, 0.03, 0.04]); // $0.10 for 3 messages
-    expect(s.estimate({ sinceTs: 0 }, settings, PREFS)).toMatchObject({ cached: true, modelUsd: null });
-    expect(s.estimate({ sinceTs: 1 }, settings, PREFS)!.modelUsd).toBeCloseTo(0.1, 10);
+    expect((await s.estimate({ sinceTs: 0 }, settings, PREFS))).toMatchObject({ cached: true, modelUsd: null });
+    expect((await s.estimate({ sinceTs: 1 }, settings, PREFS))!.modelUsd).toBeCloseTo(0.1, 10);
   });
 });

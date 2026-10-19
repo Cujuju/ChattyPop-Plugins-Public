@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // #291, #303: tests person tags, stored mentions, current display names, and manual identification of missed people.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,13 +61,13 @@ describe('summaries name people as they are now', () => {
       const refs = [...req.prompt.matchAll(/\[(m\d+)\]/g)].map((m) => m[1]!);
       return { headline, items: [{ parts: [{ text, refs }] }] };
     });
-    return new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {});
+    return new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {});
   };
   const run = (s: Summarizer) => s.run({ sinceTs: SINCE }, aiSettingsFrom({}), { ...TEST_PREFS, actionItems: false }, 'manual');
 
   it('tags people in the log and stores the tags the model writes as people', async () => {
     const { calls, registry } = fakeRegistry(() => db, () => ({ headline: '{{p1}} got the knife', items: [{ parts: [{ text: '{{p2}} cheered {{p1}}', refs: ['m1'] }] }] }));
-    const summary = await run(new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => {}));
+    const summary = await run(new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => {}));
     expect(calls[0]!.prompt).toContain(`Salchipapa {{p1}}: knife arrived`);
     expect(calls[0]!.prompt).toContain(`stat {{p2}}: @Salchipapa {{p1}} nice`);
     expect(summary.headline).toBe(`<@${SAL.id}> got the knife`);
@@ -83,7 +84,7 @@ describe('summaries name people as they are now', () => {
     expect(Object.values(summary.authors).sort()).toEqual([SAL.id, STAT.id]);
 
     archive.upsertMembers(GUILD, [{ user: SAL, nick: '🍤' }]);
-    const [shown] = s.page({ limit: 1 });
+    const [shown] = (await s.page({ limit: 1 }));
     expect(namedText(shown!.headline, shown!.people)).toBe('🍤 got the knife');
   });
 
@@ -92,7 +93,7 @@ describe('summaries name people as they are now', () => {
     const { id } = await run(s);
     expect(linkPerson(db, id, 'Sal', '400000000000000404')).toBe(0);
     expect(linkPerson(db, id, 'Sal', SAL.id)).toBe(2);
-    const [shown] = s.page({ limit: 1 });
+    const [shown] = (await s.page({ limit: 1 }));
     expect(shown!.headline).toBe(`<@${SAL.id}> got the knife; Salty`);
     expect(shown!.items[0]!.parts[0]!.text).toBe(`stat cheered <@${SAL.id}>`);
     expect(linkPerson(db, id, 'Sal', SAL.id)).toBe(0);

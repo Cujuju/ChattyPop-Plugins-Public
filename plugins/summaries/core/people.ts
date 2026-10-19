@@ -1,3 +1,4 @@
+import type { ArchiveRead } from '@plugin-sdk/core';
 // Summary logs assign person tags; core converts known tags to stored mentions. Display resolves current names.
 import type { PluginDb } from '@plugin-sdk/core';
 import { personRef, referencedPeople } from '../shared/people';
@@ -83,6 +84,20 @@ export function withPeople(db: PluginDb, s: Summary): Summary {
            AND n.channel_id IN (${placeholders(s.channelIds.length)}) LIMIT 1), u.display_name)
          FROM archive_users u WHERE u.id IN (${placeholders(userIds.length)})`,
       ).raw().all(...s.channelIds, ...userIds) as [string, string][])
+    : {};
+  return { ...s, people, authors };
+}
+
+export async function withPeopleRead(read: ArchiveRead, s: Summary): Promise<Summary> {
+  const messageIds = [...new Set([...s.items, ...s.actions].flatMap(pointCitations).concat((s.themes ?? []).flatMap((t) => t.citations)).map((c) => c.messageId))];
+  const authors: Record<string, string> = messageIds.length
+    ? Object.fromEntries((await read(`SELECT id, author_id FROM archive_messages WHERE id IN (${placeholders(messageIds.length)})`, [...messageIds])).map(row => Object.values(row as Record<string, unknown>)) as [string, string][])
+    : {};
+  const userIds = [...new Set([...textsOf(s).flatMap(referencedPeople), ...Object.values(authors)])];
+  const people: Record<string, string> = userIds.length
+    ? Object.fromEntries((await read(`SELECT u.id, COALESCE((SELECT n.name FROM archive_names n WHERE n.user_id = u.id AND n.name IS NOT NULL
+           AND n.channel_id IN (${placeholders(s.channelIds.length)}) LIMIT 1), u.display_name)
+         FROM archive_users u WHERE u.id IN (${placeholders(userIds.length)})`, [...s.channelIds, ...userIds])).map(row => Object.values(row as Record<string, unknown>)) as [string, string][])
     : {};
   return { ...s, people, authors };
 }

@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Transcripts as message text in Summaries: its summaries (and their cache), and the text retention its coverage drives.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { SUMMARIES_TABLE } from '../core/schema';
@@ -43,7 +44,7 @@ const transcribe = (text: string): void => storeDerivedText(db, voiceId, 'transc
 describe('summaries', () => {
   it('read a voice message once transcribed, and a transcript arriving later means a new summary', async () => {
     const { calls, registry } = fakeRegistry(() => db, () => ({ headline: 'h', items: [{ parts: [{ text: 'point', refs: ['m1'] }] }] }));
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), registry, () => undefined);
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), registry, () => undefined);
     const since = Date.now() - 2 * MS_PER_DAY; // one fixed range, so only the log can differ between runs
     const run = () => s.run({ sinceTs: since }, FRESH_AI, TEST_PREFS, 'manual');
     await run();

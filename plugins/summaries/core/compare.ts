@@ -7,7 +7,7 @@ import type { SummaryProviders } from './providers';
 import { NOTHING_NOTABLE, withModel, type Summarizer } from './summarize';
 import { chunkLog, partRequests, prepareLog, writeSummary, type SentRequest } from './summaryWrite';
 import { createHash } from 'node:crypto';
-import { comparisonHeads, deleteComparison, insertComparison, readComparison, type StoredResult } from './compareRows';
+import { comparisonHeadsRead, deleteComparison, insertComparison, readComparisonRead, type StoredResult } from './compareRows';
 
 /** A fingerprint of the requests that summarize the log's parts: equal only when every byte sent is equal. */
 const digestOf = (reqs: SentRequest[]): string => createHash('sha256').update(JSON.stringify(reqs)).digest('hex');
@@ -65,7 +65,7 @@ export class Comparer {
     this.progress({ phase: 'preparing', done: 0, total });
     // Throws, naming why, when a provider can't run or is turned off in Settings → AI providers.
     const models = req.models.map((m) => ({ m, provider: this.providers.get(m.provider, withModel(settings, m.provider, m.model, m.effort)) }));
-    const input = this.summarizer.input(req, settings, prefs, [...new Set(req.models.map((m) => m.provider))]);
+    const input = await this.summarizer.input(req, settings, prefs, [...new Set(req.models.map((m) => m.provider))]);
     const { sent: log, jevCosts } = await prepareLog(input.afterRules, input.jev, () => undefined, signal);
     // One cut for all: the smallest input budget, so every model reads the same parts.
     const maxChars = Math.min(...models.map((x) => x.provider.maxInputChars));
@@ -109,16 +109,19 @@ export class Comparer {
     });
     this.progress({ phase: 'done', done: total, total });
     this.changed();
-    return this.get(id)!;
+    return (await this.get(id))!;
   }
 
-  list(): ComparisonHead[] {
-    return comparisonHeads(this.db);
+  list(): Promise<ComparisonHead[]> {
+    return comparisonHeadsRead(this.summarizer.read);
   }
 
   /** A comparison as privacy mode shows it; null when deleted or hidden. */
-  get(id: number): Comparison | null {
-    return readComparison(this.db, id, (s) => this.summarizer.shown(s));
+  async get(id: number): Promise<Comparison | null> {
+    const result = await readComparisonRead(this.summarizer.read, id, (s) => s);
+    if (!result) return null;
+    for (const column of result.results) if (column.summary) column.summary = await this.summarizer.shown(column.summary);
+    return result;
   }
 
   delete(id: number): boolean {

@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Contract tests for jev summary shape.
 import { archivePayloads } from '@core/plugins/archivePayloads';
 import { adoptSummaries } from './summariesHarness';
@@ -122,7 +123,7 @@ describe('Summarizer with Jev shaping', () => {
       (_s, f) => jev.forPlugin('summaries')(f),
     );
     calls = fake.calls;
-    summarizer = new Summarizer(db, (ids) => archivePayloads(db, ids), fake.registry, () => {});
+    summarizer = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), fake.registry, () => {});
   });
 
   it('the projection bounds the questions a run asks, and a cached run projects none', async () => {
@@ -132,13 +133,13 @@ describe('Summarizer with Jev shaping', () => {
     jev.on['summaries.keyThemes'] = true;
     jev.on['summaries.modelRouting'] = true;
     jev.values = { quiet: 0.9, complexity: 1.8 };
-    const estimate = summarizer.estimate({ sinceTs: 0 }, settings(), prefs)!;
+    const estimate = (await summarizer.estimate({ sinceTs: 0 }, settings(), prefs))!;
     await summarizer.run({ sinceTs: 0 }, settings(), prefs, 'manual');
     const asked = jev.requests.reduce((n, r) => n + Object.keys(r.questions).length, 0);
     expect(asked).toBeGreaterThan(0);
     expect(estimate).toMatchObject({ messages: 6, cached: false });
     expect(estimate.questions).toBeGreaterThanOrEqual(asked);
-    expect(summarizer.estimate({ sinceTs: 0 }, settings(), prefs)).toMatchObject({ cached: true, questions: 0 });
+    expect((await summarizer.estimate({ sinceTs: 0 }, settings(), prefs))).toMatchObject({ cached: true, questions: 0 });
   });
 
   it('a range Jev finds entirely quiet makes no LLM call', async () => {

@@ -9,7 +9,8 @@ import { Comparer } from './compare';
 import { registerSummaryKinds, SUMMARIZE_ACTION } from './kinds';
 import { summaryFailures } from './failures';
 import { migrateAutoSummaries } from './autoSummaries';
-import { coverageSpans, summarySpend } from './summaryRows';
+import { coverageSpans } from './summaryRows';
+import { summarySpendRead, summaryUsageSinceRead } from './summaryReads';
 import { estimateMissingCosts } from './costBackfill';
 import { linkPerson } from './linkPerson';
 import { SUMMARY_MIGRATIONS } from './schema';
@@ -37,7 +38,7 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     permitted: (ids, reader) => ctx.ai.sources.permitted(ids, reader),
     localNames: () => ctx.ai.providers().filter((p) => p.local).map((p) => p.displayName),
   };
-  const summarizer = new Summarizer(ctx.storage.db, ctx.archive.replyFlags, providers, emit, () => ctx.identity.names(), ctx.lifetime.signal);
+  const summarizer = new Summarizer(ctx.storage.db, ctx.storage.read, ctx.archive.replyFlags, providers, emit, () => ctx.identity.names(), ctx.lifetime.signal);
   const comparer = new Comparer(ctx.storage.db, summarizer, providers, (p) => ctx.channels.emit('compareProgress', p), () => ctx.channels.emit('comparisonsChanged', null));
   registerSummaryKinds(ctx.rules, {
     summarize: (request, own, trigger, quiet) => summarizer.run(request, ctx.ai.settings(), withRuleOptions(prefs(), own), trigger, quiet),
@@ -63,8 +64,8 @@ export function activateSummaries(ctx: CoreContext<typeof plugin>) {
     retryFailure: (runId, actionId) => ctx.rules.retryWindow(SUMMARIZE_ACTION, runId, actionId),
     estimate: (request) => summarizer.estimate(request, ctx.ai.settings(), prefs()),
     prompts: (own) => summarizer.prompts(ctx.ai.settings(), withRuleOptions(prefs(), own)),
-    usageSince: (provider, sinceTs) => summarizer.usageSince(provider, sinceTs),
-    spending: (starts) => starts.map((sinceTs) => summarySpend(ctx.storage.db, sinceTs)),
+    usageSince: (provider, sinceTs) => summaryUsageSinceRead(ctx.storage.read, provider, sinceTs),
+    spending: (starts) => Promise.all(starts.map((sinceTs) => summarySpendRead(ctx.storage.read, sinceTs))),
     linkPerson: (id, written, userId) => linkPerson(ctx.storage.db, id, written, userId),
     notifyAuto: () => prefs().notifyAuto,
     compare: async (request) => {

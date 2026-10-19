@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 // Per-channel policy in Summaries: a local-AI-only channel never reaches a hosted provider.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiSettingsFrom } from '@shared/aiProviders';
@@ -28,7 +29,7 @@ beforeEach(() => {
 describe('per-channel policy', () => {
   it('leaves local-only channels out of hosted summaries', async () => {
     archive.ingestMessages([rawMessage(PRIVATE, Date.now() - 1000, 'secret plans')], ARRIVAL.gateway);
-    const s = new Summarizer(db, (ids) => archivePayloads(db, ids), fakeRegistry(() => db, () => ({})).registry, () => {});
+    const s = new Summarizer(db, archiveRead(() => db), (ids) => archivePayloads(db, ids), fakeRegistry(() => db, () => ({})).registry, () => {});
     // A fresh profile: the default is Claude, which runs hosted.
     await expect(s.run({ sinceTs: 0, channelIds: [PRIVATE] }, aiSettingsFrom({}), TEST_PREFS, 'manual')).rejects.toThrow(/local AI only/);
   });

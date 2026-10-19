@@ -70,22 +70,22 @@ export const plugin = definePlugin({
   channels: defineChannels<{ core: SummaryCalls; events: SummaryEvents }>()({
     core: {
       // A run stores its summary and spends the owner's AI plan.
-      summarize: { audiences: ['renderer', 'phone'], writes: true, decode: decodeSummaryRequest },
-      page: { audiences: ['renderer', 'phone'], writes: false },
+      summarize: { audiences: ['renderer', 'phone'], syncReads: { reason: 'Indexed per-message or stored-result lookups within the shared Core budget.' }, writes: true, decode: decodeSummaryRequest },
+      page: { audiences: ['renderer', 'phone'], reads: true, writes: false },
       failures: { audiences: ['renderer', 'phone'], writes: false },
       // A retry runs the summary again and spends the owner's AI plan.
       retryFailure: { audiences: ['renderer', 'phone'], writes: true, decode: decodeFailureRef },
-      estimate: { audiences: ['renderer', 'phone'], writes: false },
+      estimate: { audiences: ['renderer', 'phone'], reads: true, writes: false },
       prompts: { audiences: ['renderer', 'phone'], writes: false, decode: decodePrompts },
-      usageSince: { audiences: ['renderer', 'phone'], writes: false },
-      spending: { audiences: ['renderer', 'phone'], writes: false, decode: decodeSpending },
-      linkPerson: ['renderer'],
+      usageSince: { audiences: ['renderer', 'phone'], reads: true, writes: false },
+      spending: { audiences: ['renderer', 'phone'], reads: true, writes: false, decode: decodeSpending },
+      linkPerson: { audiences: ['renderer'], syncReads: { reason: 'Indexed per-message or stored-result lookups within the shared Core budget.' } },
       notifyAuto: ['main'],
       // A comparison stores its columns and spends each model's plan.
-      compare: { audiences: ['renderer', 'phone'], writes: true, decode: decodeCompareRequest },
+      compare: { audiences: ['renderer', 'phone'], syncReads: { reason: 'Indexed per-message or stored-result lookups within the shared Core budget.' }, writes: true, decode: decodeCompareRequest },
       cancelCompare: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
-      comparisons: { audiences: ['renderer', 'phone'], writes: false },
-      comparison: { audiences: ['renderer', 'phone'], writes: false, decode: decodeComparisonId },
+      comparisons: { audiences: ['renderer', 'phone'], reads: true, writes: false },
+      comparison: { audiences: ['renderer', 'phone'], reads: true, writes: false, decode: decodeComparisonId },
       deleteComparison: { audiences: ['renderer', 'phone'], writes: true, decode: decodeComparisonId },
     },
     events: {
