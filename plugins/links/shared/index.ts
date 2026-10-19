@@ -1,5 +1,6 @@
 // #106: Links feed, Jev judgments (#61–63), and FxTwitter previews for unpreviewed X posts. The host owns the link index.
 import { defineChannels, definePlugin, definePreference, finiteOr, type JevFeatureDecl, type JevQueryDecl, type Platform } from '@plugin-sdk/shared';
+import type { RollupStatus } from '@plugin-sdk/shared';
 import { normalizeLinkPlace, type LinkCard, type LinkFilter, type LinkItem, type LinkPageQuery, type LinkPlace, type LinkWindow, type LinkWindowQuery, type PersonLinksQuery } from './types';
 
 export const manifest = {
@@ -16,6 +17,8 @@ export const UPDATED_EVENT = 'updated';
 
 /** Core's calls, from the panel. */
 export interface LinksCoreCalls {
+  rollupStatus(): RollupStatus;
+  rebuildRollups(channelIds?: string[]): void;
   /** Links newest first (by first share), or most worth reading first; keyset-paged. Privacy mode applies. */
   page(q: LinkPageQuery): LinkItem[];
   /** Links around a cursor, as page sorts them: a restored place, or the loaded ones read again. Privacy mode applies. */
@@ -127,6 +130,8 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: LinksCoreCalls; events: LinksEvents }>()({
     core: {
+      rollupStatus: { audiences: ['renderer', 'phone'], writes: false, reads: true },
+      rebuildRollups: { audiences: ['renderer'], writes: true },
       page: { audiences: ['renderer', 'phone'], writes: false, reads: true },
       window: { audiences: ['renderer', 'phone'], writes: false, reads: true },
       counts: { audiences: ['renderer', 'phone'], writes: false, reads: true },

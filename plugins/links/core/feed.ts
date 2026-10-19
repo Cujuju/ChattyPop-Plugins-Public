@@ -4,6 +4,8 @@ import { embedsFrom, normalizeUrl, partKey, toolScopeSql, type ArchiveToolScope,
 import type { LinkCard, LinkCursor, LinkFilter, LinkItem, LinkPageQuery, LinkSort, LinkWindow, LinkWindowQuery, PersonLinksQuery } from '../shared/types';
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
+import { rollupLinkCounts } from './rollups';
+import type { Rollup } from '@plugin-sdk/core';
 
 /** Builds filter SQL and parameters; l aliases links. Privacy hides links with hidden first shares or hidden channel/server destinations. */
 function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
@@ -192,7 +194,8 @@ export async function personLinkPage(read: ArchiveRead, payloads: ArchivePayload
 }
 
 /** Link counts per platform for a filter (platform filter ignored so every chip shows its count). */
-export async function linkCounts(read: ArchiveRead, f: LinkFilter): Promise<Partial<Record<Platform, number>>> {
+export async function linkCounts(read: ArchiveRead, f: LinkFilter, rollup?: Rollup): Promise<Partial<Record<Platform, number>>> {
+  if (rollup) return rollupLinkCounts(read, f, rollup, () => linkCounts((sql, params, options) => read(sql, params, { ...options, priority: 'background' }), f));
   const w = where({ ...f, platforms: undefined });
   const rows = (await read(`SELECT l.platform, COUNT(*) AS n FROM archive_links l WHERE ${w.sql} GROUP BY l.platform`, [...w.params])) as {
     platform: Platform;

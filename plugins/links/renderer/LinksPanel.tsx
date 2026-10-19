@@ -139,6 +139,7 @@ export function LinksPanel() {
     // Structural geometry inline: the body is relative for the jump button; the scroller owns the remaining height for virtualization.
     <section class="cp-panel" aria-label="Links">
       <PanelHeader section={LINKS_PANEL} collapsible title="Links">
+        <HeaderActions><RollupControls onRebuilt={() => reloadLinks()} /></HeaderActions>
         <Show when={newLinkCount() > 0}>
           <HeaderBadge>{newLinkCount()} new</HeaderBadge>
         </Show>
@@ -215,3 +216,4 @@ export function LinksPanel() {
     </section>
   );
 }
+import { RollupControls } from './RollupControls';
