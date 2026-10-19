@@ -742,6 +742,13 @@
       "description": "The Analytics panel: message counts by person, day, hour and channel.",
       "releases": [
         {
+          "version": "1.24.0",
+          "tag": "stats-v1.24.0",
+          "asset": "stats-1.24.0.tar.gz",
+          "sha256": "bff91340307bb1d2d01af8a1bf1a26b846ab10a7bcc1518ae9fe4eef3c7eca77",
+          "sdk": "3.13.0"
+        },
+        {
           "version": "1.23.5",
           "tag": "stats-v1.23.5",
           "asset": "stats-1.23.5.tar.gz",
