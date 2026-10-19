@@ -53,8 +53,14 @@ if (!process.env.STATS_BENCH_WORKER) {
   const hostPackages = join(host, 'package.json');
   const resolver = {
     name: 'stats-bench-functions',
-    resolveId(source) { if (source === 'stats-bench-functions') return virtual; if (source === 'stats-bench-main') return '\0stats-bench-main'; },
+    resolveId(source) {
+      if (source === 'stats-bench-functions') return virtual;
+      if (source === 'stats-bench-main') return '\0stats-bench-main';
+      if (source === 'stats-bench-target') return '\0stats-bench-target';
+    },
     load(id) {
+      if (id === '\0stats-bench-target') return `export { default } from ${JSON.stringify(join(target, 'core/index.ts').replaceAll('\\', '/'))};
+        export { plugin } from ${JSON.stringify(join(target, 'shared/index.ts').replaceAll('\\', '/'))};`;
       if (id === '\0stats-bench-main') return `import { setArchiveReadEntry } from ${JSON.stringify(join(host, 'src/core/reads/helperEntry.ts').replaceAll('\\', '/'))};
         setArchiveReadEntry(${JSON.stringify(join(host, 'out/read-tests/archiveReadProcess.js'))});
         export * from ${JSON.stringify(join(import.meta.dirname, section === 'rollups' ? 'rollupBenchmark.ts' : section === 'review' ? 'reviewBenchmark.ts' : 'benchmark.ts').replaceAll('\\', '/'))};`;

@@ -1,9 +1,8 @@
 import { defineCorePlugin, type ArchiveRead } from '@plugin-sdk/core';
-import { plugin } from '../../shared';
+import core, { plugin } from 'stats-bench-target';
 import { testPlugin } from '@plugin-sdk/core/testing';
 import { MS_PER_MIN, MS_PER_S } from '@plugin-sdk/shared';
 import { ROLLUP_READ_BUDGET_MS } from '@plugin-sdk/core';
-import core from '../../core';
 import { report } from './measure';
 import { CHANNEL, seed } from './fixture';
 
