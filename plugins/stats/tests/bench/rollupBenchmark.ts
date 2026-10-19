@@ -1,7 +1,7 @@
 import { defineCorePlugin, type ArchiveRead } from '@plugin-sdk/core';
 import core, { plugin } from 'stats-bench-target';
 import { testPlugin } from '@plugin-sdk/core/testing';
-import { MS_PER_MIN, MS_PER_S } from '@plugin-sdk/shared';
+import { MS_PER_DAY, MS_PER_MIN, MS_PER_S } from '@plugin-sdk/shared';
 import { ROLLUP_READ_BUDGET_MS } from '@plugin-sdk/core';
 import { report } from './measure';
 import { CHANNEL, seed } from './fixture';
@@ -40,13 +40,13 @@ export async function main(rows: number) {
       await new Promise((done) => setTimeout(done, POLL_MS));
     }
     report('rollup', { buildMs: performance.now() - started });
-    for (const name of ['counts', 'shares', 'shares_v1_all_time', 'text', 'runs']) {
-      const table = `p_stats_rollup_${name.includes('_v1') ? name : name + '_v1'}`;
+    for (const name of ['counts_v2', 'shares', 'shares_v1_all_time', 'text_v2', 'text_v2_folded', 'runs']) {
+      const table = `p_stats_rollup_${name.includes('_v') ? name : name + '_v1'}`;
       report('rollup', { grain: name, rows: host.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get(),
         bytes: host.db.prepare('SELECT SUM(pgsize) AS bytes FROM dbstat WHERE name = ?').get(table) });
     }
     for (const member of SECTIONS) {
-      const run = () => (client[member] as (q: any) => unknown)({ ...QUERY, ...(member === 'postersPage' ? { offset: 0, limit: 200 } : {}) });
+      const run = async () => (await (client[member] as (q: any) => unknown)({ ...QUERY, ...(member === 'postersPage' ? { offset: 0, limit: 200 } : {}) }) as { data: unknown }).data;
       snapshotMs = 0;
       const coldStart = performance.now();
       const warmed = await run() as { benchmarkSql?: unknown };
@@ -58,6 +58,23 @@ export async function main(rows: number) {
       samples.sort((a, b) => a - b);
       const medianMs = Number(samples[Math.floor(RUNS / 2)]!.toFixed(2));
       report('rollup', { read: member, medianMs, withinBudget: medianMs <= ROLLUP_READ_BUDGET_MS });
+    }
+    const end = Date.UTC(2025, 0, 1) + 390 * MS_PER_DAY; // The fixture's fixed 390-day archive extent.
+    for (const [name, query] of [
+      ['words7d', { ...QUERY, sinceTs: end - 7 * MS_PER_DAY }],
+      ['words365d', { ...QUERY, sinceTs: end - 365 * MS_PER_DAY }],
+      ['wordsPerson', { ...QUERY, authorId: 'u0' }],
+      ['wordsAllScopes', { scope: 'all', channelId: null, sinceTs: null }],
+    ] as const) {
+      const start = performance.now(), result = await client.wordStats(query);
+      report('variant', { read: name, ms: Number((performance.now() - start).toFixed(2)), building: result.building, hasData: result.data !== null });
+    }
+    await client.rebuildRollups();
+    for (const member of SECTIONS) {
+      const start = performance.now();
+      const result = await (client[member] as (q: any) => Promise<any>)({ ...QUERY, ...(member === 'postersPage' ? { offset: 0, limit: 200 } : {}) });
+      report('pending', { read: member, ms: Number((performance.now() - start).toFixed(2)), building: result.building,
+        hasData: result.data !== null, done: result.done, total: result.total });
     }
   } finally { await host.dispose(); }
 }
