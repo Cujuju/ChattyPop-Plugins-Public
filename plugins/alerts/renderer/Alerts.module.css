@@ -8,43 +8,6 @@
   height: var(--cp-btn-h-sm);
 }
 
-/* Header rule picker: the trigger is a header action; the checklist floats below it, opening leftward. */
-.ruleFilter {
-  position: relative;
-}
-
-/* With cp-popover. */
-.ruleMenu {
-  position: absolute;
-  top: calc(100% + var(--cp-space-2));
-  right: 0;
-  z-index: var(--cp-z-popover);
-  display: flex;
-  flex-direction: column;
-  min-width: var(--cp-menu-min-w);
-  max-height: var(--cp-search-list-max-h);
-  overflow-y: auto;
-}
-
-.ruleOption {
-  display: flex;
-  align-items: center;
-  gap: var(--cp-space-3);
-  padding: var(--cp-space-3) var(--cp-space-4);
-  white-space: nowrap;
-}
-
-.ruleName {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ruleCount {
-  flex: 0 0 auto;
-}
-
 /* Grouped by rule: a heading above each rule's alerts. */
 .groupHeading {
   position: sticky;
