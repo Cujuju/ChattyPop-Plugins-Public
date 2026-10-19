@@ -75,6 +75,9 @@ export function startTags(db: Db, options: {
     (fn) => fn(),
     new CompletionLedger(plugin.channels),
   );
+  let calls!: TagsCoreCalls;
+  const serve = ctx.channels.serve;
+  ctx.channels.serve = (impl) => { calls = impl as TagsCoreCalls; serve(impl); };
   const stop = tagsCore.activate(ctx);
   const dispose = (): void => {
     if (reg.unloaded) return;
@@ -83,7 +86,6 @@ export function startTags(db: Db, options: {
     stop?.();
   };
   cleanups.push(dispose);
-  const calls = Object.fromEntries(reg.calls) as unknown as TagsCoreCalls;
   const store = new TagStore(db);
   return {
     calls,

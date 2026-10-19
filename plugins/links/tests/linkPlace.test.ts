@@ -1,10 +1,10 @@
 // The feed's place filter: one channel with its threads, or every channel and thread in a server.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MS_PER_MIN, MS_PER_S } from '@shared/units';
 import { ARRIVAL } from '@core/arrival';
 import type { Db } from '@core/db';
 import { linkCounts } from '../core/feed';
-import { rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
+import { rawMessage, seedArchive, tempDb, statementRead } from '@chattypop/host-testing';
 import { adoptLinks, linkFeed } from './linksHarness';
 
 const HOME = { id: '100000000000000001', name: 'Home' };
@@ -16,7 +16,7 @@ const GENERAL_THREAD = '300000000000000001';
 
 let db: Db;
 const at = (n: number): number => Date.now() - MS_PER_MIN + n * MS_PER_S;
-const urls = (q: { channelId?: string; guildId?: string }): string[] => linkFeed(db, { ...q, limit: 10 }).map((l) => l.url).sort();
+const urls = async (q: { channelId?: string; guildId?: string }): Promise<string[]> => (await linkFeed(db, { ...q, limit: 10 })).map((l) => l.url).sort();
 
 beforeEach(() => {
   db = adoptLinks(tempDb());
@@ -38,17 +38,19 @@ beforeEach(() => {
   ], ARRIVAL.gateway);
 });
 
-describe('the links feed by place', () => {
-  it('a server lists links from each of its channels and threads, and no other server', () => {
-    expect(urls({ guildId: HOME.id })).toEqual(['https://example.com/general', 'https://example.com/news', 'https://example.com/thread']);
-    expect(urls({ guildId: AWAY.id })).toEqual(['https://example.com/lobby']);
+afterEach(() => { db.close(); });
+
+describe('the links feed by place', async () => {
+  it('a server lists links from each of its channels and threads, and no other server', async () => {
+    expect(await urls({ guildId: HOME.id })).toEqual(['https://example.com/general', 'https://example.com/news', 'https://example.com/thread']);
+    expect(await urls({ guildId: AWAY.id })).toEqual(['https://example.com/lobby']);
   });
 
-  it('a channel lists its own links and its threads\'', () => {
-    expect(urls({ channelId: GENERAL })).toEqual(['https://example.com/general', 'https://example.com/thread']);
+  it('a channel lists its own links and its threads\'', async () => {
+    expect(await urls({ channelId: GENERAL })).toEqual(['https://example.com/general', 'https://example.com/thread']);
   });
 
-  it('counts follow the place', () => {
-    expect(Object.values(linkCounts(db, { guildId: HOME.id })).reduce((a, n) => a + (n ?? 0), 0)).toBe(3);
+  it('counts follow the place', async () => {
+    expect(Object.values(await linkCounts(statementRead(db), { guildId: HOME.id })).reduce((a, n) => a + (n ?? 0), 0)).toBe(3);
   });
 });

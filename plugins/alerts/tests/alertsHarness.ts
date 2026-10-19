@@ -94,6 +94,9 @@ export function startAlerts(db: Db, options: {
     (fn) => fn(),
     new CompletionLedger(plugin.channels),
   );
+  let calls!: AlertsCoreCalls;
+  const serve = ctx.channels.serve;
+  ctx.channels.serve = (impl) => { calls = impl as AlertsCoreCalls; serve(impl); };
   const activation = activateAlerts(ctx, options.now, cooldownsOf(db));
   kinds.changed();
   const dispose = (): void => {
@@ -104,7 +107,6 @@ export function startAlerts(db: Db, options: {
     kinds.changed();
   };
   cleanups.push(dispose);
-  const calls = Object.fromEntries(reg.calls) as unknown as AlertsCoreCalls;
 
   return {
     calls,
