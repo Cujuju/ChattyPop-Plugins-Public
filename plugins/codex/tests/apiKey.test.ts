@@ -12,7 +12,7 @@ const started: Started[] = [];
 let initialize: () => Promise<unknown> = async () => ({});
 let modelProvider = 'chattypop';
 let startThread: () => Promise<void> = async () => undefined;
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'node', args: ['test-codex'] }) }));
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => ({ command: 'node', args: ['test-codex'] }) }));
 vi.mock('../core/jsonRpcStdio', () => ({
   JsonRpcStdio: class {
     private readonly state: Started;
@@ -97,6 +97,7 @@ describe('Codex owner key payment', () => {
     initialize = () => new Promise((resolve) => { finish = resolve; });
     const codex = provider(() => key);
     const first = codex.listModels();
+    await vi.waitFor(() => expect(started).toHaveLength(1));
     expect(started).toHaveLength(1);
     const oldFinish = finish;
     key = 'test-next';

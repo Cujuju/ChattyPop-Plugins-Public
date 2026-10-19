@@ -1,7 +1,6 @@
 // JSON-RPC 2.0 over a child process's stdio, as `codex app-server` speaks it.
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import type { Launch } from '@plugin-sdk/core';
+import { spawnCli, type CliProcess, type Launch } from '@plugin-sdk/core';
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void };
 type Handler = (params: unknown) => void;
@@ -12,7 +11,7 @@ const INTERNAL_ERROR = -32603;
 
 /** Newline-delimited JSON-RPC 2.0 over a child process's stdio (the codex app-server transport). */
 export class JsonRpcStdio {
-  private readonly proc: ChildProcessWithoutNullStreams;
+  private readonly proc: CliProcess;
   private readonly pending = new Map<number, Pending>();
   private readonly listeners = new Map<string, Set<Handler>>();
   private readonly requestHandlers = new Map<string, RequestHandler>();
@@ -23,7 +22,8 @@ export class JsonRpcStdio {
   readonly closed: Promise<Error>;
 
   constructor(launch: Launch, extraArgs: string[], env?: NodeJS.ProcessEnv) {
-    this.proc = spawn(launch.command, [...launch.args, ...extraArgs], { stdio: 'pipe', windowsHide: true, env });
+    this.proc = spawnCli(launch.command, [...launch.args, ...extraArgs], { env });
+    this.proc.stderr.resume();
     createInterface({ input: this.proc.stdout }).on('line', (line) => this.onLine(line));
     let close!: (err: Error) => void;
     this.closed = new Promise((r) => (close = r));

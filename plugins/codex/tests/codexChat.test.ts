@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { historyTranscript, TOOL_CALLS_SPENT, type CompletionEvent } from '@plugin-sdk/core';
 import { fakeLaunch, harness, lookup, REQUEST } from './codexServer';
 
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => fakeLaunch() }));
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => fakeLaunch() }));
 
 const joinedText = (events: CompletionEvent[]): string => events.map((event) => event.type === 'text' ? event.delta : '').join('');
 

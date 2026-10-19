@@ -9,7 +9,7 @@ const requests: QueryInput[] = [];
 const servers: ServerOptions[] = [];
 let messages: unknown[] = [];
 const close = vi.fn();
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'test-claude', args: [] }) }));
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => ({ command: 'test-claude', args: [] }) }));
 vi.mock('@anthropic-ai/claude-agent-sdk', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('@anthropic-ai/claude-agent-sdk')>();
   return {
@@ -46,6 +46,18 @@ const delta = (text: string): unknown => ({ type: 'stream_event', parent_tool_us
 afterEach(() => { requests.length = 0; servers.length = 0; messages = []; close.mockClear(); });
 
 describe('Claude conversation completions', () => {
+  it('starts no SDK query when cancellation or disposal arrives during executable discovery', async () => {
+    const control = new AbortController();
+    const first = provider();
+    const cancelled = first.complete({ ...REQUEST, signal: control.signal });
+    control.abort(new Error('Cancelled during discovery'));
+    await expect(cancelled).rejects.toThrow('Cancelled during discovery');
+    const second = provider();
+    const disposed = second.listModels();
+    second.dispose();
+    await expect(disposed).rejects.toThrow('Claude was turned off');
+    expect(requests).toEqual([]);
+  });
   it('keeps plain requests and aggregate usage unchanged', async () => {
     messages = [assistant('one', 'First'), assistant('two', 'Last'), RESULT];
     const result = await provider().complete(REQUEST);

@@ -10,7 +10,8 @@ import {
   HOSTED_MAX_INPUT_CHARS,
   historyTranscript,
   ProviderUnavailableError,
-  resolveCli,
+  resolveCliAsync,
+  spawnCli,
   type CliSpec,
   type CompletionImage,
   type CompletionRequest,
@@ -55,16 +56,24 @@ function withImages(prompt: string, images: readonly CompletionImage[]): AsyncIt
 export class ClaudeProvider implements LlmProvider {
   get id(): string { return this.account.id; }
   private readonly queries = new Set<ReturnType<typeof query>>();
+  private disposed = false;
   readonly maxInputChars = HOSTED_MAX_INPUT_CHARS;
 
   constructor(private readonly account: ProviderAccount) {}
 
-  private baseOptions(key = this.account.auth === 'apiKey' ? this.account.apiKey() : null): Options {
+  private async baseOptions(key = this.account.auth === 'apiKey' ? this.account.apiKey() : null): Promise<Options> {
     const { bin, npm, name } = CLAUDE_CLI;
-    const launch = resolveCli(bin, npm);
+    const launch = await resolveCliAsync(bin, npm);
+    if (this.disposed) throw new ProviderUnavailableError('Claude was turned off.');
     if (!launch) throw new ProviderUnavailableError(`${name} is not installed or not on PATH.`);
     return {
       pathToClaudeCodeExecutable: launch.args[0] ?? launch.command,
+      // The SDK's default spawn probes the filesystem and starts the process synchronously.
+      spawnClaudeCodeProcess: ({ command, args, ...options }) => {
+        const child = spawnCli(command, args, options);
+        child.stderr.resume();
+        return child;
+      },
       // Isolation: no built-in tools, user/project settings, CLAUDE.md, hooks, skills or saved transcript.
       tools: [],
       settingSources: [],
@@ -95,10 +104,13 @@ export class ClaudeProvider implements LlmProvider {
       abortController.signal.throwIfAborted();
       const text = historyTranscript(req.history, req.prompt);
       const prompt = req.images?.length ? withImages(text, req.images) : text;
+      const options = await this.baseOptions(key);
+      abortController.signal.throwIfAborted();
+      if (this.disposed) throw new ProviderUnavailableError('Claude was turned off.');
       q = query({
         prompt,
         options: {
-          ...this.baseOptions(key),
+          ...options,
           systemPrompt: req.system,
           maxTurns: req.schema ? MAX_TURNS_WITH_SCHEMA : MAX_TURNS_TEXT,
           abortController,
@@ -150,15 +162,17 @@ export class ClaudeProvider implements LlmProvider {
   }
 
   /** Opens a session that never sends a prompt: the SDK exposes usage and models only on a live query. */
-  private idleQuery(): ReturnType<typeof query> {
+  private async idleQuery(): Promise<ReturnType<typeof query>> {
     const idle: AsyncIterable<SDKUserMessage> = { [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}) }) };
-    const q = query({ prompt: idle, options: this.baseOptions() });
+    const options = await this.baseOptions();
+    if (this.disposed) throw new ProviderUnavailableError('Claude was turned off.');
+    const q = query({ prompt: idle, options });
     this.queries.add(q);
     return q;
   }
 
   async listModels(): Promise<ModelOption[]> {
-    const q = this.idleQuery();
+    const q = await this.idleQuery();
     try {
       return (await q.supportedModels()).map((m) => ({
         id: m.value,
@@ -179,7 +193,7 @@ export class ClaudeProvider implements LlmProvider {
 
   async planUsage(): Promise<PlanUsageWindow[] | null> {
     if (this.account.auth === 'apiKey') return null;
-    const q = this.idleQuery();
+    const q = await this.idleQuery();
     try {
       const u = await q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({ skipBehaviors: true });
       if (!u.rate_limits_available || !u.rate_limits) return null;
@@ -195,6 +209,6 @@ export class ClaudeProvider implements LlmProvider {
       q.close();
     }
   }
-  dispose(): void { for (const q of this.queries) q.close(); this.queries.clear(); }
+  dispose(): void { this.disposed = true; for (const q of this.queries) q.close(); this.queries.clear(); }
 
 }

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CompletionEvent } from '@plugin-sdk/core';
 import { fakeLaunch, harness, lookup, REQUEST } from './codexServer';
 
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => fakeLaunch() }));
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => fakeLaunch() }));
 
 describe('Codex completion cancellation', () => {
   it('answers an outstanding tool call on abort, interrupts only its turn, and fences later events', async () => {

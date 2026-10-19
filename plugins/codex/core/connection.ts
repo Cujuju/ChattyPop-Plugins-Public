@@ -1,5 +1,5 @@
-import { mkdirSync } from 'node:fs';
-import { ProviderUnavailableError, resolveCli, type CliSpec, type ProviderAccount } from '@plugin-sdk/core';
+import { mkdir } from 'node:fs/promises';
+import { ProviderUnavailableError, resolveCliAsync, type CliSpec, type ProviderAccount } from '@plugin-sdk/core';
 import { JsonRpcStdio } from './jsonRpcStdio';
 
 export const API_KEY_PROVIDER = 'chattypop';
@@ -29,6 +29,7 @@ export class CodexConnection {
   private readonly owner = {};
   private current: Connection | undefined;
   private disposed = false;
+  private starting: Promise<Connection> | undefined;
 
   constructor(private readonly cli: CliSpec, private readonly clientInfo: object, private readonly account: ProviderAccount) {}
 
@@ -38,7 +39,7 @@ export class CodexConnection {
       const key = this.account.auth === 'apiKey' ? this.account.apiKey() : null;
       if (this.current && this.current.key !== key) this.drop(this.current);
       if (this.account.auth === 'apiKey' && !key) throw new ProviderUnavailableError('Add an API key to use this account.');
-      const connection = this.current ?? this.launch(key);
+      const connection = this.current ?? await (this.starting ??= this.launch(key).finally(() => { this.starting = undefined; }));
       try {
         await connection.ready;
       } catch (err) {
@@ -73,8 +74,8 @@ export class CodexConnection {
     return safeError(err, connection.key);
   }
 
-  private launch(key: string | null): Connection {
-    const launch = resolveCli(this.cli.bin, this.cli.npm);
+  private async launch(key: string | null): Promise<Connection> {
+    const launch = await resolveCliAsync(this.cli.bin, this.cli.npm);
     if (!launch) throw new ProviderUnavailableError(`${this.cli.name} is not installed or not on PATH.`);
     const config = key ? [
       CONFIG_FLAG, `model_provider="${API_KEY_PROVIDER}"`,
@@ -83,9 +84,10 @@ export class CodexConnection {
     let env: NodeJS.ProcessEnv | undefined = key ? { ...process.env, [API_KEY_ENV]: key } : undefined;
     if (this.account.auth === 'signIn') {
       if (!this.account.dir) throw new Error('Linked Codex account has no config folder.');
-      mkdirSync(this.account.dir, { recursive: true });
+      await mkdir(this.account.dir, { recursive: true });
       env = { ...process.env, CODEX_HOME: this.account.dir };
     }
+    if (this.disposed) throw new ProviderUnavailableError('Codex was turned off.');
     const rpc = new JsonRpcStdio(launch, [...config, APP_SERVER], env);
     const connection: Connection = { rpc, key, owner: this.owner, accountId: this.account.id, home: this.account.dir, ready: Promise.resolve() };
     this.current = connection;

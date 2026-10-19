@@ -8,7 +8,7 @@ interface Started { env?: NodeJS.ProcessEnv; args: string[]; calls: { method: st
 const started: Started[] = [];
 let read: unknown = { account: { type: 'chatgpt', email: 'test@example.test', planType: 'plus' }, requiresOpenaiAuth: true };
 const LOGIN_ID = 'test-login-id';
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'test-codex', args: [] }) }));
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => ({ command: 'test-codex', args: [] }) }));
 vi.mock('../core/jsonRpcStdio', () => ({ JsonRpcStdio: class {
   private readonly state: Started;
   readonly closed = new Promise<Error>(() => undefined);
@@ -61,18 +61,19 @@ describe('Codex linked accounts', () => {
   it('opens the login page and accepts only the matching completion', async () => {
     const { connection } = make(); const open = vi.fn(); let done = false;
     const pending = linkAccount(connection, { open, code: vi.fn(), signal: new AbortController().signal }).then(() => { done = true; });
-    await tick(); expect(open).toHaveBeenCalledWith('https://example.test/login');
+    await vi.waitFor(() => expect(open).toHaveBeenCalled()); expect(open).toHaveBeenCalledWith('https://example.test/login');
     notify(started[0]!, { loginId: 'wrong-login', success: true }); await tick(); expect(done).toBe(false);
     notify(started[0]!, { loginId: LOGIN_ID, success: true }); await pending; expect(done).toBe(true);
     expect(started[0]?.calls).toContainEqual({ method: 'account/login/start', params: { type: 'chatgpt' } });
   });
   it('cancels by login id and reports failed completion', async () => {
     const first = make(); const controller = new AbortController();
-    const pending = linkAccount(first.connection, { open: vi.fn(), code: vi.fn(), signal: controller.signal });
-    await tick(); controller.abort(new Error('test cancel')); await expect(pending).rejects.toThrow('test cancel');
+    const opened = vi.fn();
+    const pending = linkAccount(first.connection, { open: opened, code: vi.fn(), signal: controller.signal });
+    await vi.waitFor(() => expect(opened).toHaveBeenCalled()); controller.abort(new Error('test cancel')); await expect(pending).rejects.toThrow('test cancel');
     expect(started[0]?.calls).toContainEqual({ method: 'account/login/cancel', params: { loginId: LOGIN_ID } });
     const second = make(); const failed = linkAccount(second.connection, { open: vi.fn(), code: vi.fn(), signal: new AbortController().signal });
-    await tick(); notify(started[1]!, { loginId: LOGIN_ID, success: false, error: 'test login failure' });
+    await vi.waitFor(() => expect(started[1]?.calls.some((call) => call.method === 'account/login/start')).toBe(true)); notify(started[1]!, { loginId: LOGIN_ID, success: false, error: 'test login failure' });
     await expect(failed).rejects.toThrow('test login failure');
   });
   it('logs out with null params, then disposes its own connection', async () => {

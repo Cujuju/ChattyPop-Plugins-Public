@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const started: string[] = [];
 let initialize: () => Promise<unknown> = async () => ({});
 
-vi.mock('@core/ai/resolveCli', async (original) => ({ ...(await original<object>()), resolveCli: () => ({ command: 'codex', args: [] }) }));
+vi.mock('@core/ai/asyncCli', async (original) => ({ ...(await original<object>()), resolveCliAsync: async () => ({ command: 'codex', args: [] }) }));
 vi.mock('../core/jsonRpcStdio', () => ({
   JsonRpcStdio: class {
     readonly closed = new Promise<Error>(() => undefined);

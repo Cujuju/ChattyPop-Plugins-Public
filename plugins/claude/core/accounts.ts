@@ -1,7 +1,6 @@
-import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
-import { resolveCli, type AccountLinkIo, type ProviderAccount } from '@plugin-sdk/core';
+import { resolveCliAsync, spawnCli, type AccountLinkIo, type ProviderAccount } from '@plugin-sdk/core';
 import { CLAUDE_CLI } from './claude';
 import { accountEnv } from './accountEnv';
 
@@ -11,15 +10,15 @@ const NOT_SIGNED_IN_EXIT = 1;
 const AUTH_URL = /https?:\/\/[^\s]+/;
 const NO_URL = null;
 
-function launch(account: ProviderAccount, args: string[]) {
+async function launch(account: ProviderAccount, args: string[]) {
   if (account.auth !== 'signIn' || !account.dir) throw new Error('Expected a linked Claude sign-in account.');
-  const cli = resolveCli(CLAUDE_CLI.bin, CLAUDE_CLI.npm);
+  const cli = await resolveCliAsync(CLAUDE_CLI.bin, CLAUDE_CLI.npm);
   if (!cli) throw new Error('Claude Code not found on PATH.');
-  return spawn(cli.command, [...cli.args, AUTH_COMMAND, ...args], { env: accountEnv(account), stdio: 'pipe', windowsHide: true });
+  return spawnCli(cli.command, [...cli.args, AUTH_COMMAND, ...args], { env: accountEnv(account) });
 }
 
 export async function signedIn(account: ProviderAccount): Promise<{ signedIn: boolean; who: string | null }> {
-  const child = launch(account, ['status', '--json']);
+  const child = await launch(account, ['status', '--json']);
   let output = '';
   let error = '';
   child.stdout.on('data', (chunk) => { output += String(chunk); });
@@ -38,7 +37,7 @@ export async function linkAccount(account: ProviderAccount, io: AccountLinkIo): 
   io.signal.throwIfAborted();
   await mkdir(account.dir, { recursive: true });
   io.signal.throwIfAborted();
-  const child = launch(account, ['login']);
+  const child = await launch(account, ['login']);
   let lastLine = '';
   let shownUrl: string | null = NO_URL;
   const readers = [child.stdout, child.stderr].map((input) => createInterface({ input }));
@@ -75,7 +74,7 @@ export async function linkAccount(account: ProviderAccount, io: AccountLinkIo): 
 /** A failed logout does not prevent the host from deleting this account's isolated folder. */
 export async function signOut(account: ProviderAccount): Promise<void> {
   try {
-    const child = launch(account, ['logout']);
+    const child = await launch(account, ['logout']);
     child.stdout.resume(); child.stderr.resume();
     await new Promise<void>((resolve, reject) => { child.on('error', reject); child.on('close', () => resolve()); });
   } catch (err) { console.warn('Claude account logout failed:', err); }

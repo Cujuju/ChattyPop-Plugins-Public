@@ -16,12 +16,12 @@ const makeChild = (): Child => {
   child.kill.mockImplementation(() => child.emit('close', null));
   return child;
 };
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'test-claude', args: [] }) }));
-vi.mock('node:child_process', () => ({ spawn: (_command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => ({ command: 'test-claude', args: [] }) }));
+vi.mock('@core/ai/spawnCli', () => ({ spawnCli: (_command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
   if (failure) throw new Error('test spawn failure');
   const child = makeChild(); children.push({ child, args, env: options.env });
-  if (args.includes('status')) queueMicrotask(() => { child.stdout.end(JSON.stringify({ loggedIn, email: 'test@example.test' })); child.emit('close', statusCode); });
-  if (args.includes('logout')) queueMicrotask(() => child.emit('close', statusCode));
+  if (args.includes('status')) setImmediate(() => { child.stdout.end(JSON.stringify({ loggedIn, email: 'test@example.test' })); child.emit('close', statusCode); });
+  if (args.includes('logout')) setImmediate(() => child.emit('close', statusCode));
   return child;
 } }));
 const { accountEnv } = await import('../core/accountEnv');

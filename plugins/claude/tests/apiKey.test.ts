@@ -6,7 +6,7 @@ let messages: unknown[] = [];
 /** Thrown by the run after its messages. */
 let failure: Error | null = null;
 const close = vi.fn();
-vi.mock('@core/ai/resolveCli', () => ({ resolveCli: () => ({ command: 'test-claude', args: [] }) }));
+vi.mock('@core/ai/asyncCli', () => ({ resolveCliAsync: async () => ({ command: 'test-claude', args: [] }) }));
 vi.mock('@anthropic-ai/claude-agent-sdk', async (importOriginal) => ({
   ...await importOriginal<typeof import('@anthropic-ai/claude-agent-sdk')>(),
   query: ({ options: value }: { options: Options }) => {
