@@ -1,3 +1,4 @@
+import { archiveRead } from '@core/plugins/pluginDb';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -35,7 +36,7 @@ beforeEach(() => {
 const request = (over: Partial<ExportRequest> = {}): ExportRequest => ({ channelIds: [CH], includeThreads: false, format: 'json', includeMedia: false, dir: tempDir(), ...over });
 const exportTo = async (format: ExportFormat) => {
   const req = request({ format });
-  const r = await exportChannels(db, tempDir(), req);
+  const r = await exportChannels(archiveRead(() => db), tempDir(), req);
   return { r, dir: req.dir, file: join(req.dir, readdirSync(req.dir)[0]!) };
 };
 /** Clear of the seeded messages: a message's id is its time. */
@@ -110,14 +111,14 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     // A payload the archive already holds (any source): a count that isn't a number.
     new Archive(target).ingestMessages([rawMessage('200000000000000009', T0 + 5, 'x', { reactions: [{ emoji: { id: null, name: 'a' }, count: '<script>alert(5)</script>' as unknown as number }] })], ARRIVAL.gateway);
     const html = request({ channelIds: ['200000000000000009'], format: 'html' });
-    await exportChannels(target, tempDir(), html);
+    await exportChannels(archiveRead(() => target), tempDir(), html);
     const page = readFileSync(join(html.dir, readdirSync(html.dir)[0]!), 'utf8');
     // Hostile text may appear escaped, as text; never as an element, attribute or link.
     expect(page).not.toMatch(/<script|<img[^>]*onerror|(?:href|src)="\s*javascript:|style="[^"]*url\(/i);
     expect(page).toContain("script-src 'none'");
     // Markdown links only what a browser may open; the rest stays text.
     const md = request({ channelIds: ['200000000000000009'], format: 'md' });
-    await exportChannels(target, tempDir(), md);
+    await exportChannels(archiveRead(() => target), tempDir(), md);
     expect(readFileSync(join(md.dir, readdirSync(md.dir)[0]!), 'utf8')).not.toMatch(/\]\(<?\s*javascript:/i);
   });
 
@@ -147,7 +148,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     a.setOptIn(OTHER, true);
     a.ingestMessages([rawMessage(OTHER, T0 + 5, 'the other general')], ARRIVAL.gateway);
     const req = request({ channelIds: [CH, OTHER] });
-    expect((await exportChannels(db, tempDir(), req)).channelIds).toEqual([CH, OTHER]);
+    expect((await exportChannels(archiveRead(() => db), tempDir(), req)).channelIds).toEqual([CH, OTHER]);
     const docs = readdirSync(req.dir).map((f) => JSON.parse(readFileSync(join(req.dir, f), 'utf8')) as DceExport);
     expect(docs.map((d) => d.messages.map((m) => m.content))).toEqual(expect.arrayContaining([['hello <b>world</b>', 'yes'], ['the other general']]));
   });
@@ -161,7 +162,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     writeFileSync(src, 'abc');
     attachmentStored(db, '500000000000000001', sha, 3);
     const req = request({ format: 'html', includeMedia: true });
-    await exportChannels(db, attachmentsDir, req);
+    await exportChannels(archiveRead(() => db), attachmentsDir, req);
     const html = readFileSync(join(req.dir, readdirSync(req.dir).find((f) => f.endsWith('.html'))!), 'utf8');
     const href = /<a href="([^"]+)">a\.txt<\/a>/.exec(html)![1]!;
     const target = decodeURIComponent(new URL(href, 'file:///export/').pathname).slice('/export/'.length);
@@ -177,7 +178,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     attachmentStored(db, '500000000000000001', sha256, 5);
     db.prepare("UPDATE attachments SET stored_ext = 'webp' WHERE id = '500000000000000001'").run();
     const req = request({ format: 'json', includeMedia: true });
-    await exportChannels(db, attachmentsDir, req);
+    await exportChannels(archiveRead(() => db), attachmentsDir, req);
     const doc = JSON.parse(readFileSync(join(req.dir, readdirSync(req.dir).find((f) => f.endsWith('.json'))!), 'utf8')) as DceExport;
     const url = doc.messages.flatMap((m) => m.attachments ?? []).find((a) => a.id === '500000000000000001')!.url;
     expect(url).toMatch(/\.webp$/);
@@ -195,7 +196,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     fillLong(COUNT);
     const req = request({ channelIds: [LONG] });
     const reported: number[] = [];
-    const r = await exportChannels(db, tempDir(), req, { stopped: () => false, progress: (p) => reported.push(p.messages) });
+    const r = await exportChannels(archiveRead(() => db), tempDir(), req, { stopped: () => false, progress: (p) => reported.push(p.messages) });
     expect(r.messages).toBe(COUNT);
     const text = readFileSync(join(req.dir, readdirSync(req.dir)[0]!), 'utf8');
     const doc = JSON.parse(text) as DceExport;
@@ -209,14 +210,14 @@ describe('archive exchange (DiscordChatExporter format)', () => {
   it('stops between pages, leaving no partial file and an earlier export of the channel as it was', async () => {
     fillLong(1);
     const req = request({ channelIds: [CH, LONG] });
-    await exportChannels(db, tempDir(), req);
+    await exportChannels(archiveRead(() => db), tempDir(), req);
     const before = readdirSync(req.dir).sort();
     const longFile = join(req.dir, before.find((f) => f.includes(LONG))!);
     const earlier = readFileSync(longFile, 'utf8');
     fillLong(2000, LONG_T0 + 1);
     // Reports: CH's page, CH done, then LONG's first page.
     let reports = 0;
-    const r = await exportChannels(db, tempDir(), req, { stopped: () => reports > 2, progress: () => void reports++ });
+    const r = await exportChannels(archiveRead(() => db), tempDir(), req, { stopped: () => reports > 2, progress: () => void reports++ });
     expect(r).toMatchObject({ channelIds: [CH], messages: 2, cancelled: true });
     expect(readdirSync(req.dir).sort()).toEqual(before);
     expect(readFileSync(longFile, 'utf8')).toBe(earlier);
@@ -234,16 +235,16 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     ]);
     [FORUM, THREAD, POST].forEach((id) => a.setOptIn(id, true));
     a.ingestMessages([rawMessage(THREAD, T0 + 5, 'in the thread'), rawMessage(POST, T0 + 6, 'in the post')], ARRIVAL.gateway);
-    expect(await exportChannels(db, tempDir(), request({ channelIds: [CH, FORUM] }))).toMatchObject({ channelIds: [CH], emptyChannelIds: [FORUM] });
+    expect(await exportChannels(archiveRead(() => db), tempDir(), request({ channelIds: [CH, FORUM] }))).toMatchObject({ channelIds: [CH], emptyChannelIds: [FORUM] });
     const req = request({ channelIds: [CH, FORUM, THREAD], includeThreads: true });
-    expect(await exportChannels(db, tempDir(), req)).toMatchObject({ channelIds: [CH, THREAD, POST], messages: 4, emptyChannelIds: [] });
+    expect(await exportChannels(archiveRead(() => db), tempDir(), req)).toMatchObject({ channelIds: [CH, THREAD, POST], messages: 4, emptyChannelIds: [] });
     expect(readdirSync(req.dir).find((f) => f.includes(THREAD))).toContain('general - side talk');
   });
 
   it('bounds the range at both ends and writes no file for a channel with nothing in it', async () => {
-    expect(await exportChannels(db, tempDir(), request({ untilTs: T0 }))).toMatchObject({ channelIds: [CH], messages: 1 });
+    expect(await exportChannels(archiveRead(() => db), tempDir(), request({ untilTs: T0 }))).toMatchObject({ channelIds: [CH], messages: 1 });
     const none = request({ sinceTs: T0 + MS_PER_MIN + 1, untilTs: T0 + 2 * MS_PER_MIN });
-    expect(await exportChannels(db, tempDir(), none)).toMatchObject({ channelIds: [], messages: 0, emptyChannelIds: [CH] });
+    expect(await exportChannels(archiveRead(() => db), tempDir(), none)).toMatchObject({ channelIds: [], messages: 0, emptyChannelIds: [CH] });
     expect(readdirSync(none.dir)).toEqual([]);
   });
 

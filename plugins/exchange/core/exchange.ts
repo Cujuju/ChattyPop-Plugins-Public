@@ -2,7 +2,7 @@
 import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { attachmentFileName, DM_GROUP_NAME, DM_GUILD_ID, errorMessage, type RawMessage } from '@plugin-sdk/shared';
-import { ARRIVAL, type Importer, type PluginDb, parseRawJson, storedAttachmentPath } from '@plugin-sdk/core';
+import { ARRIVAL, type Importer, type PluginDb, type ArchiveRead, parseRawJson, storedAttachmentPath } from '@plugin-sdk/core';
 import type { ExchangeResult, ExportProgress, ExportRequest, ExportWritten, SelectionExportRequest, SelectionExportResult } from '../shared/types';
 import { dceToRaw, isDceExport, rawToDce, type DceExport } from './dce';
 import { FORMAT_WRITERS, type ExportHead } from './formats';
@@ -141,14 +141,12 @@ async function writeWhole<T>(file: string, fill: (fd: number) => T | Promise<T>)
  * Writes the selected messages of req.channelId still stored with their content to one file in req.dir, oldest first:
  * `server - channel [id] selected <time>`. Attachments link to Discord.
  */
-export async function exportMessages(db: PluginDb, req: SelectionExportRequest): Promise<SelectionExportResult> {
-  const c = db.prepare(CHANNEL_SQL).get(req.channelId) as ChannelRow | undefined;
-  const rows = db
-    .prepare(
+export async function exportMessages(read: ArchiveRead, req: SelectionExportRequest): Promise<SelectionExportResult> {
+  const [c] = await read<ChannelRow>(CHANNEL_SQL, [req.channelId]);
+  const rows = await read<MessageRow>(
       `SELECT id, ts, raw_json AS raw FROM archive_all_messages
        WHERE channel_id = ? AND raw_json IS NOT NULL AND id IN (SELECT value FROM json_each(?)) ORDER BY ts, length(id), id`,
-    )
-    .all(req.channelId, JSON.stringify(req.messageIds)) as MessageRow[];
+    [req.channelId, JSON.stringify(req.messageIds)]);
   if (!c || !rows.length) return { file: null, messages: 0 };
   const head = headOf(c);
   const writer = FORMAT_WRITERS[req.format](head);
@@ -166,20 +164,21 @@ export async function exportMessages(db: PluginDb, req: SelectionExportRequest):
  * Writes each channel with a message in range to req.dir as `server - channel [id]` (a thread as `server - channel - thread [id]`),
  * with an optional attachment folder. A message stored behind a page already written is left out.
  */
-export async function exportChannels(db: PluginDb, attachmentsDir: string, req: ExportRequest, run: ExportRun = UNWATCHED): Promise<ExportWritten> {
+export async function exportChannels(read: ArchiveRead, attachmentsDir: string, req: ExportRequest, run: ExportRun = UNWATCHED): Promise<ExportWritten> {
   const result: ExportWritten = { channelIds: [], messages: 0, emptyChannelIds: [], failedChannelIds: [], cancelled: false };
-  const channel = db.prepare(CHANNEL_SQL);
-  const threadsOf = db.prepare('SELECT id FROM archive_all_channels WHERE parent_id = ? AND is_thread ORDER BY length(id), id');
-  const page = db.prepare(
+  const channelSql = CHANNEL_SQL;
+  const threadsSql = 'SELECT id FROM archive_all_channels WHERE parent_id = ? AND is_thread ORDER BY length(id), id';
+  const pageSql =
     `SELECT id, ts, raw_json AS raw FROM archive_all_messages
      WHERE channel_id = ? AND raw_json IS NOT NULL AND ts >= ? AND ts <= ? AND (ts, length(id), id) > (?, ?, ?)
-     ORDER BY ts, length(id), id LIMIT ${EXPORT_PAGE}`,
-  );
-  const stored = db.prepare("SELECT sha256, filename, stored_ext AS storedExt FROM archive_all_attachments WHERE id = ? AND status = 'stored'");
+     ORDER BY ts, length(id), id LIMIT ${EXPORT_PAGE}`;
+  type Stored = { id: string; sha256: string; filename: string; storedExt: string | null };
+  let stored = new Map<string, Stored>();
   const since = req.sinceTs ?? 0;
   const until = req.untilTs ?? Number.MAX_SAFE_INTEGER;
   // Each chosen channel with the threads exported for it; a thread reached twice is written once.
-  const chosen = req.channelIds.map((id) => ({ id, members: [id, ...(req.includeThreads ? (threadsOf.all(id) as { id: string }[]).map((t) => t.id) : [])] }));
+  const chosen: { id: string; members: string[] }[] = [];
+  for (const id of req.channelIds) chosen.push({ id, members: [id, ...(req.includeThreads ? (await read<{ id: string }>(threadsSql, [id])).map((t) => t.id) : [])] });
   const targets = [...new Set(chosen.flatMap((pick) => pick.members))];
   /** Channels whose export ran to its end, with whether it left nothing (no message in range). */
   const nothingIn = new Map<string, boolean>();
@@ -192,7 +191,7 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
     const filesDir = `${base}_files`;
     const attachmentUrl = (a: { id: string; filename: string; url: string }): string => {
       if (!req.includeMedia) return a.url;
-      const row = stored.get(a.id) as { sha256: string; filename: string; storedExt: string | null } | undefined;
+      const row = stored.get(a.id);
       if (!row) return a.url;
       const name = attachmentFileName(row);
       const src = storedAttachmentPath(attachmentsDir, row);
@@ -202,8 +201,16 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
       // URL-encodes HTML attachment paths so # and % retain filename meaning. Other formats keep plain paths.
       return req.format === 'html' ? [filesDir, name].map(encodeURIComponent).join('/') : `${filesDir}/${name}`;
     };
-    const read = (after: PagePlace): MessageRow[] => page.all(c.id, since, until, after.ts, after.idLength, after.id) as MessageRow[];
-    let rows = read(BEFORE_FIRST);
+    const readPage = async (after: PagePlace): Promise<MessageRow[]> => {
+      const rows = await read<MessageRow>(pageSql, [c.id, since, until, after.ts, after.idLength, after.id]);
+      if (req.includeMedia && rows.length) {
+        const media = await read<Stored>(`SELECT id, sha256, filename, stored_ext AS storedExt FROM archive_all_attachments
+          WHERE message_id IN (SELECT value FROM json_each(?)) AND status = 'stored'`, [JSON.stringify(rows.map((r) => r.id))]);
+        stored = new Map(media.map((a) => [a.id, a]));
+      }
+      return rows;
+    };
+    let rows = await readPage(BEFORE_FIRST);
     if (!rows.length) return 0;
     const writer = FORMAT_WRITERS[req.format](headOf(c));
     return writeWhole(join(req.dir, `${base}.${req.format}`), async (fd) => {
@@ -217,7 +224,7 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
         await coreTurn();
         if (run.stopped()) throw new ExportStopped();
         const last = rows.at(-1)!;
-        rows = read({ ts: last.ts, idLength: last.id.length, id: last.id });
+        rows = await readPage({ ts: last.ts, idLength: last.id.length, id: last.id });
         if (!rows.length) break;
       }
       writeSync(fd, writer.foot(written));
@@ -227,7 +234,7 @@ export async function exportChannels(db: PluginDb, attachmentsDir: string, req: 
 
   for (const id of targets) {
     if (run.stopped()) break;
-    const c = channel.get(id) as ChannelRow | undefined;
+    const [c] = await read<ChannelRow>(channelSql, [id]);
     try {
       const written = c ? await exportOne(c) : 0;
       if (written) result.channelIds.push(id);

@@ -24,7 +24,7 @@ export default defineCorePlugin(plugin, (ctx) => {
         stopped = true;
       };
       try {
-        return await exportChannels(ctx.storage.db, ctx.archive.attachmentsDir, req, {
+        return await exportChannels(ctx.storage.read, ctx.archive.attachmentsDir, req, {
           stopped: () => stopped || !ctx.lifetime.live(),
           progress: (p) => {
             const now = Date.now();
@@ -38,6 +38,6 @@ export default defineCorePlugin(plugin, (ctx) => {
       }
     },
     cancelExport: () => stopRunning?.(),
-    exportMessages: (req) => exportMessages(ctx.storage.db, req),
+    exportMessages: (req) => exportMessages(ctx.storage.read, req),
   });
 });
