@@ -149,7 +149,8 @@ export async function countProjection(all: any[], read: ArchiveRead, data: any):
   const maps = { buckets: new Map<string, number>(), hour: new Map<string, number>(), day: new Map<string, number>(), month: new Map<string, number>(), year: new Map<string, number>() };
   const add = (map: Map<string, number>, key: string, n: number) => map.set(key, (map.get(key) ?? 0) + n);
   const edits = data.editIds.map((id: string) => ({ id, count: 0 })), attachments = data.kinds.map((kind: string) => ({ kind, count: 0 }));
-  for (const r of rows) {
+  const histograms = data.histograms?.filter((r: any) => q.sinceTs === null || r.first_ts >= q.sinceTs) ?? rows;
+  for (const r of histograms) {
     const p = JSON.parse(r.payload), weekday = new Date(r.date + 'T00:00:00').getDay(), period = bucketName(r.date, bucket);
     for (const [hour, count] of Object.entries(p.hours)) {
       const n = count as number; heatmap[weekday]![Number(hour)] += n;

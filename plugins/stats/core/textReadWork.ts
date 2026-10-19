@@ -12,6 +12,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   }
   const finish = (result: any[]) => { if (data.profile) result[0].benchmarkSql = metrics; return result; };
   const fold = new Function(`return (${data.compute})`)();
+  const indexRead = data.indexView ? new Function(`return (${data.indexRead})`)() : null;
   const utcDay = (ts: number) => Math.floor(ts / data.dayMs) * data.dayMs;
   const dayName = (ts: number) => new Date(ts).toISOString().slice(0, 'YYYY-MM-DD'.length);
   const cuts: number[] = data.cuts;
@@ -26,7 +27,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     for (const startTs of days) fragments = fragments.concat(await fold(null, read, signal, { ...config, mode: 'boundary', boundaryChannels, startTs, endTs: startTs + data.dayMs }));
     return fragments;
   };
-  let rows: any[] = data.view ? await read(data.rowsSql,
+  let rows: any[] = indexRead ? await indexRead(read, data, cuts, null) : data.view ? await read(data.rowsSql,
     [...data.memberParams, JSON.stringify([...days].map(dayName))]) : [];
   rows = rows.concat(await liveRows());
   const lengths = rows.filter((r) => r.kind === 'lengths');
@@ -35,8 +36,10 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const midpoint = first === Infinity ? null : first + (last - first) / data.halves;
   if (midpoint !== null && data.section === 'words') {
     const midpointDay = dayName(midpoint);
-    rows = rows.filter((r) => r.day && r.day !== midpointDay && !days.has(utcDay(r.first_ts)));
+    rows = indexRead ? await indexRead(read, data, [...cuts, midpoint], null)
+      : rows.filter((r) => r.day && r.day !== midpointDay && !days.has(utcDay(r.first_ts)));
     rows = rows.concat(await liveRows([midpoint]));
+    if (indexRead) rows = rows.concat(await indexRead(read, data, [...cuts, midpoint], midpoint));
   }
   const extents = rows.filter((r) => r.kind === 'extent');
   const extentFirst = extents.reduce((v, r) => Math.min(v, r.first_ts), Infinity);
@@ -121,7 +124,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   }
   rows = expanded;
   const identity = new Map<string, any>();
-  for (const r of extents) {
+  for (const r of indexRead ? rows.filter((r) => r.kind === 'identity').concat(extents) : extents) {
     const name = JSON.parse(r.payload).name;
     const p = identity.get(r.author_id);
     if (!p || name < p.name) identity.set(r.author_id, { userId: r.author_id, name, avatar: null });
@@ -140,12 +143,17 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
       totalWords += words;
       frequencies.set(n, (frequencies.get(n) ?? 0) + r.n);
       if (n === 0) zeroWordMessages += r.n; else distribution[data.lengthBuckets.findIndex((b: any) => b.max === null || n <= b.max)].count += r.n;
-      const person = people.get(r.author_id) ?? { words: 0, textMessages: 0 };
-      person.words += words; person.textMessages += r.n; people.set(r.author_id, person);
+      if (!indexRead || r.author_id) {
+        const person = people.get(r.author_id) ?? { words: 0, textMessages: 0 };
+        person.words += words; person.textMessages += r.n; people.set(r.author_id, person);
+      }
 
       const start = bucketName(r.date), period = periods.get(start) ?? { start, totalWords: 0, words: new Map() };
       period.totalWords += words; periods.set(start, period);
       if (r.first_ts < midpoint!) earlierWords += words; else laterWords += words;
+    } else if (r.kind === 'person' || r.kind === 'personMonth') {
+      const [textMessages, words] = JSON.parse(r.payload), p = people.get(r.author_id) ?? { words: 0, textMessages: 0 };
+      p.words += words; p.textMessages += textMessages; people.set(r.author_id, p);
     } else if (r.kind === 'longest') { for (const candidate of JSON.parse(r.payload)) longest.push(candidate); }
     else if (r.kind === 'words') for (const [word, n, seq, position] of r.tokens) {
       const old = counts.get(word);
@@ -157,6 +165,22 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     }
   }
   const ranked = [...counts.values()].filter((r) => eligible(r.word));
+  if (indexRead) {
+    const sorted = [...ranked].sort((a, b) => a.word.localeCompare(b.word)), ties = new Set<string>();
+    for (let i = 1; i < sorted.length; i++) if (sorted[i - 1].word.localeCompare(sorted[i].word) === 0) {
+      ties.add(sorted[i - 1].word); ties.add(sorted[i].word);
+    }
+    if (ties.size) {
+      const candidates = rows.filter((r) => r.kind === 'words' && !r.aggregate)
+        .concat(await indexRead(read, data, [...cuts, midpoint], midpoint, [...ties]));
+      const orders = new Map<string, any>();
+      for (const r of candidates) for (const [word, , seq, position] of r.tokens) if (ties.has(word)) {
+        const old = orders.get(word), next = { seq, position };
+        if (!old || order(next, old) < 0) orders.set(word, next);
+      }
+      for (const [word, first] of orders) Object.assign(counts.get(word), first);
+    }
+  }
   const words = top(ranked, data.cloudWords, (a, b) => b.count - a.count || a.word.localeCompare(b.word) || order(a, b)).map(({ word, count }) => ({ word, count }));
   const changes = ranked.filter((r) => r.count >= data.trendMinUses).map((r) => ({ ...r,
     earlierRate: earlierWords ? r.earlier * data.rateScale / earlierWords : 0, laterRate: laterWords ? r.later * data.rateScale / laterWords : 0 }));
@@ -179,7 +203,8 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const fading = top(changes.filter((r) => delta(r) < 0), data.trendTop, (a, b) => delta(a) - delta(b) || a.word.localeCompare(b.word) || trendOrder(a, b)).map(change);
   const choices = [...new Set([...words.slice(0, data.trendTop).map((r) => r.word), ...rising.map((r) => r.word), ...fading.map((r) => r.word)])];
   const chosen = new Set(choices);
-  for (const r of rows) if (r.kind === 'words') for (const [word, n] of r.tokens) if (chosen.has(word)) {
+  const chartRows = indexRead ? rows.filter((r) => !r.aggregate).concat(await indexRead(read, data, [...cuts, midpoint], midpoint, choices)) : rows;
+  for (const r of chartRows) if (r.kind === 'words') for (const [word, n] of r.tokens) if (chosen.has(word)) {
     const p = periods.get(bucketName(r.date)); p.words.set(word, (p.words.get(word) ?? 0) + n);
   }
   const buckets = fill(periods, (start) => ({ start, totalWords: 0, words: new Map() })).map((p) => ({ start: p.start, totalWords: p.totalWords,

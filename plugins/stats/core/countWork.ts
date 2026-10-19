@@ -6,6 +6,7 @@ export interface CountRow {
   first_ts: number; last_ts: number; first_id: string; name: string; payload: string;
 }
 export interface CountData {
+  indexSql?: string | null; histSql?: string | null; linkSql?: string | null; linkParams?: unknown[];
   outputKind?: string; mode?: 'read'; view?: string; rowsSql?: string; channelsSql?: string; rowsParams?: unknown[]; sql?: string; params?: (string | number)[]; cuts?: number[];
   timeZone?: string; projector?: string; config?: unknown; dayMs: number; editLimits: (number | null)[]; kinds: readonly string[];
 }
@@ -19,10 +20,19 @@ export async function countWork(part: RollupPartition | null, read: ArchiveRead,
   const where = part ? 'm.channel_id = ? AND m.ts >= ? AND m.ts < ?' : data.sql!;
 
   let live = where;
+  let histograms: any[] | undefined;
   if (!part && data.view) {
     const days = boundaryDays.map((ts) => new Date(ts).toISOString().slice(0, 'YYYY-MM-DD'.length));
-    summaries = summaries.concat(await read<any>(data.rowsSql!,
-      data.rowsParams ?? [...params, JSON.stringify(days)]));
+    if (data.indexSql) {
+      for (const r of await read<any>(data.indexSql, params)) for (const row of JSON.parse(r.payload)) {
+        if (!days.includes(row.day)) summaries.push(row);
+      }
+      if (data.histSql) {
+        histograms = [];
+        for (const r of await read<any>(data.histSql, params)) for (const row of JSON.parse(r.payload)) if (!days.includes(row.day)) histograms.push(row);
+      }
+      if (data.linkSql) summaries = summaries.concat(await read<any>(data.linkSql, data.linkParams));
+    } else summaries = summaries.concat(await read<any>(data.rowsSql!, data.rowsParams ?? [...params, JSON.stringify(days)]));
 
   }
   const columns = `m.id, m.channel_id, m.author_id, m.author_plain_name AS name, m.ts, m.edited_ts,
@@ -81,7 +91,11 @@ export async function countWork(part: RollupPartition | null, read: ArchiveRead,
       row.first_ts = m.ts; row.first_id = m.id;
     }
   }
-  for (const { hours, edits, attachments: attached, ...row } of groups.values()) summaries.push({ ...row, payload: JSON.stringify({ hours, edits, attachments: attached }) });
-  if (!part && data.projector) return new Function(`return (${data.projector})`)()(summaries, read, data.config);
+  for (const { hours, edits, attachments: attached, ...row } of groups.values()) {
+    const summary = { ...row, payload: JSON.stringify({ hours, edits, attachments: attached }) };
+    summaries.push(summary);
+    if (histograms && row.kind === 'message') histograms.push(summary);
+  }
+  if (!part && data.projector) return new Function(`return (${data.projector})`)()(summaries, read, { ...data.config as object, histograms });
   return part ? summaries.filter((r) => !data.outputKind || r.kind === data.outputKind).map(({ channel_id: _channel, ...row }) => row) : summaries;
 }

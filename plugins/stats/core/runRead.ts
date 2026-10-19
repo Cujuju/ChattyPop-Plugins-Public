@@ -11,6 +11,7 @@ import { runReadWork } from './runReadWork';
 import { conversationProjection } from './conversationProjection';
 import { createConversationRoles } from './conversationRoles';
 import { median } from './median';
+import { AnalyticsPending } from './pending';
 
 export const RUN_DATA = { gapMs: CONVERSATION_GAP_MS, pageSize: RUN_PAGE_SIZE };
 const RUN_VIEW = rollupView(plugin, 'runs', ROLLUP_VERSION);
@@ -25,6 +26,7 @@ export async function projectRuns(read: ArchiveRead, query: ActivityQuery, rollu
   const firstDay = query.sinceTs === null ? undefined : new Date(Math.floor(query.sinceTs / MS_PER_DAY) * MS_PER_DAY).toISOString().slice(0, 'YYYY-MM-DD'.length);
   const snapshotScope = { channelIds, firstDay };
   const token = rollups?.runs?.snapshot(snapshotScope);
+  if (rollups && !token) throw new AnalyticsPending();
   const current = () => Boolean(token && rollups!.runs!.snapshot(snapshotScope) === token);
   const load = async (view?: string) => (await read<ConversationStats>('SELECT 1', [], { priority: view ? 'interactive' : 'background', fold: {
     source: runReadWork.toString(), data: { ...RUN_DATA, sql: scope.sql, params: scope.params, view, firstDay,
@@ -36,6 +38,7 @@ export async function projectRuns(read: ArchiveRead, query: ActivityQuery, rollu
   // Cache bounded projections; author filters affect the projection and never duplicate stored run histories on Core.
   return cachedStats(read, token ? JSON.stringify(['conversations', scope, query.sinceTs, query.authorId ?? null, token]) : null, current, async () => {
     const value = await load(token ? RUN_VIEW : undefined);
-    return token && !current() ? load() : value;
+    if (token && !current()) throw new AnalyticsPending();
+    return value;
   }).then((value) => ({ ...value, query }));
 }
