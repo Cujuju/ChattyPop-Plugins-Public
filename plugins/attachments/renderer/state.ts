@@ -155,9 +155,12 @@ containedRoot(() => {
   createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, repeated, queryName, sort, anchor, isShown, () => callable(plugin, 'page')],
     () => void reloadAttachments(), { defer: true }));
 });
-onArchiveChange({ ...refreshOn, scope, shown: isShown }, async (change) => {
+onArchiveChange({ ...refreshOn, scope, shown: isShown }, async (change, signal) => {
   await list.applyChange(change);
-  if ([...change.channelIds].every((id) => change.insertOnly(id))) setTotals(await pluginData(() => client.totals(filter()), emptyTotals()));
+  if (signal.aborted || ![...change.channelIds].every((id) => change.insertOnly(id))) return;
+  const generation = readGeneration;
+  const counts = await pluginData(() => client.totals(filter()), emptyTotals());
+  if (!signal.aborted && generation === readGeneration) setTotals(counts);
 });
 // Hidden files leave at once, before the reread returns.
 onAppEvent('privacy-changed', () => {

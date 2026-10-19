@@ -212,9 +212,12 @@ function refresh(): void {
   ).then((applied) => applied && setLinkCounts(counts));
 }
 
-onArchiveChange({ kinds: ['links', 'deletes', 'names'], scope: () => linkChannelId() ? { channelIds: [linkChannelId()!] } : 'all', shown: isShown }, async (change) => {
+onArchiveChange({ kinds: ['links', 'deletes', 'names'], scope: () => linkChannelId() ? { channelIds: [linkChannelId()!] } : 'all', shown: isShown }, async (change, signal) => {
   await list.applyChange(change);
-  if ([...change.channelIds].every((id) => change.insertOnly(id))) setLinkCounts(await core.counts(filter()));
+  if (signal.aborted || ![...change.channelIds].every((id) => change.insertOnly(id))) return;
+  const generation = reloadsStarted;
+  const counts = await core.counts(filter());
+  if (!signal.aborted && generation === reloadsStarted) setLinkCounts(counts);
 });
 containedRoot(() => createEffect(on(isShown, (shown) => { if (shown) void (reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace() : reloadInPlace()); }, { defer: true })));
 onEvent(plugin, UPDATED_EVENT, refresh);

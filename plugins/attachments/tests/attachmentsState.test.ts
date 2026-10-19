@@ -24,7 +24,7 @@ vi.mock('@plugin-sdk/renderer', async () => ({
   pluginPreference: (_plugin: unknown, name: string) => createSignal<unknown>(name === 'anchor' ? 'bottom' : undefined),
   pluginResource: () => Object.assign(() => [], { refetch: () => undefined }),
   onAppEvent: () => () => undefined,
-  onArchiveChange: (_deps: unknown, fn: (change: unknown) => Promise<void>) => { refresh.run = fn; return () => undefined; },
+  onArchiveChange: (_deps: unknown, fn: (change: unknown, signal: AbortSignal) => Promise<void>) => { refresh.run = (change) => fn(change, new AbortController().signal); return () => undefined; },
   panelShown: () => () => true,
 }));
 vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList }));
