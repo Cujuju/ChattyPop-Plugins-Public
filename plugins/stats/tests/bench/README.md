@@ -92,3 +92,31 @@ At 400k, CPU profiling enabled, full recorded section sequence: `wordStats` Ever
 Standalone repeat comparisons on this session: Words **8.994s** versus an exact `8892072` source snapshot's **9.477s**; Conversations **1.421s** versus **1.535s**. Initial standalone measurements were Words **10.978s / 0.556s** and Conversations **1.552s / 1.127s** (Everyone / `u0`). Snapshot blobs were copied beneath the plugin's temporary benchmark directory; sibling shared descriptors retained registry anchors. The fixture databases were disposed; source snapshots, logs and profiles remain in the plugin's ignored cache.
 
 The historical absolute no-regression check is **not established**: the full-sequence Everyone times exceed the recorded **8.158s / 1.547s**. The current read-only host is `663662d4`, rather than recorded `7aa6004`; the cause of timing variation is unverified. The same-session standalone comparisons show no slowdown. Exact metrics for all runs: E:/Development/Projects/ChattyPop-Plugins-Public/plugins/stats/tests/bench/person-results.json. These synthetic, unencrypted measurements retain the limitations above.
+
+## Archive-refresh measurements — 2026-10-19
+
+The `rollups` section activates the production core plugin, waits for every host rollup, records table sizes, and measures each panel through its real channel client. It reports the first uncached call and the median of five exact-query cache hits separately.
+
+```powershell
+node E:\Development\Projects\worktrees\ChattyPop-Plugins-Public-archive-refresh\plugins\stats\tests\bench\run.mjs E:\Development\Projects\ChattyPop\.claude\worktrees\archive-refresh E:\Development\Projects\worktrees\ChattyPop-Plugins-Public-archive-refresh\plugins\stats 400000 rollups
+```
+
+The same 400k synthetic fixture and unencrypted driver were used before and after. Before is one instrumented read; after is one uncached read followed by five repetitions. First reads for new queries or revisions still miss the 100 ms budget in five sections. These numbers do not establish real-archive, encryption or renderer latency.
+
+| Read | Before ms | After uncached ms | After warm median ms |
+| --- | ---: | ---: | ---: |
+| activityStats | 17,201.80 | 303.49 | 1.14 |
+| peopleStats | 1,077.79 | 103.02 | 0.93 |
+| postersPage | Not measured | 55.52 | 0.74 |
+| personStreaks | Not measured | 74.89 | 0.74 |
+| personHistory | Not measured | 65.74 | 0.71 |
+| voiceStats | Not measured | 68.21 | 0.84 |
+| repeatedLinks | 765.39 | 58.62 | 0.66 |
+| emojiStats | 2,702.25 | 330.25 | 0.42 |
+| wordStats | 10,589.97 | 1,453.21 | 0.85 |
+| sentimentStats | 11,957.46 | 335.87 | 0.42 |
+| conversationStats | 3,276.60 | 15.24 | 4.68 |
+
+The completed build took 26,994.92 ms. The rejected term-row grain used 1,954,879 rows and 214,208,512 table bytes. Packed lexical frequencies, exact length histograms and bounded longest-message candidates use 95,160 rows and 90,873,856 table bytes. URL shares also have a materialized all-time fold. Table sizes exclude indexes. Exact JSON measurements are in `E:\Development\Projects\worktrees\ChattyPop-Plugins-Public-archive-refresh\plugins\stats\tests\bench\phase4-results.json`; the public record is [issue #164](https://github.com/Cujuju/ChattyPop/issues/164).
+
+Completed reads are bounded to 64 entries per activation and keyed by exact query plus host snapshot tokens, including visibility and zone state. Dirty builds bypass caching; partial range and trend-midpoint days fold live. Known channel/server references remain live, and a conversation channel containing visible references folds its runs live for adjacency. A rebuild cannot recover retention-pruned text. Runs belong to their opener's UTC day and ranges select their opener timestamp.

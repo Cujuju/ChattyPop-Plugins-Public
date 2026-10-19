@@ -5,6 +5,7 @@ import { plugin } from '../../shared';
 import functions from 'stats-bench-functions';
 import { CHANNEL, seed } from './fixture';
 import { measure, report } from './measure';
+import { referenceRead } from './referenceRead';
 
 const QUERY = { scope: 'channel', channelId: CHANNEL, sinceTs: null } as const;
 const SECTIONS = ['activityStats', 'peopleStats', 'repeatedLinks', 'emojiStats', 'wordStats', 'sentimentStats', 'conversationStats'];
@@ -18,7 +19,7 @@ export async function main(rows: number, section: string, profileDir: string, au
     report('query', { ...QUERY, authorId });
     for (const name of SECTIONS.filter((name) => section === 'all' || section === name)) {
       if (!functions[name]) { report('unavailable', name); continue; }
-      await measure(host.db, name, (db) => functions[name](db, { ...QUERY, authorId }), profileDir);
+      await measure(host.db, name, (db) => functions[name](referenceRead(db), { ...QUERY, authorId }), profileDir);
     }
   } finally { await host.dispose(); }
 }

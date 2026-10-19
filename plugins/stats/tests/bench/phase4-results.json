@@ -1,0 +1,247 @@
+{
+  "date": "2026-10-19",
+  "runtime": "Node v24.21.0 on Windows",
+  "fixture": {
+    "rows": 400000,
+    "textMessages": 384000,
+    "linkedMessages": 64000,
+    "days": 390,
+    "authors": 30,
+    "vocabulary": 40000,
+    "meanCharacters": 83.97233,
+    "ingestion": "reverse timestamp",
+    "encrypted": false
+  },
+  "sourceCommits": {
+    "beforeHost": "4f42e057",
+    "beforePlugins": "6471b2f",
+    "afterHost": "37920ffd",
+    "afterPlugins": "37123c3"
+  },
+  "method": {
+    "budgetMs": 100,
+    "before": "One instrumented read with per-statement SQL plans.",
+    "after": "First uncached call, then median of five exact-query cache hits.",
+    "size": "SQLite table pages, excluding indexes; unencrypted fixture."
+  },
+  "before": {
+    "activityStats": {
+      "wallMs": 17201.8,
+      "sqlMs": 17148.27
+    },
+    "peopleStats": {
+      "wallMs": 1077.79,
+      "sqlMs": 970.88
+    },
+    "repeatedLinks": {
+      "wallMs": 765.39,
+      "sqlMs": 757.24
+    },
+    "emojiStats": {
+      "wallMs": 2702.25,
+      "sqlMs": 1344.21
+    },
+    "wordStats": {
+      "wallMs": 10589.97,
+      "sqlMs": 1677.03
+    },
+    "sentimentStats": {
+      "wallMs": 11957.46,
+      "sqlMs": 2150.0
+    },
+    "conversationStats": {
+      "wallMs": 3276.6,
+      "sqlMs": 2312.82
+    }
+  },
+  "after": {
+    "activityStats": {
+      "uncachedMs": 303.49,
+      "warmMedianMs": 1.14,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": false
+    },
+    "peopleStats": {
+      "uncachedMs": 103.02,
+      "warmMedianMs": 0.93,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": false
+    },
+    "postersPage": {
+      "uncachedMs": 55.52,
+      "warmMedianMs": 0.74,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": true
+    },
+    "personStreaks": {
+      "uncachedMs": 74.89,
+      "warmMedianMs": 0.74,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": true
+    },
+    "personHistory": {
+      "uncachedMs": 65.74,
+      "warmMedianMs": 0.71,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": true
+    },
+    "voiceStats": {
+      "uncachedMs": 68.21,
+      "warmMedianMs": 0.84,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": true
+    },
+    "repeatedLinks": {
+      "uncachedMs": 58.62,
+      "warmMedianMs": 0.66,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": true
+    },
+    "emojiStats": {
+      "uncachedMs": 330.25,
+      "warmMedianMs": 0.42,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": false
+    },
+    "wordStats": {
+      "uncachedMs": 1453.21,
+      "warmMedianMs": 0.85,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": false
+    },
+    "sentimentStats": {
+      "uncachedMs": 335.87,
+      "warmMedianMs": 0.42,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": false
+    },
+    "conversationStats": {
+      "uncachedMs": 15.24,
+      "warmMedianMs": 4.68,
+      "warmWithinBudget": true,
+      "uncachedWithinBudget": true
+    }
+  },
+  "buildMs": 26994.92,
+  "grains": [
+    {
+      "name": "counts",
+      "rows": 23400,
+      "tableBytes": 5664768
+    },
+    {
+      "name": "shares",
+      "rows": 64000,
+      "tableBytes": 10919936
+    },
+    {
+      "name": "shares_v1_all_time",
+      "rows": 1920,
+      "tableBytes": 319488
+    },
+    {
+      "name": "text",
+      "rows": 95160,
+      "tableBytes": 90873856
+    },
+    {
+      "name": "runs",
+      "rows": 1,
+      "tableBytes": 4096
+    }
+  ],
+  "rejectedGrain": {
+    "shape": "author/local-date/term per UTC partition",
+    "rows": 1954879,
+    "tableBytes": 214208512
+  },
+  "activityStatementProfile": [
+    {
+      "ms": 1827.64,
+      "calls": 1,
+      "sql": "SELECT COUNT(*) AS messages, COUNT(DISTINCT m.author_id) AS authors,\n    COUNT(CASE WHEN m.edited_ts IS NOT NULL THEN 1 END) AS editedMessages,\n    COUNT(CASE WHEN trim(m.content, char(9) || char(10) || char(13) || ' ') != '' THEN 1 END) AS textMessages,\n    COUNT(CASE WHEN EXISTS (SELECT 1 FROM archive_attachments a WHERE a.message_id = m.id) THEN 1 END) AS attachmentMessages, MIN(m.ts) AS firstTs, MAX(m.ts) AS lastTs\n    FROM archive_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+      "planSummary": "USE TEMP B-TREE FOR count(DISTINCT); SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 3; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 30; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 32; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 33; SCAN h; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; CORRELATED SCALAR SUBQUERY 1; SEARCH attachments USING INDEX attachments_message (message_id=?); LIST SUBQUERY 35; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 37; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 38; SEARCH hm USING INDEX sqlite_autoindex_messages_1 (id=?); SCAN h EXISTS"
+    },
+    {
+      "ms": 359.4,
+      "calls": 1,
+      "sql": "SELECT date(firstTs / 1000, 'unixepoch', 'localtime', 'start of month') AS start,\n    SUM(CASE WHEN firstTs >= ? THEN 1 ELSE 0 END) AS count, MIN(firstTs) AS archivedSince, MAX(lastTs) AS archivedUntil\n    FROM (SELECT MIN(m.ts) AS firstTs, MAX(m.ts) AS lastTs FROM archive_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY m.author_id)\n    GROUP BY start",
+      "planSummary": "CO-ROUTINE (subquery-3); SEARCH m USING INDEX messages_channel_ts (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 30; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 32; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 33; SCAN h; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY; SCAN (subquery-3); USE TEMP B-TREE FOR GROUP BY"
+    },
+    {
+      "ms": 329.1,
+      "calls": 1,
+      "sql": "SELECT date(m.ts / 1000, 'unixepoch', 'localtime', 'start of month') AS start,\n    COUNT(DISTINCT m.author_id) AS count FROM archive_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)\n    GROUP BY start ORDER BY start",
+      "planSummary": "SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 29; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 31; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 32; SCAN h; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY; USE TEMP B-TREE FOR count(DISTINCT)"
+    },
+    {
+      "ms": 0.26,
+      "calls": 1,
+      "sql": "WITH RECURSIVE months(start) AS (\n    SELECT date(? / 1000, 'unixepoch', 'localtime', 'start of month')\n    UNION ALL SELECT date(start, '+1 month') FROM months WHERE start < date(? / 1000, 'unixepoch', 'localtime', 'start of month')\n  ) SELECT start FROM months",
+      "planSummary": "CO-ROUTINE months; SETUP; SCAN CONSTANT ROW; RECURSIVE STEP; SCAN months; SCAN months"
+    },
+    {
+      "ms": 555.83,
+      "calls": 1,
+      "sql": "SELECT date(m.ts / 1000, 'unixepoch', 'localtime') AS date,\n    CAST(strftime('%H', m.ts / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour, COUNT(*) AS count\n    FROM archive_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY date, hour ORDER BY date, hour",
+      "planSummary": "SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 29; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 31; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 32; SCAN h; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY"
+    },
+    {
+      "ms": 606.16,
+      "calls": 1,
+      "sql": "SELECT m.author_id AS userId, MIN(m.author_plain_name) AS name, u.avatar AS avatar, COUNT(*) AS count FROM archive_messages m LEFT JOIN archive_users u ON u.id = m.author_id\n    WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY m.author_id ORDER BY count DESC, userId LIMIT ? OFFSET ?",
+      "planSummary": "SEARCH m USING INDEX messages_channel_ts (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 29; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 31; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 32; SCAN h; SEARCH u USING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH users USING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY; USE TEMP B-TREE FOR ORDER BY"
+    },
+    {
+      "ms": 319.57,
+      "calls": 1,
+      "sql": "SELECT m.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS name, COUNT(*) AS count FROM archive_messages m LEFT JOIN archive_all_channels c ON c.id = m.channel_id\n    WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY m.channel_id ORDER BY count DESC, channelId LIMIT ?",
+      "planSummary": "SEARCH m USING INDEX messages_channel_ts (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 29; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 31; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 32; SCAN h; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH c USING INDEX sqlite_autoindex_channels_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR ORDER BY"
+    },
+    {
+      "ms": 2016.33,
+      "calls": 1,
+      "sql": "SELECT CASE WHEN m.edited_ts - m.ts < 60000 THEN 'minute' WHEN m.edited_ts - m.ts < 3600000 THEN 'hour' WHEN m.edited_ts - m.ts < 86400000 THEN 'day' WHEN m.edited_ts - m.ts < 604800000 THEN 'week' ELSE 'later' END AS bucketId, COUNT(*) AS count\n    FROM archive_messages m WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) AND m.edited_ts IS NOT NULL GROUP BY bucketId",
+      "planSummary": "SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 29; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 31; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 32; SCAN h; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY"
+    },
+    {
+      "ms": 3009.68,
+      "calls": 1,
+      "sql": "SELECT CASE\n    WHEN lower(a.content_type) LIKE 'image/%' THEN 'image'\n    WHEN lower(a.content_type) LIKE 'video/%' THEN 'video'\n    WHEN lower(a.content_type) LIKE 'audio/%' THEN 'audio'\n    ELSE 'other' END AS kind, COUNT(*) AS count\n    FROM archive_attachments a JOIN archive_messages m ON m.id = a.message_id\n    WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY 1",
+      "planSummary": "SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 35; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 37; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 38; SCAN h; SEARCH attachments USING INDEX attachments_message (message_id=?); LIST SUBQUERY 5; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 7; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 8; SEARCH hm USING INDEX sqlite_autoindex_messages_1 (id=?); SCAN h EXISTS; SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY"
+    },
+    {
+      "ms": 3804.61,
+      "calls": 1,
+      "sql": "SELECT COUNT(DISTINCT m.id) AS count FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id\n  JOIN archive_all_links l ON l.id = ml.link_id WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)",
+      "planSummary": "USE TEMP B-TREE FOR count(DISTINCT); SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 30; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 32; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 33; SCAN h; SEARCH message_links USING COVERING INDEX sqlite_autoindex_message_links_1 (message_id=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH l USING INTEGER PRIMARY KEY (rowid=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN"
+    },
+    {
+      "ms": 3364.14,
+      "calls": 1,
+      "sql": "SELECT l.url, COUNT(*) AS n FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id\n  JOIN archive_all_links l ON l.id = ml.link_id WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY l.id",
+      "planSummary": "SEARCH m USING INDEX messages_channel_author (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 30; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 32; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 33; SCAN h; SEARCH message_links USING COVERING INDEX sqlite_autoindex_message_links_1 (message_id=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH l USING INTEGER PRIMARY KEY (rowid=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY"
+    },
+    {
+      "ms": 472.16,
+      "calls": 1,
+      "sql": "SELECT m.author_id AS userId, MIN(m.author_plain_name) AS name, u.avatar AS avatar, COUNT(*) AS count FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id\n  JOIN archive_all_links l ON l.id = ml.link_id LEFT JOIN archive_users u ON u.id = m.author_id\n    WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY m.author_id ORDER BY count DESC, userId LIMIT ?",
+      "planSummary": "SEARCH m USING INDEX messages_channel_ts (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 30; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 32; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 33; SCAN h; SEARCH message_links USING COVERING INDEX sqlite_autoindex_message_links_1 (message_id=?); SEARCH u USING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH l USING INTEGER PRIMARY KEY (rowid=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH users USING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR GROUP BY; USE TEMP B-TREE FOR ORDER BY"
+    },
+    {
+      "ms": 483.39,
+      "calls": 1,
+      "sql": "SELECT m.channel_id AS channelId, COALESCE(c.name, m.channel_id) AS name, COUNT(*) AS count FROM archive_all_message_links ml JOIN archive_messages m ON m.id = ml.message_id\n  JOIN archive_all_links l ON l.id = ml.link_id LEFT JOIN archive_all_channels c ON c.id = m.channel_id\n    WHERE 1 AND m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?) GROUP BY m.channel_id ORDER BY count DESC, channelId LIMIT ?",
+      "planSummary": "SEARCH m USING INDEX messages_channel_ts (channel_id=?); LIST SUBQUERY 2; COMPOUND QUERY; LEFT-MOST SUBQUERY; SCAN CONSTANT ROW; UNION ALL; SEARCH c USING INDEX channels_parent (parent_id=?); LIST SUBQUERY 30; SEARCH hidden_ids USING PRIMARY KEY (kind=?); CREATE BLOOM FILTER; SCALAR SUBQUERY 32; SCAN hidden_ids; CORRELATED SCALAR SUBQUERY 33; SCAN h; SEARCH message_links USING COVERING INDEX sqlite_autoindex_message_links_1 (message_id=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH l USING INTEGER PRIMARY KEY (rowid=?); SEARCH u USING COVERING INDEX sqlite_autoindex_users_1 (id=?) LEFT-JOIN; SEARCH c USING INDEX sqlite_autoindex_channels_1 (id=?) LEFT-JOIN; USE TEMP B-TREE FOR ORDER BY"
+    }
+  ],
+  "limits": [
+    "Five uncached reads exceed the 100 ms budget; exact repeated reads meet it.",
+    "New query, rollup revision, privacy or zone changes invalidate cached answers.",
+    "Builds and dirty snapshots use live background worker folds.",
+    "Visible channel/server references require live folding; conversations fold the channel for adjacency.",
+    "A rebuild cannot restore retention-pruned text.",
+    "Conversation ranges select runs by their opener timestamp.",
+    "Real-archive, encrypted and renderer timings remain unverified."
+  ]
+}

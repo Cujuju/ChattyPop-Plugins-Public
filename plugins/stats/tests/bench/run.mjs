@@ -35,7 +35,12 @@ if (!process.env.STATS_BENCH_WORKER) {
     console.log(JSON.stringify(row));
   }
 } else {
-  const { runnerImport } = await import(pathToFileURL(join(host, 'node_modules/vite/dist/node/index.js')).href);
+  process.env.VITEST = '1';
+  const { runnerImport, build } = await import(pathToFileURL(join(host, 'node_modules/vite/dist/node/index.js')).href);
+  await build({ configFile: false, logLevel: 'silent', resolve: { alias: { '@shared': join(host, 'src/shared') } },
+    build: { ssr: true, target: 'node24', outDir: join(host, 'out/read-tests'), emptyOutDir: false,
+      rollupOptions: { input: { archiveReadProcess: join(host, 'src/core/reads/archiveReadProcess.ts'), archiveReadWorker: join(host, 'src/core/reads/archiveReadWorker.ts') },
+        external: [/^node:/, 'better-sqlite3-multiple-ciphers'], output: { format: 'es', entryFileNames: '[name].js' } } } });
   const { module: configModule } = await runnerImport(join(host, 'vitest.config.ts'), { configFile: false });
   const config = configModule.testConfig({ dirs: resolve(target, '..'), selection: 'stats' });
   // Historical worktrees reuse the installed plugin packages; use tldts's published ESM entry with Vite's module runner.
@@ -66,7 +71,7 @@ if (!process.env.STATS_BENCH_WORKER) {
       return resolved;
     },
   };
-  const { module } = await runnerImport(join(import.meta.dirname, 'benchmark.ts'), {
+  const { module } = await runnerImport(join(import.meta.dirname, section === 'rollups' ? 'rollupBenchmark.ts' : 'benchmark.ts'), {
     configFile: false, logLevel: 'silent', resolve: config.resolve, define: config.define,
     plugins: [...config.plugins, resolver, packages],
   });
