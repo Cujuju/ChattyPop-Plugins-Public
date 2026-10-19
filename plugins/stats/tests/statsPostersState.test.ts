@@ -23,7 +23,8 @@ vi.mock('@plugin-sdk/renderer', async () => {
     panelShown: () => () => true,
     visibilitySignal: (await import('@plugin-sdk/renderer/visibilitySignal')).visibilitySignal,
     callable: () => true,
-    coreClient: () => ({ postersPage: (query: PostersQuery) => new Promise<StatsPoster[]>((resolve, reject) => env.pending.push({ query, resolve, reject })) }),
+    coreClient: () => ({ postersPage: (query: PostersQuery) => new Promise<StatsPoster[]>((resolve, reject) => env.pending.push({ query, resolve, reject }))
+      .then((data) => ({ data, building: false, done: 1, total: 1 })) }),
     onAppEvent: (name: string, handler: () => void) => env.events.set(name, handler),
     pluginData: (await import('@plugin-sdk/renderer/data')).pluginData,
     pluginPreference: (_plugin: unknown, name: string) => {
@@ -31,7 +32,7 @@ vi.mock('@plugin-sdk/renderer', async () => {
       env.choices.set(name, setValue);
       return [value, setValue];
     },
-    pluginResource: () => Object.assign(() => null, { refetch: async () => undefined }),
+    pluginResource: () => Object.assign(() => null, { loading: false, failure: null, refetch: async () => undefined, mutate: () => undefined }),
   };
 });
 vi.mock('@plugin-sdk/renderer/kit', async () => {
