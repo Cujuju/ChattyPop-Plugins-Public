@@ -16,7 +16,7 @@ export function textIndexSql(scope: StatsSqlScope, section: string) {
   return {
     params,
     summary: `SELECT m.* FROM ${TEXT_INDEX} m WHERE ${where} AND m.author_id = '' AND ${kinds} AND ${bounds}`,
-    longest: `SELECT m.* FROM ${TEXT_INDEX} m WHERE ${where} AND m.author_id != '' AND m.kind = 'longest'
+    longest: `SELECT m.* FROM ${TEXT_INDEX} m WHERE ${where} AND m.author_id = '' AND m.kind = 'longest'
       AND m.day >= @firstMonth AND m.day <= @lastMonth AND m.day NOT IN (SELECT value FROM json_each(@edges))`,
     candidates: `SELECT m.* FROM json_each(@edges) e CROSS JOIN ${TEXT_INDEX} m
       ON m.day >= e.value || '-01' AND m.day < date(e.value || '-01', '+1 month')

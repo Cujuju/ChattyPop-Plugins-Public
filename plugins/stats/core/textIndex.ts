@@ -40,12 +40,12 @@ export async function textIndex(channel: string, read: ArchiveRead, signal: Abor
         t.series.set(key, s);
       }
     } else if (r.kind === 'longest') {
-      const { channel_id: _channel, ...candidate } = r;
-      out.push({ ...candidate, kind: 'candidate', before_n: 0 });
-      const month = r.day.slice(0, 'YYYY-MM'.length), key = JSON.stringify([r.author_id, month]);
-      const l = longest.get(key) ?? { ...r, day: month, date: '', payload: [] };
-      l.payload = l.payload.concat(JSON.parse(r.payload)).sort((a: any, b: any) => b.words - a.words || a.ts - b.ts || a.messageId.localeCompare(b.messageId)).slice(0, data.config.top);
-      longest.set(key, l);
+      for (const [kind, day] of [['candidate', r.day], ['longest', r.day.slice(0, 'YYYY-MM'.length)]]) {
+        const key = JSON.stringify([kind, day]);
+        const l = longest.get(key) ?? { ...r, kind, author_id: '', day, date: '', payload: [] };
+        l.payload = l.payload.concat(JSON.parse(r.payload)).sort((a: any, b: any) => b.words - a.words || a.ts - b.ts || a.messageId.localeCompare(b.messageId)).slice(0, data.config.top);
+        longest.set(key, l);
+      }
     } else {
       add(r, '');
       if (r.kind === 'extent') {
