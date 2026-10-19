@@ -31,7 +31,7 @@ it('falls back live when an attachment changes between a rollup read and its res
   ];
   for (const query of cases) {
     t.db.prepare("UPDATE attachments SET status = 'stored', sha256 = ?, stored_bytes = ? WHERE id = ?").run(file.sha, file.bytes, file.id);
-    await expect.poll(async () => (await client.rollupStatus()).building, { timeout: SETTLE_TIMEOUT_MS }).toBe(false);
+    await expect.poll(async () => (await client.rollupStatus()).maintaining, { timeout: SETTLE_TIMEOUT_MS }).toBe(false);
     const sources: boolean[] = [];
     const read: ArchiveRead = async <R,>(sql: string, params: Parameters<ArchiveRead>[1] = [], options: Parameters<ArchiveRead>[2] = {}) => {
       sources.push(sql.includes('p_attachments_rollup'));

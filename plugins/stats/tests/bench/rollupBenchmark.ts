@@ -35,13 +35,13 @@ export async function main(rows: number) {
     const started = performance.now();
     await host.on();
     let state;
-    while ((state = await client.rollupStatus()).building) {
+    while ((state = await client.rollupStatus()).maintaining) {
       if (state.error) throw new Error(state.error);
       if (performance.now() - started > BUILD_TIMEOUT_MS) throw new Error('Rollup build timed out');
       await new Promise((done) => setTimeout(done, POLL_MS));
     }
     report('rollup', { buildMs: performance.now() - started });
-    for (const name of ['counts_v2', 'shares', 'shares_v1_all_time', 'text_v2', 'text_v2_folded', 'runs']) {
+    for (const name of ['counts_v2', 'shares', 'shares_v1_all_time', 'text_v2', 'runs']) {
       const table = `p_stats_rollup_${name.includes('_v') ? name : name + '_v1'}`;
       report('rollup', { grain: name, rows: host.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get(),
         bytes: host.db.prepare('SELECT SUM(pgsize) AS bytes FROM dbstat WHERE name = ?').get(table) });
@@ -75,7 +75,7 @@ export async function main(rows: number) {
     for (let round = 1; round <= COLD_RUNS; round++) {
       const restarted = performance.now();
       host = host.restart(); client = host.client('renderer');
-      while ((state = await client.rollupStatus()).building) {
+      while ((state = await client.rollupStatus()).maintaining) {
         if (state.error) throw new Error(state.error);
         if (performance.now() - restarted > BUILD_TIMEOUT_MS) throw new Error('Restart did not settle');
         await new Promise((done) => setTimeout(done, POLL_MS));

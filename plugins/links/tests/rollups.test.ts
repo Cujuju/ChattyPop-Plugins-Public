@@ -16,7 +16,7 @@ it('keeps first-share counts exact through reverse history, boundaries, privacy,
   stop = () => t.dispose();
   const client = t.client('renderer');
   const settled = async () => {
-    await expect.poll(async () => { const s = await client.rollupStatus(); expect(s.error).toBeNull(); return s.building; }, { timeout: SETTLE_TIMEOUT_MS }).toBe(false);
+    await expect.poll(async () => { const s = await client.rollupStatus(); expect(s.error).toBeNull(); return s.maintaining; }, { timeout: SETTLE_TIMEOUT_MS }).toBe(false);
   };
   t.archive.arrive([{ channelId: CHANNEL, ts: START + MS_PER_DAY, content: 'https://example.test/shared' }]);
   await settled();

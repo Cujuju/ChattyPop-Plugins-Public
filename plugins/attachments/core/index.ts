@@ -13,7 +13,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     rollupStatus: () => {
       const a = rollups.counts.status(), b = rollups.files.status();
-      return { building: a.building || b.building, dirty: a.dirty + b.dirty, total: a.total + b.total, error: a.error ?? b.error };
+      return { building: a.building || b.building, maintaining: Boolean(a.maintaining || b.maintaining), dirty: a.dirty + b.dirty, total: a.total + b.total, error: a.error ?? b.error };
     },
     rebuildRollups: (channelIds) => { for (const rollup of Object.values(rollups)) rollup.rebuild(channelIds ? { channelIds } : undefined); },
     page: (q) => attachmentPage(read, ctx.archive.read.messages, q),

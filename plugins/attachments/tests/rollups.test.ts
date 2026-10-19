@@ -18,7 +18,7 @@ describe('attachment rollup equivalence', () => {
     t.archive.arrive([seedMessage(later), seedMessage(earlier)]);
     t.db.prepare("UPDATE attachments SET status = 'stored', sha256 = ?, stored_bytes = 200 WHERE id = 'later'").run(files[0].sha);
     const settled = async () => {
-      await expect.poll(async () => { const s = await client.rollupStatus(); expect(s.error).toBeNull(); return s.building; }, { timeout: SETTLE_TIMEOUT_MS }).toBe(false);
+      await expect.poll(async () => { const s = await client.rollupStatus(); expect(s.error).toBeNull(); return s.maintaining; }, { timeout: SETTLE_TIMEOUT_MS }).toBe(false);
     };
     const same = async (filter: AttachmentFilter) => {
       expect(await client.totals(filter)).toEqual(await attachmentTotals(t.read, filter));

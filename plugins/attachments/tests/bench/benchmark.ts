@@ -23,7 +23,7 @@ async function built(status: () => Promise<RollupStatus>) {
   while (true) {
     const state = await status();
     if (state.error) throw new Error(state.error);
-    if (!state.building) return;
+    if (!state.building && !state.maintaining) return;
     if (performance.now() >= deadline) throw new Error('Rollup benchmark build timed out');
     await new Promise((resolve) => setTimeout(resolve, BUILD_POLL_MS));
   }
