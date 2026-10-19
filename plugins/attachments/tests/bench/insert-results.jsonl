@@ -1,0 +1,7 @@
+{"mode":"before","run":0,"ms":2866.56,"messages":20000,"attachments":8000,"linkShares":3200,"days":390,"authors":30,"ingestion":"newest first","catalogChannels":1001}
+{"mode":"before","run":1,"ms":2746.92,"messages":20000,"attachments":8000,"linkShares":3200,"days":390,"authors":30,"ingestion":"newest first","catalogChannels":1001}
+{"mode":"before","run":2,"ms":2801.37,"messages":20000,"attachments":8000,"linkShares":3200,"days":390,"authors":30,"ingestion":"newest first","catalogChannels":1001}
+{"mode":"after","run":0,"ms":1527.74,"messages":20000,"attachments":8000,"linkShares":3200,"days":390,"authors":30,"ingestion":"newest first","catalogChannels":1001}
+{"mode":"after","run":1,"ms":1788.7,"messages":20000,"attachments":8000,"linkShares":3200,"days":390,"authors":30,"ingestion":"newest first","catalogChannels":1001}
+{"mode":"after","run":2,"ms":1530.02,"messages":20000,"attachments":8000,"linkShares":3200,"days":390,"authors":30,"ingestion":"newest first","catalogChannels":1001}
+{"beforeMedianMs":2801.37,"afterMedianMs":1530.02,"speedup":1.83}

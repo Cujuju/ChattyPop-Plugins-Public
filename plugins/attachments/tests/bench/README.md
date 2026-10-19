@@ -15,3 +15,10 @@ Results are median wall times of five warm reads, including pool transport and s
 The count-only candidate omits author and disk-byte semantics. The posting/hash candidate retains hashes across days and measures exact deduplication cost. Production uses daily author/kind/presence counts and stored author/kind/hash rows, plus materialized folds across days. Channel visibility remains live. Months fold calendar boundaries in the viewer's zone through indexed live queries.
 
 The explicit bounded-history People case measures the daily hash path; the materialized fold across days cannot answer an arbitrary bounded range. Text, minimum size and repeated-file filters use background live reads. During a build all reads remain exact through that fallback.
+
+
+## Reference-trigger insert path
+
+Run `insert-run.mjs` with the host and public-plugin worktree paths and an optional message count. `insert-results.jsonl` records three independent fixtures per variant: 20,000 messages, 8,000 attachments, 3,200 link shares, 390 days, 30 authors and 1,001 catalog channels. The unchanged fixture inserts newest first; rollups are inactive in both variants.
+
+Replacing the original per-row catalog `instr` triggers with queued row ids reduced median fixture insertion from **2,801.37 ms** to **1,530.02 ms** (**1.83×**). This measures the insert transaction, including attachments and links; it excludes reference-queue processing and initial rollup construction. Background reference work no longer blocks Core's ingest transaction.
