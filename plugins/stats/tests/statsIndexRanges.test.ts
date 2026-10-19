@@ -35,6 +35,7 @@ it('matches full folds across months, years, partial days, people and combined c
   const queries: ActivityQuery[] = [
     { scope: 'all', channelId: null, sinceTs: null },
     { scope: 'channel', channelId: 'a', sinceTs: null },
+    { scope: 'all', channelId: null, sinceTs: START + 31 * MS_PER_DAY },
     ...[0, 1, 32, 61, 96].map((d) => ({ scope: 'all' as const, channelId: null, sinceTs: START + d * MS_PER_DAY + 1 })),
     { scope: 'all', channelId: null, sinceTs: START + 1, authorId: 'one' },
   ];
@@ -50,6 +51,8 @@ it('matches full folds across months, years, partial days, people and combined c
     const q = { scope: 'channels' as const, channelIds: ['a', 'b'], sinceTs: START + since! * MS_PER_DAY + 1, untilTs: START + until! * MS_PER_DAY + 1 };
     expect(await wordStats(t.read, q, undefined, rollups)).toEqual(await wordStats(t.read, q));
   }
+  const aligned = { scope: 'channels' as const, channelIds: ['a', 'b'], sinceTs: START + 31 * MS_PER_DAY, untilTs: START + 96 * MS_PER_DAY - 1 };
+  expect(await wordStats(t.read, aligned, undefined, rollups)).toEqual(await wordStats(t.read, aligned));
   const before = await c.wordStats(queries[0]!);
   await c.rebuildRollups(); await settle();
   expect(await c.wordStats(queries[0]!)).toEqual(before);

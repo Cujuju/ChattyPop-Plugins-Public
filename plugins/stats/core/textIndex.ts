@@ -68,7 +68,9 @@ export async function textIndex(channel: string, read: ArchiveRead, signal: Abor
     for (const month of months) {
       const days = t.months.get(month) ?? new Map();
       const n = [...days.values()].reduce((a: number, b: any) => a + b, 0);
-      const packed = prefixes.get(month) ?? []; packed.push([t.term, before, n, [...days]]); prefixes.set(month, packed);
+      const packed = prefixes.get(month) ?? [];
+      packed.push([before, [...days].map(([day, uses]) => [Number(day.slice('YYYY-MM-'.length)), uses])]);
+      prefixes.set(month, packed);
       before += n;
     }
   }

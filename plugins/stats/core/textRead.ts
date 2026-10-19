@@ -30,7 +30,8 @@ export async function readTextStats<T>(read: ArchiveRead, query: TextQuery, sect
   const members = await scopeSql(read, { ...query, sinceTs: null, ...(query.scope === 'channels' ? { untilTs: null } : {}) });
   const token = rollups?.text?.snapshot();
   if (rollups && !token) throw new AnalyticsPending();
-  const cuts = [query.sinceTs, query.scope === 'channels' ? query.untilTs === null ? null : query.untilTs + 1 : null].filter((ts): ts is number => ts !== null);
+  const cuts = [query.sinceTs, query.scope === 'channels' ? query.untilTs === null ? null : query.untilTs + 1 : null]
+    .filter((ts): ts is number => ts !== null && ts % MS_PER_DAY !== 0);
   const kinds = section === 'words' ? '1' : section === 'sentiment' ? "m.kind IN ('extent', 'lengths')" : "m.kind IN ('extent', 'lengths', 'emoji')";
   const bounds = [query.sinceTs === null ? '1' : `m.day >= '${new Date(query.sinceTs).toISOString().slice(0, 'YYYY-MM-DD'.length)}'`,
     query.scope !== 'channels' || query.untilTs === null ? '1' : `m.day <= '${new Date(query.untilTs).toISOString().slice(0, 'YYYY-MM-DD'.length)}'`].join(' AND ');

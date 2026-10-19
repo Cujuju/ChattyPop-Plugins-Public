@@ -5,7 +5,7 @@ export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[]
   const utc = (ts: number) => Math.floor(ts / data.dayMs) * data.dayMs;
   const day = (ts: number) => new Date(ts).toISOString().slice(0, 'YYYY-MM-DD'.length);
   const excluded = [...new Set(cuts.map((ts) => day(utc(ts))))];
-  const first = data.sinceTs === null ? data.firstDay : day(utc(data.sinceTs) + data.dayMs);
+  const first = data.sinceTs === null ? data.firstDay : day(Math.ceil(data.sinceTs / data.dayMs) * data.dayMs);
   const last = data.untilTs === null ? data.lastDay : day(utc(data.untilTs));
   const bind = { ...data.indexSql.params, first, last, excluded: JSON.stringify(excluded) };
   if (choices) {
@@ -35,7 +35,7 @@ export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[]
   const words: any[] = [];
   for (const r of dictionaries) {
     const [last_day, terms] = JSON.parse(r.payload);
-    for (const [term, n, seq, position] of terms) words.push({ channel_id: r.channel_id, term, n, seq, position, last_day });
+    for (const [index, [term, n, seq, position]] of terms.entries()) words.push({ channel_id: r.channel_id, index, term, n, seq, position, last_day });
   }
   const limits = [first, middle, after, last];
   const months = [...new Set(limits.filter((d) => d !== data.firstDay && d !== data.lastDay).map((d) => d.slice(0, 'YYYY-MM'.length)))];
@@ -43,14 +43,15 @@ export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[]
   const known = new Map<string, any>();
   for (const r of prefixes) {
     let channel = known.get(r.channel_id); if (!channel) { channel = new Map(); known.set(r.channel_id, channel); }
-    channel.set(r.day, new Map(JSON.parse(r.payload).map(([term, before_n, n, days]: any[]) => [term, { before_n, n, days }])));
+    channel.set(r.day, JSON.parse(r.payload));
   }
   const count = (r: any, cut: string) => {
     if (cut === data.firstDay) return 0;
     if (cut === data.lastDay) return r.n;
-    const p = known.get(r.channel_id)?.get(cut.slice(0, 'YYYY-MM'.length))?.get(r.term);
+    const p = known.get(r.channel_id)?.get(cut.slice(0, 'YYYY-MM'.length))?.[r.index];
     if (!p) return cut > r.last_day ? r.n : 0;
-    return p.before_n + p.days.reduce((n: number, [day, uses]: [string, number]) => n + (day < cut ? uses : 0), 0);
+    const limit = Number(cut.slice('YYYY-MM-'.length));
+    return p[0] + p[1].reduce((n: number, [day, uses]: [number, number]) => n + (day < limit ? uses : 0), 0);
   };
   const earlier: any[] = [], later: any[] = [];
   for (const r of words) {
