@@ -1,3 +1,5 @@
+import { retryFailedRead } from './store';
+import type { ArchiveRead } from '@plugin-sdk/core';
 // Translates queued parts sequentially. Changed sources requeue; removed sources lose their translations.
 import { errorMessage, MS_PER_MIN } from '@plugin-sdk/shared';
 import { MEANING_LOOKBACK_MS, SerialLoop, type PluginDb } from '@plugin-sdk/core';
@@ -129,6 +131,12 @@ export class TranslationQueue {
     for (const messageId of retryFailed(this.d.db, Date.now())) this.d.events.changed(messageId);
     this.kick();
   }
+
+  async retryFailedRead(read: ArchiveRead): Promise<void> {
+    for (const messageId of await retryFailedRead(this.d.db, read, Date.now())) this.d.events.changed(messageId);
+    this.kick();
+  }
+
 
   /** A part of the message is queued or translating, and a model will translate it. */
   due(messageId: string): boolean {

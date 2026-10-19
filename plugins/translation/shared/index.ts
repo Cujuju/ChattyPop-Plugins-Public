@@ -38,8 +38,8 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: TranslationCoreCalls; events: TranslationEvents }>()({
     core: {
-      status: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
-      translate: { audiences: ['renderer', 'phone'], writes: true, decode: decodeTranslate },
+      status: { audiences: ['renderer', 'phone'], reads: true, writes: false, decode: decodeNoArgs },
+      translate: { audiences: ['renderer', 'phone'], syncReads: { reason: 'Indexed per-message or stored-result lookups within the shared Core budget.' }, writes: true, decode: decodeTranslate },
       retryFailed: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
     },
     events: { [STATUS_EVENT]: ['renderer', 'phone'] },

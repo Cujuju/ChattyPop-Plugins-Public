@@ -50,7 +50,7 @@ export const plugin = definePlugin({
       install: { audiences: ['renderer', 'phone'], writes: true, decode: decodeInstall },
       cancel: { audiences: ['renderer', 'phone'], writes: true, decode: decodeItem },
       deleteModel: { audiences: ['renderer', 'phone'], writes: true, decode: decodeItem },
-      request: { audiences: ['renderer', 'phone'], writes: true, decode: decodeRequest },
+      request: { audiences: ['renderer', 'phone'], syncReads: { reason: 'One requested message and its indexed transcript parts within the shared Core budget.' }, writes: true, decode: decodeRequest },
       audioFetched: { audiences: ['main'], completion: { max: AUDIO_FETCHES_MAX } },
     },
     events: { [STATUS_EVENT]: ['renderer', 'phone'], [FETCH_AUDIO]: ['main'] },

@@ -1,3 +1,4 @@
+import { countsRead, failedImagesRead } from './store';
 // Registers image-reading queues, engines, derived text, notes, and Settings/menu/main calls.
 import { join } from 'node:path';
 import { defineCorePlugin, type CoreContext, type MessageImageSource } from '@plugin-sdk/core';
@@ -134,10 +135,10 @@ export default defineCorePlugin(plugin, (ctx) => {
     return 'unavailable' in e ? statusOf(e) : statusOf({ name: e.name.split(':').slice(1).join(':') });
   };
   ctx.channels.serve({
-    failedImages: () => failedImages(db),
+    failedImages: () => failedImagesRead(ctx.storage.read),
     status: async (): Promise<ImageTextStatus> => {
       const [windows, providers] = await Promise.all([ocr.status(), providerModels(ctx)]);
-      return { ocrName: ocr.name, windows, vision: vision(), providers, counts: counts(db) };
+      return { ocrName: ocr.name, windows, vision: vision(), providers, counts: await countsRead(ctx.storage.read) };
     },
     // Normalized: a pick that isn't one is refused, not read as Settings' engine.
     request: (messageId, pick) => {
@@ -145,7 +146,7 @@ export default defineCorePlugin(plugin, (ctx) => {
       if (pick !== null && !picked) throw new Error('Not an engine image text reads with.');
       reader.request(messageId, picked);
     },
-    retryFailed: () => reader.retryFailed(),
+    retryFailed: () => reader.retryFailedRead(ctx.storage.read),
   });
   // Main's download reports are handled while off too: an image it fetched is kept for the job.
   ctx.completions.handle('imageFetched', { key: (requestId) => String(requestId) }, ([requestId, error], f) =>

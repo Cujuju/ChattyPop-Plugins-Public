@@ -1,3 +1,5 @@
+import { retryFailedRead } from './store';
+import type { ArchiveRead } from '@plugin-sdk/core';
 // Reads images sequentially; main fetches images absent from attachment storage.
 import { existsSync, rmSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
@@ -172,6 +174,12 @@ export class ImageReader {
     for (const messageId of retryFailed(this.d.db, Date.now())) this.d.events.changed(messageId);
     this.kick();
   }
+
+  async retryFailedRead(read: ArchiveRead): Promise<void> {
+    for (const messageId of await retryFailedRead(this.d.db, read, Date.now())) this.d.events.changed(messageId);
+    this.kick();
+  }
+
 
   /** Reports pending image text only when an engine will drain the queue. Unavailable explicitly selected engines fail their jobs. */
   due(messageId: string): boolean {

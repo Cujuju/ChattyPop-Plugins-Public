@@ -1,3 +1,4 @@
+import type { ArchiveRead } from '@plugin-sdk/core';
 // The jobs table: one row per translated part of a message, its queue state, the hash of its source text and the
 // translation.
 import { pluginTable } from '@plugin-sdk/shared';
@@ -138,4 +139,21 @@ export function translationNotes(db: PluginDb, messageIds: string[]): Map<string
     out.set(r.messageId, parts);
   }
   return out;
+}
+
+export async function countsRead(read: ArchiveRead): Promise<Record<TranslationJobState, number>> {
+  const out: Record<TranslationJobState, number> = { queued: 0, running: 0, done: 0, failed: 0 };
+  for (const row of await read<{ state: TranslationJobState; n: number }>(`SELECT state, COUNT(*) AS n FROM ${JOBS_TABLE} GROUP BY state`)) out[row.state] = row.n;
+  return out;
+}
+/** Retry writes yield after one small page so a large failed queue cannot monopolize Core. */
+const RETRY_WRITE_BATCH = 64;
+export async function retryFailedRead(db: PluginDb, read: ArchiveRead, now: number): Promise<string[]> {
+  const rows = await read<{ seq: number; messageId: string }>(`SELECT seq, message_id AS messageId FROM ${JOBS_TABLE} WHERE state = 'failed'`);
+  const update = db.prepare(`UPDATE ${JOBS_TABLE} SET state = 'queued', error = NULL, requested_at = ? WHERE seq = ? AND state = 'failed'`);
+  for (let offset = 0; offset < rows.length; offset += RETRY_WRITE_BATCH) {
+    db.transaction(() => { for (const row of rows.slice(offset, offset + RETRY_WRITE_BATCH)) update.run(now, row.seq); })();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  return [...new Set(rows.map((row) => row.messageId))];
 }

@@ -46,9 +46,9 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: ImageTextCoreCalls; events: ImageTextEvents }>()({
     core: {
-      status: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
-      failedImages: { audiences: ['renderer', 'phone'], writes: false, decode: decodeNoArgs },
-      request: { audiences: ['renderer', 'phone'], writes: true, decode: decodeRequest },
+      status: { audiences: ['renderer', 'phone'], reads: true, writes: false, decode: decodeNoArgs },
+      failedImages: { audiences: ['renderer', 'phone'], reads: true, writes: false, decode: decodeNoArgs },
+      request: { audiences: ['renderer', 'phone'], syncReads: { reason: 'Indexed per-message or stored-result lookups within the shared Core budget.' }, writes: true, decode: decodeRequest },
       retryFailed: { audiences: ['renderer', 'phone'], writes: true, decode: decodeNoArgs },
       imageFetched: { audiences: ['main'], completion: { max: IMAGE_FETCHES_MAX } },
     },

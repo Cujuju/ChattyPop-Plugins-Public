@@ -1,3 +1,4 @@
+import { countsRead } from './store';
 // Registers translation queue/model, derived text, part notes, and Settings/menu calls.
 import { defineCorePlugin, type CoreContext } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
@@ -95,14 +96,14 @@ export default defineCorePlugin(plugin, (ctx) => {
     statusChanged();
   });
   ctx.channels.serve({
-    status: async (): Promise<TranslationStatus> => ({ translator: statusOf(translator(null)), providers: await providerModels(ctx), counts: counts(db) }),
+    status: async (): Promise<TranslationStatus> => ({ translator: statusOf(translator(null)), providers: await providerModels(ctx), counts: await countsRead(ctx.storage.read) }),
     // Normalized: a pick that isn't one is refused, not read as Settings' model.
     translate: (messageId, pick) => {
       const picked = pick === null ? null : normalizeTranslatePick(pick);
       if (pick !== null && !picked) throw new Error('Not a model Translation translates with.');
       queue.request(messageId, picked);
     },
-    retryFailed: () => queue.retryFailed(),
+    retryFailed: () => queue.retryFailedRead(ctx.storage.read),
   });
   // After activation returns: startup's work isn't held up by the lookback's texts.
   setImmediate(() => {

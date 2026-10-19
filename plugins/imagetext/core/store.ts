@@ -1,3 +1,4 @@
+import type { ArchiveRead } from '@plugin-sdk/core';
 // The jobs table: one row per image of a message, its queue state and what was read.
 import { pluginTable } from '@plugin-sdk/shared';
 import type { MessageImage, PluginDb, PluginNote } from '@plugin-sdk/core';
@@ -184,3 +185,31 @@ export function imageNotes(db: PluginDb, messageIds: string[]): Map<string, Map<
   }
   return out;
 }
+
+export async function countsRead(read: ArchiveRead): Promise<Record<ImageJobState, number>> {
+  const out: Record<ImageJobState, number> = { queued: 0, fetching: 0, running: 0, done: 0, failed: 0 };
+  for (const row of await read<{ state: ImageJobState; n: number }>(`SELECT state, COUNT(*) AS n FROM ${JOBS_TABLE} GROUP BY state`)) out[row.state] = row.n;
+  return out;
+}
+/** Retry writes yield after one small page so a large failed queue cannot monopolize Core. */
+const RETRY_WRITE_BATCH = 64;
+export async function retryFailedRead(db: PluginDb, read: ArchiveRead, now: number): Promise<string[]> {
+  const rows = await read<{ seq: number; messageId: string }>(`SELECT seq, message_id AS messageId FROM ${JOBS_TABLE} WHERE state = 'failed'`);
+  const update = db.prepare(`UPDATE ${JOBS_TABLE} SET state = 'queued', error = NULL, requested_at = ? WHERE seq = ? AND state = 'failed'`);
+  for (let offset = 0; offset < rows.length; offset += RETRY_WRITE_BATCH) {
+    db.transaction(() => { for (const row of rows.slice(offset, offset + RETRY_WRITE_BATCH)) update.run(now, row.seq); })();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  return [...new Set(rows.map((row) => row.messageId))];
+}
+
+export async function failedImagesRead(read: ArchiveRead): Promise<FailedImage[]> {
+  return read<FailedImage>(
+    `SELECT j.seq, j.message_id AS messageId, j.channel_id AS channelId, j.image_key AS imageKey,
+            j.url, a.filename, a.sha256, a.stored_ext AS storedExt, j.error, j.requested_at AS requestedAt
+     FROM ${JOBS_TABLE} j JOIN archive_messages m ON m.id = j.message_id
+     LEFT JOIN archive_attachments a ON a.id = j.attachment_id AND a.message_id = j.message_id
+     WHERE j.state = 'failed' ORDER BY j.requested_at DESC, j.seq DESC`,
+  );
+}
+
