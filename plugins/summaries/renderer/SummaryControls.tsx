@@ -157,10 +157,13 @@ function SummaryFields(props: { id: string; onClose: () => void }) {
           onChange={(defaultProvider) => patchSummarySettings({ defaultProvider })}
         />
       </div>
-      <div class={styles.runField}>
-        <label for={`${props.id}-channels`} class={look.text} data-size="sm">Channels</label>
-        <ScopeSelect id={`${props.id}-channels`} class={styles.runSelect} value={summaryScope()} onChange={setSummaryScope} />
-      </div>
+      {/* The desktop panel's rail picks the channels. */}
+      <Show when={inCompanion}>
+        <div class={styles.runField}>
+          <label for={`${props.id}-channels`} class={look.text} data-size="sm">Channels</label>
+          <ScopeSelect id={`${props.id}-channels`} class={styles.runSelect} value={summaryScope()} onChange={setSummaryScope} />
+        </div>
+      </Show>
       <div class={styles.runField}>
         <label for={`${props.id}-range`} class={look.text} data-size="sm">Time frame</label>
         <TimeWindowSelect

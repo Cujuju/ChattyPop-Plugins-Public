@@ -1,5 +1,5 @@
 // The history list: merging a refreshed newest page with runs completed meanwhile, which runs show their body, where failed runs sit, and which row has just landed.
-import type { Summary, SummaryRunFailure } from '../shared/types';
+import type { Summary, SummaryRunFailure, SummaryScope } from '../shared/types';
 /** Core returns newest first; older paged-in rows never follow the refreshed newest page. */
 export function mergeHistoryPage<T extends { id: number }>(page: readonly T[], current: readonly T[]): T[] {
   const newest = Math.max(0, ...page.map((row) => row.id));
@@ -32,6 +32,24 @@ export function landedRow(rows: readonly HistoryEntry[], listed: ReadonlySet<str
 export function historyEntries(runs: readonly Summary[], failures: readonly SummaryRunFailure[], reachedStart: boolean): HistoryEntry[] {
   const from = reachedStart ? -Infinity : (runs[0]?.createdAt ?? Infinity);
   return [...runs, ...failures.filter((f) => f.claimedAt >= from)].sort((a, b) => enteredAt(a) - enteredAt(b));
+}
+
+/** A place as the rail picks it: a server, or one channel; null is everywhere. */
+export interface HistoryPlace { by: 'guild' | 'channel'; id: string }
+/** What a row needs of a channel: its server, and its parent when it is a thread. */
+type ChannelOf = (id: string) => { guildId: string; parentId?: string | null } | undefined;
+
+/**
+ * Whether a run read within `place`: everywhere lists every row; a server, runs that read only it (its channels count);
+ * a channel, runs that read only it or its threads. A run over everything, and a failed run (whose place isn't kept),
+ * list only everywhere.
+ */
+export function readWithin(e: HistoryEntry, place: HistoryPlace | null, channel: ChannelOf): boolean {
+  if (!place) return true;
+  const scope: SummaryScope | null = isFailure(e) ? null : e.scope;
+  if (!scope || (!scope.guildIds.length && !scope.channelIds.length)) return false;
+  if (place.by === 'guild') return scope.guildIds.every((g) => g === place.id) && scope.channelIds.every((c) => channel(c)?.guildId === place.id);
+  return !scope.guildIds.length && scope.channelIds.every((c) => c === place.id || channel(c)?.parentId === place.id);
 }
 
 /** Rows whose covered time overlaps the bounds, both ends inclusive; a null end doesn't bound. */

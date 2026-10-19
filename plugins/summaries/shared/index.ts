@@ -157,6 +157,8 @@ export const plugin = definePlugin({
   },
   // The phone's Summary section starts on the owner's range and marks the newest summary seen; not prompts or focus.
   preferences: {
+    /** The Summary panel rail's channel column is folded away. */
+    channelsHidden: definePreference<boolean>({ default: false, normalize: (v: unknown) => v === true }),
     settings: definePreference({ default: DEFAULT_SUMMARY_SETTINGS, normalize: normalizeSummarySettings, phone: ['defaultRange'] }),
     /** The newest summary seen; null until first stored. */
     seenId: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }),

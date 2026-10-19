@@ -4,7 +4,11 @@ import type { Summary, SummaryRunFailure } from '../shared/types';
 import type { SummaryTrigger } from '../shared/settings';
 import {
   look,
+  channelById,
   clockTime,
+  inCompanion,
+  isThread,
+  PlaceRail,
   now,
   shortDateTime,
   weekdayDate,
@@ -24,17 +28,21 @@ import {
   loadOlderSummaries,
   overlapUntil,
   retryFailure,
+  setSummaryChannelsHidden,
+  setSummaryScope,
   setSummaryWindow,
+  summaryChannelsHidden,
   summaryError,
   summaryFailures,
   summaryHistory,
   summaryProgress,
   summaryRunning,
+  summaryScope,
   summaryWindow,
   toggleSummary,
 } from './state';
-import { entryKey, historyEntries, isFailure, landedRow, overlapping } from './historyPage';
-import { scopeLabel } from './scope';
+import { entryKey, historyEntries, isFailure, landedRow, overlapping, readWithin } from './historyPage';
+import { placeScope, scopeLabel, scopePlace } from './scope';
 import { SummaryControls } from './SummaryControls';
 import { spansDays } from './order';
 import styles from './Summary.module.css';
@@ -70,11 +78,13 @@ export function SummaryPanel() {
     const before = body.scrollHeight;
     if (await loadOlderSummaries()) body.scrollTop += body.scrollHeight - before;
   };
-  // The runs that cover time in the window; the clock keeps a preset its length back from now. A tick that changes no
-  // row keeps the list, so nothing below re-runs.
+  // The runs that read within the rail's place and cover time in the window; the clock keeps a preset its length back
+  // from now. A tick that changes no row keeps the list, so nothing below re-runs.
   const entries = createMemo(() => {
     const { since, until } = timeBounds(summaryWindow(), now());
-    return overlapping(historyEntries(summaryHistory.items, summaryFailures(), summaryHistory.reachedStart), since, until);
+    const place = scopePlace(summaryScope());
+    const rows = historyEntries(summaryHistory.items, summaryFailures(), summaryHistory.reachedStart);
+    return overlapping(rows.filter((e) => readWithin(e, place, channelById)), since, until);
   }, [], { equals: (a, b) => a.length === b.length && a.every((e, i) => e === b[i]) });
   // Folded or filtered runs may not fill the panel, and then nothing scrolls: older runs load until they do, or none are left.
   createEffect(() => {
@@ -128,32 +138,42 @@ export function SummaryPanel() {
         </HeaderActions>
       </PanelHeader>
       <Show when={!isPanelCollapsed('summary')}>
-        <div
-          class={`cp-panel-body ${styles.body}`}
-          ref={body}
-          onScroll={() => void onScroll()}
-        >
-          <Show when={entries().length === 0 && !summaryRunning()}>
-            <p class={look.text} data-size="md" data-tone="muted">
-              {summaryWindow() !== null && summaryHistory.items.length > 0
-                ? 'No summaries cover this time frame.'
-                : 'No summary yet. Open summary options, pick a time frame, and press Run summary.'}
-            </p>
+        <div class={styles.placed}>
+          {/* The desktop picks where runs read, and whose runs list, as AI chat does; the phone picks in Summary options. */}
+          <Show when={!inCompanion}>
+            <PlaceRail place={scopePlace(summaryScope())} onPlace={(p) => setSummaryScope(placeScope(p))}
+              channelsHidden={summaryChannelsHidden()} onChannelsHidden={(hidden) => void setSummaryChannelsHidden(hidden)}
+              listsGuild={(g) => g.channels.some((c) => c.optedIn && !isThread(c))} listsChannel={(c) => c.optedIn && !isThread(c)} allServers />
           </Show>
-          <For each={entries()}>
-            {(e) => (isFailure(e) ? <FailedRun failure={e} /> : <SummaryRun summary={e} />)}
-          </For>
-          {/* After the runs: the next run lands here. */}
-          <Show when={progressText()}>
-            <p class={look.text} data-size="xs" data-font="sans" data-tone="muted" role="status">
-              {progressText()}
-            </p>
-          </Show>
-          <Show when={summaryError()}>
-            <p class={`${styles.error} ${look.text}`} data-size="md" data-tone="danger" role="alert">
-              {summaryError()}
-            </p>
-          </Show>
+          <div
+            class={`cp-panel-body ${styles.body}`}
+            ref={body}
+            onScroll={() => void onScroll()}
+          >
+            <Show when={entries().length === 0 && !summaryRunning()}>
+              <p class={look.text} data-size="md" data-tone="muted">
+                {summaryHistory.items.length === 0
+                  ? 'No summary yet. Open summary options, pick a time frame, and press Run summary.'
+                  : summaryScope() !== null
+                    ? 'No summaries of this place yet. Press Run summary to make one.'
+                    : 'No summaries cover this time frame.'}
+              </p>
+            </Show>
+            <For each={entries()}>
+              {(e) => (isFailure(e) ? <FailedRun failure={e} /> : <SummaryRun summary={e} />)}
+            </For>
+            {/* After the runs: the next run lands here. */}
+            <Show when={progressText()}>
+              <p class={look.text} data-size="xs" data-font="sans" data-tone="muted" role="status">
+                {progressText()}
+              </p>
+            </Show>
+            <Show when={summaryError()}>
+              <p class={`${styles.error} ${look.text}`} data-size="md" data-tone="danger" role="alert">
+                {summaryError()}
+              </p>
+            </Show>
+          </div>
         </div>
       </Show>
     </section>

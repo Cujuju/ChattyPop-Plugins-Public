@@ -39,6 +39,18 @@ function scopeOf(v: string): SummaryScope | null {
   return null;
 }
 
+/** The rail's place for a scope: one server or one channel; null for everything, or a scope the rail can't show. */
+export function scopePlace(s: SummaryScope | null): { by: 'guild' | 'channel'; id: string } | null {
+  const v = valueOf(s);
+  if (v.startsWith(SERVER)) return { by: 'guild', id: v.slice(SERVER.length) };
+  if (v.startsWith(CHANNEL)) return { by: 'channel', id: v.slice(CHANNEL.length) };
+  return null;
+}
+
+/** A rail pick as a scope; null reads everything. */
+export const placeScope = (p: { by: 'guild' | 'channel'; id: string } | null): SummaryScope | null =>
+  !p ? null : p.by === 'guild' ? { guildIds: [p.id], channelIds: [] } : { guildIds: [], channelIds: [p.id] };
+
 /** Same scope, whatever order its ids are in; '' for everything. */
 export const scopeKey = (s: SummaryScope | null): string =>
   isEverything(s) ? '' : JSON.stringify([[...s!.guildIds].sort(), [...s!.channelIds].sort()]);
