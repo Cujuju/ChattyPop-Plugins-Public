@@ -168,6 +168,13 @@
       "description": "ChatGPT as an AI provider, through your own Codex CLI install, sign-in or API key.",
       "releases": [
         {
+          "version": "1.4.2",
+          "tag": "codex-v1.4.2",
+          "asset": "codex-1.4.2.tar.gz",
+          "sha256": "51e8bcc9903a4a862f264b97697233efbb0d8c218a9daeb0f9f16633e18c5624",
+          "sdk": "3.13.0"
+        },
+        {
           "version": "1.4.1",
           "tag": "codex-v1.4.1",
           "asset": "codex-1.4.1.tar.gz",
