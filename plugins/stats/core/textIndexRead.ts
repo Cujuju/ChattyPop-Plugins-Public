@@ -59,7 +59,7 @@ export async function textIndexRead(read: ArchiveRead, data: any, cuts: number[]
     if (b > 0) later.push([r.term, b, r.seq, r.position]);
   }
   return [
-    { kind: 'words', date: '', aggregate: true, first_ts: midpoint - 1, payload: JSON.stringify(earlier) },
-    { kind: 'words', date: '', aggregate: true, first_ts: midpoint, payload: JSON.stringify(later) },
+    { kind: 'words', date: '', aggregate: true, first_ts: midpoint - 1, tokens: earlier },
+    { kind: 'words', date: '', aggregate: true, first_ts: midpoint, tokens: later },
   ];
 }

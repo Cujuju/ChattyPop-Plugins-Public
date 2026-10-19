@@ -120,7 +120,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const expanded: any[] = [];
   for (const r of rows) {
     if (r.kind === 'lengths') for (const [n, count, positive, negative] of r.counts) expanded.push({ ...r, kind: 'length', term: String(n), n: count, payload: { positive, negative } });
-    else { if (r.kind === 'words') r.tokens = JSON.parse(r.payload); expanded.push(r); }
+    else { if (r.kind === 'words') r.tokens ??= JSON.parse(r.payload); expanded.push(r); }
   }
   rows = expanded;
   const identity = new Map<string, any>();
@@ -165,8 +165,10 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     }
   }
   const ranked = [...counts.values()].filter((r) => eligible(r.word));
+  // ASCII letter words have no alternate canonical spellings; only other vocabularies need the collation-tie scan.
+  const collated = ranked.some((r) => !/^[a-z]+$/.test(r.word)) ? [...ranked].sort((a, b) => a.word.localeCompare(b.word)) : [];
   if (indexRead) {
-    const sorted = [...ranked].sort((a, b) => a.word.localeCompare(b.word)), ties = new Set<string>();
+    const sorted = collated, ties = new Set<string>();
     for (let i = 1; i < sorted.length; i++) if (sorted[i - 1].word.localeCompare(sorted[i].word) === 0) {
       ties.add(sorted[i - 1].word); ties.add(sorted[i].word);
     }
@@ -185,7 +187,7 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
   const changes = ranked.filter((r) => r.count >= data.trendMinUses).map((r) => ({ ...r,
     earlierRate: earlierWords ? r.earlier * data.rateScale / earlierWords : 0, laterRate: laterWords ? r.later * data.rateScale / laterWords : 0 }));
   // ICU can collate distinct spellings equally; legacy trend ties follow timestamp-group ingestion order.
-  const lexical = [...changes].sort((a, b) => a.word.localeCompare(b.word));
+  const lexical = collated.filter((r) => r.count >= data.trendMinUses);
   const tied = new Set<string>();
   for (let i = 1; i < lexical.length; i++) if (lexical[i - 1].word.localeCompare(lexical[i].word) === 0) {
     tied.add(lexical[i - 1].word); tied.add(lexical[i].word);
