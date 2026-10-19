@@ -55,7 +55,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     expect(r).toEqual({ channelIds: [CH], messages: 2, emptyChannelIds: [], failedChannelIds: [], cancelled: false });
 
     const target = tempDb();
-    const imported = importDceFiles(new Archive(target), [file]);
+    const imported = await importDceFiles(new Archive(target), [file]);
     expect(imported).toEqual({ channelIds: [CH], messages: 2, skippedFiles: [] });
     const [first, reply] = messagePage(target, { channelId: CH, limit: 10 });
     expect(first).toMatchObject({ content: 'hello <b>world</b>', author: { name: 'Alice' } });
@@ -74,10 +74,10 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     expect(html).not.toMatch(/<script/i);
   });
 
-  it('skips files that are not DCE exports', () => {
+  it('skips files that are not DCE exports', async () => {
     const bad = join(tempDir(), 'x.json');
     writeFileSync(bad, '{"hello": 1}');
-    expect(importDceFiles(new Archive(tempDb()), [bad]).skippedFiles).toEqual([bad]);
+    expect((await importDceFiles(new Archive(tempDb()), [bad])).skippedFiles).toEqual([bad]);
   });
 
   /** A DCE export of `messages` in a fresh channel, written to a file. */
@@ -106,7 +106,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
       }),
     ];
     const target = tempDb();
-    const imported = importDceFiles(new Archive(target), [dceFile(hostile)]);
+    const imported = await importDceFiles(new Archive(target), [dceFile(hostile)]);
     expect(imported.skippedFiles).toEqual([]);
     // A payload the archive already holds (any source): a count that isn't a number.
     new Archive(target).ingestMessages([rawMessage('200000000000000009', T0 + 5, 'x', { reactions: [{ emoji: { id: null, name: 'a' }, count: '<script>alert(5)</script>' as unknown as number }] })], ARRIVAL.gateway);
@@ -122,23 +122,29 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     expect(readFileSync(join(md.dir, readdirSync(md.dir)[0]!), 'utf8')).not.toMatch(/\]\(<?\s*javascript:/i);
   });
 
-  it('skips an import whose fields have the wrong types, without importing any of it', () => {
+  it('skips an import whose fields have the wrong types, without importing any of it', async () => {
     const counted = dceFile([dceMessage(1, { reactions: [{ emoji: { name: 'a' }, count: '<script>' as unknown as number }] })]);
     const nullContent = dceFile([...Array.from({ length: 501 }, (_, i) => dceMessage(i)), dceMessage(501, { content: null as unknown as string })], '200000000000000008');
     const target = tempDb();
-    expect(importDceFiles(new Archive(target), [counted, nullContent])).toEqual({ channelIds: [], messages: 0, skippedFiles: [counted, nullContent] });
+    expect(await importDceFiles(new Archive(target), [counted, nullContent])).toEqual({ channelIds: [], messages: 0, skippedFiles: [counted, nullContent] });
     expect(target.prepare('SELECT COUNT(*) FROM messages').pluck().get()).toBe(0);
   });
 
-  it('imports each file whole or not at all, and reports the files that made it', () => {
-    const good = dceFile([dceMessage(1)], '200000000000000007', 'good');
-    const failing = dceFile(Array.from({ length: 502 }, (_, i) => dceMessage(i, i === 501 ? { content: 'boom' } : {})), '200000000000000008', 'failing');
+  it('retains committed import slices after a failure and resumes on retry', async () => {
+    const failingCount = 502; // Cross the mapped page boundary and fail after at least one committed slice.
+    const good = dceFile([dceMessage(failingCount)], '200000000000000007', 'good');
+    const failing = dceFile(Array.from({ length: failingCount }, (_, i) => dceMessage(i, i === failingCount - 1 ? { content: 'boom' } : {})), '200000000000000008', 'failing');
     const target = tempDb();
     target.exec("CREATE TRIGGER boom BEFORE INSERT ON messages WHEN NEW.content = 'boom' BEGIN SELECT RAISE(ABORT, 'disk full'); END");
     const archive = new Archive(target);
-    expect(importDceFiles(archive, [good, failing])).toEqual({ channelIds: ['200000000000000007'], messages: 1, skippedFiles: [failing] });
-    expect(target.prepare("SELECT COUNT(*) FROM messages WHERE channel_id = '200000000000000008'").pluck().get()).toBe(0);
-    expect(archive.isOptedIn('200000000000000008')).toBe(false);
+    expect(await importDceFiles(archive, [good, failing])).toEqual({ channelIds: ['200000000000000007'], messages: 1, skippedFiles: [failing] });
+    const committed = target.prepare("SELECT COUNT(*) FROM messages WHERE channel_id = '200000000000000008'").pluck().get() as number;
+    expect(committed).toBeGreaterThan(0);
+    expect(committed).toBeLessThan(failingCount);
+    expect(archive.isOptedIn('200000000000000008')).toBe(true);
+    target.exec('DROP TRIGGER boom');
+    expect(await importDceFiles(archive, [failing])).toEqual({ channelIds: ['200000000000000008'], messages: failingCount - committed, skippedFiles: [] });
+    expect(target.prepare("SELECT COUNT(*) FROM messages WHERE channel_id = '200000000000000008'").pluck().get()).toBe(failingCount);
   });
 
   it('gives channels with the same names their own export file and media folder', async () => {

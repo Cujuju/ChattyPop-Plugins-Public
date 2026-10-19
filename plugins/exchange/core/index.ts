@@ -10,8 +10,8 @@ export default defineCorePlugin(plugin, (ctx) => {
   /** Stops the running export; null while none runs. */
   let stopRunning: (() => void) | null = null;
   ctx.channels.serve({
-    importDce: (paths) => {
-      const r = importDceFiles(ctx.archive.store(), paths);
+    importDce: async (paths) => {
+      const r = await importDceFiles(ctx.archive.store(), paths);
       if (r.channelIds.length) ctx.archive.optInChanged();
       r.channelIds.forEach(ctx.archive.changed);
       return r;

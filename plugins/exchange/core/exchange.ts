@@ -7,7 +7,7 @@ import type { ExchangeResult, ExportProgress, ExportRequest, ExportWritten, Sele
 import { dceToRaw, isDceExport, rawToDce, type DceExport } from './dce';
 import { FORMAT_WRITERS, type ExportHead } from './formats';
 
-/** Messages per ingest transaction during import. */
+/** Bounds mapped payload memory; the host commits smaller slices and yields within each batch. */
 const IMPORT_BATCH = 500;
 /** DCE writes DMs under this pseudo-guild. */
 const DCE_DM_GUILD_ID = '0';
@@ -32,8 +32,8 @@ const PARTIAL_SUFFIX = '.partial';
 /** Messages read, mapped and appended at a time: memory holds one page, and core gets a turn after each. */
 const EXPORT_PAGE = 1000;
 
-/** Imports each validated DCE file atomically; skips failures. Archives channels, records changed messages as revisions, and preserves local attachment paths as metadata. */
-export function importDceFiles(archive: Importer, paths: string[]): ExchangeResult {
+/** Validates files before writing, then imports resumable committed slices; re-importing retains completed messages. */
+export async function importDceFiles(archive: Importer, paths: string[]): Promise<ExchangeResult> {
   const result: ExchangeResult = { channelIds: [], messages: 0, skippedFiles: [] };
   for (const path of paths) {
     let data: unknown;
@@ -49,7 +49,7 @@ export function importDceFiles(archive: Importer, paths: string[]): ExchangeResu
     }
     const x = data;
     try {
-      result.messages += archive.atomically(() => importOne(archive, x));
+      result.messages += await importOne(archive, x);
       result.channelIds.push(x.channel.id);
     } catch (err) {
       console.warn('[exchange] import failed:', errorMessage(err));
@@ -59,17 +59,19 @@ export function importDceFiles(archive: Importer, paths: string[]): ExchangeResu
   return result;
 }
 
-function importOne(archive: Importer, x: DceExport): number {
+async function importOne(archive: Importer, x: DceExport): Promise<number> {
   const isDm = x.guild.id === DCE_DM_GUILD_ID;
   const guildId = isDm ? DM_GUILD_ID : x.guild.id;
-  archive.upsertGuilds([{ id: guildId, name: isDm ? DM_GROUP_NAME : x.guild.name }]);
-  archive.upsertChannels(guildId, [
-    { id: x.channel.id, name: x.channel.name, type: DCE_CHANNEL_TYPES[x.channel.type ?? ''] ?? 0, parent_id: x.channel.categoryId ?? null },
-  ]);
-  archive.setOptIn(x.channel.id, true);
+  archive.atomically(() => {
+    archive.upsertGuilds([{ id: guildId, name: isDm ? DM_GROUP_NAME : x.guild.name }]);
+    archive.upsertChannels(guildId, [
+      { id: x.channel.id, name: x.channel.name, type: DCE_CHANNEL_TYPES[x.channel.type ?? ''] ?? 0, parent_id: x.channel.categoryId ?? null },
+    ]);
+    archive.setOptIn(x.channel.id, true);
+  });
   let inserted = 0;
   for (let i = 0; i < x.messages.length; i += IMPORT_BATCH) {
-    inserted += archive.ingestMessages(x.messages.slice(i, i + IMPORT_BATCH).map((m) => dceToRaw(m, x.channel.id)), ARRIVAL.import).inserted;
+    inserted += (await archive.ingestMessagesBatched(x.messages.slice(i, i + IMPORT_BATCH).map((m) => dceToRaw(m, x.channel.id)), ARRIVAL.import)).inserted;
   }
   return inserted;
 }
