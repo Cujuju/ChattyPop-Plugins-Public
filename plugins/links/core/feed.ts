@@ -5,6 +5,13 @@ import type { LinkCard, LinkCursor, LinkFilter, LinkItem, LinkPageQuery, LinkSor
 import { FLAG_AT } from './judge';
 import { JUDGMENTS } from './tables';
 
+/** The filter's place over a channel id column: a channel with its threads, or every channel and thread in a server. */
+function placeSql(f: LinkFilter, column: string): { sql: string; params: string[] } | null {
+  if (f.channelId) return { sql: `(${column} = ? OR ${column} IN (SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?))`, params: [f.channelId, f.channelId] };
+  if (f.guildId) return { sql: `${column} IN (SELECT id FROM archive_all_channels WHERE guild_id = ?)`, params: [f.guildId] };
+  return null;
+}
+
 /** Builds filter SQL and parameters; l aliases links. Privacy hides links with hidden first shares or hidden channel/server destinations. */
 function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
   const parts: string[] = ['1'];
@@ -13,10 +20,10 @@ function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
     parts.push(`l.platform IN (${f.platforms.map(() => '?').join(',')})`);
     params.push(...f.platforms);
   }
-  if (f.channelId) {
-    const scope = { sql: '(l.first_channel_id = ? OR l.first_channel_id IN (SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?))', params: [f.channelId, f.channelId] };
-    parts.push(scope.sql);
-    params.push(...scope.params);
+  const place = placeSql(f, 'l.first_channel_id');
+  if (place) {
+    parts.push(place.sql);
+    params.push(...place.params);
   }
   if (f.sinceTs !== undefined) {
     parts.push('l.first_ts > ?');
@@ -38,9 +45,9 @@ type LinksSql = CoreContext['archive']['linksSql'];
 
 /** Display filters constrain preview sources as well as the link's first share. */
 function previewScope(db: PluginDb, f: LinkFilter): ArchiveToolScope | undefined {
-  if (!f.channelId && f.sinceTs === undefined && f.untilTs === undefined) return undefined;
-  const channelIds = db.prepare(`SELECT id FROM archive_channels ${f.channelId ? 'WHERE id = ? OR (is_thread = 1 AND parent_id = ?)' : ''}`)
-    .pluck().all(...(f.channelId ? [f.channelId, f.channelId] : [])) as string[];
+  const place = placeSql(f, 'id');
+  if (!place && f.sinceTs === undefined && f.untilTs === undefined) return undefined;
+  const channelIds = db.prepare(`SELECT id FROM archive_channels ${place ? `WHERE ${place.sql}` : ''}`).pluck().all(...(place?.params ?? [])) as string[];
   return { channelIds, since: f.sinceTs === undefined ? null : f.sinceTs + 1, until: f.untilTs ?? null };
 }
 

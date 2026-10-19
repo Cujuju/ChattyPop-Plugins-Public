@@ -1,5 +1,22 @@
 /* Links rows reuse Archive message styling with platform badges and origin metadata. Virtualized rows use vertical padding. TSX applies theme look attributes. */
 
+/* The place rail, then the feed. */
+.body {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* The feed beside the rail: the scroller takes what is left. Relative for the jump button. */
+.feed {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
 /* The list owns the panel's scroll; its geometry (flex, virtual rows) is inline. No padding: rows are offset-measured. */
 .list {
   min-width: 0;

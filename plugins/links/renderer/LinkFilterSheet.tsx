@@ -3,7 +3,7 @@ import { Show, createEffect, type JSX } from 'solid-js';
 import type { Platform } from '@plugin-sdk/shared';
 import { Select, Switch, look } from '@plugin-sdk/renderer/kit';
 import { OrderSegments, PlatformChips, WindowSelect, channelOptions, linkSafety, linkWorth } from './LinkFilters';
-import { linkChannelId, linkFilterCount, linkHideFlagged, resetLinkFilters, setLinkChannelId, setLinkHideFlagged } from './state';
+import { linkFilterCount, linkHideFlagged, linkWhere, resetLinkFilters, setLinkHideFlagged, setLinkWhere } from './state';
 import styles from './LinkFilters.module.css';
 
 const LABEL = { 'data-size': 'xs', 'data-weight': 'semibold', 'data-case': 'upper', 'data-tracking': 'label', 'data-tone': 'muted' } as const;
@@ -49,7 +49,7 @@ export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<P
           <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} textSize="md" />
         </Field>
         <Field label="Channel" for="links-filter-channel">
-          <Select id="links-filter-channel" class={styles.fieldSelect} value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
+          <Select id="links-filter-channel" class={styles.fieldSelect} value={linkWhere()?.by === 'channel' ? linkWhere()!.id : ''} options={channelOptions()} onChange={(v) => setLinkWhere(v ? { by: 'channel', id: v } : null)} />
         </Field>
         <Field label="Shared" for="links-filter-window">
           <WindowSelect id="links-filter-window" class={styles.fieldSelect} />

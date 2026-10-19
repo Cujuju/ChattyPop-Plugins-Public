@@ -1,15 +1,13 @@
 import { For, Show } from 'solid-js';
 import { PLATFORMS, PLATFORM_INFO, type Platform } from '@plugin-sdk/shared';
-import { SegButton, SegGroup, Select, Switch, TimeWindowSelect, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
+import { SegButton, SegGroup, Switch, TimeWindowSelect, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { LinkSort } from '../shared/types';
 import {
-  linkChannelId,
   linkHideFlagged,
   linkPlatforms,
   linkSort,
   linkWindow,
-  setLinkChannelId,
   setLinkHideFlagged,
   setLinkPlatforms,
   setLinkSort,
@@ -23,7 +21,7 @@ export const linkSafety = jevSwitch(plugin, 'linkSafety');
 
 type Counts = Partial<Record<Platform, number>>;
 
-/** The channel picker's choices: every archived channel, after "All channels". */
+/** The phone sheet's channel choices: every archived channel, after "All channels". */
 export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
 
 /** `label`: on the phone's sheet; `brief`: on the desktop header's one button, where width is short. */
@@ -97,11 +95,10 @@ const OrderButton = () => (
   </button>
 );
 
-/** Header filters: channel, platform icons, time window, order, flagged. The channel picker shrinks first; counts contains filtered platform totals. */
+/** Header filters: platform icons, time window, order, flagged (the place is the rail's); counts contains filtered platform totals. */
 export function LinkFilters(props: { counts: Counts }) {
   return (
     <div class={styles.tools}>
-      <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
       <PlatformChips counts={props.counts} class={`${styles.tool} ${styles.platforms}`} textSize="xs" brief />
       <WindowSelect class={`${styles.tool} ${styles.windowSelect}`} />
       <Show when={linkWorth.on()}>
