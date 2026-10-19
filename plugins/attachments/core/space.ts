@@ -1,6 +1,8 @@
 import type { ArchiveRead } from '@plugin-sdk/core';
 import { BREAKDOWN_LIMIT, type AttachmentBreakdown, type AttachmentFilter, type AttachmentPosting, type BreakdownBy } from '../shared/types';
 import { ATTACHMENT_FROM, AUTHOR_ID, AUTHOR_NAME, DISK_BYTES, attachmentWhere, messageColumn } from './filters';
+import { aggregateSource } from './aggregateSource';
+import type { AttachmentRollups } from './rollups';
 
 export async function attachmentPostings(read: ArchiveRead, sha256: string): Promise<AttachmentPosting[]> {
   if (typeof sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(sha256)) throw new Error('Not an attachment hash.');
@@ -23,17 +25,18 @@ const GROUP_LABEL: Record<BreakdownBy, string> = {
 };
 
 /** One materialized filtered pass; each hash counts once within a group, and once across the remainder. */
-export async function attachmentBreakdown(read: ArchiveRead, f: AttachmentFilter, by: BreakdownBy): Promise<AttachmentBreakdown[]> {
+export async function attachmentBreakdown(read: ArchiveRead, f: AttachmentFilter, by: BreakdownBy, rollups?: AttachmentRollups): Promise<AttachmentBreakdown[]> {
   if (!Object.hasOwn(GROUP_KEY, by)) throw new Error('Not a breakdown dimension.');
-  const w = attachmentWhere(f);
+  const s = aggregateSource(read, f, rollups);
+  const w = s.where;
   const label = GROUP_LABEL[by];
-  return (await read(`WITH matched AS MATERIALIZED (
-      SELECT ${GROUP_KEY[by]} AS key, a.sha256, ${DISK_BYTES} AS bytes, a.ts, a.message_id AS messageId
-      ${ATTACHMENT_FROM} WHERE ${w.sql}
+  const rows = (await s.read(`WITH matched AS MATERIALIZED (
+      SELECT ${by === 'person' ? `COALESCE(${s.author}, '')` : GROUP_KEY[by]} AS key, a.sha256, ${s.bytes} AS bytes, a.ts, a.message_id AS messageId, ${s.n} AS n
+      ${s.from} WHERE ${w.sql}
     ), files AS (SELECT key, sha256, MAX(bytes) AS bytes FROM matched WHERE bytes > 0 GROUP BY key, sha256),
     sizes AS (SELECT key, SUM(bytes) AS bytes FROM files GROUP BY key),
     ranked AS MATERIALIZED (
-      SELECT m.key, m.messageId, MAX(m.ts), COUNT(*) AS count, COALESCE(s.bytes, 0) AS bytes
+      SELECT m.key, m.messageId, MAX(m.ts), SUM(m.n) AS count, COALESCE(s.bytes, 0) AS bytes
       FROM matched m LEFT JOIN sizes s ON s.key = m.key GROUP BY m.key
     ), top AS MATERIALIZED (SELECT key FROM ranked ORDER BY bytes DESC, count DESC, key LIMIT ?),
     rest AS MATERIALIZED (SELECT * FROM ranked WHERE key NOT IN (SELECT key FROM top)),
@@ -42,7 +45,8 @@ export async function attachmentBreakdown(read: ArchiveRead, f: AttachmentFilter
     SELECT NULL AS key, 'Other' AS label,
       (SELECT COALESCE(SUM(bytes), 0) FROM (SELECT MAX(bytes) AS bytes FROM files WHERE key IN (SELECT key FROM rest) GROUP BY sha256)),
       SUM(count), COUNT(*) AS groups FROM rest HAVING COUNT(*) > 0)
-    SELECT *, (SELECT COUNT(*) FROM matched) AS totalCount,
+    SELECT *, (SELECT SUM(n) FROM matched) AS totalCount,
       (SELECT COALESCE(SUM(bytes), 0) FROM (SELECT MAX(bytes) AS bytes FROM files GROUP BY sha256)) AS totalBytes
     FROM result ORDER BY groups IS NOT NULL, bytes DESC, count DESC, key`, [...w.params, BREAKDOWN_LIMIT])) as AttachmentBreakdown[];
+  return s.current() ? rows : attachmentBreakdown(read, f, by);
 }

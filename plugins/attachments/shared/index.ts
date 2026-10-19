@@ -21,6 +21,8 @@ export const plugin = definePlugin({
   manifest: { id: 'attachments', name: 'Attachments', version: '1.21.2', description: 'Browse archived files, see what uses disk space, compress media and delete local copies.' },
   channels: defineChannels<{ core: AttachmentsCoreCalls }>()({
     core: {
+      rollupStatus: { audiences: ['renderer'], writes: false, reads: true },
+      rebuildRollups: { audiences: ['renderer'], writes: true },
       page: { audiences: ['renderer'], writes: false, reads: true },
       totals: { audiences: ['renderer'], writes: false, reads: true },
       people: { audiences: ['renderer'], writes: false, reads: true },

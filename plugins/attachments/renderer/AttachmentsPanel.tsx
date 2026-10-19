@@ -4,7 +4,7 @@ import { DayDivider, HeaderActions, HeaderButton, HeaderMeta, Icon, JumpToNewest
 import { ATTACHMENTS_PANEL } from '../shared';
 import {
   attachments, failure, filterCount, hasMoreBelow, loadMoreBelow, loadOlderAttachments, loads, reloadAttachments, resetFilters, setView, sort, topDown,
-  totals, view, jumped,
+  totals, view, jumped, refreshAttachmentAggregates,
   spaceView, setSpaceView,
   channelsHidden, places, setChannelsHidden, setWhere, where,
 } from './state';
@@ -124,6 +124,7 @@ export function AttachmentsPanel() {
           <HeaderButton variant="icon" aria-label="List view" aria-pressed={!spaceView() && view() === 'list'} onClick={() => { setSpaceView(false); void setView('list'); }}><Icon name="text" /></HeaderButton>
           <HeaderButton variant="icon" aria-label="Space" aria-pressed={spaceView()} onClick={() => setSpaceView(true)}><Icon name="chart" /></HeaderButton>
           <Show when={filterCount() > 0}><HeaderButton onClick={resetFilters}>Reset</HeaderButton></Show>
+          <RollupControls onRebuilt={refreshAttachmentAggregates} />
         </HeaderActions>
       </PanelHeader>
       <div class={styles.body} hidden={isPanelCollapsed(ATTACHMENTS_PANEL)} style={{ display: isPanelCollapsed(ATTACHMENTS_PANEL) ? 'none' : undefined }}>
@@ -165,3 +166,4 @@ export function AttachmentsPanel() {
     </section>
   );
 }
+import { RollupControls } from './RollupControls';

@@ -1,4 +1,5 @@
 import type { ArchiveMessage } from '@plugin-sdk/shared';
+import type { RollupStatus } from '@plugin-sdk/shared';
 
 export const ATTACHMENT_KINDS = ['image', 'video', 'audio', 'file'] as const;
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
@@ -78,6 +79,8 @@ export interface AttachmentBreakdown {
 }
 
 export interface AttachmentsCoreCalls {
+  rollupStatus(): RollupStatus;
+  rebuildRollups(channelIds?: string[]): void;
   page(q: AttachmentPageQuery): AttachmentItem[];
   totals(f: AttachmentFilter): AttachmentTotals;
   people(q: PeopleQuery): PersonRow[];

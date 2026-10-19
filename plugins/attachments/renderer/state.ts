@@ -150,6 +150,12 @@ export const rereadAttachments = (): Promise<void> => {
   }), false);
 };
 
+/** Owner rebuild completion refreshes the visible aggregates through their existing read lifetimes. */
+export async function refreshAttachmentAggregates(): Promise<void> {
+  if (!isShown()) return;
+  await Promise.all([reloadAttachments(), people.refetch(), places.refetch(), months.refetch(), breakdown.refetch()]);
+}
+
 containedRoot(() => {
   createEffect(() => selection.retain(attachments.items));
   createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, repeated, queryName, sort, anchor, isShown, () => callable(plugin, 'page')],

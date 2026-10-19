@@ -31,16 +31,22 @@ export function monthBounds(month: string, timeZone?: string): { start: number; 
   return { start: monthStart(year, number - 1, timeZone), end: monthStart(year, number, timeZone) };
 }
 
-/** The calendar month, as `YYYY-MM`, that `ts` falls in within `timeZone`, else this process's zone. */
-export function monthOf(ts: number, timeZone?: string): string {
-  let year: number, month: number;
-  if (timeZone) {
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric' }).formatToParts(ts);
-    const part = Object.fromEntries(parts.map((p) => [p.type, Number(p.value)]));
-    [year, month] = [part.year!, part.month!];
-  } else {
-    const date = new Date(ts);
-    [year, month] = [date.getFullYear(), date.getMonth() + 1];
-  }
-  return `${year}-${String(month).padStart(MONTH_DIGITS, '0')}`;
+/** Reuses one formatter for calendar months in an IANA zone, or this process's own zone. */
+export function monthReader(timeZone?: string): (ts: number) => string {
+  const format = timeZone ? new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric' }) : null;
+  return (ts) => {
+    let year: number, month: number;
+    if (format) {
+      const parts = format.formatToParts(ts);
+      const part = Object.fromEntries(parts.map((p) => [p.type, Number(p.value)]));
+      [year, month] = [part.year!, part.month!];
+    } else {
+      const date = new Date(ts);
+      [year, month] = [date.getFullYear(), date.getMonth() + 1];
+    }
+    return `${year}-${String(month).padStart(MONTH_DIGITS, '0')}`;
+  };
 }
+
+/** One timestamp's month; scans reuse monthReader's formatter. */
+export function monthOf(ts: number, timeZone?: string): string { return monthReader(timeZone)(ts); }

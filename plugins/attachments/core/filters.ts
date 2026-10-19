@@ -1,6 +1,6 @@
 import type { AttachmentFilter } from '../shared/types';
 
-const ON_DISK = "a.status = 'stored' AND a.sha256 IS NOT NULL";
+export const ON_DISK = "a.status = 'stored' AND a.sha256 IS NOT NULL";
 /** What largest orders by and a tile shows: bytes on this PC, else Discord's size. A freed file's old stored size is ignored. */
 export const SIZE_KEY = `COALESCE(CASE WHEN ${ON_DISK} THEN a.stored_bytes END, a.size, 0)`;
 export const DISK_BYTES = `CASE WHEN ${ON_DISK} THEN ${SIZE_KEY} ELSE 0 END`;
