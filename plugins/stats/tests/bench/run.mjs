@@ -71,7 +71,7 @@ if (!process.env.STATS_BENCH_WORKER) {
       return resolved;
     },
   };
-  const { module } = await runnerImport(join(import.meta.dirname, section === 'rollups' ? 'rollupBenchmark.ts' : 'benchmark.ts'), {
+  const { module } = await runnerImport(join(import.meta.dirname, section === 'rollups' ? 'rollupBenchmark.ts' : section === 'review' ? 'reviewBenchmark.ts' : 'benchmark.ts'), {
     configFile: false, logLevel: 'silent', resolve: config.resolve, define: config.define,
     plugins: [...config.plugins, resolver, packages],
   });

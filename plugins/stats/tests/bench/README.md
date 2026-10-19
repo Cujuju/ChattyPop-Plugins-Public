@@ -120,3 +120,16 @@ The same 400k synthetic fixture and unencrypted driver were used before and afte
 The completed build took 26,994.92 ms. The rejected term-row grain used 1,954,879 rows and 214,208,512 table bytes. Packed lexical frequencies, exact length histograms and bounded longest-message candidates use 95,160 rows and 90,873,856 table bytes. URL shares also have a materialized all-time fold. Table sizes exclude indexes. Exact JSON measurements are in `E:\Development\Projects\worktrees\ChattyPop-Plugins-Public-archive-refresh\plugins\stats\tests\bench\phase4-results.json`; the public record is [issue #164](https://github.com/Cujuju/ChattyPop/issues/164).
 
 Completed reads are bounded to 64 entries per activation and keyed by exact query plus host snapshot tokens, including visibility and zone state. Dirty builds bypass caching; partial range and trend-midpoint days fold live. Known channel/server references remain live, and a conversation channel containing visible references folds its runs live for adjacency. A rebuild cannot recover retention-pruned text. Runs belong to their opener's UTC day and ranges select their opener timestamp.
+
+
+## Archive-refresh fix round 2 — 2026-10-19
+
+The `review` benchmark mode uses 200,000 stored runs in one channel. P4-1 measures five batches of 100 newest-message inserts with the same mutation-safe triggers, swapping only the index's start/end column order. Median insert cost is **11.284 ms → 0.112 ms**. Query plans change from `channel_id=? AND first_ts<?` to `channel_id=? AND last_ts>?`.
+
+Q4 runs the same conversation projection inline, then through the production worker and bounded cache. Inline wall time is **284.268 ms**, with the first Core turn taking **278.665 ms**. The cold worker call takes **552.878 ms** total and **1.025 ms** for its first Core turn; the cached median is **0.052 ms** total and **0.046 ms** for its first turn. The worker returns **667 bytes**, rather than the run history. Cold worker latency remains above the 100 ms panel budget at this run count.
+
+The standard 400,000-message rollup benchmark rebuilt in **27,924.698 ms**. Conversation reads take **12.58 ms** cold / **4.63 ms** warm median; Words takes **1,362.75 ms** cold / **1.20 ms** warm median. All eleven warm medians pass 100 ms. Five cold reads exceed it: activity, voice, emoji, words and sentiment. Exact per-panel values and the comparison method are recorded in `review-round2-results.json`.
+
+Core caches projected results under normalized query keys, with both a 64-entry limit and an 8 MiB serialized-data budget. Production text reads use the worker; the legacy trend reference lives only in test helpers. Tests cover 200,000-message reference bootstrap, 200,000-row lexical/count folds and 200,000-run conversation projections.
+
+Residual triggers: new or removed channel/guild ids cause channel/day text checks in privacy views until catalog classification drains; frequent same-channel writes can retry span publication; eligible distinct word spellings with equal ICU collation request a worker text scan to preserve timestamp-group tie order. Historical backfills can visit many future runs through the end-time index. These synthetic measurements do not establish encrypted or real-archive latency.

@@ -1,0 +1,257 @@
+{
+  "date": "2026-10-19",
+  "fixture": "synthetic, unencrypted; no running app or real archive",
+  "method": "P4-1 swaps the start/end index on identical mutation-safe triggers. Q4 compares the same inline projection with the production worker and bounded cache.",
+  "review": [
+    {
+      "kind": "review",
+      "finding": "P4-1",
+      "variant": "before",
+      "storedRuns": 200000,
+      "insertsPerSample": 100,
+      "medianMsPerInsert": 11.284,
+      "plan": [
+        {
+          "id": 2,
+          "parent": 0,
+          "notused": 47,
+          "detail": "SEARCH p_stats_rollup_runs_v1 USING COVERING INDEX p_stats_rollup_runs_v1_span (channel_id=? AND first_ts<?)"
+        }
+      ]
+    },
+    {
+      "kind": "review",
+      "finding": "P4-1",
+      "variant": "after",
+      "storedRuns": 200000,
+      "insertsPerSample": 100,
+      "medianMsPerInsert": 0.112,
+      "plan": [
+        {
+          "id": 2,
+          "parent": 0,
+          "notused": 47,
+          "detail": "SEARCH p_stats_rollup_runs_v1 USING COVERING INDEX p_stats_rollup_runs_v1_span (channel_id=? AND last_ts>?)"
+        }
+      ]
+    },
+    {
+      "kind": "review",
+      "finding": "Q4",
+      "variant": "before-core-projection",
+      "storedRuns": 200000,
+      "wallMs": 284.268,
+      "firstTurnMs": 278.665,
+      "bytesReturned": 667
+    },
+    {
+      "kind": "review",
+      "finding": "Q4",
+      "variant": "after-worker-cold",
+      "storedRuns": 200000,
+      "wallMs": 552.878,
+      "firstTurnMs": 1.025,
+      "bytesReturned": 667
+    },
+    {
+      "kind": "review",
+      "finding": "Q4",
+      "variant": "after-worker-cached",
+      "storedRuns": 200000,
+      "wallMs": 0.052,
+      "firstTurnMs": 0.046,
+      "bytesReturned": 667
+    }
+  ],
+  "rollups400k": [
+    {
+      "kind": "rollup",
+      "seed": {
+        "rows": 400000,
+        "textMessages": 384000,
+        "linkedMessages": 64000,
+        "days": 390,
+        "authors": 30,
+        "vocabulary": 40000,
+        "meanCharacters": 83.97233,
+        "ingestion": "reverse timestamp",
+        "encrypted": false
+      }
+    },
+    {
+      "kind": "rollup",
+      "buildMs": 27924.698300000004
+    },
+    {
+      "kind": "rollup",
+      "grain": "counts",
+      "rows": {
+        "n": 23400
+      },
+      "bytes": {
+        "bytes": 5664768
+      }
+    },
+    {
+      "kind": "rollup",
+      "grain": "shares",
+      "rows": {
+        "n": 64000
+      },
+      "bytes": {
+        "bytes": 10919936
+      }
+    },
+    {
+      "kind": "rollup",
+      "grain": "shares_v1_all_time",
+      "rows": {
+        "n": 1920
+      },
+      "bytes": {
+        "bytes": 319488
+      }
+    },
+    {
+      "kind": "rollup",
+      "grain": "text",
+      "rows": {
+        "n": 95160
+      },
+      "bytes": {
+        "bytes": 90873856
+      }
+    },
+    {
+      "kind": "rollup",
+      "grain": "runs",
+      "rows": {
+        "n": 1
+      },
+      "bytes": {
+        "bytes": 4096
+      }
+    },
+    {
+      "kind": "cold",
+      "read": "activityStats",
+      "ms": 316.6
+    },
+    {
+      "kind": "rollup",
+      "read": "activityStats",
+      "medianMs": 2.02,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "peopleStats",
+      "ms": 91.76
+    },
+    {
+      "kind": "rollup",
+      "read": "peopleStats",
+      "medianMs": 1.48,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "postersPage",
+      "ms": 55.92
+    },
+    {
+      "kind": "rollup",
+      "read": "postersPage",
+      "medianMs": 1.32,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "personStreaks",
+      "ms": 70.41
+    },
+    {
+      "kind": "rollup",
+      "read": "personStreaks",
+      "medianMs": 1.61,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "personHistory",
+      "ms": 92.01
+    },
+    {
+      "kind": "rollup",
+      "read": "personHistory",
+      "medianMs": 1.83,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "voiceStats",
+      "ms": 137.69
+    },
+    {
+      "kind": "rollup",
+      "read": "voiceStats",
+      "medianMs": 1.76,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "repeatedLinks",
+      "ms": 69.93
+    },
+    {
+      "kind": "rollup",
+      "read": "repeatedLinks",
+      "medianMs": 1.55,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "emojiStats",
+      "ms": 415.93
+    },
+    {
+      "kind": "rollup",
+      "read": "emojiStats",
+      "medianMs": 0.7,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "wordStats",
+      "ms": 1362.75
+    },
+    {
+      "kind": "rollup",
+      "read": "wordStats",
+      "medianMs": 1.2,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "sentimentStats",
+      "ms": 352.73
+    },
+    {
+      "kind": "rollup",
+      "read": "sentimentStats",
+      "medianMs": 0.78,
+      "withinBudget": true
+    },
+    {
+      "kind": "cold",
+      "read": "conversationStats",
+      "ms": 12.58
+    },
+    {
+      "kind": "rollup",
+      "read": "conversationStats",
+      "medianMs": 4.63,
+      "withinBudget": true
+    }
+  ]
+}
