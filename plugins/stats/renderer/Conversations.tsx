@@ -4,7 +4,7 @@ import { CONVERSATION_GAP_MINUTES } from '../shared/conversations';
 import { GRAPH_PEOPLE_MAX } from './graphInputs';
 import { conversations, namesChannelId } from './state';
 import { TalkGraph } from './TalkGraph';
-import { CountRows, SHARE_ROW, Subheading, countLabel, formatCount, share } from './section';
+import { Building, CountRows, SHARE_ROW, Subheading, countLabel, formatCount, share } from './section';
 import styles from './Stats.module.css';
 import { ConversationRoles } from './ConversationRoles';
 import { PosterIdentity } from './PosterRow';
@@ -13,6 +13,7 @@ export function Conversations() {
   return <section class={styles.section} aria-label="Conversations" aria-busy={conversations.loading}>
     <Show when={conversations.failure}><p class="cp-error" role="alert">Couldn't load Conversations. {conversations.failure}</p></Show>
     <Show when={conversations.loading && !conversations()}><p class={look.text} data-size="sm" data-tone="muted" role="status">Loading Conversations…</p></Show>
+    <Building label="Conversations" read={conversations.result()} loading={conversations.loading} />
     <Show when={conversations()}>{(stats) => <>
       <p class={look.text} data-size="xs" data-tone="muted">Read {countLabel(stats().messages, 'archived message')}. A conversation run ends after a {CONVERSATION_GAP_MINUTES}-minute lull within a channel.</p>
       <CountRows rows={[{ name: 'Conversation runs', count: stats().conversations }, { name: 'Runs with two or more people', count: stats().pairedConversations }]} />

@@ -1,7 +1,7 @@
 import { Show } from 'solid-js';
 import { onCleanup } from '@plugin-sdk/renderer';
 import { HeaderActions, HeaderButton, Icon, isPanelCollapsed, look, PanelHeader, personOption, PlaceRail, SearchSelect, SectionSplit, Select, type SectionDef } from '@plugin-sdk/renderer/kit';
-import { namesChannelId, personOptions, refreshStats, setStatsAuthor, setStatsChannelsHidden, setStatsPlace, setStatsRange, setStatsSection, stats, statsAuthor, statsChannelsHidden, statsLoading, statsPanelMounted, statsPlace, statsRange, statsSection } from './state';
+import { namesChannelId, personOptions, refreshStats, setStatsAuthor, setStatsChannelsHidden, setStatsPlace, setStatsRange, setStatsSection, stats, statsAuthor, statsChannelsHidden, statsLoading, statsPanelMounted, statsPlace, statsRange, statsSection, statsBuild } from './state';
 import { STATS_RANGES, STATS_SECTIONS, type StatsRange, type StatsSection } from '../shared/types';
 import { STATS_PANEL } from '../shared';
 import { Overview } from './Overview';
@@ -15,7 +15,7 @@ import { Words } from './Words';
 import { Sentiment } from './Sentiment';
 import { Conversations } from './Conversations';
 import { RollupControls } from './RollupControls';
-import { countLabel } from './section';
+import { Building, buildProgress, countLabel } from './section';
 import styles from './Stats.module.css';
 
 const SECTION_VIEWS = {
@@ -56,6 +56,10 @@ export function StatsPanel() {
             <div class="cp-panel-body cp-settings-page" aria-busy={stats.loading}>
               <Show when={stats.failure}><p class="cp-error" role="alert">Couldn't load Analytics.</p></Show>
               <Show when={stats.loading && !stats()}><p class={look.text} data-size="md" data-tone="muted" role="status">Loading Analytics…</p></Show>
+              <Building label="Analytics" read={stats.result()} loading={stats.loading} />
+              <Show when={stats() && statsBuild()}>{(read) =>
+                <p class={look.text} data-size="xs" data-tone="muted" role="status">Showing earlier results while Analytics updates…{buildProgress(read())}</p>
+              }</Show>
               <Show when={stats()}>{(s) => {
                 const sections: SectionDef[] = Object.entries(STATS_SECTIONS).map(([id, label]) => {
                   const View = SECTION_VIEWS[id as StatsSection];

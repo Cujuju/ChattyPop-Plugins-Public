@@ -1,6 +1,7 @@
-import { For, type Accessor, type JSX } from 'solid-js';
+import { For, Show, type Accessor, type JSX } from 'solid-js';
 import { look } from '@plugin-sdk/renderer/kit';
 import type { ActivityStats } from '../shared/types';
+import type { AnalyticsRead } from '../shared/readResult';
 import styles from './Stats.module.css';
 
 export interface StatsSectionProps {
@@ -11,6 +12,7 @@ const HEADING = { 'data-size': '2xs', 'data-weight': 'medium', 'data-case': 'upp
 export const CHART_LABEL = { 'data-size': '2xs', 'data-tone': 'muted' } as const;
 export const SHARE_ROW = { 'data-size': 'sm', 'data-tone': 'primary' } as const;
 const COUNT = new Intl.NumberFormat(undefined);
+const PERCENT = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 });
 
 export const formatCount = (n: number): string => COUNT.format(n);
 export const countLabel = (n: number, word: string, many = `${word}s`): string => `${formatCount(n)} ${n === 1 ? word : many}`;
@@ -37,4 +39,15 @@ export function CountRows(props: { rows: { name: string; count: number }[]; lead
       )}</For>
     </ul>
   );
+}
+
+/** Share of counted rebuild work; empty until the host has counted it (totals grow as work is found). */
+export const buildProgress = (read: AnalyticsRead<unknown>): string => read.total > 0 ? ` ${PERCENT.format(read.done / read.total)}` : '';
+
+/** A read with nothing published yet reports its rebuild; one with earlier data keeps showing it. */
+export function Building(props: { label: string; read: AnalyticsRead<unknown> | null | undefined; loading?: boolean }) {
+  const pending = () => !props.loading && props.read?.building && props.read.data === null ? props.read : undefined;
+  return <Show when={pending()}>{(read) =>
+    <p class={look.text} data-size="sm" data-tone="muted" role="status">Building {props.label}…{buildProgress(read())}</p>
+  }</Show>;
 }

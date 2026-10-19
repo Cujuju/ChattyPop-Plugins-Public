@@ -10,3 +10,6 @@ export function analyticsResource<T>(resource: PluginResource<AnalyticsRead<T> |
     mutate: { value: (data: T | null) => resource.mutate({ ...(resource() ?? { building: false, done: 0, total: 0 }), data }) },
   }) as PluginResource<T | null> & { result: typeof resource };
 }
+
+/** A data selector with its publication envelope. */
+export type AnalyticsResource<T> = ReturnType<typeof analyticsResource<T>>;

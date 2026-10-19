@@ -3,7 +3,7 @@ import { look } from '@plugin-sdk/renderer/kit';
 import { POSTERS_TOP } from '../shared/types';
 import { createPosterList, people, statsAuthor, namesChannelId } from './state';
 import { PosterRow } from './PosterRow';
-import { Subheading, countLabel, type StatsSectionProps } from './section';
+import { Building, Subheading, countLabel, type StatsSectionProps } from './section';
 import styles from './Stats.module.css';
 import { PersonStreakRows } from './StreakRows';
 import { Voice } from './Voice';
@@ -18,7 +18,8 @@ export function People(props: StatsSectionProps) {
     <section class={styles.section} aria-label="People">
       <Show when={statsAuthor() !== null}>
         <Subheading>Person in this scope and range</Subheading>
-        <Show when={people()?.person} fallback={<p class={look.text} data-size="sm" data-tone="muted">No messages in this range.</p>}>{(person) =>
+        <Building label="this person's analytics" read={people.result()} loading={people.loading} />
+        <Show when={people()?.person} fallback={<Show when={people() && !people.loading}><p class={look.text} data-size="sm" data-tone="muted">No messages in this range.</p></Show>}>{(person) =>
           <ol class={styles.list}><PosterRow poster={person().poster} rank={person().rank} channelId={namesChannelId()} max={person().poster.count}
             value={`${countLabel(person().poster.count, 'message')} · rank ${person().rank}`} /></ol>
         }</Show>
