@@ -1,23 +1,8 @@
-import type { ArchiveRead } from '@plugin-sdk/core';
-import { MS_PER_DAY } from '@plugin-sdk/shared';
+import { rollupRange, type ArchiveRead } from '@plugin-sdk/core';
 import type { AttachmentFilter } from '../shared/types';
 import { ATTACHMENT_FROM, AUTHOR_ID, DISK_BYTES, ON_DISK, attachmentWhere } from './filters';
 import { COUNTS, FILES, COUNT_ALL, FILE_ALL, type AttachmentRollups } from './rollups';
 import { aggregateWhere } from './aggregateWhere';
-
-const FIRST_TS = 0; // Discord archive timestamps are after the Unix epoch.
-const LAST_TS = Number.MAX_SAFE_INTEGER; // An omitted upper bound includes every representable archive millisecond.
-const FIRST_DAY = '0000-01-01'; // Unbounded range sentinel sorts before every Discord UTC date.
-const LAST_DAY = '9999-12-31'; // Unbounded range sentinel sorts after every Discord UTC date.
-
-export function wholeDays(f: { sinceTs?: number; untilTs?: number }) {
-  for (const ts of [f.sinceTs, f.untilTs]) if (ts !== undefined && !Number.isFinite(ts)) throw new Error('Invalid rollup range');
-  const start = f.sinceTs === undefined ? FIRST_TS : Math.ceil((f.sinceTs + 1) / MS_PER_DAY) * MS_PER_DAY;
-  const end = f.untilTs === undefined ? LAST_TS : Math.floor((f.untilTs + 1) / MS_PER_DAY) * MS_PER_DAY;
-  const first = f.sinceTs === undefined ? FIRST_DAY : new Date(start).toISOString().slice(0, 10);
-  const last = f.untilTs === undefined ? LAST_DAY : new Date(end).toISOString().slice(0, 10);
-  return { start, end, sql: `day >= '${first}' AND day < '${last}'` };
-}
 
 /** Unsupported text, size and duplicate filters use the original visible archive at background priority. */
 export function aggregateSource(read: ArchiveRead, filter: AttachmentFilter, rollups?: AttachmentRollups, disk = true, byDay = false) {
@@ -27,7 +12,7 @@ export function aggregateSource(read: ArchiveRead, filter: AttachmentFilter, rol
   const usable = counts !== null && files !== null;
   const queryRead: ArchiveRead = usable ? read : (sql, params, options) => read(sql, params, { ...options, priority: 'background' });
   if (!usable) return { read: queryRead, from: ATTACHMENT_FROM, where: attachmentWhere(filter), count: 'COUNT(*)', n: '1', author: AUTHOR_ID, bytes: DISK_BYTES, live: true, current: () => true };
-  const range = wholeDays(filter);
+  const range = rollupRange(filter.sinceTs === undefined ? undefined : filter.sinceTs + 1, filter.untilTs === undefined ? undefined : filter.untilTs + 1);
   const bounded = filter.sinceTs !== undefined || filter.untilTs !== undefined;
   const countSource = bounded || byDay ? `SELECT * FROM ${COUNTS} WHERE ${range.sql}` : `SELECT * FROM ${COUNT_ALL}`;
   const fileSource = bounded || byDay ? `SELECT * FROM ${FILES} WHERE ${range.sql}` : `SELECT * FROM ${FILE_ALL}`;

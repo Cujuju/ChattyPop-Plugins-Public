@@ -1,4 +1,4 @@
-import { rollupView, type ArchiveRead } from '@plugin-sdk/core';
+import { rollupRange, rollupView, type ArchiveRead } from '@plugin-sdk/core';
 import { POSTERS_TOP, STATS_TOP, ATTACHMENT_KINDS, EDIT_DELAY_BUCKETS, type ActivityQuery } from '../shared/types';
 import { countWork } from './countWork';
 import { COUNT_DATA, COUNT_VIEW, ROLLUP_VERSION, type StatsRollups } from './rollups';
@@ -36,7 +36,7 @@ export async function projectCounts<T>(read: ArchiveRead, query: TextQuery, memb
   const rowsSql = `SELECT m.channel_id, m.day, ${columns} FROM ${COUNT_VIEW} m WHERE ${scope.sql} AND m.day NOT IN (SELECT value FROM json_each(?))`
     + (needsLinks ? ` UNION ALL SELECT m.channel_id, ${query.sinceTs === null ? 'NULL' : 'm.day'}, ${columns} FROM ${shares} m WHERE ${scope.sql}`
       + (query.sinceTs === null ? '' : ' AND m.day NOT IN (SELECT value FROM json_each(?))') : '');
-  const days = JSON.stringify([...new Set(cuts.map((ts) => new Date(Math.floor(ts / MS_PER_DAY) * MS_PER_DAY).toISOString().slice(0, 'YYYY-MM-DD'.length)))]);
+  const days = JSON.stringify([...new Set(cuts.flatMap((ts) => rollupRange(ts, ts).boundaryDays))]);
   const rowsParams = [...scope.params, days, ...(needsLinks ? [...scope.params, ...(query.sinceTs === null ? [] : [days])] : [])];
   const load = async (view?: string) => (await read<T>('SELECT 1', [], { signal, priority: view ? 'interactive' : 'background', fold: {
     source: countWork.toString(), data: { ...COUNT_DATA, timeZone, mode: 'read', sql: scope.sql, params: scope.params, cuts, view, rowsSql, rowsParams, channelsSql: `SELECT DISTINCT m.channel_id FROM ${COUNT_VIEW} m WHERE ${scope.sql}`,
