@@ -15,12 +15,7 @@
   flex: none;
 }
 
-/* The source filter: its button, and the checklist hanging under it. */
-.sources {
-  position: relative;
-}
-
-/* At the header's control height, beside the time window select. */
+/* The source filter's button (FilterMenu draws the checklist): at the header's control height, beside the time window select. */
 .sourceTrigger {
   display: inline-flex;
   align-items: center;
@@ -52,82 +47,6 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* With cp-popover: under the button, its end edge aligned to the button's. */
-.sourceMenu {
-  position: absolute;
-  top: calc(100% + var(--cp-popover-gap));
-  right: 0;
-  z-index: var(--cp-z-popover);
-  display: flex;
-  flex-direction: column;
-  min-width: var(--cp-menu-min-w);
-  max-height: var(--cp-search-list-max-h);
-  overflow-y: auto;
-}
-
-/* "Sources", with Show all at the far end while any is hidden. */
-.sourceHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cp-space-4);
-  margin-bottom: var(--cp-space-2);
-  padding: var(--cp-space-2) var(--cp-space-4) var(--cp-space-3);
-  white-space: nowrap;
-}
-
-/* A source, with Only over its count while the row is pointed at or focused. */
-.sourceRow {
-  position: relative;
-}
-
-/* check | tile | name | count. */
-.sourceOption {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--cp-space-4);
-  padding: var(--cp-space-2) var(--cp-space-4);
-  white-space: nowrap;
-}
-
-.sourceTile {
-  display: grid;
-  place-items: center;
-  width: var(--cp-identity-tile);
-  height: var(--cp-identity-tile);
-}
-
-.sourceIcon {
-  width: var(--cp-icon-md);
-  height: var(--cp-icon-md);
-}
-
-.sourceName {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.only {
-  position: absolute;
-  top: 50%;
-  right: var(--cp-space-4);
-  translate: 0 -50%;
-  padding: 0 var(--cp-space-3);
-  visibility: hidden;
-}
-
-.sourceRow:hover .only,
-.sourceRow:focus-within .only {
-  visibility: visible;
-}
-
-.sourceRow:hover .sourceCount,
-.sourceRow:focus-within .sourceCount {
-  visibility: hidden;
 }
 
 /* The order button: its text at the header's control height, with the chips' side padding. */
