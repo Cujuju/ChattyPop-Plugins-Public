@@ -60,10 +60,13 @@ export interface LinkCursor {
 /** newest: by first share. worth: most worth reading first (#63), unjudged last, then newest. */
 export type LinkSort = 'newest' | 'worth';
 
-/** Channel filter matches the channel where the link was first shared (items are deduped by URL). */
+/** The place filter matches where the link was first shared (items are deduped by URL). */
 export interface LinkFilter {
   platforms?: Platform[];
+  /** One channel with its threads; takes the place of `guildId`. */
   channelId?: string;
+  /** Every channel and thread in one server (DMs: their own server id). */
+  guildId?: string;
   sinceTs?: number;
   untilTs?: number;
   /** Leave out links Jev flagged (#62). */

@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { dayStreaks } from '../core/streaks';
 import { MS_PER_HOUR } from '@plugin-sdk/shared';
@@ -92,7 +92,7 @@ describe('Analytics streaks and silences', () => {
     ]);
     t.archive.setPrivacyMode(true);
     expect((await core.personStreaks(CHANNEL))[0]?.days).toBe(2);
-    expect((await core.personStreaks({ ...CHANNEL, scope: 'server' }))[0]?.days).toBe(3);
+    expect((await core.personStreaks({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id }))[0]?.days).toBe(3);
     expect(await core.personStreaks({ ...CHANNEL, scope: 'all', sinceTs: at(2, 2) })).toEqual([
       { userId: 'u1', name: 'Alice', avatar: null, days: 2, start: '2026-02-02', end: '2026-02-03' },
     ]);

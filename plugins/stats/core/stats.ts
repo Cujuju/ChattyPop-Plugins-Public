@@ -22,18 +22,11 @@ export async function scopeSql(read: ArchiveRead, q: TextQuery): Promise<StatsSq
     // One membership range lets SQLite retain channel index order instead of merging two index scans.
     parts.push('m.channel_id IN (SELECT ? UNION ALL SELECT id FROM archive_all_channels WHERE is_thread = 1 AND parent_id = ?)');
     params.push(q.channelId, q.channelId);
-  } else if (q.scope === 'server' && q.channelId) {
-    const guildId = (await read<{ guild_id: string | null }>('SELECT guild_id FROM archive_all_channels WHERE id = ?', [q.channelId]))[0]?.guild_id;
-    // A DM (no server) stands alone.
-    if (guildId) {
-      parts.push('m.channel_id IN (SELECT id FROM archive_all_channels WHERE guild_id = ?)');
-      params.push(guildId);
-    } else {
-      parts.push('m.channel_id = ?');
-      params.push(q.channelId);
-    }
+  } else if (q.scope === 'server' && q.guildId) {
+    parts.push('m.channel_id IN (SELECT id FROM archive_all_channels WHERE guild_id = ?)');
+    params.push(q.guildId);
   } else if (q.scope !== 'all') {
-    // A channel or server scope without an open channel counts nothing.
+    // A channel or server scope without its channel or server counts nothing.
     parts.push('0');
   }
   if (q.sinceTs !== null) {

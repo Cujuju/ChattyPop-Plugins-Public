@@ -4,7 +4,7 @@ import type { ActivityQuery } from '../shared/types';
 const env = vi.hoisted(() => ({
   calls: [] as { member: string; query: ActivityQuery }[],
   events: new Map<string, () => void>(),
-  choices: new Map<string, (value: string) => void>(),
+  choices: new Map<string, (value: unknown) => void>(),
   pickerIds: ['u1', 'u2'],
   setChannel: (_value: string | null): void => { throw new Error('Channel signal not initialized.'); },
   setCollapsed: (_value: boolean): void => { throw new Error('Collapsed signal not initialized.'); },
@@ -30,7 +30,7 @@ vi.mock('@plugin-sdk/renderer', async () => {
     coreClient: () => ({}),
     onAppEvent: (name: string, handler: () => void) => env.events.set(name, handler),
     pluginPreference: (_plugin: unknown, name: string) => {
-      const [value, setValue] = createSignal(name === 'scope' ? 'channel' : name === 'range' ? 'all' : 'overview');
+      const [value, setValue] = createSignal<unknown>(name === 'place' ? null : name === 'channelsHidden' ? false : name === 'range' ? 'all' : 'overview');
       env.choices.set(name, setValue);
       return [value, setValue];
     },
@@ -42,7 +42,7 @@ vi.mock('@plugin-sdk/renderer/kit', async () => {
   const [collapsed, setCollapsed] = createSignal(false);
   env.setChannel = setChannel;
   env.setCollapsed = setCollapsed;
-  return { shownChannelId: channel, isPanelCollapsed: collapsed };
+  return { shownChannelId: channel, isPanelCollapsed: collapsed, directory: () => [], isThread: () => false };
 });
 
 const statePath = '../renderer/state.ts';
@@ -70,7 +70,7 @@ describe('Analytics section resources', () => {
     env.setChannel('c2');
     await settle();
     expect(emojiReads().at(-1)!.query.channelId).toBe('c2');
-    env.choices.get('scope')!('all');
+    env.choices.get('place')!('all');
     env.choices.get('range')!('7d');
     await settle();
     expect(emojiReads().at(-1)!.query.scope).toBe('all');
@@ -134,9 +134,9 @@ describe('Analytics section resources', () => {
     expect(emojiReads()).toHaveLength(beforePrivacy + 2);
   });
 
-  it('wires the session author into every section, refresh, picker fallback and scope resets', async () => {
+  it('wires the session author into every section, refresh, picker fallback and place resets', async () => {
     const unmount = state.statsPanelMounted();
-    env.choices.get('scope')!('all');
+    env.choices.get('place')!('all');
     env.choices.get('range')!('all');
     await settle();
     state.setStatsAuthor('u1');
@@ -152,15 +152,18 @@ describe('Analytics section resources', () => {
     env.setChannel('c3');
     await settle();
     expect(state.statsAuthor()).toBe('u1');
-    env.choices.get('scope')!('server');
+    env.choices.get('place')!({ by: 'guild', id: 'g1' });
     await settle();
     expect(state.statsAuthor()).toBeNull();
     state.setStatsAuthor('u1');
+    // A picked place stays put as the Archive moves.
     env.setChannel('c4');
     await settle();
-    expect(state.statsAuthor()).toBeNull();
-    env.choices.get('scope')!('channel');
+    expect(state.statsAuthor()).toBe('u1');
+    // Unpicked, the place is the open channel, and follows it.
+    env.choices.get('place')!(null);
     await settle();
+    expect(state.statsAuthor()).toBeNull();
     state.setStatsAuthor('u1');
     env.setChannel(null);
     await settle();

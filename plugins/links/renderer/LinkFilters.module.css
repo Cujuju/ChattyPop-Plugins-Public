@@ -1,5 +1,5 @@
 /* Desktop header filters share the title line; phone filters use a sheet. TSX applies theme look attributes. */
-/* Zero flex basis keeps filters on the header line. High grow consumes remaining width; controls align right and the picker shrinks. */
+/* Zero flex basis keeps filters on the header line. High grow consumes remaining width; controls align right. */
 .tools {
   display: flex;
   align-items: center;
@@ -10,27 +10,43 @@
   margin-left: auto;
 }
 
-/* The chips, the time window and the switch keep their size; only the channel picker gives way. */
+/* The sources, the time window and the switch keep their size. */
 .tool {
   flex: none;
 }
 
-/* The chips: one tight row of icon squares, read as one control among the others. */
-.platforms {
-  display: flex;
+/* The source filter's button (FilterMenu draws the checklist): at the header's control height, beside the time window select. */
+.sourceTrigger {
+  display: inline-flex;
   align-items: center;
+  gap: var(--cp-space-3);
+  height: var(--cp-btn-h-sm);
+  max-width: var(--cp-filter-select-max-w);
+  padding: 0 var(--cp-space-4);
+  white-space: nowrap;
+}
+
+.triggerMarks {
+  display: inline-flex;
   gap: var(--cp-space-1);
 }
 
-/* A header platform chip: a square at the header's control height, its icon centred; name and count are its tooltip. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--cp-btn-h-sm);
-  height: var(--cp-btn-h-sm);
-  padding: 0;
-  white-space: nowrap;
+.triggerTile {
+  display: grid;
+  place-items: center;
+  width: var(--cp-search-trigger-lead);
+  height: var(--cp-search-trigger-lead);
+}
+
+.triggerIcon {
+  width: var(--cp-icon-sm);
+  height: var(--cp-icon-sm);
+}
+
+.triggerLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The order button: its text at the header's control height, with the chips' side padding. */
@@ -49,15 +65,6 @@
   gap: var(--cp-space-3);
   height: var(--cp-btn-h-sm);
   white-space: nowrap;
-}
-
-/* Field look is app-wide in theme/forms.css; the header's control height and a width cap here. Shrinks before anything
-   else on its line. */
-.select {
-  flex: 0 1 auto;
-  height: var(--cp-btn-h-sm);
-  max-width: var(--cp-filter-select-max-w);
-  min-width: 0;
 }
 
 /* The time window: as wide as its label, at the header's control height. */

@@ -1,68 +1,43 @@
 // The Alerts panel's rule picker.
-import { For, Show, createSignal } from 'solid-js';
+import { FilterMenu, HeaderButton, Icon, rules } from '@plugin-sdk/renderer/kit';
 import { alertRuleIds, setAlertRuleIds, ruleUnread } from './state';
-import { rules, listen, onPointerDownOutside, HeaderButton, Icon, look } from '@plugin-sdk/renderer/kit';
-import styles from './Alerts.module.css';
 
-/** Names shown on the button before it summarizes as "N rules". */
+/** Names shown on the button before it reads "N of M rules". */
 const MAX_NAMED_RULES = 2;
 
-/** A checklist option's text. */
-const OPTION = { 'data-size': 'sm', 'data-tone': 'primary' } as const;
-
-const toggled = (ids: number[], id: number, on: boolean): number[] => (on ? [...ids, id] : ids.filter((x) => x !== id));
-
-/** The Alerts header's rule picker: every alert, or any set of rules (a checklist in a popover). */
+/** The Alerts header's rule picker: a funnel (an icon, so the bar fits a phone) opening the kit's checklist of rules. */
 export function RuleFilter() {
-  let root!: HTMLDivElement;
-  const [open, setOpen] = createSignal(false);
   const byName = () => [...rules()].sort((a, b) => a.name.localeCompare(b.name));
   const label = (): string => {
-    const names = byName()
-      .filter((r) => alertRuleIds().includes(r.id))
-      .map((r) => r.name);
+    const names = byName().filter((r) => alertRuleIds().includes(r.id)).map((r) => r.name);
     if (!names.length) return 'All alerts';
-    return names.length <= MAX_NAMED_RULES ? names.join(', ') : `${names.length} rules`;
+    return names.length <= MAX_NAMED_RULES ? names.join(', ') : `${names.length} of ${byName().length} rules`;
   };
-
-  onPointerDownOutside(() => root, open, () => setOpen(false));
-  listen(window, 'keydown', (e) => {
-    if (open() && e.key === 'Escape') setOpen(false);
-  });
+  const items = () =>
+    byName().map((r) => ({ id: r.id, label: r.name, aside: ruleUnread(r.id) ? `${ruleUnread(r.id)} new` : undefined, asideTone: 'section' as const }));
 
   return (
-    <div class={styles.ruleFilter} ref={root}>
-      {/* A funnel, raised while some rules are picked; the picked rules are its name. */}
-      <HeaderButton
-        variant="icon"
-        aria-haspopup="true"
-        aria-expanded={open()}
-        aria-pressed={alertRuleIds().length > 0}
-        aria-label={`Rules shown: ${label()}`}
-        title={`Showing ${label()}; choose which rules' alerts to show`}
-        onClick={() => setOpen(!open())}
-      >
-        <Icon name="filter" />
-      </HeaderButton>
-      <Show when={open()}>
-        <div class={`cp-popover ${styles.ruleMenu}`} role="group" aria-label="Alerts to show">
-          <label class={`${styles.ruleOption} ${look.option} ${look.text}`} {...OPTION}>
-            <input type="checkbox" checked={alertRuleIds().length === 0} onChange={() => setAlertRuleIds([])} />
-            All alerts
-          </label>
-          <For each={byName()}>
-            {(r) => (
-              <label class={`${styles.ruleOption} ${look.option} ${look.text}`} {...OPTION}>
-                <input type="checkbox" checked={alertRuleIds().includes(r.id)} onChange={(e) => setAlertRuleIds(toggled(alertRuleIds(), r.id, e.currentTarget.checked))} />
-                <span class={styles.ruleName}>{r.name}</span>
-                <Show when={ruleUnread(r.id)}>
-                  <span class={`${styles.ruleCount} ${look.text}`} data-size="xs" data-tone="section">{ruleUnread(r.id)} new</span>
-                </Show>
-              </label>
-            )}
-          </For>
-        </div>
-      </Show>
-    </div>
+    <FilterMenu
+      label="Alerts to show"
+      heading="Rules"
+      items={items()}
+      all={byName().map((r) => r.id)}
+      picked={alertRuleIds()}
+      onPick={(ids) => void setAlertRuleIds(ids)}
+      trigger={(menu) => (
+        // A funnel, raised while some rules are hidden; the shown rules are its name.
+        <HeaderButton
+          variant="icon"
+          aria-haspopup="true"
+          aria-expanded={menu.open}
+          aria-pressed={alertRuleIds().length > 0}
+          aria-label={`Rules shown: ${label()}`}
+          title={`Showing ${label()}; choose which rules' alerts to show`}
+          onClick={() => menu.toggle()}
+        >
+          <Icon name="filter" />
+        </HeaderButton>
+      )}
+    />
   );
 }

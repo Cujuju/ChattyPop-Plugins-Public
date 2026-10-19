@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { testPlugin } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { FALLBACK_EMOJI } from '../core/emoji';
 
@@ -31,7 +31,7 @@ describe('Analytics emoji', () => {
     const { t, core } = start();
     const ranged = await core.emojiStats({ scope: 'channel', channelId: 'c1', sinceTs: 1 });
     expect([ranged.textMessages, ranged.custom, ranged.unicode]).toEqual([1, 1, 1]);
-    expect((await core.emojiStats({ scope: 'server', channelId: 'c1', sinceTs: null })).textMessages).toBe(4);
+    expect((await core.emojiStats({ scope: 'server', channelId: null, guildId: DEFAULT_GUILD.id, sinceTs: null })).textMessages).toBe(4);
     expect((await core.emojiStats({ ...ALL, scope: 'channel' })).textMessages).toBe(0);
     t.archive.setPrivacyMode(true);
     const visible = await core.emojiStats(ALL);

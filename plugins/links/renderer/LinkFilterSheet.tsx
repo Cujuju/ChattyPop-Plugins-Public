@@ -1,9 +1,9 @@
 // The phone's Links filters: a bottom sheet with the platforms, channel, time window, order and flagged filters.
 import { Show, createEffect, type JSX } from 'solid-js';
 import type { Platform } from '@plugin-sdk/shared';
-import { Select, Switch, look } from '@plugin-sdk/renderer/kit';
-import { OrderSegments, PlatformChips, WindowSelect, channelOptions, linkSafety, linkWorth } from './LinkFilters';
-import { linkChannelId, linkFilterCount, linkHideFlagged, resetLinkFilters, setLinkChannelId, setLinkHideFlagged } from './state';
+import { PlaceSelect, Switch, look } from '@plugin-sdk/renderer/kit';
+import { OrderSegments, PlatformChips, WindowSelect, linkSafety, linkWorth } from './LinkFilters';
+import { linkFilterCount, linkHideFlagged, linkWhere, resetLinkFilters, setLinkHideFlagged, setLinkWhere } from './state';
 import styles from './LinkFilters.module.css';
 
 const LABEL = { 'data-size': 'xs', 'data-weight': 'semibold', 'data-case': 'upper', 'data-tracking': 'label', 'data-tone': 'muted' } as const;
@@ -46,10 +46,11 @@ export function LinkFilterSheet(props: { open: boolean; counts: Partial<Record<P
           </Show>
         </header>
         <Field label="Platforms">
-          <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} textSize="md" />
+          <PlatformChips counts={props.counts} class={styles.sheetChips} chipClass={styles.sheetChip} />
         </Field>
         <Field label="Channel" for="links-filter-channel">
-          <Select id="links-filter-channel" class={styles.fieldSelect} value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
+          <PlaceSelect id="links-filter-channel" class={styles.fieldSelect} label="Channel" everywhere="All channels" place={linkWhere()} onPlace={setLinkWhere}
+            listsGuild={(g) => g.channels.some((c) => c.optedIn)} listsChannel={(c) => c.optedIn} />
         </Field>
         <Field label="Shared" for="links-filter-window">
           <WindowSelect id="links-filter-window" class={styles.fieldSelect} />

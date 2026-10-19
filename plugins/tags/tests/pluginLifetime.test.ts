@@ -19,7 +19,7 @@ describe('a Tags range run when Tags turns off', () => {
   /** Jev's shared cap on requests in flight (jev.ts MAX_IN_FLIGHT). */
   const IN_FLIGHT = 4;
   const COST_USD = 0.01;
-  const route: JevRoute = { label: 'test', endpoint: 'https://jev.test/decide', wireModel: 'jev', headers: {}, errorText: () => 'failed', cost: (u) => u?.cost ?? null };
+  const route: JevRoute = { label: 'test', endpoint: 'https://jev.test/decide', wireModel: () => 'jev', headers: {}, errorText: () => 'failed', cost: (u) => u?.cost ?? null };
   afterEach(() => vi.unstubAllGlobals());
 
   it('stops queued requests from being sent and keeps what the answered ones cost', async () => {

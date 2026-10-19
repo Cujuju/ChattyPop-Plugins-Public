@@ -1,21 +1,20 @@
 import { For, Show } from 'solid-js';
 import { PLATFORMS, PLATFORM_INFO, type Platform } from '@plugin-sdk/shared';
-import { SegButton, SegGroup, Select, Switch, TimeWindowSelect, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
+import { SegButton, SegGroup, Switch, TimeWindowSelect, jevSwitch, look } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { LinkSort } from '../shared/types';
 import {
-  linkChannelId,
   linkHideFlagged,
   linkPlatforms,
   linkSort,
   linkWindow,
-  setLinkChannelId,
   setLinkHideFlagged,
   setLinkPlatforms,
   setLinkSort,
   setLinkWindow,
 } from './state';
 import { PLATFORM_ICON_PATHS } from './platformIcons';
+import { SourceMenu } from './SourceMenu';
 import styles from './LinkFilters.module.css';
 
 export const linkWorth = jevSwitch(plugin, 'linkWorth');
@@ -23,8 +22,6 @@ export const linkSafety = jevSwitch(plugin, 'linkSafety');
 
 type Counts = Partial<Record<Platform, number>>;
 
-/** The channel picker's choices: every archived channel, after "All channels". */
-export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
 
 /** `label`: on the phone's sheet; `brief`: on the desktop header's one button, where width is short. */
 const ORDERS: readonly { value: LinkSort; label: string; brief: string }[] = [
@@ -34,36 +31,31 @@ const ORDERS: readonly { value: LinkSort; label: string; brief: string }[] = [
 const orderOf = (value: LinkSort) => ORDERS.find((o) => o.value === value) ?? ORDERS[0]!;
 const otherOrder = (value: LinkSort) => ORDERS.find((o) => o.value !== value) ?? ORDERS[0]!;
 
-/** Shows platforms with links or selected filters. Full chips show icon, name, count; brief chips move names/counts to tooltips and accessible labels. */
-export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string; textSize: 'xs' | 'md'; brief?: boolean }) {
+/** The phone sheet's platform toggles: each platform with links, or picked, as a chip with its icon, name and count. */
+export function PlatformChips(props: { counts: Counts; class?: string; chipClass?: string }) {
   const togglePlatform = (p: Platform): void => {
     setLinkPlatforms(linkPlatforms().includes(p) ? linkPlatforms().filter((x) => x !== p) : [...linkPlatforms(), p]);
   };
-  const described = (p: Platform) => `${PLATFORM_INFO[p].label}, ${props.counts[p] ?? 0}`;
   return (
     <div class={props.class} role="group" aria-label="Platforms">
       <For each={PLATFORMS.filter((p) => props.counts[p] || linkPlatforms().includes(p))}>
         {(p) => (
           <button
             type="button"
-            class={`${props.chipClass ?? styles.chip} ${look.filterChip} ${look.text}`}
-            data-size={props.textSize}
+            class={`${props.chipClass ?? ''} ${look.filterChip} ${look.text}`}
+            data-size="md"
             data-font="sans"
             data-platform={p}
             aria-pressed={linkPlatforms().includes(p)}
-            aria-label={props.brief ? described(p) : undefined}
-            title={props.brief ? described(p) : undefined}
             onClick={() => togglePlatform(p)}
           >
             <svg class={`${styles.chipIcon} ${look.lineIcon}`} viewBox="0 0 24 24" aria-hidden="true">
               <path d={PLATFORM_ICON_PATHS[p]} />
             </svg>
-            <Show when={!props.brief}>
-              <span class={styles.chipLabel}>{PLATFORM_INFO[p].label}</span>
-              <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">
-                {props.counts[p] ?? 0}
-              </span>
-            </Show>
+            <span class={styles.chipLabel}>{PLATFORM_INFO[p].label}</span>
+            <span class={look.text} data-size="2xs" data-tone="muted" data-figures="tabular">
+              {props.counts[p] ?? 0}
+            </span>
           </button>
         )}
       </For>
@@ -97,12 +89,11 @@ const OrderButton = () => (
   </button>
 );
 
-/** Header filters: channel, platform icons, time window, order, flagged. The channel picker shrinks first; counts contains filtered platform totals. */
+/** Header filters: sources, time window, order, flagged (the place is the rail's); counts holds links per source. */
 export function LinkFilters(props: { counts: Counts }) {
   return (
     <div class={styles.tools}>
-      <Select class={styles.select} label="Channel" value={linkChannelId() ?? ''} options={channelOptions()} onChange={(v) => setLinkChannelId(v || null)} />
-      <PlatformChips counts={props.counts} class={`${styles.tool} ${styles.platforms}`} textSize="xs" brief />
+      <SourceMenu counts={props.counts} class={styles.tool} />
       <WindowSelect class={`${styles.tool} ${styles.windowSelect}`} />
       <Show when={linkWorth.on()}>
         <OrderButton />

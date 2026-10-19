@@ -1,6 +1,6 @@
-// #85 Analytics: who posts most, when, and in which channels, for the shown channel, its server or everything.
+// #85 Analytics: who posts most, when, and in which channels, for a channel, a server or everything.
 import { defineChannels, definePlugin, definePreference } from '@plugin-sdk/shared';
-import { STATS_RANGES, STATS_SCOPES, STATS_SECTIONS, isKey, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPoster, type StatsRange, type StatsScope, type StatsSection } from './types';
+import { STATS_RANGES, STATS_SECTIONS, isKey, normalizeStatsPick, type ActivityQuery, type ActivityStats, type PostersQuery, type StatsPick, type StatsPoster, type StatsRange, type StatsSection } from './types';
 import type { EmojiStats, WordStats, SentimentStats } from './text';
 import type { ConversationStats } from './conversations';
 import type { PersonStreak } from './streaks';
@@ -12,7 +12,7 @@ import type { PeopleStats, PersonHistory } from './personHistory';
 export const manifest = {
   id: 'stats',
   name: 'Analytics',
-  version: '1.23.5',
+  version: '1.24.0',
   description: 'The Analytics panel: message counts by person, day, hour and channel.',
 };
 
@@ -44,14 +44,15 @@ export const plugin = definePlugin({
     activityStats: { audiences: ['renderer'], reads: true }, postersPage: { audiences: ['renderer'], reads: true }, personStreaks: { audiences: ['renderer'], reads: true }, personHistory: { audiences: ['renderer'], reads: true }, peopleStats: { audiences: ['renderer'], reads: true }, voiceStats: { audiences: ['renderer'], reads: true }, repeatedLinks: { audiences: ['renderer'], reads: true },
     emojiStats: { audiences: ['renderer'], reads: true }, wordStats: { audiences: ['renderer'], reads: true }, sentimentStats: { audiences: ['renderer'], reads: true }, conversationStats: { audiences: ['renderer'], reads: true },
   } }),
-  // The panel's scope, range and open section.
+  // The panel's place, range and open section, and whether its rail's channel column is folded.
   preferences: {
-    scope: definePreference<StatsScope>({ default: 'channel', normalize: (v) => (isKey(STATS_SCOPES)(v) ? v : 'channel') }),
+    place: definePreference<StatsPick>({ default: null, normalize: normalizeStatsPick }),
+    channelsHidden: definePreference<boolean>({ default: false, normalize: (v) => v === true }),
     range: definePreference<StatsRange>({ default: '30d', normalize: (v) => (isKey(STATS_RANGES)(v) ? v : '30d') }),
     section: definePreference<StatsSection>({ default: 'overview', normalize: (v) => (isKey(STATS_SECTIONS)(v) ? v : 'overview') }),
   },
   // The panel's choices from when it was built in.
-  adopts: { settings: { 'stats.scope': 'scope', 'stats.range': 'range' } },
+  adopts: { settings: { 'stats.range': 'range' } },
   // A bar chart's baseline and three bars.
   panels: [{ id: STATS_PANEL, title: 'Analytics', importance: 'reference', dialog: true, after: 'tags', iconPath: 'M4 20h16M7 16v-5M12 16V6M17 16v-8' }],
 });

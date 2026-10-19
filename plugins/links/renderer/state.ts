@@ -16,7 +16,7 @@ import {
   onMessagePartsChanged,
   pluginPreference,
 } from '@plugin-sdk/renderer';
-import { createPagedList, inCompanion, timeBounds, type TimeWindow } from '@plugin-sdk/renderer/kit';
+import { createPagedList, inCompanion, timeBounds, type RailPlace, type TimeWindow } from '@plugin-sdk/renderer/kit';
 export { linkDivider, newLinkCount, markLinksSeen, onLinksShown } from './seen';
 import { refreshNewCount } from './seen';
 import { UPDATED_EVENT, plugin } from '../shared';
@@ -46,7 +46,10 @@ const feedOn = (): boolean => callable(plugin, 'page');
 // --- Filter ------------------------------------------------------------------
 
 export const [linkPlatforms, setLinkPlatforms] = createSignal<Platform[]>([]);
-export const [linkChannelId, setLinkChannelId] = createSignal<string | null>(null);
+/** Where links were first shared: a server or one channel (with its threads); null is everywhere. */
+export const [linkWhere, setLinkWhere] = createSignal<RailPlace | null>(null, { equals: (a, b) => a?.by === b?.by && a?.id === b?.id });
+/** The desktop rail's channel column is folded away. */
+export const [linkChannelsHidden, setLinkChannelsHidden] = pluginPreference(plugin, 'channelsHidden');
 /** When links were shared; null is any time. */
 export const [linkWindow, setLinkWindow] = createSignal<TimeWindow | null>(null);
 /** Newest first, or most worth reading first (#63). Either way the panel lists the top item last (at the bottom). */
@@ -54,15 +57,15 @@ export const [linkSort, setLinkSort] = createSignal<LinkSort>('newest');
 /** Leave out links Jev flagged as spam, a scam or NSFW (#62). */
 export const [linkHideFlagged, setLinkHideFlagged] = createSignal(false);
 
-/** How many filters are off their defaults: platforms (as one), channel, time window, order and flagged (the phone's sheet holds them). */
+/** How many filters are off their defaults: platforms (as one), place, time window, order and flagged (the phone's sheet holds them). */
 export const linkFilterCount = (): number =>
-  [linkPlatforms().length > 0, linkChannelId() !== null, linkWindow() !== null, linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
+  [linkPlatforms().length > 0, linkWhere() !== null, linkWindow() !== null, linkSort() !== 'newest', linkHideFlagged()].filter(Boolean).length;
 
 /** Puts every filter back; one reload follows. */
 export function resetLinkFilters(): void {
   batchWrites(() => {
     setLinkPlatforms([]);
-    setLinkChannelId(null);
+    setLinkWhere(null);
     setLinkWindow(null);
     setLinkSort('newest');
     setLinkHideFlagged(false);
@@ -72,9 +75,10 @@ export function resetLinkFilters(): void {
 function filter(): LinkFilter {
   // Read at each load, so a preset stays its length back from now; sinceTs is exclusive, the window's start inclusive.
   const { since, until } = timeBounds(linkWindow(), Date.now());
+  const place = linkWhere();
   return {
     ...(linkPlatforms().length ? { platforms: linkPlatforms() } : {}),
-    ...(linkChannelId() ? { channelId: linkChannelId()! } : {}),
+    ...(place ? (place.by === 'channel' ? { channelId: place.id } : { guildId: place.id }) : {}),
     ...(since !== null ? { sinceTs: since - 1 } : {}),
     ...(until !== null ? { untilTs: until } : {}),
     ...(linkHideFlagged() ? { hideFlagged: true } : {}),

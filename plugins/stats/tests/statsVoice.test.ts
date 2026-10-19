@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { VOICE_PEOPLE, voiceShare } from '../shared/voice';
 import { ALICE } from './statsFixture';
@@ -49,7 +49,7 @@ describe('Analytics share of voice', () => {
     expect(stats.buckets.slice(1, -1).every((b) => b.count === 0)).toBe(true);
     expect((await core.voiceStats({ ...CHANNEL, sinceTs: at(199) })).people.map((p) => p.poster.userId)).toEqual(['b']);
     t.archive.setPrivacyMode(true);
-    expect((await core.voiceStats({ ...CHANNEL, scope: 'server' })).people.map((p) => p.poster.userId)).toEqual(['a', 'b', 'c']);
+    expect((await core.voiceStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).people.map((p) => p.poster.userId)).toEqual(['a', 'b', 'c']);
   });
 
   it('returns a complete empty result for missing anchors and empty ranges', async () => {

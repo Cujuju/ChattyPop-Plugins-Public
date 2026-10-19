@@ -13,6 +13,7 @@ import {
   HeaderBadge,
   HeaderButton,
   Icon,
+  PlaceRail,
   inCompanion,
   isPanelCollapsed,
   look,
@@ -20,7 +21,7 @@ import {
 import { LINKS_PANEL } from '../shared';
 import type { LinkItem } from '../shared/types';
 import {
-  linkChannelId,
+  linkChannelsHidden,
   linkCounts,
   linkDivider,
   linkFilterCount,
@@ -29,6 +30,7 @@ import {
   linkLoads,
   linkOpening,
   linkPlatforms,
+  linkWhere,
   linkWindow,
   links,
   linkSort,
@@ -40,6 +42,8 @@ import {
   readLinkPlaceWith,
   reloadAtStoredPlace,
   reloadLinks,
+  setLinkChannelsHidden,
+  setLinkWhere,
 } from './state';
 import { LinkFilters } from './LinkFilters';
 import { LinkFilterSheet } from './LinkFilterSheet';
@@ -92,7 +96,7 @@ export function LinksPanel() {
 
   // The desktop opens where the owner last was (the phone at the newest); a filter change opens at the newest.
   onMount(() => void (inCompanion ? reloadLinks() : reloadAtStoredPlace()));
-  createEffect(on([linkPlatforms, linkChannelId, linkWindow, linkSort, linkHideFlagged], () => void reloadLinks(), { defer: true }));
+  createEffect(on([linkPlatforms, linkWhere, linkWindow, linkSort, linkHideFlagged], () => void reloadLinks(), { defer: true }));
 
   // The reload last placed: until then the rows may be the last one's.
   const [placed, setPlaced] = createSignal(linkLoads());
@@ -159,59 +163,64 @@ export function LinksPanel() {
         <LinkFilterSheet open={sheetOpen()} counts={linkCounts()} onClose={() => setSheetOpen(false)} />
       </Show>
       {/* Folded, the body is hidden rather than unmounted: the virtualizer keeps its scroll element. */}
-      <div
-        hidden={isPanelCollapsed(LINKS_PANEL)}
-        style={{
-          display: isPanelCollapsed(LINKS_PANEL) ? 'none' : 'flex',
-          'flex-direction': 'column',
-          flex: '1 1 0',
-          'min-height': 0,
-          position: 'relative',
-        }}
-      >
-        <Show when={links.items.length === 0 && !links.loading}>
-          <p class="cp-panel-empty">No links match these filters.</p>
+      <div class={styles.body} hidden={isPanelCollapsed(LINKS_PANEL)} style={{ display: isPanelCollapsed(LINKS_PANEL) ? 'none' : undefined }}>
+        {/* The desktop picks a place as AI chat and Attachments do; the phone's sheet picks a channel. */}
+        <Show when={!inCompanion}>
+          <PlaceRail
+            place={linkWhere()}
+            onPlace={setLinkWhere}
+            channelsHidden={linkChannelsHidden()}
+            onChannelsHidden={(hidden) => void setLinkChannelsHidden(hidden)}
+            listsGuild={(g) => g.channels.some((c) => c.optedIn)}
+            listsChannel={(c) => c.optedIn}
+            allServers
+          />
         </Show>
-        <div
-          class={styles.list}
-          ref={(el) => {
-            scroller = el;
-            vlog.ref(el);
-            log.ref(el);
-          }}
-          onScroll={() => void vlog.onScroll()}
-          style={{ flex: '1 1 0', 'min-height': 0, 'overflow-y': 'auto' }}
-        >
-          <VirtualRows log={vlog}>
-            {(row) => (
-              <Switch>
-                {/* Rows show only the time, as in the Archive: a heading starts each day (newest order). */}
-                <Match when={row().kind === 'link' && (row() as Extract<Row, { kind: 'link' }>)}>
-                  {(r) => <LinkRow item={r().item} dated={linkSort() !== 'newest'} />}
-                </Match>
-                <Match when={row().kind === 'day' && (row() as Extract<Row, { kind: 'day' }>)}>
-                  {(r) => <DayDivider label={r().label} />}
-                </Match>
-                <Match when={row().kind === 'divider'}>
-                  <div
-                    class={`${styles.watermark} ${look.labelledRule} ${look.text}`}
-                    data-size="2xs"
-                    data-weight="semibold"
-                    data-case="upper"
-                    data-tracking="label"
-                    data-tone="section"
-                    role="separator"
-                  >
-                    caught up
-                  </div>
-                </Match>
-              </Switch>
-            )}
-          </VirtualRows>
+        <div class={styles.feed}>
+          <Show when={links.items.length === 0 && !links.loading}>
+            <p class="cp-panel-empty">No links match these filters.</p>
+          </Show>
+          <div
+            class={styles.list}
+            ref={(el) => {
+              scroller = el;
+              vlog.ref(el);
+              log.ref(el);
+            }}
+            onScroll={() => void vlog.onScroll()}
+            style={{ flex: '1 1 0', 'min-height': 0, 'overflow-y': 'auto' }}
+          >
+            <VirtualRows log={vlog}>
+              {(row) => (
+                <Switch>
+                  {/* Rows show only the time, as in the Archive: a heading starts each day (newest order). */}
+                  <Match when={row().kind === 'link' && (row() as Extract<Row, { kind: 'link' }>)}>
+                    {(r) => <LinkRow item={r().item} dated={linkSort() !== 'newest'} />}
+                  </Match>
+                  <Match when={row().kind === 'day' && (row() as Extract<Row, { kind: 'day' }>)}>
+                    {(r) => <DayDivider label={r().label} />}
+                  </Match>
+                  <Match when={row().kind === 'divider'}>
+                    <div
+                      class={`${styles.watermark} ${look.labelledRule} ${look.text}`}
+                      data-size="2xs"
+                      data-weight="semibold"
+                      data-case="upper"
+                      data-tracking="label"
+                      data-tone="section"
+                      role="separator"
+                    >
+                      caught up
+                    </div>
+                  </Match>
+                </Switch>
+              )}
+            </VirtualRows>
+          </div>
+          <Show when={!log.following()}>
+            <JumpToNewest label="Jump to newest link" onClick={jumpToNewest} />
+          </Show>
         </div>
-        <Show when={!log.following()}>
-          <JumpToNewest label="Jump to newest link" onClick={jumpToNewest} />
-        </Show>
       </div>
     </section>
   );

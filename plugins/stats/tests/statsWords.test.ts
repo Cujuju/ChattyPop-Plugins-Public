@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { testPlugin } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { CLOUD_WORDS } from '../shared/text';
 import { cloudInputs, cloudViewBox, CLOUD_FONT_MIN, CLOUD_FONT_MAX, CLOUD_WIDTH, CLOUD_HEIGHT, CLOUD_VIEWBOX_PADDING } from '../renderer/cloudInputs';
@@ -42,7 +42,7 @@ describe('Analytics words', () => {
   it('honors range, scope and privacy, including retained messages with no word-like content', async () => {
     const { t, core } = start();
     expect((await core.wordStats({ ...CHANNEL, sinceTs: 1 })).words).toEqual([{ word: 'cat', count: 1 }, { word: 'pizza', count: 1 }]);
-    expect((await core.wordStats({ ...CHANNEL, scope: 'server' })).textMessages).toBe(4);
+    expect((await core.wordStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).textMessages).toBe(4);
     t.archive.setPrivacyMode(true);
     const visible = await core.wordStats({ scope: 'all', channelId: null, sinceTs: null });
     expect(visible.words.some((word) => word.word === 'secret')).toBe(false);

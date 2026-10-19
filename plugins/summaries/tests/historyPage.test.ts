@@ -1,6 +1,6 @@
-// Summary history in the renderer: a refreshed page merges in order, which runs show their body, where failed runs sit, which row has just landed, and a run's facts.
+// Summary history in the renderer: a refreshed page merges in order, which runs list under a place, which runs show their body, where failed runs sit, which row has just landed, and a run's facts.
 import { expect, it } from 'vitest';
-import { entryKey, historyEntries, isFailure, landedRow, mergeHistoryPage, overlapping, runOpen } from '../renderer/historyPage';
+import { entryKey, historyEntries, isFailure, landedRow, mergeHistoryPage, overlapping, readWithin, runOpen } from '../renderer/historyPage';
 import { durationText, runFacts, type FactText } from '../renderer/runFacts';
 import type { Summary, SummaryRunFailure } from '../shared/types';
 
@@ -97,4 +97,25 @@ it('lists the runs and failures whose covered time overlaps the time frame, both
   expect(ids(10, 25)).toEqual([1, 2, 3]);
   expect(ids(21, 24)).toEqual([]);
   expect(ids(45, null)).toEqual(['f9']);
+});
+
+const CHANNELS: Record<string, { guildId: string; parentId?: string }> = {
+  general: { guildId: 'home' }, side: { guildId: 'home', parentId: 'general' }, news: { guildId: 'home' }, lobby: { guildId: 'away' },
+};
+const channelOf = (id: string) => CHANNELS[id];
+const over = (guildIds: string[], channelIds: string[]): Summary => ({ id: 1, createdAt: 1, scope: { guildIds, channelIds } }) as Summary;
+
+it('lists under a place only the runs that read within it; everything and failed runs list only everywhere', () => {
+  const everything = { id: 2, createdAt: 2, scope: null } as Summary;
+  const home = over(['home'], []);
+  const general = over([], ['general']);
+  const thread = over([], ['side']);
+  const homeChannels = over([], ['general', 'news']);
+  const mixed = over([], ['general', 'lobby']);
+  const rows = [everything, home, general, thread, homeChannels, mixed, failedAt(9, 9)];
+  const listed = (place: Parameters<typeof readWithin>[1]) => rows.filter((e) => readWithin(e, place, channelOf));
+  expect(listed(null)).toEqual(rows);
+  expect(listed({ by: 'guild', id: 'home' })).toEqual([home, general, thread, homeChannels]);
+  expect(listed({ by: 'channel', id: 'general' })).toEqual([general, thread]);
+  expect(listed({ by: 'guild', id: 'away' })).toEqual([]);
 });

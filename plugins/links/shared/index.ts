@@ -6,7 +6,7 @@ import { normalizeLinkPlace, type LinkCard, type LinkFilter, type LinkItem, type
 export const manifest = {
   id: 'links',
   name: 'Links',
-  version: '1.16.0',
+  version: '1.19.0',
   description: 'The Links panel: every shared link with its preview, filters, and Jev’s category, safety and worth-reading reads.',
 };
 
@@ -163,6 +163,8 @@ export const plugin = definePlugin({
     seenUpTo: definePreference<number | null>({ default: null, normalize: finiteOr(null), phone: true }),
     /** Where the desktop's panel was, so a restart reopens there; the phone opens at the newest. */
     place: definePreference<LinkPlace | null>({ default: null, normalize: normalizeLinkPlace }),
+    /** The place rail's channel column is folded away; the picked place stays. */
+    channelsHidden: definePreference<boolean>({ default: false, normalize: (v) => v === true }),
   },
   // Its tables and watermark from when it was built in.
   adopts: { tables: { link_judgments: 'judgments', x_posts: 'x_posts' }, settings: { 'links.seenUpTo': 'seenUpTo' }, jevFeatures: { linkCategories: 'linkCategories', linkSafety: 'linkSafety', linkWorth: 'linkWorth' } },

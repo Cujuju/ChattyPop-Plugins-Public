@@ -56,22 +56,22 @@ describe('activity stats', () => {
     ]);
   });
 
-  it('scopes to the channel’s server, and to a time range', async () => {
+  it('scopes to a server, and to a time range', async () => {
     const { stats } = start();
-    expect((await stats({ scope: 'server', channelId: 'c2', sinceTs: null })).messages).toBe(4);
+    expect((await stats({ scope: 'server', channelId: null, guildId: HOME.id, sinceTs: null })).messages).toBe(4);
     expect((await stats({ scope: 'all', channelId: null, sinceTs: at(13, 0) })).messages).toBe(2);
   });
 
-  it('counts nothing for a channel scope with no channel open', async () => {
+  it('counts nothing for a channel or server scope without its channel or server', async () => {
     const { stats } = start();
     expect((await stats({ scope: 'channel', channelId: null, sinceTs: null })).messages).toBe(0);
-    expect((await stats({ scope: 'server', channelId: null, sinceTs: null })).messages).toBe(0);
+    expect((await stats({ scope: 'server', channelId: null, guildId: null, sinceTs: null })).messages).toBe(0);
   });
 
   it('groups long spans by week starting Monday', async () => {
     const { t, stats } = start();
     t.archive.arrive([{ channelId: 'c2', ts: at(1, 12) - LONG_AGO_DAYS * MS_PER_DAY, content: 'long ago' }]);
-    const s = await stats({ scope: 'server', channelId: 'c2', sinceTs: null });
+    const s = await stats({ scope: 'server', channelId: null, guildId: HOME.id, sinceTs: null });
     expect(s.bucket).toBe('week');
     // Sun Sep 13 belongs to the week of Mon Sep 7.
     expect(s.buckets.at(-1)).toEqual({ start: '2026-09-07', count: 4 });
@@ -158,7 +158,7 @@ describe('Analytics additions', () => {
   });
 
   it('applies server and range scope to every new summary', async () => {
-    const s = await analytics().core.activityStats({ scope: 'server', channelId: 'c2', sinceTs: JANUARY_START });
+    const s = await analytics().core.activityStats({ scope: 'server', channelId: null, guildId: 'home', sinceTs: JANUARY_START });
     expect([s.messages, s.authors, s.activeDays, s.editedMessages, s.textMessages, s.linkedMessages, s.attachmentMessages])
       .toEqual([5, 3, 3, 4, 3, 3, 2]);
     expect(s.channels.map((c) => [c.channelId, c.count])).toEqual([['c1', 3], ['c2', 1], ['t1', 1]]);
@@ -190,10 +190,9 @@ describe('Analytics additions', () => {
     expect((await core.postersPage({ ...EVERYTHING, offset: 0, limit: POSTERS_PAGE_MAX })).some((p) => p.userId === 'private')).toBe(false);
   });
 
-  it('keeps server scope on a DM to that conversation', async () => {
-    const { t, core } = analytics();
-    t.db.prepare('UPDATE channels SET guild_id = NULL WHERE id = ?').run('c3');
-    const q: ActivityQuery = { scope: 'server', channelId: 'c3', sinceTs: null };
+  it('counts only the picked server in server scope', async () => {
+    const { core } = analytics();
+    const q: ActivityQuery = { scope: 'server', channelId: null, guildId: 'away', sinceTs: null };
     const s = await core.activityStats(q);
     expect([s.messages, s.activeDays, s.editedMessages, s.textMessages, s.linkedMessages, s.attachmentMessages]).toEqual([1, 1, 1, 1, 0, 0]);
     expect(s.channels).toEqual([{ channelId: 'c3', name: 'Away', count: 1 }]);
@@ -230,7 +229,7 @@ describe('Analytics additions', () => {
     expect(all.slice(2).map((p) => p.userId)).toEqual([...all.slice(2).map((p) => p.userId)].sort());
     expect(await core.postersPage({ ...q, offset: all.length, limit: STATS_TOP })).toEqual([]);
     expect((await core.postersPage({ ...CHANNEL, sinceTs: MARCH_START, offset: 0, limit: STATS_TOP })).map((p) => p.count)).toEqual([1, 1]);
-    expect((await core.postersPage({ scope: 'server', channelId: 'c2', sinceTs: MARCH_START, offset: 0, limit: STATS_TOP })).map((p) => p.userId)).toEqual(['u1', 'u2']);
+    expect((await core.postersPage({ scope: 'server', channelId: null, guildId: 'home', sinceTs: MARCH_START, offset: 0, limit: STATS_TOP })).map((p) => p.userId)).toEqual(['u1', 'u2']);
   });
 
   it.each([{ offset: -1, limit: 1 }, { offset: 0, limit: 0 }, { offset: 0, limit: POSTERS_PAGE_MAX + 1 }, { offset: 0.5, limit: 1 }])('rejects invalid poster page bounds (%j)', async (bounds) => {

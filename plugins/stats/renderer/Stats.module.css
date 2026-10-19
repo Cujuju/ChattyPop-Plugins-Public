@@ -1,6 +1,21 @@
 /* Analytics layout (#85). TSX sets --v to each value's fraction of the maximum; theme look attributes supply appearance. */
 
 /* Scope and range, as the Links filter row. */
+/* The place rail, then the filters over the open section. */
+.placed {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.placedMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
 .filters {
   display: flex;
   align-items: center;

@@ -1,6 +1,6 @@
 import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import statsCore from '../core';
 import { peopleStats, personHistory } from '../core/personHistory';
 import { PERSON_SILENCE_DAYS, QUIET_MIN_MESSAGES } from '../shared/personHistory';
@@ -82,7 +82,7 @@ describe('Analytics people history', () => {
     expect((await core.personHistory(query)).streaks.map((p) => p.userId)).toEqual(['same-day']);
     expect((await core.personHistory(query)).quiet.map((p) => p.userId)).toEqual(['parent']);
     t.archive.setPrivacyMode(true);
-    const server = await core.personHistory({ ...CHANNEL, scope: 'server' });
+    const server = await core.personHistory({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id });
     expect(server.lastDay).toBe('2026-02-19');
     expect(server.quiet.some((p) => p.userId === 'private')).toBe(false);
     expect(server.returned.some((p) => p.userId === 'private')).toBe(false);

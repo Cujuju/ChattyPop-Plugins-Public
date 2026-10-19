@@ -11,7 +11,7 @@ interface PendingPage {
 const env = vi.hoisted(() => ({
   pending: [] as PendingPage[],
   events: new Map<string, () => void>(),
-  choices: new Map<string, (value: string) => void>(),
+  choices: new Map<string, (value: unknown) => void>(),
   setChannel: (_value: string | null): void => { throw new Error('Channel signal not initialized.'); },
 }));
 
@@ -25,7 +25,7 @@ vi.mock('@plugin-sdk/renderer', async () => {
     onAppEvent: (name: string, handler: () => void) => env.events.set(name, handler),
     pluginData: (await import('@plugin-sdk/renderer/data')).pluginData,
     pluginPreference: (_plugin: unknown, name: string) => {
-      const [value, setValue] = createSignal(name === 'scope' ? 'channel' : '30d');
+      const [value, setValue] = createSignal<unknown>(name === 'place' ? null : name === 'channelsHidden' ? false : '30d');
       env.choices.set(name, setValue);
       return [value, setValue];
     },
@@ -36,7 +36,7 @@ vi.mock('@plugin-sdk/renderer/kit', async () => {
   const { createSignal } = await import('solid-js');
   const [channel, setChannel] = createSignal<string | null>('c1');
   env.setChannel = setChannel;
-  return { shownChannelId: channel, isPanelCollapsed: () => false };
+  return { shownChannelId: channel, isPanelCollapsed: () => false, directory: () => [], isThread: () => false };
 });
 
 const statePath = '../renderer/state.ts';
@@ -129,15 +129,15 @@ describe('ranked poster pages', () => {
     expect(list.reachedEnd()).toBe(true);
   });
 
-  it.each(['scope', 'range', 'channel', 'privacy'])('resets expansion and pending rows on %s changes', async (change) => {
-    env.choices.get('scope')!('channel');
+  it.each(['place', 'range', 'channel', 'privacy'])('resets expansion and pending rows on %s changes', async (change) => {
+    env.choices.get('place')!(null);
     env.choices.get('range')!('30d');
     env.setChannel('c1');
     const list = createRoot((dispose) => { disposals.push(dispose); return state.createPosterList(); });
     await settle();
     const opening = list.showAll(CHANNEL);
     const stale = env.pending.shift()!;
-    if (change === 'scope') env.choices.get('scope')!('all');
+    if (change === 'place') env.choices.get('place')!('all');
     if (change === 'range') env.choices.get('range')!('all');
     if (change === 'channel') env.setChannel('c2');
     if (change === 'privacy') env.events.get('privacy-changed')!();

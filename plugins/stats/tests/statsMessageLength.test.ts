@@ -1,6 +1,6 @@
 import { statementRead } from '@chattypop/host-testing';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { snowflakeFromMs } from '@shared/discord';
 import statsCore from '../core';
 import { wordStats } from '../core/words';
@@ -87,7 +87,7 @@ describe('Analytics message length', () => {
     expect((await core.wordStats({ ...CHANNEL, sinceTs: 2 })).length.medianWords).toBe(3);
     expect((await core.wordStats({ ...CHANNEL, scope: 'all' })).length.longest.map((m) => m.messageId))
       .toEqual([snowflakeFromMs(3, 2), snowflakeFromMs(2), snowflakeFromMs(1)]);
-    expect((await core.wordStats({ ...CHANNEL, scope: 'server' })).length.longest).toHaveLength(3);
+    expect((await core.wordStats({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).length.longest).toHaveLength(3);
   });
 
   it('returns all empty length fields for empty scopes', async () => {

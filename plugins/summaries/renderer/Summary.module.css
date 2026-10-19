@@ -109,7 +109,15 @@
 
 /* With cp-panel-body. The panel places its own scroll (the newest run shown from its top, older runs loading above): the
    browser's anchoring, which may hold a run under the one the reader unfolds, would push that one up. */
+/* The place rail, then the runs. */
+.placed {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .body {
+  min-width: 0;
   gap: var(--cp-space-4);
   overflow-x: hidden;
   overflow-anchor: none;

@@ -1,7 +1,7 @@
 import { For } from 'solid-js';
-import { look, shownChannelId } from '@plugin-sdk/renderer/kit';
+import { look } from '@plugin-sdk/renderer/kit';
 import { MIN_WORD_LENGTH, RANKED_WORDS } from '../shared/text';
-import { statsScope, words } from './state';
+import { namesChannelId, words } from './state';
 import { TextSection } from './TextSection';
 import { WordCloud } from './WordCloud';
 import { SHARE_ROW, Subheading, formatCount, share } from './section';
@@ -20,7 +20,7 @@ export function Words() {
       ]}>{(row) => <li class={`${styles.row} ${look.text}`} {...SHARE_ROW}><span class={styles.rowName}>{row.name}</span><span class={styles.rowCount}>{row.value}</span></li>}</For>
     </ul>
     <p class={look.text} data-size="xs" data-tone="muted">Totals include all words. Top words omit English stop words and words shorter than {MIN_WORD_LENGTH} characters.</p>
-    <MessageLength stats={stats().length} channelId={statsScope() === 'all' ? null : shownChannelId()} />
+    <MessageLength stats={stats().length} channelId={namesChannelId()} />
     <Subheading>Word cloud</Subheading>
     <WordCloud words={stats().words} />
     <Subheading>Top words</Subheading>

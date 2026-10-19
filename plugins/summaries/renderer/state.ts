@@ -21,8 +21,10 @@ export const summaryRange = (): RunFrame => pickedRange() ?? summarySettings().d
 /** Which runs the history lists, by the time they cover; null is any time. */
 export const [summaryWindow, setSummaryWindow] = createSignal<TimeWindow | null>(null);
 
-/** What the panel summarizes this session: everything until a server or channel is picked. */
+/** What the panel summarizes this session, and which runs its history lists: everything until a server or channel is picked. */
 export const [summaryScope, setSummaryScope] = createSignal<SummaryScope | null>(null);
+/** The desktop rail's channel column is folded away. */
+export const [summaryChannelsHidden, setSummaryChannelsHidden] = pluginPreference(plugin, 'channelsHidden');
 
 /** Summary runs fetched per page of the history. */
 const SUMMARY_PAGE_SIZE = 20;

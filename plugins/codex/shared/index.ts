@@ -5,7 +5,7 @@ export const plugin = definePlugin({
   manifest: {
     id: 'codex',
     name: 'ChatGPT (Codex)',
-    version: '1.4.1',
+    version: '1.4.2',
     description: 'ChatGPT as an AI provider, through your own Codex CLI install, sign-in or API key.',
   },
   network: { hosts: ['api.openai.com'] },

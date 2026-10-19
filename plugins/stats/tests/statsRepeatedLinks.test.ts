@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished } from 'vitest';
-import { testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
+import { DEFAULT_GUILD, testPlugin, type SeedArchive } from '@plugin-sdk/core/testing';
 import { snowflakeFromMs } from '@plugin-sdk/shared';
 import statsCore from '../core';
 import { STATS_TOP, type ActivityQuery } from '../shared/types';
@@ -73,7 +73,7 @@ describe('Analytics repeated links', () => {
       urls: [{ url: A, host: 'one.example', shares: 4, people: 3 }],
       reposts: [{ userId: 'u3', name: 'u3', avatar: null, count: 2 }, { userId: 'u1', name: 'u1', avatar: null, count: 1 }],
     });
-    expect((await core.repeatedLinks({ ...CHANNEL, scope: 'server' })).urls[0]?.shares).toBe(4);
+    expect((await core.repeatedLinks({ ...CHANNEL, scope: 'server', guildId: DEFAULT_GUILD.id })).urls[0]?.shares).toBe(4);
     expect(await core.repeatedLinks({ ...CHANNEL, sinceTs: 3 })).toEqual({
       urls: [{ url: A, host: 'one.example', shares: 2, people: 1 }], reposts: [{ userId: 'u3', name: 'u3', avatar: null, count: 1 }],
     });
