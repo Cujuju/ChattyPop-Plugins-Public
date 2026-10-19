@@ -133,3 +133,16 @@ The standard 400,000-message rollup benchmark rebuilt in **27,924.698 ms**. Conv
 Core caches projected results under normalized query keys, with both a 64-entry limit and an 8 MiB serialized-data budget. Production text reads use the worker; the legacy trend reference lives only in test helpers. Tests cover 200,000-message reference bootstrap, 200,000-row lexical/count folds and 200,000-run conversation projections.
 
 Residual triggers: new or removed channel/guild ids cause channel/day text checks in privacy views until catalog classification drains; frequent same-channel writes can retry span publication; eligible distinct word spellings with equal ICU collation request a worker text scan to preserve timestamp-group tie order. Historical backfills can visit many future runs through the end-time index. These synthetic measurements do not establish encrypted or real-archive latency.
+# Write-path follow-up (2026-10-19)
+
+`write-path-results.json` records the fixed baseline and follow-up sources, the same 400k-message fixture, cold calls, five-hit warm medians, accumulated snapshot time and worker SQL timings. The runner now builds the current helper dependencies, configures the helper entry, and loads the explicitly selected historical plugin for rollup comparisons.
+
+| Cold read | Before ms | After ms |
+| --- | ---: | ---: |
+| activityStats | 900.80 | 782.03 |
+| peopleStats | 280.51 | 245.09 |
+| emojiStats | 1,003.68 | 789.03 |
+| wordStats | 5,711.51 | 5,553.79 |
+| sentimentStats | 991.74 | 733.07 |
+
+**Residual: #319 remains open.** These cache misses still exceed 100 ms. Trigger: first section read, or changed scope/data/privacy/time zone. Snapshot checks took 1.81–8.33 ms after the changes. Emoji input returned to JavaScript shrank from 48,360 to 1,952 rows; sentiment from 46,800 to 392. Their worker SQL still scans and aggregates daily input; sentiment's measured SQL was 687.14 ms. Words still read 95,160 daily rows from about 91 MB of lexical storage, then parse/fold word packets and an exact midpoint boundary. Warm hits remain below budget. Wall times vary; external machine load was not controlled; no running-app measurement was performed.
