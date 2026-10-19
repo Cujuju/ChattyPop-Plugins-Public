@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js';
 import { PLATFORMS, PLATFORM_INFO, type Platform } from '@plugin-sdk/shared';
-import { SegButton, SegGroup, Switch, TimeWindowSelect, archivedChannels, channelLabel, jevSwitch, look } from '@plugin-sdk/renderer/kit';
+import { SegButton, SegGroup, Switch, TimeWindowSelect, jevSwitch, look } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import type { LinkSort } from '../shared/types';
 import {
@@ -22,8 +22,6 @@ export const linkSafety = jevSwitch(plugin, 'linkSafety');
 
 type Counts = Partial<Record<Platform, number>>;
 
-/** The phone sheet's channel choices: every archived channel, after "All channels". */
-export const channelOptions = () => [{ value: '', label: 'All channels' }, ...archivedChannels().map((c) => ({ value: c.id, label: channelLabel(c, c.guildName) }))];
 
 /** `label`: on the phone's sheet; `brief`: on the desktop header's one button, where width is short. */
 const ORDERS: readonly { value: LinkSort; label: string; brief: string }[] = [
