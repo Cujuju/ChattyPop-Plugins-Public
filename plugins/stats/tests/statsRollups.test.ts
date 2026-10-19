@@ -34,6 +34,7 @@ it.each([[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]])('mat
     expect(await c.activityStats(ALL)).toEqual(await activityStats(t.read, ALL));
     expect(await c.wordStats(ALL)).toEqual(await wordStats(t.read, ALL));
     expect(await c.emojiStats(ALL)).toEqual(await emojiStats(t.read, ALL));
+    expect(await c.sentimentStats(ALL)).toEqual(await sentimentStats(t.read, ALL));
     expect(await c.conversationStats(ALL)).toEqual(await conversationStats(t.read, ALL));
   }
 });

@@ -38,12 +38,6 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     rows = rows.filter((r) => r.day && r.day !== midpointDay && !days.has(utcDay(r.first_ts)));
     rows = rows.concat(await liveRows([midpoint]));
   }
-  const expanded: any[] = [];
-  for (const r of rows) {
-    if (r.kind === 'lengths') for (const [n, count, positive, negative] of JSON.parse(r.payload)) expanded.push({ ...r, kind: 'length', term: String(n), n: count, payload: { positive, negative } });
-    else { if (r.kind === 'words') r.tokens = JSON.parse(r.payload); expanded.push(r); }
-  }
-  rows = expanded;
   const extents = rows.filter((r) => r.kind === 'extent');
   const extentFirst = extents.reduce((v, r) => Math.min(v, r.first_ts), Infinity);
   const extentLast = extents.reduce((v, r) => Math.max(v, r.last_ts), -Infinity);
@@ -77,22 +71,22 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
     }
     return 0;
   };
-  const identity = new Map<string, any>();
-  for (const r of extents) {
-    const name = JSON.parse(r.payload).name;
-    const p = identity.get(r.author_id);
-    if (!p || name < p.name) identity.set(r.author_id, { userId: r.author_id, name, avatar: null });
+  let textMessages = 0;
+  for (const r of rows) if (r.kind === 'lengths') {
+    r.counts = JSON.parse(r.payload);
+    for (const [, count] of r.counts) textMessages += count;
   }
-  if (identity.size) for (const p of await read<any>('SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))', [JSON.stringify([...identity.keys()])])) identity.get(p.id).avatar = p.avatar;
-  const textMessages = rows.filter((r) => r.kind === 'length').reduce((n, r) => n + r.n, 0);
   if (data.section === 'sentiment') {
     const classes = { positive: 0, negative: 0, neutral: 0 };
     const periods = new Map<string, any>();
-    for (const r of rows) if (r.kind === 'length') {
-      const p = r.payload, start = bucketName(r.date);
-      classes.positive += p.positive; classes.negative += p.negative;
+    for (const r of rows) if (r.kind === 'lengths') {
+      const start = bucketName(r.date);
       const period = periods.get(start) ?? { start, positive: 0, negative: 0, messages: 0 };
-      period.positive += p.positive; period.negative += p.negative; period.messages += r.n; periods.set(start, period);
+      for (const [, count, positive, negative] of r.counts) {
+        classes.positive += positive; classes.negative += negative;
+        period.positive += positive; period.negative += negative; period.messages += count;
+      }
+      periods.set(start, period);
     }
     classes.neutral = textMessages - classes.positive - classes.negative;
     return finish([{ textMessages, classes, bucket, buckets: fill(periods, (start) => ({ start, positive: 0, negative: 0, messages: 0 })) }]);
@@ -120,6 +114,19 @@ export async function textReadWork(_part: null, read: ArchiveRead, signal: Abort
       .slice(0, data.top).map(({ seq: _seq, position: _pos, ...p }) => p);
     return finish([{ textMessages, custom, unicode, unicodeMatcher, emoji }]);
   }
+  const expanded: any[] = [];
+  for (const r of rows) {
+    if (r.kind === 'lengths') for (const [n, count, positive, negative] of r.counts) expanded.push({ ...r, kind: 'length', term: String(n), n: count, payload: { positive, negative } });
+    else { if (r.kind === 'words') r.tokens = JSON.parse(r.payload); expanded.push(r); }
+  }
+  rows = expanded;
+  const identity = new Map<string, any>();
+  for (const r of extents) {
+    const name = JSON.parse(r.payload).name;
+    const p = identity.get(r.author_id);
+    if (!p || name < p.name) identity.set(r.author_id, { userId: r.author_id, name, avatar: null });
+  }
+  if (identity.size) for (const p of await read<any>('SELECT id, avatar FROM archive_users WHERE id IN (SELECT value FROM json_each(?))', [JSON.stringify([...identity.keys()])])) identity.get(p.id).avatar = p.avatar;
   const stop = new Set(data.stopWords);
   const eligible = (word: string) => Array.from(word).length >= data.minWordLength && !stop.has(word);
   const frequencies = new Map<number, number>(), people = new Map<string, any>(), counts = new Map<string, any>();
