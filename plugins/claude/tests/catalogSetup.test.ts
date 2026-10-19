@@ -44,14 +44,14 @@ describe.runIf(IS_WINDOWS)('real SDK catalog setup', () => {
       const discovery = resolveCliAsync('claude', '@anthropic-ai/claude-code', true);
       const asyncResolveDispatchMs = performance.now() - startDiscovery;
       await discovery;
+      const { value, ...timing } = await coreWork(() => provider.listModels());
+      expect(value).toMatchObject([{ id: 'fixture', label: 'Fixture' }]);
       const idle: AsyncIterable<SDKUserMessage> = { [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}) }) };
       const beforeSdk = performance.now();
       const native = query({ prompt: idle, options: { pathToClaudeCodeExecutable: script, settingSources: [], tools: [], persistSession: false, cwd: dir } });
       const nativeSdkSetupMs = performance.now() - beforeSdk;
       try { expect((await native.supportedModels()).map((m) => m.value)).toEqual(['fixture']); }
       finally { native.close(); }
-      const { value, ...timing } = await coreWork(() => provider.listModels());
-      expect(value).toMatchObject([{ id: 'fixture', label: 'Fixture' }]);
       process.stdout.write(JSON.stringify({ syncResolveMs, asyncResolveDispatchMs, nativeSdkSetupMs, ...timing }) + '\n');
     } finally { provider.dispose(); vi.unstubAllEnvs(); }
   });
