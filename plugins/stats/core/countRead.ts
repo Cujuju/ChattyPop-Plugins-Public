@@ -47,6 +47,6 @@ export async function projectCounts<T>(read: ArchiveRead, query: TextQuery, memb
   const current = () => Boolean(token && rollups!.counts.snapshot() + '/' + rollups!.links.snapshot() === token);
   return cachedStats(read, token ? JSON.stringify([member, query, token, member === 'activityStats' && query.sinceTs !== null ? now : null]) : null, current, async () => {
     const result = await load(token ? COUNT_VIEW : undefined);
-    return token && !current() ? load() : result;
+    return token && !current() ? projectCounts<T>(read, query, member, rollups, signal) : result;
   });
 }
