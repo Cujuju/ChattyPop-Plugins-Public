@@ -14,7 +14,17 @@ const QUERY = { scope: 'channel', channelId: CHANNEL, sinceTs: null } as const;
 const SECTIONS = ['activityStats', 'peopleStats', 'postersPage', 'personStreaks', 'personHistory', 'voiceStats', 'repeatedLinks', 'emojiStats', 'wordStats', 'sentimentStats', 'conversationStats'] as const;
 
 export async function main(rows: number) {
-  const profiled = defineCorePlugin(plugin, (ctx) => core.activate({ ...ctx, storage: { ...ctx.storage,
+  let snapshotMs = 0;
+  const profiled = defineCorePlugin(plugin, (ctx) => core.activate({ ...ctx, rollups: {
+    define: (name, spec) => {
+      const rollup = ctx.rollups.define(name, spec), snapshot = rollup.snapshot.bind(rollup);
+      rollup.snapshot = (scope) => {
+        const start = performance.now();
+        try { return snapshot(scope); } finally { snapshotMs += performance.now() - start; }
+      };
+      return rollup;
+    },
+  }, storage: { ...ctx.storage,
     read: ((sql, params, options) => ctx.storage.read(sql, params, options?.fold?.source.includes('textReadWork')
       ? { ...options, fold: { ...options.fold, data: { ...options.fold.data as object, profile: true } } } : options)) as ArchiveRead,
   } }));
@@ -38,9 +48,11 @@ export async function main(rows: number) {
     }
     for (const member of SECTIONS) {
       const run = () => (client[member] as (q: any) => unknown)({ ...QUERY, ...(member === 'postersPage' ? { offset: 0, limit: 200 } : {}) });
+      snapshotMs = 0;
       const coldStart = performance.now();
       const warmed = await run() as { benchmarkSql?: unknown };
-      report('cold', { read: member, ms: Number((performance.now() - coldStart).toFixed(2)) });
+      const coldMs = Number((performance.now() - coldStart).toFixed(2));
+      report('cold', { read: member, ms: coldMs, snapshotMs: Number(snapshotMs.toFixed(2)), withinBudget: coldMs <= ROLLUP_READ_BUDGET_MS });
       if (warmed.benchmarkSql) report('profile', { read: member, statements: warmed.benchmarkSql });
       const samples = [];
       for (let n = 0; n < RUNS; n++) { const start = performance.now(); await run(); samples.push(performance.now() - start); }
