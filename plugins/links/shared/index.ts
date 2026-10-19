@@ -127,11 +127,11 @@ export const plugin = definePlugin({
   manifest,
   channels: defineChannels<{ core: LinksCoreCalls; events: LinksEvents }>()({
     core: {
-      page: { audiences: ['renderer', 'phone'], writes: false },
-      window: { audiences: ['renderer', 'phone'], writes: false },
-      counts: { audiences: ['renderer', 'phone'], writes: false },
+      page: { audiences: ['renderer', 'phone'], writes: false, reads: true },
+      window: { audiences: ['renderer', 'phone'], writes: false, reads: true },
+      counts: { audiences: ['renderer', 'phone'], writes: false, reads: true },
       // The Person window is the desktop's.
-      sharedBy: { audiences: ['renderer'], writes: false },
+      sharedBy: { audiences: ['renderer'], writes: false, reads: true },
       markSeen: { audiences: ['renderer', 'phone'], writes: true, decode: decodeMarkSeen },
     },
     events: { [UPDATED_EVENT]: ['renderer', 'phone'] },

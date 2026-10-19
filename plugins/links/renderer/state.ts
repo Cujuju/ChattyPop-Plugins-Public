@@ -32,9 +32,9 @@ const client = coreClient(plugin);
 const isShown = panelShown('links');
 let privacyEpoch = 0;
 const core = {
-  page: (query: Parameters<typeof client.page>[0]) => pluginData(() => client.page(query), []),
-  window: (query: Parameters<typeof client.window>[0]) => pluginData(() => client.window(query), NO_WINDOW),
-  counts: (query: Parameters<typeof client.counts>[0]) => pluginData(() => client.counts(query), {}),
+  page: (query: Parameters<typeof client.page>[0], signal?: AbortSignal) => pluginData(() => coreClient(plugin, { signal, priority: isShown() ? 'interactive' : 'background' }).page(query), []),
+  window: (query: Parameters<typeof client.window>[0], signal?: AbortSignal) => pluginData(() => coreClient(plugin, { signal, priority: isShown() ? 'interactive' : 'background' }).window(query), NO_WINDOW),
+  counts: (query: Parameters<typeof client.counts>[0], signal?: AbortSignal) => pluginData(() => coreClient(plugin, { signal, priority: isShown() ? 'interactive' : 'background' }).counts(query), {}),
 };
 /** The window while Links is off: nothing loaded, nothing beyond. */
 const NO_WINDOW: LinkWindow = { items: [], reachesNewest: true, reachedStart: true, anchorId: null };
@@ -90,9 +90,9 @@ export const placeAt = (i: LinkItem, bottom: number): LinkPlace => ({ ...cursorA
 
 const list = createPagedList<LinkItem>(
   LINK_PAGE_SIZE,
-  async (oldest) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, after: cursorAt(oldest) })),
-  async (newest) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, before: cursorAt(newest) })),
-  { chronological: () => linkSort() === 'newest', atNewest: () => linkAtNewest(), reload: () => reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace() : reloadLinks() },
+  async (oldest, signal) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, after: cursorAt(oldest) }, signal)),
+  async (newest, signal) => oldestFirst(await core.page({ ...filter(), sort: linkSort(), limit: LINK_PAGE_SIZE, before: cursorAt(newest) }, signal)),
+  { chronological: () => linkSort() === 'newest', atNewest: () => linkAtNewest(), reload: (signal) => reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace(signal) : reloadLinks(null, signal) },
 );
 /** Loaded links oldest first; `reachedStart` once the oldest matching link is loaded. */
 export const links = list.state;
@@ -120,20 +120,20 @@ export const [linkLoads, setLinkLoads] = createSignal(0);
 export const [linkOpening, setLinkOpening] = createSignal<{ place: LinkPlace; anchorId: number | null } | null>(null);
 
 /** Reloads the counts and the newest page for the current filter, or the links around `place`. */
-export const reloadLinks = coalescedRead(async (place: LinkPlace | null = null): Promise<void> => {
+export const reloadLinks = coalescedRead(async (place: LinkPlace | null = null, signal?: AbortSignal): Promise<void> => {
   reloadsStarted++;
   if (!feedOn() || !isShown()) return;
   const f = filter();
   const sort = linkSort();
   let counts: Partial<Record<Platform, number>> = {};
   let loaded: LinkWindow | undefined;
-  const done = await list.reload(async () => {
+  const done = await list.reload(async (readSignal) => {
     const read = place
-      ? core.window({ ...f, sort, around: cursorAt(place), newer: PLACE_SIDE_LINKS, older: PLACE_SIDE_LINKS })
-      : core.page({ ...f, sort, limit: LINK_PAGE_SIZE }).then((items) => ({ items, reachesNewest: true, reachedStart: items.length < LINK_PAGE_SIZE, anchorId: null }));
-    [loaded, counts] = await Promise.all([read, core.counts(f)]);
+      ? core.window({ ...f, sort, around: cursorAt(place), newer: PLACE_SIDE_LINKS, older: PLACE_SIDE_LINKS }, readSignal)
+      : core.page({ ...f, sort, limit: LINK_PAGE_SIZE }, readSignal).then((items) => ({ items, reachesNewest: true, reachedStart: items.length < LINK_PAGE_SIZE, anchorId: null }));
+    [loaded, counts] = await Promise.all([read, core.counts(f, readSignal)]);
     return { items: oldestFirst(loaded.items), reachedStart: loaded.reachedStart };
-  });
+  }, signal);
   if (!done || !loaded) return;
   const { reachesNewest, anchorId } = loaded;
   batchWrites(() => {
@@ -213,10 +213,10 @@ function refresh(): void {
 }
 
 onArchiveChange({ kinds: ['links', 'deletes', 'names'], scope: () => linkChannelId() ? { channelIds: [linkChannelId()!] } : 'all', shown: isShown }, async (change, signal) => {
-  await list.applyChange(change);
+  await list.applyChange(change, signal);
   if (signal.aborted || ![...change.channelIds].every((id) => change.insertOnly(id))) return;
   const generation = reloadsStarted;
-  const counts = await core.counts(filter());
+  const counts = await core.counts(filter(), signal);
   if (!signal.aborted && generation === reloadsStarted) setLinkCounts(counts);
 });
 containedRoot(() => createEffect(on(isShown, (shown) => { if (shown) void (reloadsStarted === 0 && !inCompanion ? reloadAtStoredPlace() : reloadInPlace()); }, { defer: true })));
@@ -238,10 +238,10 @@ const PLACE_REST_MS = 500;
 const samePlace = (a: LinkPlace | null, b: LinkPlace): boolean => a !== null && a.id === b.id && a.ts === b.ts && a.worth === b.worth && a.bottom === b.bottom;
 
 /** Opens the feed where the desktop's panel last rested (the newest when nothing is stored). */
-export async function reloadAtStoredPlace(): Promise<void> {
+export async function reloadAtStoredPlace(signal?: AbortSignal): Promise<void> {
   const before = reloadsStarted;
   await storedPlaceLoaded;
-  if (reloadsStarted === before) await reloadLinks(storedPlace());
+  if (reloadsStarted === before) await reloadLinks(storedPlace(), signal);
 }
 
 /** Desktop: stores where the owner is as it changes; call within the panel's owner. */

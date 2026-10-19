@@ -23,7 +23,7 @@ const fixerReply = (ms: number) =>
   );
 
 describe('an embed fixer bot’s reply collapses into the original share', () => {
-  it('adds no links of its own, and its card replaces the original’s', () => {
+  it('adds no links of its own, and its card replaces the original’s', async () => {
     const db = adoptLinks(tempDb());
     const a = seedArchive(db, [{ id: CH }]);
     const t0 = Date.now() - MS_PER_MIN;
@@ -31,7 +31,7 @@ describe('an embed fixer bot’s reply collapses into the original share', () =>
     a.ingestMessages([fixerReply(t0 + MS_PER_S)], ARRIVAL.gateway);
     a.ingestMessages([rawMessage(CH, t0, POST, { author: STAT, embeds: [{ type: 'link', url: POST, description: 'thin unfurl' }] })], ARRIVAL.gateway);
 
-    const links = linkFeed(db, { limit: 10 });
+    const links = (await linkFeed(db, { limit: 10 }));
     expect(links).toHaveLength(1);
     const [link] = links;
     expect(link).toMatchObject({ shares: 2, authorName: 'stat', embed: { description: 'full post text' } });

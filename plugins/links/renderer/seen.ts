@@ -22,11 +22,11 @@ export { newCount as newLinkCount };
 /** Count reads started; only the latest one's answer lands (a privacy change mid-read starts a newer one). */
 let countReads = 0;
 
-export async function refreshNewCount(): Promise<void> {
+export async function refreshNewCount(signal?: AbortSignal): Promise<void> {
   const since = seenUpTo();
   if (!feedOn()) return;
   const read = ++countReads;
-  const count = since === null ? 0 : sum(await pluginData(() => client.counts({ sinceTs: since }), {}));
+  const count = since === null ? 0 : sum(await pluginData(() => coreClient(plugin, { signal, priority: 'background' }).counts({ sinceTs: since }), {}));
   if (read === countReads) setNewCount(count);
 }
 
@@ -55,4 +55,4 @@ void watermarkLoaded.then(() => {
 // Turned on while the app runs: count what's new.
 containedRoot(() => createEffect(on(feedOn, (isOn) => isOn && void refreshNewCount(), { defer: true })));
 
-onArchiveChange({ kinds: ['links', 'deletes'] }, refreshNewCount);
+onArchiveChange({ kinds: ['links', 'deletes'] }, (_change, signal) => refreshNewCount(signal));

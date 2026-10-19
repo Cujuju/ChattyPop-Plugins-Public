@@ -1,6 +1,6 @@
 // Fetch and cache linked X posts, and supply their text to the archive.
 import { MS_PER_HOUR, mediaSize, type ArchiveEmbed } from '@plugin-sdk/shared';
-import { MEANING_LOOKBACK_MS, X_POST_URL_PREFIX, X_STATUS_PATH, type CoreContext, type LinkImage, type PluginDb, type TextMessage } from '@plugin-sdk/core';
+import { MEANING_LOOKBACK_MS, X_POST_URL_PREFIX, X_STATUS_PATH, type CoreContext, type LinkImage, type ArchiveRead, type PluginDb, type TextMessage } from '@plugin-sdk/core';
 import type { LinkCard } from '../shared/types';
 import { X_POSTS } from './tables';
 
@@ -88,9 +88,12 @@ async function fetchStatus(net: Fetch, id: string, lifetime: AbortSignal): Promi
 /** Fetches unpreviewed X posts sequentially from FxTwitter, stores them, and updates link text. Deactivation pauses fetching; activation resumes queued and missed posts. */
 export class XPosts {
   private draining = false;
+  private requested = false;
+  private wake?: () => void;
 
   constructor(
     private readonly db: PluginDb,
+    private readonly read: ArchiveRead,
     private readonly net: Fetch,
     private readonly links: LinkStores,
     private readonly onFetched: () => void,
@@ -98,7 +101,27 @@ export class XPosts {
     private readonly queue: Set<string> = new Set(),
     /** The activation's lifetime: a running fetch is cancelled and its post stays queued. */
     private readonly lifetime: AbortSignal = new AbortController().signal,
-  ) {}
+  ) {
+    void this.consume();
+    lifetime.addEventListener('abort', () => this.wake?.(), { once: true });
+  }
+
+  /** The consumer starts during activation, so a view's call context never owns background writes. */
+  private async consume(): Promise<void> {
+    while (!this.lifetime.aborted) {
+      if (!this.requested) await new Promise<void>((resolve) => { this.wake = resolve; });
+      this.wake = undefined;
+      this.requested = false;
+      if (this.lifetime.aborted) return;
+      try { await this.drain(); }
+      catch (error) { if (!this.lifetime.aborted) console.error('[links] post fetch failed', error); }
+    }
+  }
+
+  private kick(): void {
+    this.requested = true;
+    this.wake?.();
+  }
 
   /** Activation publishes images from stored posts, queues recently shared unfetched posts, and starts fetching. */
   resume(): void {
@@ -111,7 +134,7 @@ export class XPosts {
       .all({ since: Date.now() - MEANING_LOOKBACK_MS, prefix: `${X_POST_URL_PREFIX}%`, from: X_POST_URL_PREFIX.length + 1 }) as string[];
     this.publishPhotos(ids);
     this.due(ids);
-    void this.drain();
+    this.kick();
   }
 
   /** Queues unpreviewed X posts from new messages within Jev's lookback, supplying post text for Jev and labels. */
@@ -125,7 +148,7 @@ export class XPosts {
       .pluck()
       .all({ id: m.id, prefix: `${X_POST_URL_PREFIX}%`, from: X_POST_URL_PREFIX.length + 1 }) as string[];
     this.publishPhotos(ids);
-    if (this.due(ids).length) void this.drain();
+    if (this.due(ids).length) this.kick();
   }
 
   /** Posts among `ids` fetched before (however long ago) give their photos as link images again, for a new share. */
@@ -157,7 +180,7 @@ export class XPosts {
   }
 
   /** Gives X links without a Discord preview their fetched post's card; queues posts not fetched yet. */
-  fill<T extends LinkCard>(items: T[]): T[] {
+  async fill<T extends LinkCard>(items: T[]): Promise<T[]> {
     const ids = new Map<T, string>();
     for (const it of items) {
       const id = it.platform === 'x' && !it.embed ? statusId(it.url) : null;
@@ -165,12 +188,15 @@ export class XPosts {
     }
     if (!ids.size) return items;
     const wanted = [...new Set(ids.values())];
-    const rows = this.db
-      .prepare(`SELECT status_id AS id, state, status_json AS json FROM ${X_POSTS} WHERE status_id IN (${wanted.map(() => '?').join(',')})`)
-      .all(...wanted) as { id: string; state: XPostState; json: string | null }[];
+    const rows = await this.read<{ id: string; state: XPostState; json: string | null; fetchedAt: number }>(
+      `SELECT status_id AS id, state, status_json AS json, fetched_at AS fetchedAt FROM ${X_POSTS} WHERE status_id IN (${wanted.map(() => '?').join(',')})`, wanted);
     const byId = new Map(rows.map((r) => [r.id, r]));
-    this.due(wanted);
-    void this.drain();
+    const due = wanted.filter((id) => {
+      const r = byId.get(id);
+      return !r || (r.state === 'error' && Date.now() - r.fetchedAt >= RETRY_AFTER_ERROR_MS);
+    });
+    for (const id of due) this.queue.add(id);
+    this.kick();
     return items.map((it) => {
       const r = byId.get(ids.get(it) ?? '');
       return r?.state === 'ok' && r.json ? { ...it, embed: xEmbed(JSON.parse(r.json) as FxStatus) } : it;

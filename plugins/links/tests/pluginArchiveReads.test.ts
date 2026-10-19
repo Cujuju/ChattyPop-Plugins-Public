@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 // Links feed reads under privacy: hidden shares still count, but never supply preview cards.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { setSetting, type Db } from '@core/db';
@@ -17,11 +18,11 @@ beforeEach(() => {
 });
 
 describe('plugin archive read parity', () => {
-  it('keeps hidden shares in counts while excluding their preview cards', () => {
+  it('keeps hidden shares in counts while excluding their preview cards', async () => {
     setSetting(db, 'privacyMode', true);
     const embed = { type: 'rich', url: 'https://example.com/open', title: 'Bot card' };
     db.prepare('UPDATE messages SET raw_json = ? WHERE id = ?').run(JSON.stringify({ author: { bot: true }, embeds: [embed] }), 'm-hide');
-    const rows = linkPage(db, (ids) => archivePayloads(db, ids), () => [], { limit: 100 }, linksSql);
+    const rows = (await linkPage(statementRead(db), (ids) => archivePayloads(db, ids), () => [], { limit: 100 }, linksSql));
     expect(rows.map((row) => row.id)).toEqual([5, 1]);
     const shared = rows.find((row) => row.id === 1)!;
     expect(shared.shares).toBe(2);

@@ -1,3 +1,4 @@
+import { statementRead } from '@chattypop/host-testing';
 // A bare X link's text: the X post the Links plugin fetches when Discord sent no preview, so Jev reads it.
 import { describe, expect, it, vi } from 'vitest';
 import { MS_PER_DAY } from '@shared/units';
@@ -17,7 +18,7 @@ describe('X posts for bare X links', () => {
     const db = adoptLinks(tempDb());
     const a = seedArchive(db, [{ id: 'c1' }]);
     const reported: string[][] = [];
-    const x = new XPosts(db, fetch, hostLinks(db, (ids) => reported.push(ids)), () => undefined);
+    const x = new XPosts(db, statementRead(db), fetch, hostLinks(db, (ids) => reported.push(ids)), () => undefined);
     const bare = rawMessage('c1', Date.now(), 'https://x.com/u/status/1');
     const shown = rawMessage('c1', Date.now() + 1, 'https://x.com/u/status/2', preview('https://x.com/u/status/2', 'U', 'seen'));
     const old = rawMessage('c1', Date.now() - 2 * MS_PER_DAY, 'https://x.com/u/status/3');

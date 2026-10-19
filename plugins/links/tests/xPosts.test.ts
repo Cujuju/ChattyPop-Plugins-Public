@@ -1,4 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { statementRead } from '@chattypop/host-testing';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { testPlugin } from '@plugin-sdk/core/testing';
+import { MS_PER_DAY } from '@plugin-sdk/shared';
+import { pluginCalls } from '@core/plugins/callContext';
+import linksCore from '../core';
 import { X_POSTS } from '../core/tables';
 import { XPosts } from '../core/xPosts';
 import type { LinkItem } from '../shared/types';
@@ -55,7 +60,7 @@ describe('X posts from FxTwitter', () => {
     const db = adoptLinks(tempDb());
     const fetch = stubFxTwitter();
     let refreshes = 0;
-    const x = new XPosts(db, fetch, hostLinks(db), () => refreshes++);
+    const x = new XPosts(db, statementRead(db), fetch, hostLinks(db), () => refreshes++);
     const items = [
       item(1, 'https://x.com/some_user/status/1'),
       item(2, 'https://x.com/gone/status/2'),
@@ -63,13 +68,13 @@ describe('X posts from FxTwitter', () => {
       item(4, 'https://x.com/some_user'),
       item(5, 'https://x.com/other/status/1', { type: 'rich' } as LinkItem['embed']),
     ];
-    expect(x.fill(items).map((i) => i.embed)).toEqual([null, null, null, null, items[4]!.embed]);
+    expect((await x.fill(items)).map((i) => i.embed)).toEqual([null, null, null, null, items[4]!.embed]);
     await drained(db, 3);
 
     // Profile links and links with a Discord preview are never fetched.
     expect(fetch).toHaveBeenCalledTimes(3);
     expect(refreshes).toBe(1);
-    const embed = x.fill(items)[0]!.embed!;
+    const embed = (await x.fill(items))[0]!.embed!;
     expect(embed).toMatchObject({ url: status.url, imageUrl: status.media.photos[0]!.url, author: { name: 'Some User (@some_user)' } });
     // One photo: no gallery.
     expect(embed.moreImages).toBeUndefined();
@@ -80,29 +85,46 @@ describe('X posts from FxTwitter', () => {
   it('never refetches deleted posts and retries failures only after the retry interval', async () => {
     const db = adoptLinks(tempDb());
     const fetch = stubFxTwitter();
-    const x = new XPosts(db, fetch, hostLinks(db), () => undefined);
+    const x = new XPosts(db, statementRead(db), fetch, hostLinks(db), () => undefined);
     const items = [item(2, 'https://x.com/gone/status/2'), item(3, 'https://x.com/busy/status/3')];
-    x.fill(items);
+    (await x.fill(items));
     await drained(db, 2);
-    x.fill(items);
+    (await x.fill(items));
     await Promise.resolve();
     expect(fetch).toHaveBeenCalledTimes(2);
 
     db.prepare(`UPDATE ${X_POSTS} SET fetched_at = 0`).run();
-    x.fill(items);
+    (await x.fill(items));
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
     expect(fetch.mock.calls.at(-1)![0]).toMatch(/\/3$/);
   });
 });
 
 describe('an X post with several photos', () => {
-  it('gives its card every photo: the first as its image, the rest as its gallery', () => {
+  it('queues old previews from a read member while background writes keep their own context', async () => {
+    const fetch = vi.fn(async () => {
+      expect(pluginCalls.getStore()).toBeUndefined();
+      return new Response(JSON.stringify({ status }), { status: 200 });
+    });
+    const t = testPlugin(linksCore, { network: fetch, archive: {
+      channels: [{ id: 'c1' }],
+      messages: [{ channelId: 'c1', ts: Date.now() - 2 * MS_PER_DAY, content: status.url }],
+    } });
+    onTestFinished(() => t.dispose());
+    await t.client('renderer').page({ limit: 10 });
+    await vi.waitFor(() => expect(t.db.prepare(`SELECT state FROM ${X_POSTS}`).get()).toEqual({ state: 'ok' }));
+    const page = await t.client('renderer').page({ limit: 10 });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(page[0]!.embed?.author?.name).toBe('Some User (@some_user)');
+  });
+
+  it('gives its card every photo: the first as its image, the rest as its gallery', async () => {
     const db = adoptLinks(tempDb());
     const photo = (n: number) => ({ url: `https://pbs.twimg.com/media/p${n}.jpg`, width: 900, height: 1200 });
     const post = { url: 'https://x.com/u/status/9', text: 'three', author: { name: 'U', screen_name: 'u', avatar_url: null }, media: { photos: [photo(1), photo(2), photo(3)] } };
     db.prepare(`INSERT INTO ${X_POSTS} (status_id, state, status_json, fetched_at) VALUES ('9', 'ok', ?, 0)`).run(JSON.stringify(post));
-    const x = new XPosts(db, vi.fn(), hostLinks(db), () => undefined);
-    const embed = x.fill([item(9, post.url)])[0]!.embed!;
+    const x = new XPosts(db, statementRead(db), vi.fn(), hostLinks(db), () => undefined);
+    const embed = (await x.fill([item(9, post.url)]))[0]!.embed!;
     expect(embed.imageUrl).toBe(photo(1).url);
     expect(embed.moreImages).toEqual([2, 3].map((n) => ({ url: photo(n).url, size: { width: 900, height: 1200 } })));
   });
@@ -115,7 +137,7 @@ describe('X posts fetched long ago', () => {
     const status = { url: 'https://x.com/u/status/7', text: 'chart', author: { name: 'U', screen_name: 'u', avatar_url: null }, media: { photos: [{ url: 'https://pbs.twimg.com/media/c.jpg', width: 10, height: 10 }] } };
     db.prepare(`INSERT INTO ${X_POSTS} (status_id, state, status_json, fetched_at) VALUES ('7', 'ok', ?, 0)`).run(JSON.stringify(status));
     const fetch = vi.fn();
-    const x = new XPosts(db, fetch, hostLinks(db), () => undefined);
+    const x = new XPosts(db, statementRead(db), fetch, hostLinks(db), () => undefined);
     const m = rawMessage('c1', Date.now(), 'https://x.com/u/status/7');
     a.ingestMessages([m], ARRIVAL.gateway);
     x.fetchFor(textMessage(db, m.id)!);

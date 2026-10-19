@@ -84,15 +84,15 @@ describe('link judgments (#61–#63)', () => {
   it('feeds the Links view: category, flag, worth sort and hide-flagged', async () => {
     judge.kick();
     await settleAsync();
-    const byWorth = linkFeed(db, { limit: 10, sort: 'worth' });
+    const byWorth = (await linkFeed(db, { limit: 10, sort: 'worth' }));
     expect(byWorth.map((l) => [l.category, l.flagged])).toEqual([
       ['video', false],
       ['shopping', true],
       [null, false], // the local-only channel's link: never judged
     ]);
-    expect(linkFeed(db, { limit: 10, hideFlagged: true }).some((l) => l.flagged)).toBe(false);
+    expect((await linkFeed(db, { limit: 10, hideFlagged: true })).some((l) => l.flagged)).toBe(false);
     const [first] = byWorth;
-    const next = linkFeed(db, { limit: 10, sort: 'worth', after: { ts: first!.ts, id: first!.id, worth: first!.worth! } });
+    const next = (await linkFeed(db, { limit: 10, sort: 'worth', after: { ts: first!.ts, id: first!.id, worth: first!.worth! } }));
     expect(next.map((l) => l.category)).toEqual(['shopping', null]);
   });
 

@@ -21,7 +21,7 @@ let archive: Archive;
 /** One clock for every message and expectation. */
 const T0 = Date.now() - MS_PER_MIN;
 const at = (n: number): number => T0 + n * MS_PER_S;
-const urls = (userId: string, limit = 10): string[] => personLinks(db, { userId, limit }).map((l) => l.url);
+const urls = async (userId: string, limit = 10): Promise<string[]> => (await personLinks(db, { userId, limit })).map((l) => l.url);
 
 beforeEach(() => {
   db = adoptLinks(tempDb());
@@ -43,22 +43,22 @@ beforeEach(() => {
 });
 
 describe("a person's links", () => {
-  it('are the links they shared, each once at their latest share, newest first', () => {
-    const [post, news] = personLinks(db, { userId: BOB.id, limit: 10 });
+  it('are the links they shared, each once at their latest share, newest first', async () => {
+    const [post, news] = (await personLinks(db, { userId: BOB.id, limit: 10 }));
     expect([post!.url, news!.url]).toEqual([POST, NEWS]);
     // Cat shared the post first; Bob's row is his own latest share of it.
     expect(post).toMatchObject({ channelId: MODS, channelName: 'mod-chat', guildName: GUILD.name, authorName: 'Bob', ts: at(4), shares: 3 });
     expect(news).toMatchObject({ channelId: GENERAL, ts: at(3), shares: 1 });
-    expect(urls(CAT.id)).toEqual([POST]);
+    expect((await urls(CAT.id))).toEqual([POST]);
   });
 
-  it('stop at the limit', () => {
-    expect(urls(BOB.id, 1)).toEqual([POST]);
+  it('stop at the limit', async () => {
+    expect((await urls(BOB.id, 1))).toEqual([POST]);
   });
 
-  it('count only the shares privacy mode shows', () => {
+  it('count only the shares privacy mode shows', async () => {
     setSetting(db, SETTINGS_KEYS.privacyMode, true);
-    const links = personLinks(db, { userId: BOB.id, limit: 10 });
+    const links = (await personLinks(db, { userId: BOB.id, limit: 10 }));
     // His share in the hidden channel is gone: the post falls back to his visible share of it.
     expect(links.map((l) => [l.url, l.channelId, l.ts])).toEqual([[NEWS, GENERAL, at(3)], [POST, GENERAL, at(2)]]);
   });

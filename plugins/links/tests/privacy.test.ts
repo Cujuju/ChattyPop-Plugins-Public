@@ -47,40 +47,40 @@ describe('the links feed in privacy mode', () => {
     ], ARRIVAL.gateway);
   });
 
-  it('lists every shared link while off', () => {
-    expect(linkFeed(db, { limit: 10 })).toHaveLength(2); // Discord's own links aren't listed
+  it('lists every shared link while off', async () => {
+    expect((await linkFeed(db, { limit: 10 }))).toHaveLength(2); // Discord's own links aren't listed
   });
 
-  it('drops a link first shared in a hidden channel', () => {
+  it('drops a link first shared in a hidden channel', async () => {
     setMode(true);
-    expect(linkFeed(db, { limit: 10 }).map((l) => l.url)).toEqual(['https://example.com/shared']);
+    expect((await linkFeed(db, { limit: 10 })).map((l) => l.url)).toEqual(['https://example.com/shared']);
   });
 
-  it('uses neither hidden metadata nor hidden preview cards on a visible first share', () => {
+  it('uses neither hidden metadata nor hidden preview cards on a visible first share', async () => {
     const url = 'https://example.com/shared';
     archive.ingestMessages([rawMessage(MODS, at(6), url, {
       author: { id: 'fixture-bot', username: 'Preview', bot: true },
       embeds: [{ url, title: 'classified card', description: 'classified details', provider: { name: 'Secret site' } }],
     })], ARRIVAL.gateway);
     setMode(true);
-    const link = linkFeed(db, { limit: 10 }).find((l) => l.url === url)!;
+    const link = (await linkFeed(db, { limit: 10 })).find((l) => l.url === url)!;
     expect(link).toMatchObject({ title: null, description: null, site: null, embed: null });
     expect(JSON.stringify(link)).not.toContain('classified');
     setMode(false);
-    expect(linkFeed(db, { limit: 10 }).find((l) => l.url === url)?.title).toBe('classified card');
-    expect(linkFeed(db, { channelId: GENERAL, limit: 10 }).find((l) => l.url === url)).toMatchObject({ title: null, embed: null });
+    expect((await linkFeed(db, { limit: 10 })).find((l) => l.url === url)?.title).toBe('classified card');
+    expect((await linkFeed(db, { channelId: GENERAL, limit: 10 })).find((l) => l.url === url)).toMatchObject({ title: null, embed: null });
   });
 
-  it('keeps identical metadata from a visible in-scope supplier when another supplier is hidden or removed', () => {
+  it('keeps identical metadata from a visible in-scope supplier when another supplier is hidden or removed', async () => {
     const url = 'https://example.com/shared';
     const visible = rawMessage(GENERAL, at(6), url, { embeds: [{ url, title: 'shared quartz', provider: { name: 'Example' } }] });
     const hidden = rawMessage(MODS, at(7), url, { embeds: [{ url, title: 'shared quartz', provider: { name: 'Example' } }] });
     archive.ingestMessages([visible, hidden], ARRIVAL.gateway);
     setMode(true);
-    const read = () => linkFeed(db, { channelId: GENERAL, limit: 10 }).find((l) => l.url === url);
-    expect(read()).toMatchObject({ title: 'shared quartz', site: 'Example' });
-    expect(linkFeed(db, { channelId: MODS, limit: 10 })).toEqual([]);
+    const read = async () => (await linkFeed(db, { channelId: GENERAL, limit: 10 })).find((l) => l.url === url);
+    expect((await read())).toMatchObject({ title: 'shared quartz', site: 'Example' });
+    expect((await linkFeed(db, { channelId: MODS, limit: 10 }))).toEqual([]);
     archive.ingestMessages([{ ...hidden, content: 'removed', embeds: [] }], ARRIVAL.gateway);
-    expect(read()).toMatchObject({ title: 'shared quartz', site: 'Example' });
+    expect((await read())).toMatchObject({ title: 'shared quartz', site: 'Example' });
   });
 });

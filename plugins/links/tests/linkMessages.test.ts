@@ -8,7 +8,7 @@ const CH = '200000000000000001';
 const BOB = { id: '400000000000000001', username: 'bob', global_name: 'Bob', avatar: 'abc123' };
 
 describe('links carry the message that first shared them', () => {
-  it('as the Archive shows it: author with avatar, text and resolved mentions', () => {
+  it('as the Archive shows it: author with avatar, text and resolved mentions', async () => {
     const db = adoptLinks(tempDb());
     const a = seedArchive(db, [{ id: CH }]);
     const t0 = Date.now() - MS_PER_MIN;
@@ -16,7 +16,7 @@ describe('links carry the message that first shared them', () => {
       rawMessage(CH, t0, 'hi', { author: BOB }),
       rawMessage(CH, t0 + MS_PER_S, `<@${BOB.id}> look **at** https://example.com/post`),
     ], ARRIVAL.gateway);
-    const [link] = linkFeed(db, { limit: 10 });
+    const [link] = (await linkFeed(db, { limit: 10 }));
     expect(link!.message).toMatchObject({
       id: link!.messageId,
       content: `<@${BOB.id}> look **at** https://example.com/post`,
