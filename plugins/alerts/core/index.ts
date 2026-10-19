@@ -5,7 +5,7 @@ import { AlertNotifier, type AlertCooldowns } from './notifier';
 import { registerAlertKinds } from './kinds';
 import { ALERT_MIGRATIONS } from './schema';
 import { builtinRules } from './managed';
-import { alertItems, markAlertsRead, unreadCounts } from './queries';
+import { alertsRead, markAlertsRead, unreadRead } from './queries';
 
 /** This core process's notification cooldowns: kept while Alerts is turned off and on. */
 const cooldowns: AlertCooldowns = new Map();
@@ -31,12 +31,12 @@ export function activateAlerts(ctx: CoreContext<typeof plugin>, now: () => numbe
   };
   ctx.ai.onSettingsChange(sync);
   ctx.channels.serve({
-    alerts: (query) => alertItems(db, ctx.archive.payloads, query),
+    alerts: (query) => alertsRead(ctx.storage.read, query),
     markRead: (ids, ruleIds, span) => {
       markAlertsRead(db, ids, ruleIds, span);
       notifier.changed();
     },
-    unread: (span) => unreadCounts(db, span),
+    unread: (span) => unreadRead(ctx.storage.read, span),
   });
   sync();
   return { pending, dispose: () => notifier.dispose() };

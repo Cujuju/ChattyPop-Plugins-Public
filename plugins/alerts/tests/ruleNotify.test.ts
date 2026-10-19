@@ -38,7 +38,7 @@ describe('rule Alert action', () => {
       [id, 'Watch', m.id, null, 'pattern'],
     ]);
     expect(toasts().map((a) => a.messageId)).toEqual([m.id]);
-    expect(h.alerts.calls.unread()[h.rules.list()[0]!.id] ?? 0).toBe(1);
+    expect((await h.alerts.calls.unread())[h.rules.list()[0]!.id] ?? 0).toBe(1);
   });
 
   it('records the alert as the message arrives, before its other actions run', () => {
@@ -90,7 +90,7 @@ describe('rule Alert action', () => {
     setSetting(h.db, 'privacyMode', true);
     h.say('secret');
     await settleAlerts();
-    expect([alerts().length, toasts().length, h.alerts.calls.unread()[h.rules.list()[0]!.id] ?? 0]).toEqual([0, 0, 0]);
+    expect([alerts().length, toasts().length, (await h.alerts.calls.unread())[h.rules.list()[0]!.id] ?? 0]).toEqual([0, 0, 0]);
     expect(h.db.prepare(`SELECT COUNT(*) AS n FROM ${ALERTS} WHERE rule_id = ?`).get(id)).toEqual({ n: 1 });
   });
 

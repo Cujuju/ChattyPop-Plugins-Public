@@ -41,7 +41,7 @@ describe('run on past messages', () => {
     const r = await w.rejudge(rerunMessages(db, req), rerunSubjects(db, req.queryId));
     expect(r).toMatchObject({ asked: 2, failed: 0 });
     expect(jev.requests.flatMap((q) => Object.keys(q.questions)).every((k) => k.startsWith('question_'))).toBe(true);
-    const alerts = rules.alerts({ limit: 10 });
+    const alerts = (await rules.alerts({ limit: 10 }));
     expect(alerts).toHaveLength(2);
     expect(alerts.every((a) => a.readAt !== null)).toBe(true);
   });

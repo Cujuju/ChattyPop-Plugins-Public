@@ -31,7 +31,7 @@ describe('core kind dispatch', () => {
     h.rules.create(ruleInput([newRuleAction('alerts.notify')], { match: { text: { pattern: 'news', spec: null } } }));
     h.say('news');
     await settleAlerts();
-    expect(h.rules.alerts({ limit: 10 })).toHaveLength(1);
+    expect((await h.rules.alerts({ limit: 10 }))).toHaveLength(1);
     expect(h.events.flatMap((e) => (e.type === 'plugin-event' && e.pluginId === 'alerts' && e.name === 'notify' ? e.payload as AlertItem[] : []))).toEqual([]);
   });
 });

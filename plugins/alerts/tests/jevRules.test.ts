@@ -39,13 +39,13 @@ describe('#54 open questions', () => {
     const q = msg('anyone know when the GB closes?');
     archive.ingestMessages([q], ARRIVAL.gateway);
     await settleAlerts();
-    const [a] = rules.alerts({ limit: 5 });
+    const [a] = (await rules.alerts({ limit: 5 }));
     expect(a?.sourceName).toBe('Open questions');
     expect(a?.readAt).toBeNull();
     jev.values = { question: 0.1 };
     archive.ingestMessages([replyTo(q, 'friday')], ARRIVAL.gateway);
     await settleAlerts();
-    expect(rules.alerts({ limit: 5, unreadOnly: true })).toEqual([]);
+    expect((await rules.alerts({ limit: 5, unreadOnly: true }))).toEqual([]);
   });
 
   it('a question already answered when judged lands read, and own questions are never asked about', async () => {
@@ -60,7 +60,7 @@ describe('#54 open questions', () => {
     rules.syncBuiltins(jev.on); // back on: catch-up asks the unjudged lookback messages
     await settleAlerts();
     expect(jev.requests.every((r) => !JSON.stringify(r).includes('should I?'))).toBe(true);
-    const alert = rules.alerts({ limit: 5 }).find((x) => x.messageId === q.id)!;
+    const alert = (await rules.alerts({ limit: 5 })).find((x) => x.messageId === q.id)!;
     expect(alert.readAt).not.toBeNull();
   });
 });

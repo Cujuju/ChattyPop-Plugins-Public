@@ -52,8 +52,9 @@ describe('Alerts lifecycle', () => {
     const h = ruleHarness();
     h.rules.create(ruleInput([newRuleAction('alerts.notify')]));
     h.say('first');
-    expect(h.alerts.calls.alerts({ limit: 10 })).toHaveLength(1);
+    const retained = h.alerts.calls.alerts({ limit: 10 });
     h.alerts.dispose();
+    expect(await retained).toHaveLength(1);
     h.say('second');
     await settleAlerts();
     expect(h.events.filter((event) =>
@@ -62,7 +63,7 @@ describe('Alerts lifecycle', () => {
     expect(h.engine.kinds.unavailable('actions', 'alerts.notify')).toMatch(/off/);
   });
 
-  it('rebuilds direct history from the edited match and preserves retained read state', () => {
+  it('rebuilds direct history from the edited match and preserves retained read state', async () => {
     const h = ruleHarness();
     h.say('news');
     h.say('sale');
@@ -70,19 +71,19 @@ describe('Alerts lifecycle', () => {
       match: { text: { pattern: 'news', spec: null } },
     });
     const id = h.rules.create(input);
-    const first = h.alerts.calls.alerts({ limit: 10 });
+    const first = (await h.alerts.calls.alerts({ limit: 10 }));
     expect(first.map((alert) => alert.snippet)).toEqual(['news']);
     h.alerts.calls.markRead([first[0]!.id]);
     h.rules.update(id, { ...input, name: 'Renamed' });
-    expect(h.alerts.calls.alerts({ limit: 10 })[0]!.readAt).not.toBeNull();
+    expect((await h.alerts.calls.alerts({ limit: 10 }))[0]!.readAt).not.toBeNull();
     h.rules.update(id, {
       ...input,
       spec: { ...input.spec, match: [{ type: 'text', config: { pattern: 'sale', spec: null } }] },
     });
-    expect(h.alerts.calls.alerts({ limit: 10 }).map((alert) => alert.snippet)).toEqual(['sale']);
+    expect((await h.alerts.calls.alerts({ limit: 10 })).map((alert) => alert.snippet)).toEqual(['sale']);
   });
 
-  it("an edited rule's history lands read on a message the owner already read", () => {
+  it("an edited rule's history lands read on a message the owner already read", async () => {
     const h = ruleHarness();
     const input = ruleInput([newRuleAction('alerts.notify')], { match: { text: { pattern: 'news', spec: null } } });
     const id = h.rules.create(input);
@@ -91,12 +92,12 @@ describe('Alerts lifecycle', () => {
     h.say('sale again');
     markRead(h.db, sale.channel_id, sale.id);
     h.rules.update(id, { ...input, spec: { ...input.spec, match: [{ type: 'text', config: { pattern: 'sale', spec: null } }] } });
-    const alerts = h.alerts.calls.alerts({ limit: 10 });
+    const alerts = (await h.alerts.calls.alerts({ limit: 10 }));
     expect(alerts.find((a) => a.snippet === 'sale')?.readAt).not.toBeNull();
     expect(alerts.find((a) => a.snippet === 'sale again')?.readAt).toBeNull();
   });
 
-  it('reconciles unchanged rules once per edit, without reading archive history', () => {
+  it('reconciles unchanged rules once per edit, without reading archive history', async () => {
     const h = ruleHarness();
     h.say('news');
     const input = ruleInput([newRuleAction('alerts.notify')], {
@@ -109,6 +110,6 @@ describe('Alerts lifecycle', () => {
     const examined = vi.spyOn(h.engine, 'facts');
     h.engine.reload();
     expect(examined).not.toHaveBeenCalled();
-    expect(h.alerts.calls.alerts({ limit: 10 }).map((alert) => alert.snippet)).toEqual(['news']);
+    expect((await h.alerts.calls.alerts({ limit: 10 })).map((alert) => alert.snippet)).toEqual(['news']);
   });
 });

@@ -11,13 +11,13 @@ import { plugin as alerts } from '../shared';
 import { startAlerts } from './alertsHarness';
 import { ruleHarness, ruleInput } from './ruleHarness';
 
-it('reconciles direct and meaning history after edits while Alerts is off', () => {
+it('reconciles direct and meaning history after edits while Alerts is off', async () => {
   const h = ruleHarness();
   h.say('old');
   h.say('new');
   const input = ruleInput([newRuleAction('alerts.notify')], { match: { text: { pattern: 'old', spec: null } } });
   const id = h.rules.create(input);
-  expect(h.rules.alerts({ limit: 10 }).map((a) => a.snippet)).toEqual(['old']);
+  expect((await h.rules.alerts({ limit: 10 })).map((a) => a.snippet)).toEqual(['old']);
   h.alerts.dispose();
   const edited = { ...input, spec: { ...input.spec, match: [{ type: 'text', config: { pattern: 'new', spec: null } }] } };
   h.rules.update(id, edited);
@@ -25,23 +25,23 @@ it('reconciles direct and meaning history after edits while Alerts is off', () =
   // Changing scope changes the question signature even when the direct pattern itself does not.
   h.rules.update(id, { ...edited, spec: { ...edited.spec, gates: { ...edited.spec.gates, channelIds: ['c1'] } } });
   const resumed = startAlerts(h.db, { kinds: h.engine.kinds });
-  expect(resumed.calls.alerts({ limit: 10 }).map((a) => a.snippet)).toEqual(['new']);
+  expect((await resumed.calls.alerts({ limit: 10 })).map((a) => a.snippet)).toEqual(['new']);
   expect(h.db.prepare(`SELECT COUNT(*) FROM ${ALERTS} WHERE match_kind = 'meaning'`).pluck().get()).toBe(0);
 });
 
 /** How long the rule stays off: longer than the matcher's one-day catch-up lookback. */
 const OFF_FOR_MS = 3 * MS_PER_DAY;
 
-it('backfills matches from while a rule was off, as read, when it is turned back on unchanged', () => {
+it('backfills matches from while a rule was off, as read, when it is turned back on unchanged', async () => {
   const h = ruleHarness();
   const input = ruleInput([newRuleAction('alerts.notify')], { match: { text: { pattern: 'deploy', spec: null } } });
   const id = h.rules.create(input);
   h.rules.update(id, { ...input, enabled: false });
   // Archived while the rule was off, and older than the matcher's one-day catch-up: only the history sync finds it.
   h.archive.ingestMessages([rawMessage('c1', Date.now() - OFF_FOR_MS, 'deploy while off', from('u2'))], ARRIVAL.sync);
-  expect(h.rules.alerts({ limit: 10 })).toEqual([]);
+  expect((await h.rules.alerts({ limit: 10 }))).toEqual([]);
   h.rules.update(id, { ...input, enabled: true });
-  const alerts = h.rules.alerts({ limit: 10 });
+  const alerts = (await h.rules.alerts({ limit: 10 }));
   expect(alerts.map((a) => a.snippet)).toEqual(['deploy while off']);
   expect(alerts[0]?.readAt).not.toBeNull();
 });
@@ -65,7 +65,7 @@ it('keeps meaning alerts on the first reconcile after an upgrade, then guards la
 /** The rule-kind probe's filter: a stand-in for another plugin's filter (Tags' tags.any in the app). */
 const PROBE_FILTER = 'ruleprobe.filter';
 
-it('retries history reconciliation when an edited rule filter becomes available again', () => {
+it('retries history reconciliation when an edited rule filter becomes available again', async () => {
   onTestFinished(includeProbe());
   const h = ruleHarness();
   const old = h.say('old');
@@ -77,11 +77,11 @@ it('retries history reconciliation when an edited rule filter becomes available 
   const probeNarrow = { type: PROBE_FILTER, config: 1 };
   const input = { ...base, spec: { ...base.spec, narrow: [probeNarrow] } };
   const id = h.rules.create(input);
-  expect(h.rules.alerts({ limit: 10 }).map((a) => a.snippet)).toEqual(['old']);
+  expect((await h.rules.alerts({ limit: 10 })).map((a) => a.snippet)).toEqual(['old']);
   unregister();
   h.engine.kinds.changed();
   h.rules.update(id, { ...input, spec: { ...input.spec, match: [{ type: 'text', config: { pattern: 'new', spec: null } }] } });
   registerFilter();
   h.engine.kinds.changed();
-  expect(h.rules.alerts({ limit: 10 }).map((a) => a.snippet)).toEqual(['new']);
+  expect((await h.rules.alerts({ limit: 10 })).map((a) => a.snippet)).toEqual(['new']);
 });

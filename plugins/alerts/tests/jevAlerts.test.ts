@@ -52,7 +52,7 @@ describe('#53 urgency decides notification vs inbox', () => {
     jev.values = { urgency: 0.4 };
     w.check(live('launch party pics'), arrivedLive());
     await settleAlerts();
-    expect(rules.alerts({ limit: 10 })).toHaveLength(1);
+    expect((await rules.alerts({ limit: 10 }))).toHaveLength(1);
     expect(notified()).toEqual([]);
   });
 
@@ -76,7 +76,7 @@ describe('#53 urgency decides notification vs inbox', () => {
     jev.values = { urgency: 1.8 };
     w.check(live('launch in 5 minutes, get in now'), arrivedLive());
     await settleAlerts();
-    expect(rules.alerts({ limit: 10 })).toHaveLength(1);
+    expect((await rules.alerts({ limit: 10 }))).toHaveLength(1);
     expect(notified()).toEqual([]);
   });
 
@@ -120,7 +120,7 @@ describe('#54 aimed at me', () => {
     jev.values = { aimed: 0.92 };
     w.check(live('cujuju can you send me the link?'), arrivedLive());
     await settleAlerts();
-    const [a] = rules.alerts({ limit: 10 });
+    const [a] = (await rules.alerts({ limit: 10 }));
     expect(a?.ruleId).toBe(t.id);
     expect(a?.probability).toBe(0.92);
     expect(notified()).toHaveLength(1);
@@ -143,7 +143,7 @@ describe('#54 aimed at me', () => {
     const mention = rawMessage('c1', now, `<@${OWNER.id}> look`, { author: { id: OTHER, username: 'bob' } });
     archive.ingestMessages([mine, reply, mention], ARRIVAL.gateway);
     await settleAlerts();
-    expect(rules.alerts({ limit: 10 }).map((a) => [a.messageId, a.matchKind])).toEqual([
+    expect((await rules.alerts({ limit: 10 })).map((a) => [a.messageId, a.matchKind])).toEqual([
       [mention.id, 'pattern'],
       [reply.id, 'pattern'],
     ]);
@@ -180,7 +180,7 @@ describe('#54 aimed at me', () => {
     rules.syncBuiltins(jev.on);
     w.check(live('cujuju?'), arrivedLive());
     await settleAlerts();
-    expect(rules.alerts({ limit: 10 })).toHaveLength(1);
+    expect((await rules.alerts({ limit: 10 }))).toHaveLength(1);
     expect(builtin().enabled).toBe(false);
   });
 

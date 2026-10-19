@@ -4,6 +4,26 @@ import { HELD_REASONS, type AlertItem, type AlertQuery, type AlertSpan, type Hel
 import { HELD_COLUMN } from './schema';
 import { ALERTS, VISIBLE_ALERTS } from './tables';
 import type { ArchiveToolScope } from '@plugin-sdk/core';
+import type { ArchiveRead } from '@plugin-sdk/core';
+
+export async function alertsRead(read: ArchiveRead, q: AlertQuery): Promise<AlertItem[]> {
+  const query = alertsSql(q);
+  const rows = await read<AlertRow>(query.sql, query.params);
+  const details = await read<{ id: string; mentionsJson: string | null }>(`SELECT id,
+    json_extract(msg_json(raw_json), '$.mentions') AS mentionsJson FROM archive_messages
+    WHERE id IN (SELECT value FROM json_each(?))`, [JSON.stringify(rows.map((r) => r.messageId))]);
+  const mentions = new Map(details.map((r) => [r.id, r.mentionsJson]));
+  return rows.map(({ heldDesktop, heldPhone, ...a }) => ({ ...a,
+    mentions: mentionsFrom(mentions.get(a.messageId) ?? null),
+    held: { desktop: heldReason(heldDesktop), phone: heldReason(heldPhone) } }));
+}
+
+export async function unreadRead(read: ArchiveRead, span?: AlertSpan): Promise<Record<number, number>> {
+  const q = spanSql(span);
+  const rows = await read<{ id: number; n: number }>(`SELECT a.rule_id AS id, COUNT(*) AS n
+    FROM ${VISIBLE_ALERTS} a WHERE ${['a.read_at IS NULL', ...q.where].join(' AND ')} GROUP BY a.rule_id`, q.params);
+  return Object.fromEntries(rows.map((r) => [r.id, r.n]));
+}
 
 /** A stored held reason; one this build doesn't know reads as none. */
 const heldReason = (v: string | null): HeldReason | null => (HELD_REASONS as readonly string[]).includes(v ?? '') ? (v as HeldReason) : null;

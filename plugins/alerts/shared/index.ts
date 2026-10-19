@@ -67,9 +67,9 @@ export const plugin = definePlugin({
     events: AlertsEvents;
   }>()({
     core: {
-      alerts: { audiences: ['renderer', 'phone'], writes: false },
+      alerts: { audiences: ['renderer', 'phone'], reads: true, writes: false },
       markRead: { audiences: ['renderer', 'phone'], writes: true, decode: decodeMarkRead },
-      unread: { audiences: ['renderer', 'phone'], writes: false, decode: decodeUnread },
+      unread: { audiences: ['renderer', 'phone'], reads: true, writes: false, decode: decodeUnread },
     },
     events: {
       changed: ['renderer', 'phone'],
