@@ -59,7 +59,7 @@ export interface AttachmentTotals { byKind: Record<AttachmentKind, { count: numb
 export interface PersonRow { id: string; name: string; count: number; bytes: number }
 /** People within the filter, whatever its own person. */
 export interface PeopleQuery extends AttachmentFilter { limit: number }
-export interface PersonFilesQuery { userId: string; limit: number }
+export interface PersonFilesQuery { userId: string; limit: number; before?: AttachmentCursor; after?: AttachmentCursor }
 /** Matching attachments per server and per channel id (a thread's counted in its channel), whatever the place filter. */
 /** File counts by place id; a thread's files count in `threads` and again in its channel's. */
 export interface AttachmentPlaces { guilds: Record<string, number>; channels: Record<string, number>; threads: Record<string, number> }

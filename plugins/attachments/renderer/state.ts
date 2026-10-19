@@ -1,5 +1,5 @@
 import { createEffect, createSignal, on } from 'solid-js';
-import { ARCHIVE_REFRESH_DEBOUNCE_MS, callable, desktopCoreClient, onAppEvent, onAppEventDebounced, pluginData, pluginPreference, pluginResource, batchWrites, containedRoot } from '@plugin-sdk/renderer';
+import { callable, coalescedRead, desktopCoreClient, onAppEvent, onArchiveChange, panelShown, pluginData, pluginPreference, pluginResource, batchWrites, containedRoot } from '@plugin-sdk/renderer';
 import { createPagedList } from '@plugin-sdk/renderer/kit';
 import { plugin } from '../shared';
 import { emptyTotals, type AttachmentBreakdown, type BreakdownBy, type AttachmentCursor, type AttachmentItem, type AttachmentMonth, type AttachmentPlaces, type AttachmentSortKey, type AttachmentTotals, type PersonRow } from '../shared/types';
@@ -20,6 +20,10 @@ export const [breakdownBy, setBreakdownBy] = createSignal<BreakdownBy>('guild');
 export const topDown = (): boolean => anchor() === 'top';
 
 const client = desktopCoreClient(plugin);
+const isShown = panelShown('attachments');
+let privacyEpoch = 0;
+const refreshOn = { kinds: ['attachments', 'deletes', 'names'] as const };
+const scope = () => where() ? where()!.by === 'guild' ? { guildIds: [where()!.id] } : { channelIds: [where()!.id] } : 'all' as const;
 const page = (q: Parameters<typeof client.page>[0]) => pluginData(() => client.page(q), []);
 /** Rows top to bottom: from the top, the order as read; from the bottom, its first row last. */
 const shown = (items: AttachmentItem[]): AttachmentItem[] => topDown() ? items : [...items].reverse();
@@ -36,7 +40,10 @@ const pageAfter = async (last: AttachmentItem): Promise<AttachmentItem[]> =>
 const pageBefore = async (first: AttachmentItem): Promise<AttachmentItem[]> =>
   shown(await page({ ...filter(), sort: sort(), limit: ATTACHMENT_PAGE_SIZE, before: cursorAt(first) }));
 const list = createPagedList<AttachmentItem>(ATTACHMENT_PAGE_SIZE,
-  (first) => topDown() ? pageBefore(first) : pageAfter(first), (last) => topDown() ? pageAfter(last) : pageBefore(last));
+  (first) => topDown() ? pageBefore(first) : pageAfter(first), (last) => topDown() ? pageAfter(last) : pageBefore(last), {
+    chronological: () => sort().key === 'date' && sort().dir === 'desc' && !jumped(),
+    newestAtStart: topDown, newer: pageBefore, reload: () => reloadAttachments(),
+  });
 export const attachments = list.state;
 /** Top-down: more of the order lies below the last row loaded. */
 const [moreBelow, setMoreBelow] = createSignal(false);
@@ -62,25 +69,21 @@ export const [failure, setFailure] = createSignal<string | null>(null);
 /** Raised by every read of the rows: a failure reported after a later read began is stale. */
 let readGeneration = 0;
 /** Raised when the archive or privacy changes what the counts read; a filter change refetches through the filter. */
-const [revision, setRevision] = createSignal(0);
 export const breakdown = pluginResource(plugin, 'breakdown', () => {
-  revision();
   return spaceView() ? [filter(), breakdownBy()] : null;
-}, [] as AttachmentBreakdown[]);
+}, [] as AttachmentBreakdown[], { refreshOn: { ...refreshOn, scope }, shown: () => isShown() && spaceView() });
 
 /** The Who picker's people within the other filters, most bytes on this PC first. */
 export const people = pluginResource(plugin, 'people', () => {
-  revision();
   return [{ ...filter(), authorId: undefined, limit: WHO_OPTIONS_MAX }];
-}, [] as PersonRow[]);
+}, [] as PersonRow[], { refreshOn: { ...refreshOn, scope }, shown: isShown });
 /** The rail's counts, under every filter but the place. */
 export const places = pluginResource(plugin, 'places', () => {
-  revision();
   return [unplaced()];
-}, { guilds: {}, channels: {}, threads: {} } as AttachmentPlaces);
+}, { guilds: {}, channels: {}, threads: {} } as AttachmentPlaces, { refreshOn, shown: isShown });
 /** This viewer's time zone: months and jumps follow the calendar its dates are shown in, wherever the core runs. */
 const viewerZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
-export const months = pluginResource(plugin, 'months', () => { revision(); return [filter(), viewerZone()]; }, [] as AttachmentMonth[]);
+export const months = pluginResource(plugin, 'months', () => [filter(), viewerZone()], [] as AttachmentMonth[], { refreshOn: { ...refreshOn, scope }, shown: isShown });
 
 /**
  * The order's first `limit` rows as shown (from a jumped month's window, while one is open); `reachedStart`: nothing
@@ -117,10 +120,11 @@ async function apply(load: (keep: (r: Read) => void) => Promise<boolean>, opened
 /** A filter, order or privacy change: the order's first page replaces the rows, opened where the order starts. */
 const reloadWindow = (): Promise<void> =>
   apply((keep) => list.reload(async () => { const r = await readNewest(ATTACHMENT_PAGE_SIZE); keep(r); return r; }), true);
-export const reloadAttachments = (): Promise<void> => {
+export const reloadAttachments = coalescedRead((): Promise<void> => {
+  if (!isShown()) return Promise.resolve();
   selectedMonth = null; setJumped(false);
   return reloadWindow();
-};
+}, () => JSON.stringify([snapshot(), isShown(), callable(plugin, 'page'), privacyEpoch]));
 export const jumpToMonth = (month: string): Promise<void> => {
   if (sort().key !== 'date') return Promise.resolve();
   selectedMonth = month; setJumped(true);
@@ -148,16 +152,20 @@ export const rereadAttachments = (): Promise<void> => {
 
 containedRoot(() => {
   createEffect(() => selection.retain(attachments.items));
-  createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, repeated, queryName, sort, anchor, () => callable(plugin, 'page')],
+  createEffect(on([where, who, kinds, range, minBytes, presence, uncompressed, repeated, queryName, sort, anchor, isShown, () => callable(plugin, 'page')],
     () => void reloadAttachments(), { defer: true }));
 });
-onAppEventDebounced('archive-changed', ARCHIVE_REFRESH_DEBOUNCE_MS, () => { setRevision((n) => n + 1); void rereadAttachments(); });
+onArchiveChange({ ...refreshOn, scope, shown: isShown }, async (change) => {
+  await list.applyChange(change);
+  if ([...change.channelIds].every((id) => change.insertOnly(id))) setTotals(await pluginData(() => client.totals(filter()), emptyTotals()));
+});
 // Hidden files leave at once, before the reread returns.
 onAppEvent('privacy-changed', () => {
+  privacyEpoch++;
   selection.clear();
   breakdown.mutate([]);
-  list.setItems([]);
+  list.reset();
   setTotals(emptyTotals());
-  setRevision((n) => n + 1);
+  void Promise.all([people.refetch(), places.refetch(), months.refetch(), breakdown.refetch()]);
   void reloadAttachments();
 });

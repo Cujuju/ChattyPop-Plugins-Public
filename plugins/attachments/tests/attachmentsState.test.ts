@@ -10,8 +10,10 @@ vi.mock('solid-js', async () => { const clientBuild = 'solid-js/dist/solid.cjs';
 const PAGE = vi.hoisted(() => 100);
 type Request = { q: AttachmentPageQuery; resolve: (rows: AttachmentItem[]) => void };
 const requests: Request[] = [];
+const refresh = vi.hoisted(() => ({ run: undefined as ((change: unknown) => Promise<void>) | undefined }));
 vi.mock('@plugin-sdk/renderer', async () => ({
   ...(await import('@plugin-sdk/renderer/containment')),
+  coalescedRead: (await import('@plugin-sdk/renderer/coalescedRead')).coalescedRead,
   ARCHIVE_REFRESH_DEBOUNCE_MS: 0,
   callable: () => true,
   desktopCoreClient: () => ({
@@ -22,7 +24,8 @@ vi.mock('@plugin-sdk/renderer', async () => ({
   pluginPreference: (_plugin: unknown, name: string) => createSignal<unknown>(name === 'anchor' ? 'bottom' : undefined),
   pluginResource: () => Object.assign(() => [], { refetch: () => undefined }),
   onAppEvent: () => () => undefined,
-  onAppEventDebounced: () => () => undefined,
+  onArchiveChange: (_deps: unknown, fn: (change: unknown) => Promise<void>) => { refresh.run = fn; return () => undefined; },
+  panelShown: () => () => true,
 }));
 vi.mock('@plugin-sdk/renderer/kit', async () => ({ createPagedList: (await import('@/state/paged')).createPagedList }));
 vi.mock('../renderer/selection', () => ({ selection: { retain: () => undefined, clear: () => undefined } }));
@@ -197,4 +200,16 @@ describe('a date window', () => {
     expect(state.jumped()).toBe(false);
     expect(ids().at(-1)).toBe('0');
   });
+});
+
+it('reads only newer files for inserts and reloads the first page for edits', async () => {
+  state.setSort({ key: 'date', dir: 'desc' });
+  await settle(); await answer(rows(1, 2).reverse());
+  const inserted = refresh.run!({ channelIds: new Set(['c']), kinds: new Set(['attachments']), insertOnly: () => true });
+  expect(requests[0]!.q.before).toEqual({ ts: 2, id: '2' });
+  await answer(rows(3, 1)); await inserted;
+  expect(requests).toEqual([]);
+  const edited = refresh.run!({ channelIds: new Set(['c']), kinds: new Set(['attachments']), insertOnly: () => false });
+  expect(requests[0]!.q.before).toBeUndefined(); expect(requests[0]!.q.after).toBeUndefined();
+  await answer(rows(2, 1)); await edited;
 });

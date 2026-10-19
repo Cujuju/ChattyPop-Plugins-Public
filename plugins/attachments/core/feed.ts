@@ -76,4 +76,4 @@ export function attachmentPage(db: PluginDb, messagesByIds: MessageReader, q: At
 }
 
 export const personFiles = (db: PluginDb, messagesByIds: MessageReader, q: PersonFilesQuery): AttachmentItem[] =>
-  attachmentPage(db, messagesByIds, { authorId: q.userId, limit: q.limit });
+  attachmentPage(db, messagesByIds, { authorId: q.userId, limit: q.limit, before: q.before, after: q.after });
