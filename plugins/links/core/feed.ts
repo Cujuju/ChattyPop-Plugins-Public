@@ -44,6 +44,8 @@ function where(f: LinkFilter): { sql: string; params: (string | number)[] } {
 
 type LinkRow = Omit<LinkCard, 'embed' | 'flagged'> & { flagged: number | null };
 type LinksSql = CoreContext['archive']['linksSql'];
+type PayloadReader = (ids: readonly string[]) => ReturnType<ArchivePayloadReader> | Promise<ReturnType<ArchivePayloadReader>>;
+type MessageReader = (ids: string[]) => ArchiveMessage[] | Promise<ArchiveMessage[]>;
 
 /** Display filters constrain preview sources as well as the link's first share. */
 async function previewScope(read: ArchiveRead, f: LinkFilter): Promise<ArchiveToolScope | undefined> {
@@ -121,13 +123,13 @@ async function linkRows(read: ArchiveRead, f: LinkFilter, sort: LinkSort | undef
 }
 
 /** Keyset-paged links sorted newest or most worthwhile (#63), with privacy-filtered sharing messages. */
-export async function linkPage(read: ArchiveRead, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkPageQuery, linksSql: LinksSql): Promise<LinkItem[]> {
+export async function linkPage(read: ArchiveRead, payloads: PayloadReader, messagesByIds: MessageReader, q: LinkPageQuery, linksSql: LinksSql): Promise<LinkItem[]> {
   const past: Past | null = q.before ? { cursor: q.before, op: '>' } : q.after ? { cursor: q.after, op: '<' } : null;
   return (await itemsOf(read, payloads, messagesByIds, (await linkRows(read, q, q.sort, past, q.limit, linksSql)), (await previewScope(read, q))));
 }
 
 /** Links around a cursor in sort order: up to `newer` before it, then up to `older` from it (it included). */
-export async function linkWindow(read: ArchiveRead, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], q: LinkWindowQuery, linksSql: LinksSql): Promise<LinkWindow> {
+export async function linkWindow(read: ArchiveRead, payloads: PayloadReader, messagesByIds: MessageReader, q: LinkWindowQuery, linksSql: LinksSql): Promise<LinkWindow> {
   // One beyond each side tells whether that side reaches its end.
   const newer = (await linkRows(read, q, q.sort, { cursor: q.around, op: '>' }, q.newer + 1, linksSql));
   const older = (await linkRows(read, q, q.sort, { cursor: q.around, op: '<=' }, q.older + 1, linksSql));
@@ -142,9 +144,9 @@ export async function linkWindow(read: ArchiveRead, payloads: ArchivePayloadRead
 }
 
 /** Rows as feed items: each with its preview card and the first sharing message carrying it. */
-async function itemsOf(read: ArchiveRead, payloads: ArchivePayloadReader, messagesByIds: (ids: string[]) => ArchiveMessage[], rows: LinkRow[], scope: ArchiveToolScope | undefined): Promise<LinkItem[]> {
+async function itemsOf(read: ArchiveRead, payloads: PayloadReader, messagesByIds: MessageReader, rows: LinkRow[], scope: ArchiveToolScope | undefined): Promise<LinkItem[]> {
   const cards = (await cardsOf(read, payloads, rows, scope));
-  const messages = new Map(messagesByIds([...new Set(rows.map((r) => r.messageId))]).map((m) => [m.id, m]));
+  const messages = new Map((await messagesByIds([...new Set(rows.map((r) => r.messageId))])).map((m) => [m.id, m]));
   return cards.map(({ card, source }) => {
     const m = messages.get(card.messageId);
     return { ...card, message: m ? withLinkCard(m, card, source) : null };
@@ -166,14 +168,14 @@ export function withLinkCard(m: ArchiveMessage, card: LinkCard, source: string |
 }
 
 /** Each row with its preview card, and the share the card came from (null: the link's stored unfurl, or no card). */
-async function cardsOf(read: ArchiveRead, payloads: ArchivePayloadReader, rows: LinkRow[], scope: ArchiveToolScope | undefined): Promise<{ card: LinkCard; source: string | null }[]> {
+async function cardsOf(read: ArchiveRead, payloads: PayloadReader, rows: LinkRow[], scope: ArchiveToolScope | undefined): Promise<{ card: LinkCard; source: string | null }[]> {
   const shares = new Map<number, Share[]>();
   if (rows.length) {
     const scoped = scope ? toolScopeSql(scope) : { sql: '1', params: [] };
     const all = (await read(`SELECT ml.link_id AS linkId, m.id AS messageId
          FROM archive_message_links ml JOIN archive_messages m ON m.id = ml.message_id
          WHERE ml.link_id IN (${rows.map(() => '?').join(',')}) AND ${scoped.sql} ORDER BY m.ts`, [...rows.map((r) => r.id), ...scoped.params])) as { linkId: number; messageId: string }[];
-    const details = payloads(all.map((s) => s.messageId));
+    const details = await payloads([...new Set(all.map((s) => s.messageId))]);
     for (const s of all) shares.set(s.linkId, [...(shares.get(s.linkId) ?? []), { messageId: s.messageId, embedsJson: details.get(s.messageId)?.embedsJson ?? null, bot: details.get(s.messageId)?.bot ?? null }]);
   }
   return rows.map((r) => {
@@ -183,7 +185,7 @@ async function cardsOf(read: ArchiveRead, payloads: ArchivePayloadReader, rows: 
 }
 
 /** Lists each visible link at the person's latest visible share, newest first. */
-export async function personLinkPage(read: ArchiveRead, payloads: ArchivePayloadReader, q: PersonLinksQuery, linksSql: LinksSql): Promise<LinkCard[]> {
+export async function personLinkPage(read: ArchiveRead, payloads: PayloadReader, q: PersonLinksQuery, linksSql: LinksSql): Promise<LinkCard[]> {
   const cursor = q.before ?? q.after;
   const past = cursor ? `WHERE (s.ts, l.id) ${q.before ? '>' : '<'} (?, ?)` : '';
   const dir = q.before ? 'ASC' : 'DESC';

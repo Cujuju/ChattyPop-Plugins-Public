@@ -9,6 +9,8 @@ import { seedArchiveViews } from '@chattypop/host-testing/archiveViewsFixture';
 import { linkPage } from '../core/feed';
 import { linksSql } from './linksHarness';
 import { plugin as links } from '../shared';
+import { testPlugin } from '@plugin-sdk/core/testing';
+import core from '../core';
 
 let db: Db;
 beforeEach(() => {
@@ -18,6 +20,20 @@ beforeEach(() => {
 });
 
 describe('plugin archive read parity', () => {
+  it('serves a complete link page through strict host projection reads', async () => {
+    const t = testPlugin(core, { archive: { channels: [{ id: 'c' }], messages: [{
+      id: '1000000000000000000', channelId: 'c', content: 'https://example.com/projected',
+      extra: { embeds: [{ type: 'rich', url: 'https://example.com/projected', title: 'Projected card' }] },
+    }] } });
+    try {
+      const page = await t.client('renderer').page({ limit: 10 });
+      expect(page).toHaveLength(1);
+      expect(page[0]!.embed?.title).toBe('Projected card');
+      expect(page[0]!.message?.id).toBe('1000000000000000000');
+      expect(t.status().error).toBeNull();
+    } finally { await t.dispose(); }
+  });
+
   it('keeps hidden shares in counts while excluding their preview cards', async () => {
     setSetting(db, 'privacyMode', true);
     const embed = { type: 'rich', url: 'https://example.com/open', title: 'Bot card' };

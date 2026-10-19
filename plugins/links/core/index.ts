@@ -28,13 +28,13 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.channels.serve({
     rollupStatus: () => rollup.status(),
     rebuildRollups: (channelIds) => rollup.rebuild(channelIds ? { channelIds } : undefined),
-    page: async (q) => xPosts.fill(await linkPage(ctx.storage.read, ctx.archive.payloads, ctx.archive.messages, q, ctx.archive.linksSql)),
+    page: async (q) => xPosts.fill(await linkPage(ctx.storage.read, ctx.archive.read.payloads, ctx.archive.read.messages, q, ctx.archive.linksSql)),
     window: async (q) => {
-      const w = await linkWindow(ctx.storage.read, ctx.archive.payloads, ctx.archive.messages, q, ctx.archive.linksSql);
+      const w = await linkWindow(ctx.storage.read, ctx.archive.read.payloads, ctx.archive.read.messages, q, ctx.archive.linksSql);
       return { ...w, items: await xPosts.fill(w.items) };
     },
     counts: (f) => linkCounts(ctx.storage.read, f, rollup),
-    sharedBy: async (q) => xPosts.fill(await personLinkPage(ctx.storage.read, ctx.archive.payloads, q, ctx.archive.linksSql)),
+    sharedBy: async (q) => xPosts.fill(await personLinkPage(ctx.storage.read, ctx.archive.read.payloads, q, ctx.archive.linksSql)),
     // Core's clock, not the caller's: a phone's may differ from the PC's.
     markSeen: () => ctx.preferences.set('seenUpTo', Date.now()),
   });
