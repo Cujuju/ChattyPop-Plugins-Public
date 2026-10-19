@@ -17,6 +17,19 @@ const BATCH_ROWS = 16;
 const PAYLOAD_CHARS = 16_384;
 
 describe('background media discovery', () => {
+  it('retries pending ids when privacy invalidates their shared helper', async () => {
+    let fail!: (error: Error) => void;
+    const first = new Promise<[]>((_resolve, reject) => { fail = reject; });
+    const read = vi.fn<(_: string[]) => Promise<[]>>().mockImplementationOnce(() => first).mockResolvedValue([]);
+    const apply = vi.fn();
+    const discovery = new MediaDiscovery(new AbortController().signal, read, apply, () => true, () => undefined);
+    discovery.shown('pending');
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    discovery.invalidate(); fail(new Error('Archive visibility changed'));
+    await vi.waitFor(() => expect(discovery.busy).toBe(false));
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(apply).toHaveBeenCalledWith('pending', []);
+  });
   it('records ingest ids without reading, bounds helper batches, and discards cancelled answers', async () => {
     const stop = new AbortController();
     const read = vi.fn(async (_ids: string[]) => []);

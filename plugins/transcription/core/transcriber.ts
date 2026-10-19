@@ -113,6 +113,8 @@ export class Transcriber {
     if (AUTO_KINDS.some((kind) => this.settings().auto[kind])) this.discovery.shown(messageId);
   }
 
+  privacyChanged(): void { this.discovery.invalidate(); }
+
   /** Queues the message's parts automatic transcription covers and that can run now; returns whether any was queued. */
   private queueAutomatic(messageId: string, sources: MediaSource[]): boolean {
     const auto = this.settings().auto;

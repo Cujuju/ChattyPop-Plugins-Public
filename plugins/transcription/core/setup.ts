@@ -20,6 +20,7 @@ export interface Transcription {
   attachmentStored(attachmentId: string): void;
   /** A message was stored or updated (archive.parts.onShown); runs inside ingest. */
   shown(messageId: string): void;
+  privacyChanged(): void;
   /** A transcript of the message is queued or running, or will be once an attachment's file is stored. */
   due(messageId: string): boolean;
   /** Settings → Transcription was saved. */
@@ -100,6 +101,7 @@ export function setupTranscription(o: {
     audioFetched: (requestId, error, done) => transcriber.audioFetched(requestId, error, done),
     attachmentStored: (id) => transcriber.attachmentStored(id),
     shown: (messageId) => transcriber.shown(messageId),
+    privacyChanged: () => transcriber.privacyChanged(),
     due: (messageId) => transcriber.due(messageId),
     settingChanged: () => {
       if (stampAutoSince()) return; // the stamp's own save runs the rest

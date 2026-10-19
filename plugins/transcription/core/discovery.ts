@@ -41,6 +41,9 @@ export class MediaDiscovery {
     return this.pending.has(id) || (this.waiting.get(id) ?? []).some(this.covers);
   }
 
+  /** A visibility change cancels the shared helper even for selected background sources; retry pending ids. */
+  invalidate(): void { for (const id of this.pending) this.queued.add(id); }
+
   get busy(): boolean { return !this.signal.aborted && this.pending.size > 0; }
   has(id: string): boolean { return this.known.has(id) || this.pending.has(id); }
 
@@ -59,6 +62,10 @@ export class MediaDiscovery {
       let sources: MediaSource[];
       try { sources = await this.read(ids); }
       catch (error) {
+        if (!this.signal.aborted && ids.some((id) => this.queued.has(id))) {
+          for (const id of ids) this.queued.add(id);
+          continue;
+        }
         // A later change retries failed discovery; never leave derived-text waiters stuck.
         for (const id of ids) if (!this.queued.has(id)) { this.remember(id); this.pending.delete(id); if (!this.signal.aborted) this.settled(id); }
         throw error;

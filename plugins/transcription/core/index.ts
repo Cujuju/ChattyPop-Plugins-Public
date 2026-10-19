@@ -42,6 +42,7 @@ export default defineCorePlugin(plugin, (ctx) => {
   ctx.archive.notes.provide((ids) => transcriptNotes(ctx.storage.db, ids));
   ctx.archive.onAttachmentStored((id) => t.attachmentStored(id));
   ctx.archive.parts.onShown((messageId) => t.shown(messageId));
+  ctx.archive.onPrivacyChanged(() => t.privacyChanged());
   ctx.preferences.onChange('settings', () => t.settingChanged());
   ctx.channels.serve(t.calls);
   // Main's download reports are handled while off too: media it fetched is kept for the job.
