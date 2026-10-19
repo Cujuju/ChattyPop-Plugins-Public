@@ -42,7 +42,7 @@ export function defineStatsRollups(ctx: CoreContext): StatsRollups {
   const runs = ctx.rollups.define('runs', {
     version: ROLLUP_VERSION, key: ['opener_id'],
     columns: { opener_id: 'TEXT', first_ts: 'INTEGER', last_ts: 'INTEGER', payload: 'TEXT' },
-    span: { start: 'first_ts', end: 'last_ts', paddingMs: CONVERSATION_GAP_MS },
+    span: { start: 'first_ts', end: 'last_ts', paddingMs: CONVERSATION_GAP_MS, localSplits: true },
     dependsOn: ['messages', 'edits', 'deletes', 'channels', 'names'],
     data: { gapMs: CONVERSATION_GAP_MS, pageSize: RUN_PAGE_SIZE }, compute: runWork,
   });
