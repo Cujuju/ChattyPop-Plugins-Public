@@ -7,6 +7,7 @@ import { report } from './measure';
 import { CHANNEL, seed } from './fixture';
 
 const RUNS = 5; // Five warm samples retain the same median convention as the attachment benchmark.
+const COLD_RUNS = 3; // Fresh synthetic-host activations separate cache misses from competing build/test load.
 const BUILD_TIMEOUT_MS = 20 * MS_PER_MIN; // Large lexical tables need a bounded, resumable offline build.
 const POLL_MS = MS_PER_S / 10; // Status polls do not create archive-read work.
 const QUERY = { scope: 'channel', channelId: CHANNEL, sinceTs: null } as const;
@@ -27,8 +28,8 @@ export async function main(rows: number) {
     read: ((sql, params, options) => ctx.storage.read(sql, params, options?.fold?.source.includes('textReadWork')
       ? { ...options, fold: { ...options.fold, data: { ...options.fold.data as object, profile: true } } } : options)) as ArchiveRead,
   } }));
-  const host = testPlugin(profiled, { off: true, archive: { channels: [{ id: CHANNEL }] } });
-  const client = host.client('renderer');
+  let host = testPlugin(profiled, { off: true, archive: { channels: [{ id: CHANNEL }] } });
+  let client = host.client('renderer');
   try {
     report('rollup', { seed: seed(host.db, rows) });
     const started = performance.now();
@@ -70,6 +71,29 @@ export async function main(rows: number) {
       report('variant', { read: name, ms: Number((performance.now() - start).toFixed(2)), building: result.building, hasData: result.data !== null });
       const profile = result.data as { benchmarkSql?: unknown } | null;
       if (profile?.benchmarkSql) report('profile', { read: name, statements: profile.benchmarkSql });
+    }
+    for (let round = 1; round <= COLD_RUNS; round++) {
+      const restarted = performance.now();
+      host = host.restart(); client = host.client('renderer');
+      while ((state = await client.rollupStatus()).building) {
+        if (state.error) throw new Error(state.error);
+        if (performance.now() - restarted > BUILD_TIMEOUT_MS) throw new Error('Restart did not settle');
+        await new Promise((done) => setTimeout(done, POLL_MS));
+      }
+      await host.read('SELECT 1 AS warm');
+      report('restart', { round, ms: Number((performance.now() - restarted).toFixed(2)) });
+      const queries = SECTIONS.map((member) => [member, { ...QUERY, ...(member === 'postersPage' ? { offset: 0, limit: 200 } : {}) }] as const)
+        .concat([
+          ['words7d', { ...QUERY, sinceTs: end - 7 * MS_PER_DAY }],
+          ['words365d', { ...QUERY, sinceTs: end - 365 * MS_PER_DAY }],
+          ['wordsPerson', { ...QUERY, authorId: 'u0' }],
+          ['wordsAllScopes', { scope: 'all', channelId: null, sinceTs: null }],
+        ] as any);
+      for (const [name, query] of queries) {
+        const member = name.startsWith('words') ? 'wordStats' : name;
+        const start = performance.now(), result = await (client[member] as (q: any) => Promise<any>)(query);
+        report('restartCold', { round, read: name, ms: Number((performance.now() - start).toFixed(2)), building: result.building, hasData: result.data !== null });
+      }
     }
     await client.rebuildRollups();
     for (const member of SECTIONS) {
