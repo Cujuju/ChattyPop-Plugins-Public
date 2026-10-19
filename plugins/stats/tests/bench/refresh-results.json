@@ -1,0 +1,306 @@
+{
+  "fixture": {
+    "encrypted": false,
+    "ingestion": "reverse timestamp",
+    "messages": 400000,
+    "authors": 30,
+    "vocabulary": 40000,
+    "days": 390
+  },
+  "sources": {
+    "host": "724a09d6313cb61a32ca8e289b5aa2b6887e4c8a",
+    "baselineHost": "500719e919c78491509d7d3dea437072886fc03a",
+    "stats": "ca5518f07871479f75e576dbf23e89e69a1b448f"
+  },
+  "candidateWithLive": {
+    "arrivalsPerSecond": 4,
+    "events": [
+      {
+        "seed": {
+          "rows": 400000,
+          "textMessages": 384000,
+          "linkedMessages": 64000,
+          "days": 390,
+          "authors": 30,
+          "vocabulary": 40000,
+          "meanCharacters": 83.97233,
+          "ingestion": "reverse timestamp",
+          "encrypted": false
+        }
+      },
+      {
+        "buildMs": 46817.0286,
+        "liveInserts": 176,
+        "state": {
+          "building": false,
+          "maintaining": true,
+          "dirty": 163,
+          "total": 1565,
+          "done": 1402,
+          "error": null
+        }
+      },
+      {
+        "residualMs": 6942.179900000003
+      },
+      {
+        "incrementalMs": 2875.65830000001,
+        "liveInserts": 11,
+        "publications": [
+          {
+            "rollup": "stats.counts",
+            "partitions": 11
+          },
+          {
+            "rollup": "stats.runs",
+            "partitions": 10
+          },
+          {
+            "rollup": "stats.shares",
+            "partitions": 11
+          },
+          {
+            "rollup": "stats.text",
+            "partitions": 11
+          }
+        ]
+      },
+      {
+        "incrementalEqualsFull": true
+      }
+    ],
+    "authorNames": "held at seeded values",
+    "exit": 0
+  },
+  "retainedRebuildStress": {
+    "events": [
+      {
+        "seed": {
+          "rows": 400000,
+          "textMessages": 384000,
+          "linkedMessages": 64000,
+          "days": 390,
+          "authors": 30,
+          "vocabulary": 40000,
+          "meanCharacters": 83.97233,
+          "ingestion": "reverse timestamp",
+          "encrypted": false
+        }
+      },
+      {
+        "buildMs": 51808.7435,
+        "liveInserts": 194,
+        "state": {
+          "building": false,
+          "maintaining": true,
+          "dirty": 162,
+          "total": 1565,
+          "done": 1403,
+          "error": null
+        }
+      },
+      {
+        "residualMs": 3968.6830000000045
+      },
+      {
+        "retained": true
+      },
+      {
+        "incrementalMs": 1173.2385000000068,
+        "liveInserts": 4,
+        "publications": [
+          {
+            "rollup": "stats.counts",
+            "partitions": 5
+          },
+          {
+            "rollup": "stats.runs",
+            "partitions": 7
+          },
+          {
+            "rollup": "stats.shares",
+            "partitions": 5
+          },
+          {
+            "rollup": "stats.text",
+            "partitions": 5
+          }
+        ]
+      },
+      {
+        "incrementalEqualsFull": true
+      }
+    ],
+    "host": "ca6cb200",
+    "note": "Initial live ingestion changed the seeded author name; includes historical name maintenance. This predates oldest/newest alternation.",
+    "exit": 0
+  },
+  "oldHostWithContinuousTraffic": {
+    "events": [
+      {
+        "seed": {
+          "rows": 400000,
+          "textMessages": 384000,
+          "linkedMessages": 64000,
+          "days": 390,
+          "authors": 30,
+          "vocabulary": 40000,
+          "meanCharacters": 83.97233,
+          "ingestion": "reverse timestamp",
+          "encrypted": false
+        }
+      },
+      {
+        "buildMs": 38531.1492,
+        "liveInserts": 0,
+        "state": {
+          "building": false,
+          "maintaining": false,
+          "dirty": 0,
+          "total": 1560,
+          "done": 1560,
+          "error": null
+        }
+      },
+      {
+        "residualMs": 2.2519999999931315
+      }
+    ],
+    "note": "Build inserts disabled because the old full-build gate can wait indefinitely. Incremental inserts continued in another channel; author names held at seeded values.",
+    "result": "terminated owned disposable worker after more than four minutes total while older channel work remained pending",
+    "exit": 1
+  },
+  "earlyOldHostStoppedTraffic": {
+    "events": [
+      {
+        "seed": {
+          "rows": 400000,
+          "textMessages": 384000,
+          "linkedMessages": 64000,
+          "days": 390,
+          "authors": 30,
+          "vocabulary": 40000,
+          "meanCharacters": 83.97233,
+          "ingestion": "reverse timestamp",
+          "encrypted": false
+        }
+      },
+      {
+        "buildMs": 33523.1849,
+        "liveInserts": 0,
+        "state": {
+          "building": false,
+          "maintaining": false,
+          "dirty": 0,
+          "total": 1560,
+          "done": 1560,
+          "error": null
+        }
+      },
+      {
+        "residualMs": 2.334900000001653
+      },
+      {
+        "incrementalMs": 38223.37669999999,
+        "elapsedMs": 38234.73269999999
+      }
+    ],
+    "note": "Includes a first-arrival author name change. Do not treat this as an isolated span comparison.",
+    "exit": 0
+  },
+  "referenceInitialComparison": {
+    "catalog": 2000,
+    "events": [
+      {
+        "rows": 400000,
+        "catalog": 2000,
+        "days": 390,
+        "liveMs": 100
+      },
+      {
+        "name": "legacy-full-classification",
+        "ms": 92318.19080000001,
+        "result": [
+          {
+            "n": 1025
+          }
+        ]
+      },
+      {
+        "name": "worker-full-classification",
+        "ms": 1450.0080000000016,
+        "result": true
+      },
+      {
+        "name": "legacy-day-classification",
+        "ms": 21.147300000011455,
+        "result": [
+          {
+            "n": 1027
+          }
+        ]
+      },
+      {
+        "name": "worker-day-drain-with-live-inserts",
+        "ms": 96.45029999999679,
+        "result": false
+      },
+      {
+        "exact": true,
+        "references": 2051,
+        "liveInserts": 2
+      }
+    ],
+    "exit": 0
+  },
+  "referenceWithContinuousCatalog": {
+    "messagesAndNewCatalogIdsPerSecond": 10,
+    "events": [
+      {
+        "rows": 400000,
+        "catalog": 2000,
+        "days": 390,
+        "liveMs": 100
+      },
+      {
+        "name": "worker-full-classification",
+        "ms": 1779.0958,
+        "result": true
+      },
+      {
+        "name": "worker-drain-with-live-messages-and-catalog-1",
+        "ms": 1254.6044000000002,
+        "result": false
+      },
+      {
+        "pass": 1,
+        "pendingCatalog": 12,
+        "inserted": 13
+      },
+      {
+        "name": "worker-drain-with-live-messages-and-catalog-2",
+        "ms": 1184.5587999999989,
+        "result": false
+      },
+      {
+        "pass": 2,
+        "pendingCatalog": 11,
+        "inserted": 24
+      },
+      {
+        "exact": true,
+        "references": 2073,
+        "liveInserts": 24,
+        "pendingCatalog": 0
+      }
+    ],
+    "exit": 0
+  },
+  "limits": [
+    "Single samples; external CPU/disk load uncontrolled. Candidate measurements overlapped own checks.",
+    "The older-host and candidate initial live loads differ, so their build times are not a speedup comparison.",
+    "Publication deltas include both the affected channel and concurrent live channel.",
+    "Synthetic unencrypted archives only. No running app or real profile was opened.",
+    "The 100 ms cold-read budget is separate and remains open."
+  ]
+}

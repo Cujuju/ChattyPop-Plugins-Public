@@ -204,3 +204,14 @@ Fresh-activation medians use three new disposable test-host activations over the
 Every measured final read is below 531 ms. Pending reads for all eleven members return stale data in 4.87–6.96 ms, with building=true; first-build/no-data and privacy revocation are covered by contract tests. The initial build took 66,252.72 ms, versus 59,662.87 ms before. Daily lexical storage remains 95,160 rows / 90,873,856 table bytes; the maintained index adds 55,679 rows / 83,820,544 table bytes, excluding indexes.
 
 **#319 stays open:** the 100 ms cold budget is still missed. Counts retain daily identity/calendar histories; Words decodes exact vocabulary prefixes and tokenizes partial UTC days. Midnight-aligned range starts reuse the full daily rollup. Person-filtered Words still uses per-author daily packets. Distinct Unicode spellings with equal ICU collation retain a clean-snapshot scan for the legacy trend order. Calendar and selected-term output and background channel-index rebuilds grow with history. Dense-day, many-channel, encrypted and real-app latency are unverified; these results are not a universal subsecond guarantee.
+
+### Build completion and live maintenance (#319 round 3)
+
+Run `node <absolute-stats-root>/tests/bench/run.mjs <absolute-host-root> <absolute-stats-root> 400000 refresh`.
+The fixture inserts four live messages per second through a full build, verifies its exact count after stopping inserts, and checks retained results during an explicit rebuild. It then extends a 390-day uninterrupted run while another channel keeps receiving messages; the measured drain waits only for the affected channel's durable queues. Final conversation output must equal a full worker fold. Revision deltas include publications in the concurrent live channel.
+
+Set `STATS_REFRESH_NO_LIVE=1` and `STATS_REFRESH_INCREMENTAL_ONLY=1` to compare incremental maintenance on an older host that cannot complete its initial build under continuous traffic. This disables initial-build inserts and the retained-result rebuild, while incremental inserts still continue. `STATS_REFRESH_PROFILE_ONLY=1` instead stops maintenance after registration and records direct daily SQL timings and query plans.
+
+The host's `scripts/bench/referenceDrain.ts`, selected with `WRITE_BENCH_ENTRY=bench/referenceDrain.ts` in its existing `scripts/benchArchiveWrites.mjs` runner, compares literal-substring reference classification on 400,000 messages and 2,000 catalog ids. The worker matcher must retain exact references while new inserts remain queued. It uses disposable synthetic files only.
+
+Timings, source revisions and limitations are recorded in `refresh-results.json`. No running app or real profile is opened by these benchmarks. The cold-read budget above remains a separate open issue.

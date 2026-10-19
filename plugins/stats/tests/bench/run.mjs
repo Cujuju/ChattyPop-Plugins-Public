@@ -63,7 +63,7 @@ if (!process.env.STATS_BENCH_WORKER) {
         export { plugin } from ${JSON.stringify(join(target, 'shared/index.ts').replaceAll('\\', '/'))};`;
       if (id === '\0stats-bench-main') return `import { setArchiveReadEntry } from ${JSON.stringify(join(host, 'src/core/reads/helperEntry.ts').replaceAll('\\', '/'))};
         setArchiveReadEntry(${JSON.stringify(join(host, 'out/read-tests/archiveReadProcess.js'))});
-        export * from ${JSON.stringify(join(import.meta.dirname, section === 'rollups' ? 'rollupBenchmark.ts' : section === 'review' ? 'reviewBenchmark.ts' : 'benchmark.ts').replaceAll('\\', '/'))};`;
+        export * from ${JSON.stringify(join(import.meta.dirname, section === 'refresh' ? 'refreshBenchmark.ts' : section === 'rollups' ? 'rollupBenchmark.ts' : section === 'review' ? 'reviewBenchmark.ts' : 'benchmark.ts').replaceAll('\\', '/'))};`;
       if (id !== virtual) return;
       return available.map(([name, file]) => `import { ${name} } from ${JSON.stringify(join(target, 'core', `${file}.ts`).replaceAll('\\', '/'))};`).join('\n')
         + `\nexport default { ${available.map(([name]) => name).join(',')} };`;
