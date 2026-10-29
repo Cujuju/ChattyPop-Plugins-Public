@@ -103,7 +103,7 @@ export const plugin = definePlugin({
     importance: 'primary',
     dialog: false,
     iconPath: 'M11 3.5 12.8 8.2 17.5 10 12.8 11.8 11 16.5 9.2 11.8 4.5 10 9.2 8.2z M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z',
-    after: 'sync-status',
+    after: 'channels',
     presets: [{
       id: 'stacked',
       after: 'provider',

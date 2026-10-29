@@ -1,4 +1,4 @@
-// The Plan usage panel: every enabled provider's plan windows at once, with what ChattyPop used of each.
+// The Plan usage panel: every enabled provider's plan windows at once, as what is left of each, with what ChattyPop used.
 import { failure, settled } from '@plugin-sdk/renderer';
 import {
   PanelHeader,
@@ -11,7 +11,6 @@ import {
   isPanelCollapsed,
   look,
   openSettings,
-  planPercentText,
   planUsageFailureOf,
   planUsageLoadingOf,
   planUsageOf,
@@ -25,14 +24,21 @@ import { appTokens, shownProviders } from './state';
 import styles from './Provider.module.css';
 
 const PERCENT_MAX = 100;
-/** Plan use above this is shown as a warning. */
-const PLAN_WARN_PERCENT = 80;
+/** Room left at or below this share is shown as a warning. */
+const PLAN_LOW_LEFT_PERCENT = 20;
 /** A reset sooner than this shows its time of day; a later one its weekday. */
 const RESET_TIME_OF_DAY_WITHIN_MS = MS_PER_DAY;
 
 type Provider = ReturnType<typeof shownProviders>[number];
 
-const warn = (w: PlanUsageWindow): boolean => (w.usedPercent ?? 0) >= PLAN_WARN_PERCENT;
+/** Share of window `w` left, 0..100, past-limit use reading 0; null when the provider reports no use. */
+const left = (w: PlanUsageWindow): number | null => (w.usedPercent === null ? null : Math.max(0, PERCENT_MAX - w.usedPercent));
+/** "58% left"; "?" when the provider reports no use. */
+const leftText = (w: PlanUsageWindow): string => {
+  const l = left(w);
+  return l === null ? '?' : `${Math.round(l)}% left`;
+};
+const warn = (w: PlanUsageWindow): boolean => (left(w) ?? PERCENT_MAX) <= PLAN_LOW_LEFT_PERCENT;
 const resetsFull = (w: PlanUsageWindow): string =>
   w.resetsAt ? `Resets ${timeFormat({ weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(w.resetsAt))}` : '';
 const resetsShort = (w: PlanUsageWindow): string => {
@@ -100,7 +106,7 @@ function ProviderUsage(props: { provider: Provider }) {
             <span class={`${styles.meterLabel} ${look.text}`} data-size="xs" data-font="sans" data-tone="muted">
               {w.label}
             </span>
-            <meter class={`${styles.meterBar} ${look.meter}`} min={0} max={PERCENT_MAX} high={PLAN_WARN_PERCENT} value={w.usedPercent ?? 0} />
+            <meter class={`${styles.meterBar} ${look.meter}`} min={0} max={PERCENT_MAX} low={PLAN_LOW_LEFT_PERCENT} optimum={PERCENT_MAX} value={left(w) ?? 0} />
             <span
               class={`${styles.meterValue} ${look.text}`}
               data-size="xs"
@@ -109,7 +115,7 @@ function ProviderUsage(props: { provider: Provider }) {
               data-tone={warn(w) ? 'accent' : 'primary'}
               data-warn={warn(w)}
             >
-              {planPercentText(w)}
+              {leftText(w)}
             </span>
             <span class={`${styles.reset} ${look.text}`} data-size="xs" data-font="sans" data-tone="muted">
               {resetsShort(w)}
@@ -128,7 +134,7 @@ function ProviderUsage(props: { provider: Provider }) {
   );
 }
 
-/** Displays enabled providers' plan-window usage and resets, with ChattyPop totals in tooltips. Collapsed headers retain percentages; layout adapts to width. */
+/** Displays what is left of enabled providers' plan windows and their resets, with ChattyPop totals in tooltips. Collapsed headers keep the shares left; layout adapts to width. */
 export function UsagePanel() {
   const collapsed = (): boolean => isPanelCollapsed(USAGE_PANEL);
   const loading = (): boolean => shownProviders().some((d) => planUsageLoadingOf(d.id));
@@ -153,7 +159,7 @@ export function UsagePanel() {
                           <span class={look.text} data-tone="muted" data-warn={warn(w)} title={resetsFull(w)}>
                             {w.label}{' '}
                             <b class={look.text} data-weight="semibold" data-tone={warn(w) ? 'accent' : 'primary'}>
-                              {planPercentText(w)}
+                              {leftText(w)}
                             </b>
                           </span>
                         )}

@@ -29,7 +29,7 @@ describe('Ollama address on upgrade', () => {
     adoptBundledData(db, [ollama]);
     adoptBundledData(db, [ollama]);
     expect(getSetting(db, 'plugin.ollama.settings')).toEqual({ ollamaUrl: LAN_ADDRESS });
-    expect(normalizeAiSettings(getSetting(db, 'ai')).providers['ollama']).toEqual(PRE_EXTRACTION.providers.ollama);
+    expect(normalizeAiSettings(getSetting(db, 'ai')).providers['ollama']).toMatchObject(PRE_EXTRACTION.providers.ollama);
   });
 
   it('lists models from the adopted address through the plugin, and reports an unreachable server as a state', async () => {

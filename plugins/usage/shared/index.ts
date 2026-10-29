@@ -18,7 +18,7 @@ export const plugin = definePlugin({
     dialog: false,
     // A gauge.
     iconPath: 'M3.5 17a8.5 8.5 0 1 1 17 0 M12 17l4.5-5.5 M3.5 17h17',
-    after: 'sync-status',
+    after: 'channels',
   }],
   slots: {
     phoneDrawer: [{ id: 'plan', after: 'channels' }],
