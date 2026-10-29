@@ -5,7 +5,7 @@
   container: plan-usage / inline-size;
 }
 
-/* Collapsed: 'mark label NN% left' per provider in the header; wraps below the title (metaWraps), then between providers. */
+/* Collapsed: 'mark label NN%' (share left) per provider in the header; wraps below the title (metaWraps), then between providers. */
 .summaryLine {
   display: flex;
   flex-wrap: wrap;
@@ -35,11 +35,10 @@
   overflow-y: auto;
 }
 
-/* Stacked: every provider's rows share these columns, so labels, bars, shares left and resets line up across them. The share column keeps
-   at least a '100%' readout's width so shorter values don't nudge the bars. */
+/* Stacked: every provider's rows share these columns, so labels, bars, shares left and resets line up across them. */
 .providers {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) minmax(var(--cp-percent-w), auto) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) var(--cp-percent-w) auto;
   column-gap: var(--cp-space-4);
   row-gap: var(--cp-space-5);
 }
@@ -93,7 +92,6 @@
 
 .meterValue {
   text-align: right;
-  white-space: nowrap;
 }
 
 .reset {
@@ -121,7 +119,7 @@
 
   .provider {
     grid-column: auto;
-    grid-template-columns: auto auto minmax(0, 1fr) minmax(var(--cp-percent-w), auto) auto;
+    grid-template-columns: auto auto minmax(0, 1fr) var(--cp-percent-w) auto;
     column-gap: var(--cp-space-4);
   }
 }

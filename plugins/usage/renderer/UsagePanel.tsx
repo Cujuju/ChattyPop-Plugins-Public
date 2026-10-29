@@ -33,10 +33,10 @@ type Provider = ReturnType<typeof shownProviders>[number];
 
 /** Share of window `w` left, 0..100, past-limit use reading 0; null when the provider reports no use. */
 const left = (w: PlanUsageWindow): number | null => (w.usedPercent === null ? null : Math.max(0, PERCENT_MAX - w.usedPercent));
-/** "58% left"; "?" when the provider reports no use. */
+/** "58%" left; "?" when the provider reports no use. */
 const leftText = (w: PlanUsageWindow): string => {
   const l = left(w);
-  return l === null ? '?' : `${Math.round(l)}% left`;
+  return l === null ? '?' : `${Math.round(l)}%`;
 };
 const warn = (w: PlanUsageWindow): boolean => (left(w) ?? PERCENT_MAX) <= PLAN_LOW_LEFT_PERCENT;
 const resetsFull = (w: PlanUsageWindow): string =>
