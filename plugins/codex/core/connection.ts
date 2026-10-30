@@ -9,6 +9,10 @@ const API_PROVIDER_NAME = 'OpenAI API key';
 const CONFIG_FLAG = '-c';
 const APP_SERVER = 'app-server';
 const WIRE_API = 'responses';
+/** Codex's own setting for the address its built-in provider calls. */
+const BASE_URL_SETTING = 'openai_base_url';
+/** Where a proxy serves Codex's built-in provider (CLIProxyAPI's Codex route). The client key stays out: command lines are visible. */
+export const PROXY_CODEX_PATH = '/backend-api/codex';
 
 const safeError = (err: unknown, key: string | null): Error => {
   const error = err instanceof Error ? err : new Error(String(err));
@@ -21,6 +25,8 @@ interface Connection {
   owner: object;
   accountId: string;
   home: string | null;
+  /** The proxy address it was started with; null: straight to OpenAI. */
+  proxyUrl: string | null;
   ready: Promise<void>;
 }
 
@@ -37,9 +43,10 @@ export class CodexConnection {
     for (;;) {
       if (this.disposed) throw new ProviderUnavailableError('Codex was turned off.');
       const key = this.account.auth === 'apiKey' ? this.account.apiKey() : null;
-      if (this.current && this.current.key !== key) this.drop(this.current);
+      const proxyUrl = this.proxyUrl();
+      if (this.current && (this.current.key !== key || this.current.proxyUrl !== proxyUrl)) this.drop(this.current);
       if (this.account.auth === 'apiKey' && !key) throw new ProviderUnavailableError('Add an API key to use this account.');
-      const connection = this.current ?? await (this.starting ??= this.launch(key).finally(() => { this.starting = undefined; }));
+      const connection = this.current ?? await (this.starting ??= this.launch(key, proxyUrl).finally(() => { this.starting = undefined; }));
       try {
         await connection.ready;
       } catch (err) {
@@ -47,7 +54,7 @@ export class CodexConnection {
         throw err;
       }
       if (this.disposed) throw new ProviderUnavailableError('Codex was turned off.');
-      if (this.current === connection && key === (this.account.auth === 'apiKey' ? this.account.apiKey() : null)) return connection;
+      if (this.current === connection && key === (this.account.auth === 'apiKey' ? this.account.apiKey() : null) && proxyUrl === this.proxyUrl()) return connection;
     }
   }
 
@@ -55,9 +62,15 @@ export class CodexConnection {
   assertCurrent(connection: Connection): void {
     if (this.disposed) throw new ProviderUnavailableError('Codex was turned off.');
     if (connection.owner !== this.owner) throw new ProviderUnavailableError('Codex connection belongs to another account.');
-    if (connection.accountId === this.account.id && connection.home === this.account.dir && connection.key === (this.account.auth === 'apiKey' ? this.account.apiKey() : null)) return;
+    const sameProxy = connection.proxyUrl === this.proxyUrl();
+    if (connection.accountId === this.account.id && connection.home === this.account.dir && connection.key === (this.account.auth === 'apiKey' ? this.account.apiKey() : null) && sameProxy) return;
     this.drop(connection);
-    throw new ProviderUnavailableError('Codex payment key changed. Send the request again.');
+    throw new ProviderUnavailableError(sameProxy ? 'Codex payment key changed. Send the request again.' : 'Codex proxy setting changed. Send the request again.');
+  }
+
+  /** The proxy address the owner sends this account through now; null: straight to OpenAI. */
+  private proxyUrl(): string | null {
+    return this.account.proxy?.()?.url ?? null;
   }
 
   async request<T>(connection: Connection, method: string, params: unknown): Promise<T> {
@@ -74,13 +87,14 @@ export class CodexConnection {
     return safeError(err, connection.key);
   }
 
-  private async launch(key: string | null): Promise<Connection> {
+  private async launch(key: string | null, proxyUrl: string | null): Promise<Connection> {
     const launch = await resolveCliAsync(this.cli.bin, this.cli.npm);
     if (!launch) throw new ProviderUnavailableError(`${this.cli.name} is not installed or not on PATH.`);
     const config = key ? [
       CONFIG_FLAG, `model_provider="${API_KEY_PROVIDER}"`,
       CONFIG_FLAG, `model_providers.${API_KEY_PROVIDER}={name="${API_PROVIDER_NAME}",base_url="${API_BASE_URL}",env_key="${API_KEY_ENV}",wire_api="${WIRE_API}"}`,
     ] : [];
+    if (proxyUrl) config.push(CONFIG_FLAG, `${BASE_URL_SETTING}="${proxyUrl}${PROXY_CODEX_PATH}"`);
     let env: NodeJS.ProcessEnv | undefined = key ? { ...process.env, [API_KEY_ENV]: key } : undefined;
     if (this.account.auth === 'signIn') {
       if (!this.account.dir) throw new Error('Linked Codex account has no config folder.');
@@ -89,7 +103,7 @@ export class CodexConnection {
     }
     if (this.disposed) throw new ProviderUnavailableError('Codex was turned off.');
     const rpc = new JsonRpcStdio(launch, [...config, APP_SERVER], env);
-    const connection: Connection = { rpc, key, owner: this.owner, accountId: this.account.id, home: this.account.dir, ready: Promise.resolve() };
+    const connection: Connection = { rpc, key, owner: this.owner, accountId: this.account.id, home: this.account.dir, proxyUrl, ready: Promise.resolve() };
     this.current = connection;
     // One warm connection serves plain requests and experimental dynamic tools.
     connection.ready = rpc.request('initialize', { clientInfo: this.clientInfo, capabilities: { experimentalApi: true } }).then(

@@ -45,6 +45,15 @@ describe('Claude account environment and authentication', () => {
     expect(accountEnv({ ...linked, auth: 'apiKey', apiKey: () => 'test-key' }).ANTHROPIC_API_KEY).toBe('test-key');
     expect(() => accountEnv({ ...linked, auth: 'apiKey' })).toThrow('Add an API key');
   });
+  it('points Claude Code at the proxy, its client key in a header, replacing inherited values', () => {
+    vi.stubEnv('ANTHROPIC_BASE_URL', 'https://inherited.test'); vi.stubEnv('ANTHROPIC_CUSTOM_HEADERS', 'X-Inherited: 1');
+    const linked = account();
+    const via = (key: string | null) => accountEnv({ ...linked, proxy: () => ({ url: 'http://127.0.0.1:8317', key }) });
+    expect(via('client-key')).toMatchObject({ ANTHROPIC_BASE_URL: 'http://127.0.0.1:8317', ANTHROPIC_CUSTOM_HEADERS: 'X-Api-Key: client-key', CLAUDE_CONFIG_DIR: linked.dir });
+    expect(via(null).ANTHROPIC_CUSTOM_HEADERS).toBeUndefined();
+    // No proxy: the inherited address stands, as before.
+    expect(accountEnv({ ...linked, proxy: () => null }).ANTHROPIC_BASE_URL).toBe('https://inherited.test');
+  });
   it.each([0, 1])('parses auth status exit %s without reading sign-in files', async (code) => {
     statusCode = code; loggedIn = code === 0; const linked = account();
     expect(await signedIn(linked)).toEqual({ signedIn: loggedIn, who: loggedIn ? 'test@example.test' : null });

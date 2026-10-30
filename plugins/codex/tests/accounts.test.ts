@@ -76,6 +76,18 @@ describe('Codex linked accounts', () => {
     await vi.waitFor(() => expect(started[1]?.calls.some((call) => call.method === 'account/login/start')).toBe(true)); notify(started[1]!, { loginId: LOGIN_ID, success: false, error: 'test login failure' });
     await expect(failed).rejects.toThrow('test login failure');
   });
+  it('starts Codex at the proxy without its client key, and restarts when the proxy changes', async () => {
+    const { account } = make();
+    let proxy: { url: string; key: string | null } | null = { url: 'http://127.0.0.1:8317', key: 'client-key' };
+    const connection = new CodexConnection({ bin: 'test', npm: 'test', name: 'Test CLI' }, {}, { ...account, proxy: () => proxy }); connections.push(connection);
+    const first = await connection.connect();
+    expect(started[0]?.args).toEqual(['-c', 'openai_base_url="http://127.0.0.1:8317/backend-api/codex"', 'app-server']);
+    expect(started[0]?.args.join(' ')).not.toContain('client-key');
+    proxy = null;
+    expect(() => connection.assertCurrent(first)).toThrow('proxy setting changed');
+    await connection.connect();
+    expect(started[1]?.args).toEqual(['app-server']);
+  });
   it('logs out with null params, then disposes its own connection', async () => {
     const { connection } = make(); await signOut(connection);
     expect(started[0]?.calls).toContainEqual({ method: 'account/logout', params: null }); expect(started[0]?.dispose).toHaveBeenCalledOnce();
