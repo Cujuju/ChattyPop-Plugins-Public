@@ -131,7 +131,7 @@ export const plugin = definePlugin({
     hint: 'next/prev source',
     name: 'next source',
     hintGroup: 'citations',
-    after: 'layout',
+    after: 'back',
   }, {
     key: 'k',
     hint: 'next/prev source',

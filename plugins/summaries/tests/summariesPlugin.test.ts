@@ -62,7 +62,7 @@ it('owns citation shortcuts and preserves their placement with another plugin sh
   const anchors = new Map(shortcuts.map((shortcut) => [shortcut.key, shortcut.after]));
   const host = Object.keys(HOST_SHORTCUTS);
   expect(placeByAnchor(host, shortcuts.map((shortcut) => shortcut.key), (key) => key, (key) => anchors.get(key)))
-    .toEqual(['layout', 'j', 'k', 'x', ...host.slice(1)]);
+    .toEqual([...host, 'j', 'k', 'x']);
   expect(placeByAnchor(host, ['x'], (key) => key, (key) => anchors.get(key)))
-    .toEqual(['layout', 'x', ...host.slice(1)]);
+    .toEqual([...host, 'x']);
 });
