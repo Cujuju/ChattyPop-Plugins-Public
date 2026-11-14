@@ -22,7 +22,7 @@ ChattyPop's public plugins. ChattyPop lists this repo as a built-in marketplace:
 | Translation | `plugins/translation` | Translates image text, transcripts and link previews into your language with an AI model, so rules, Jev and search see it. |
 | Plan usage | `plugins/usage` | Every enabled AI provider's plan limits side by side, and what ChattyPop used of them. |
 
-`marketplace.json` indexes the releases.
+The `marketplace` release's `marketplace.json` asset indexes the releases. The `marketplace.json` on `main` is a copy of it that pull requests refresh, for older ChattyPop versions.
 
 ## Developing
 
@@ -31,6 +31,6 @@ Plugins build against a ChattyPop checkout (its SDK and host test kit); see its 
 - **Run in the app:** set `CHATTYPOP_PLUGIN_DIRS` to this repo's `plugins` folder (and any other plugin repos', OS path delimiter) and run `pnpm dev` in the checkout.
 - **Check:** `pnpm plugin:check <absolute path to plugins/<id>>` in the checkout: typecheck, styles, scan, build and the plugin's tests.
 - **Packages:** a plugin with its own runtime packages lists them in its `package.json`; run `npm ci --ignore-scripts` in its folder.
-- **Release:** automatic. Each push to `main` runs `.github/workflows/release-plugins.yml`: every changed plugin gets a new version, raised once per commit to its folder since its last release (`feat` raises the minor number, others the patch) in one `chore(release): …` commit, is released as `<id>-v<version>` and listed in `marketplace.json`. Don't edit a plugin's version by hand, except to raise it past what a release would. To run it yourself: Actions → Release plugins (`only`, `sdk_rebuild`, `dry_run`), or `pnpm plugin:release-changed <this clone> --repo Cujuju/ChattyPop-Plugins-Public` in the checkout.
+- **Release:** every change reaches `main` through a pull request, and the pull request carries the version stamp. With your changes committed on the branch (and `origin/main` merged in), run `pnpm plugin:release-changed <this clone> --repo Cujuju/ChattyPop-Plugins-Public --stamp` in the checkout. Each changed plugin's version goes up once per commit to its folder since its last release (`feat` raises the minor number, others the patch), and the branch's `marketplace.json` copy is refreshed, in one commit. Push it with the pull request. The pull request's `stamped` check fails if a plugin it changed wasn't stamped. After the merge, `.github/workflows/release-plugins.yml` publishes each new version as `<id>-v<version>` and lists it in the `marketplace` release. It never commits to `main`. Don't edit a plugin's version by hand, except to raise it past what a stamp would. To run a release yourself: Actions → Release plugins (`only`, `sdk_rebuild`, `dry_run`), or the same command without `--stamp` in a clone on `main`.
 
 MIT licensed.

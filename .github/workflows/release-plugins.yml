@@ -1,11 +1,15 @@
-# Releases changed plugins: commits versions on main, publishes packages, and updates marketplace.json. The private repository reuses this workflow. See ChattyPop docs/plugin-architecture.md §16.
+# Pull requests: fails when a plugin the pull request changed has no raised version (`plugin:release-changed --check`).
+# main: publishes every plugin whose version has no release yet, and lists it in the `marketplace` release's marketplace.json.
+# It commits and pushes nothing: versions are stamped in pull requests (`--stamp`). The private repository reuses this workflow.
+# See ChattyPop docs/plugin-architecture.md §16, Releasing.
 name: Release plugins
 
 on:
-  # Every push, not only plugins/**: a release whose intent push loses a race leaves its work to the winner's run.
+  pull_request:
+  # Every push, not only plugins/**: a held ([skip ci]) or failed release is published by the next run.
   push:
     branches: [main]
-  # Daily rebuilds refresh plugins targeting an obsolete SDK major. Scheduled off the hour to reduce delays.
+  # Daily, so a release that failed is retried and plugins needing an SDK rebuild are reported. Scheduled off the hour to reduce delays.
   schedule:
     - cron: '17 9 * * *'
   workflow_dispatch:
@@ -15,11 +19,11 @@ on:
         type: string
         default: ''
       sdk_rebuild:
-        description: Also release plugins built for another plugin SDK the host can still run (ones it can't are always rebuilt)
+        description: Also report plugins built for another plugin SDK the host can still run (ones it can't are always reported)
         type: boolean
         default: false
       dry_run:
-        description: Print the state and planned versions; publish nothing
+        description: Print the state and the plan; publish nothing
         type: boolean
         default: false
   workflow_call:
@@ -35,11 +39,86 @@ on:
         default: false
 
 jobs:
+  stamped:
+    # A caller's pull request runs this too: a called workflow sees its caller's event.
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: plugin-stamped-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out ChattyPop
+        uses: actions/checkout@v5
+        with:
+          repository: Cujuju/ChattyPop
+          path: ChattyPop
+
+      # The host's @cujuju packages are `link:` dependencies at ../solidjs-toolkit.
+      - name: Check out solidjs-toolkit
+        uses: actions/checkout@v5
+        with:
+          repository: Cujuju/solidjs-toolkit
+          path: solidjs-toolkit
+
+      - name: Set up pnpm (the host's packageManager)
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ChattyPop/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            ChattyPop/pnpm-lock.yaml
+            solidjs-toolkit/pnpm-lock.yaml
+
+      - name: Cache Electron's download
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('ChattyPop/pnpm-lock.yaml') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      # The linked packages' `types` export is their dist/, so build them before the host uses them.
+      - name: Install and build solidjs-toolkit
+        working-directory: solidjs-toolkit
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Install ChattyPop
+        working-directory: ChattyPop
+        run: pnpm install --frozen-lockfile
+
+      # The pull request's merge commit, with main and the release tags beside it.
+      - name: Check out this pull request
+        uses: actions/checkout@v5
+        with:
+          path: plugins-repo
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check every changed plugin is stamped
+        working-directory: ChattyPop
+        env:
+          REPO_DIR: ${{ github.workspace }}\plugins-repo
+          REPO: ${{ github.repository }}
+        run: |
+          pnpm plugin:release-changed $env:REPO_DIR --repo $env:REPO --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   release:
     # The script refuses any branch but main too.
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     # The host's scripts and tests run on Windows.
     runs-on: windows-latest
+    # Tags, releases and the index asset; no branch is pushed.
     permissions:
       contents: write
     # One release at a time per repo; queued runs each start from the latest main.
@@ -58,6 +137,13 @@ jobs:
           # appVersion() counts the whole history; it is built into every plugin.
           fetch-depth: 0
 
+      # The host's @cujuju packages are `link:` dependencies at ../solidjs-toolkit.
+      - name: Check out solidjs-toolkit
+        uses: actions/checkout@v5
+        with:
+          repository: Cujuju/solidjs-toolkit
+          path: solidjs-toolkit
+
       - name: Set up pnpm (the host's packageManager)
         uses: pnpm/action-setup@v4
         with:
@@ -68,7 +154,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: ChattyPop/pnpm-lock.yaml
+          cache-dependency-path: |
+            ChattyPop/pnpm-lock.yaml
+            solidjs-toolkit/pnpm-lock.yaml
 
       - name: Cache Electron's download
         uses: actions/cache@v4
@@ -76,6 +164,13 @@ jobs:
           path: ~\AppData\Local\electron\Cache
           key: electron-${{ runner.os }}-${{ hashFiles('ChattyPop/pnpm-lock.yaml') }}
           restore-keys: electron-${{ runner.os }}-
+
+      # The linked packages' `types` export is their dist/, so build them before the host uses them.
+      - name: Install and build solidjs-toolkit
+        working-directory: solidjs-toolkit
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
 
       - name: Install ChattyPop
         working-directory: ChattyPop
@@ -93,10 +188,8 @@ jobs:
         run: |
           git fetch origin main --tags
           git checkout -B main origin/main
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Release changed plugins
+      - name: Release unreleased plugins
         working-directory: ChattyPop
         env:
           REPO_DIR: ${{ github.workspace }}\plugins-repo
