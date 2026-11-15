@@ -142,7 +142,7 @@ function voiceMessage(
     const path = join(attachmentsDir, hash.slice(0, 2), attachmentFileName({ sha256: hash, filename: 'voice-message.ogg', storedExt: null }));
     writeFileSync(path, '');
     if (speech !== null) spoken.set(path, speech);
-    attachmentStored(db, attachmentId, hash, 0);
+    attachmentStored(db, attachmentsDir, attachmentId, hash, 0);
   }
   return { messageId: m.id, attachmentId };
 }

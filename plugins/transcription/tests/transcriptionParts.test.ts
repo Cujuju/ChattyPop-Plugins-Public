@@ -99,7 +99,7 @@ function withAttachment(contentType: string, filename: string, speech: string, o
     const path = join(attachmentsDir, hash.slice(0, 2), attachmentFileName({ sha256: hash, filename, storedExt: o.storedExt ?? null }));
     writeFileSync(path, '');
     spoken.set(path, speech);
-    attachmentStored(db, attachmentId, hash, 0);
+    attachmentStored(db, attachmentsDir, attachmentId, hash, 0, o.storedExt ?? null);
     if (o.storedExt) db.prepare('UPDATE attachments SET stored_ext = ? WHERE id = ?').run(o.storedExt, attachmentId);
   }
   return { messageId: m.id, attachmentId };
