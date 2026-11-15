@@ -7,7 +7,7 @@ import { transcribed } from './rules';
 export const manifest = {
   id: 'transcription',
   name: 'Transcription',
-  version: '1.4.2',
+  version: '1.4.7',
   description: 'Turns voice messages, audio and video into text on this computer, for rules, Jev, summaries and search.',
 };
 
