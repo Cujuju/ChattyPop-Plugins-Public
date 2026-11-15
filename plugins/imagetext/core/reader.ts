@@ -155,11 +155,12 @@ export class ImageReader {
   }
 
   /** The owner asked: every image of the message is read again, however old, with pick or Settings' engine (null). */
-  request(messageId: string, pick: EnginePick | null): void {
+  async request(messageId: string, pick: EnginePick | null, read: ArchiveRead, imagesOf: (ids: readonly string[]) => Promise<Map<string, MessageImage[]>>): Promise<void> {
     const engine = this.d.engine(pick);
     if ('unavailable' in engine) throw new Error(engine.unavailable);
-    const m = this.d.db.prepare('SELECT channel_id AS channelId FROM archive_all_messages WHERE id = ?').get(messageId) as { channelId: string } | undefined;
-    const images = m && this.d.images([messageId]).get(messageId);
+    const [m] = await read<{ channelId: string }>('SELECT channel_id AS channelId FROM archive_all_messages WHERE id = ?', [messageId]);
+    const images = m && (await imagesOf([messageId])).get(messageId);
+    if (this.signal.aborted) return;
     if (!m || !images) throw new Error('This message shows no images.');
     this.queue(messageId, m.channelId, images, PRIORITY.requested, { pick });
     this.kick();
