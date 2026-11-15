@@ -99,7 +99,7 @@ describe('Summarizer with Jev shaping', () => {
   let models: (string | null)[];
   const settings = (): AiSettings => ({
     ...DEFAULT_AI_SETTINGS,
-    providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, model: 'base/model', effort: null, displayName: null } },
+    providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, proxy: false, model: 'base/model', effort: null, displayName: null } },
     jev: jev.on,
   });
   const prefs = {
