@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_AI_SETTINGS, type AiSettings } from '@shared/settings';
 import { DEFAULT_SUMMARY_SETTINGS } from '../shared/settings';
 import { MS_PER_MIN } from '@shared/units';
-import { Summarizer } from '../core/summarize';
+import { Summarizer, withModel } from '../core/summarize';
 import type { CompletionRequest } from '@core/ai/types';
 import { fakeRegistry } from './summariesHarness';
 import { FakeJev, rawMessage, seedArchive, tempDb } from '@chattypop/host-testing';
@@ -18,7 +18,7 @@ describe('Summarizer effort', () => {
   let summarizer: Summarizer;
   const settings = (effort: string | null): AiSettings => ({
     ...DEFAULT_AI_SETTINGS,
-    providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, model: 'base/model', effort, displayName: null } },
+    providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, proxy: false, model: 'base/model', effort, displayName: null } },
     jev: jev.on,
   });
   const prefs = (premiumEffort: string | null = null) => ({
@@ -49,5 +49,17 @@ describe('Summarizer effort', () => {
     jev.values = { complexity: 0.3 };
     await summarizer.run({ sinceTs: 1 }, settings('high'), prefs(), 'manual');
     expect(calls.map((c) => c.effort)).toEqual([undefined, 'max', 'low']);
+  });
+});
+
+// Model routing must preserve whether this provider uses the owner's proxy.
+describe('routed provider settings', () => {
+  it('defaults new providers to direct access and preserves an existing proxy choice', () => {
+    const direct = withModel(DEFAULT_AI_SETTINGS, 'openrouter', 'routed/model', 'high');
+    expect(direct.providers['openrouter']?.proxy).toBe(false);
+    const proxied = { ...direct, providers: { openrouter: { ...direct.providers['openrouter']!, proxy: true } } };
+    expect(withModel(proxied, 'openrouter', 'other/model', null).providers['openrouter']).toEqual({
+      ...proxied.providers.openrouter, model: 'other/model', effort: null,
+    });
   });
 });

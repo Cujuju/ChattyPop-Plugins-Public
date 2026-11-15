@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 const PREFS = { ...DEFAULT_SUMMARY_SETTINGS, defaultProvider: 'codex' as const };
-const CODEX = { ...DEFAULT_AI_SETTINGS, providers: { codex: { enabled: true, model: null, effort: null, displayName: null } } };
+const CODEX = { ...DEFAULT_AI_SETTINGS, providers: { codex: { enabled: true, proxy: false, model: null, effort: null, displayName: null } } };
 
 /** Runs a summary whose calls report these costs in turn (undefined = not reported). */
 async function runWithCosts(costs: (number | undefined)[], sinceTs = 0) {

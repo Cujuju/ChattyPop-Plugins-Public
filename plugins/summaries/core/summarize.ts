@@ -52,7 +52,7 @@ function scopeChannels(db: PluginDb, s: SummaryScope): string[] {
 /** `settings` with provider `id` set to `model` and `effort`; the rest of its settings (on or off, name) stay. */
 export const withModel = (settings: AiSettings, id: ProviderId, model: string | null, effort: string | null): AiSettings => ({
   ...settings,
-  providers: { ...settings.providers, [id]: { enabled: true, displayName: null, ...settings.providers[id], model, effort } },
+  providers: { ...settings.providers, [id]: { enabled: true, proxy: false, displayName: null, ...settings.providers[id], model, effort } },
 });
 
 export class Summarizer {
