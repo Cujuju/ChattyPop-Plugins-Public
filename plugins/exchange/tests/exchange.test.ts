@@ -166,7 +166,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     const src = storedAttachmentPath(attachmentsDir, { sha256: sha, filename: 'a.txt', storedExt: null });
     mkdirSync(join(src, '..'), { recursive: true });
     writeFileSync(src, 'abc');
-    attachmentStored(db, '500000000000000001', sha, 3);
+    attachmentStored(db, attachmentsDir, '500000000000000001', sha, 3);
     const req = request({ format: 'html', includeMedia: true });
     await exportChannels(archiveRead(() => db), attachmentsDir, req);
     const html = readFileSync(join(req.dir, readdirSync(req.dir).find((f) => f.endsWith('.html'))!), 'utf8');
@@ -181,7 +181,7 @@ describe('archive exchange (DiscordChatExporter format)', () => {
     const src = storedAttachmentPath(attachmentsDir, { sha256, filename: 'a.txt', storedExt: 'webp' });
     mkdirSync(join(src, '..'), { recursive: true });
     writeFileSync(src, 'small');
-    attachmentStored(db, '500000000000000001', sha256, 5);
+    attachmentStored(db, attachmentsDir, '500000000000000001', sha256, 5, 'webp');
     db.prepare("UPDATE attachments SET stored_ext = 'webp' WHERE id = '500000000000000001'").run();
     const req = request({ format: 'json', includeMedia: true });
     await exportChannels(archiveRead(() => db), attachmentsDir, req);
