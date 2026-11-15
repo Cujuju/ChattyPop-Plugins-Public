@@ -15,7 +15,7 @@ describe('requests are billed to the routed key, and a capped key stops without 
   const settings = {
     ...DEFAULT_AI_SETTINGS,
     jev: { ...DEFAULT_AI_SETTINGS.jev, 'summaries.citationCheck': true },
-    providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, model: 'anthropic/claude-sonnet-5', effort: null, displayName: null } },
+    providers: { ...DEFAULT_AI_SETTINGS.providers, openrouter: { enabled: true, proxy: false, model: 'anthropic/claude-sonnet-5', effort: null, displayName: null } },
   };
 
   function stubFetch(status: number, json: unknown) {
