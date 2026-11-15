@@ -1,7 +1,7 @@
 import { countsRead, failedImagesRead } from './store';
 // Registers image-reading queues, engines, derived text, notes, and Settings/menu/main calls.
 import { join } from 'node:path';
-import { defineCorePlugin, type CoreContext, type MessageImageSource } from '@plugin-sdk/core';
+import { defineCorePlugin, type CoreContext, type MessageImage, type MessageImageSource } from '@plugin-sdk/core';
 import { errorMessage } from '@plugin-sdk/shared';
 import { FETCH_IMAGE, STATUS_EVENT, plugin } from '../shared';
 import { HOSTED_VISION_OFF, normalizePick, type EnginePick, type EngineStatus, type ImageTextSettings, type ImageTextStatus, type ProviderModels } from '../shared/types';
@@ -141,10 +141,18 @@ export default defineCorePlugin(plugin, (ctx) => {
       return { ocrName: ocr.name, windows, vision: vision(), providers, counts: await countsRead(ctx.storage.read) };
     },
     // Normalized: a pick that isn't one is refused, not read as Settings' engine.
-    request: (messageId, pick) => {
+    request: async (messageId, pick) => {
       const picked = pick === null ? null : normalizePick(pick);
       if (pick !== null && !picked) throw new Error('Not an engine image text reads with.');
-      reader.request(messageId, picked);
+      await reader.request(messageId, picked, ctx.storage.read, async (ids) => {
+        const { parts } = await ctx.archive.read.parts(ids);
+        const images = new Map<string, MessageImage[]>();
+        for (const [id, list] of parts) {
+          const found = list.flatMap((part) => part.kind === 'image' ? [part] : []);
+          if (found.length) images.set(id, found);
+        }
+        return images;
+      });
     },
     retryFailed: () => reader.retryFailedRead(ctx.storage.read),
   });
